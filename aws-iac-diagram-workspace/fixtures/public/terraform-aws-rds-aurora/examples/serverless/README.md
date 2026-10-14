@@ -1,0 +1,98 @@
+# Serverless Example
+
+Configuration in this directory creates Aurora serverless clusters for both Serverless V1 (PostgreSQL, MySQL), and Serverless V2 (PostgreSQL).
+
+## Usage
+
+To run this example you need to execute:
+
+```bash
+$ terraform init
+$ terraform plan
+$ terraform apply
+```
+
+Note that this example may create resources which cost money. Run `terraform destroy` when you don't need these resources.
+
+<!-- BEGIN_TF_DOCS -->
+## Requirements
+
+| Name | Version |
+| ---- | ------- |
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.11.1 |
+| <a name="requirement_aws"></a> [aws](#requirement\_aws) | >= 6.61 |
+| <a name="requirement_random"></a> [random](#requirement\_random) | >= 3.5 |
+
+## Providers
+
+| Name | Version |
+| ---- | ------- |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | >= 6.61 |
+| <a name="provider_random"></a> [random](#provider\_random) | >= 3.5 |
+
+## Modules
+
+| Name | Source | Version |
+| ---- | ------ | ------- |
+| <a name="module_aurora_mysql"></a> [aurora\_mysql](#module\_aurora\_mysql) | ../../ | n/a |
+| <a name="module_aurora_postgresql"></a> [aurora\_postgresql](#module\_aurora\_postgresql) | ../../ | n/a |
+| <a name="module_vpc"></a> [vpc](#module\_vpc) | terraform-aws-modules/vpc/aws | ~> 6.0 |
+
+## Resources
+
+| Name | Type |
+| ---- | ---- |
+| [random_password.master](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password) | resource |
+| [aws_availability_zones.available](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/availability_zones) | data source |
+| [aws_rds_engine_version.postgresql](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/rds_engine_version) | data source |
+
+## Inputs
+
+No inputs.
+
+## Outputs
+
+| Name | Description |
+| ---- | ----------- |
+| <a name="output_aurora_mysql_additional_cluster_endpoints"></a> [aurora\_mysql\_additional\_cluster\_endpoints](#output\_aurora\_mysql\_additional\_cluster\_endpoints) | A map of additional cluster endpoints and their attributes |
+| <a name="output_aurora_mysql_cluster_arn"></a> [aurora\_mysql\_cluster\_arn](#output\_aurora\_mysql\_cluster\_arn) | Amazon Resource Name (ARN) of cluster |
+| <a name="output_aurora_mysql_cluster_database_name"></a> [aurora\_mysql\_cluster\_database\_name](#output\_aurora\_mysql\_cluster\_database\_name) | Name for an automatically created database on cluster creation |
+| <a name="output_aurora_mysql_cluster_endpoint"></a> [aurora\_mysql\_cluster\_endpoint](#output\_aurora\_mysql\_cluster\_endpoint) | Writer endpoint for the cluster |
+| <a name="output_aurora_mysql_cluster_engine_version_actual"></a> [aurora\_mysql\_cluster\_engine\_version\_actual](#output\_aurora\_mysql\_cluster\_engine\_version\_actual) | The running version of the cluster database |
+| <a name="output_aurora_mysql_cluster_hosted_zone_id"></a> [aurora\_mysql\_cluster\_hosted\_zone\_id](#output\_aurora\_mysql\_cluster\_hosted\_zone\_id) | The Route53 Hosted Zone ID of the endpoint |
+| <a name="output_aurora_mysql_cluster_id"></a> [aurora\_mysql\_cluster\_id](#output\_aurora\_mysql\_cluster\_id) | The RDS Cluster Identifier |
+| <a name="output_aurora_mysql_cluster_instances"></a> [aurora\_mysql\_cluster\_instances](#output\_aurora\_mysql\_cluster\_instances) | A map of cluster instances and their attributes |
+| <a name="output_aurora_mysql_cluster_master_username"></a> [aurora\_mysql\_cluster\_master\_username](#output\_aurora\_mysql\_cluster\_master\_username) | The database master username |
+| <a name="output_aurora_mysql_cluster_members"></a> [aurora\_mysql\_cluster\_members](#output\_aurora\_mysql\_cluster\_members) | List of RDS Instances that are a part of this cluster |
+| <a name="output_aurora_mysql_cluster_port"></a> [aurora\_mysql\_cluster\_port](#output\_aurora\_mysql\_cluster\_port) | The database port |
+| <a name="output_aurora_mysql_cluster_reader_endpoint"></a> [aurora\_mysql\_cluster\_reader\_endpoint](#output\_aurora\_mysql\_cluster\_reader\_endpoint) | A read-only endpoint for the cluster, automatically load-balanced across replicas |
+| <a name="output_aurora_mysql_cluster_resource_id"></a> [aurora\_mysql\_cluster\_resource\_id](#output\_aurora\_mysql\_cluster\_resource\_id) | The RDS Cluster Resource ID |
+| <a name="output_aurora_mysql_cluster_role_associations"></a> [aurora\_mysql\_cluster\_role\_associations](#output\_aurora\_mysql\_cluster\_role\_associations) | A map of IAM roles associated with the cluster and their attributes |
+| <a name="output_aurora_mysql_cluster_upgrade_rollout_order"></a> [aurora\_mysql\_cluster\_upgrade\_rollout\_order](#output\_aurora\_mysql\_cluster\_upgrade\_rollout\_order) | Order in which the clusters are upgraded (first, second, last) |
+| <a name="output_aurora_mysql_db_subnet_group_name"></a> [aurora\_mysql\_db\_subnet\_group\_name](#output\_aurora\_mysql\_db\_subnet\_group\_name) | The db subnet group name |
+| <a name="output_aurora_mysql_enhanced_monitoring_iam_role_arn"></a> [aurora\_mysql\_enhanced\_monitoring\_iam\_role\_arn](#output\_aurora\_mysql\_enhanced\_monitoring\_iam\_role\_arn) | The Amazon Resource Name (ARN) specifying the enhanced monitoring role |
+| <a name="output_aurora_mysql_enhanced_monitoring_iam_role_name"></a> [aurora\_mysql\_enhanced\_monitoring\_iam\_role\_name](#output\_aurora\_mysql\_enhanced\_monitoring\_iam\_role\_name) | The name of the enhanced monitoring role |
+| <a name="output_aurora_mysql_enhanced_monitoring_iam_role_unique_id"></a> [aurora\_mysql\_enhanced\_monitoring\_iam\_role\_unique\_id](#output\_aurora\_mysql\_enhanced\_monitoring\_iam\_role\_unique\_id) | Stable and unique string identifying the enhanced monitoring role |
+| <a name="output_aurora_mysql_security_group_id"></a> [aurora\_mysql\_security\_group\_id](#output\_aurora\_mysql\_security\_group\_id) | The security group ID of the cluster |
+| <a name="output_aurora_postgresql_additional_cluster_endpoints"></a> [aurora\_postgresql\_additional\_cluster\_endpoints](#output\_aurora\_postgresql\_additional\_cluster\_endpoints) | A map of additional cluster endpoints and their attributes |
+| <a name="output_aurora_postgresql_cluster_arn"></a> [aurora\_postgresql\_cluster\_arn](#output\_aurora\_postgresql\_cluster\_arn) | Amazon Resource Name (ARN) of cluster |
+| <a name="output_aurora_postgresql_cluster_database_name"></a> [aurora\_postgresql\_cluster\_database\_name](#output\_aurora\_postgresql\_cluster\_database\_name) | Name for an automatically created database on cluster creation |
+| <a name="output_aurora_postgresql_cluster_endpoint"></a> [aurora\_postgresql\_cluster\_endpoint](#output\_aurora\_postgresql\_cluster\_endpoint) | Writer endpoint for the cluster |
+| <a name="output_aurora_postgresql_cluster_engine_version_actual"></a> [aurora\_postgresql\_cluster\_engine\_version\_actual](#output\_aurora\_postgresql\_cluster\_engine\_version\_actual) | The running version of the cluster database |
+| <a name="output_aurora_postgresql_cluster_hosted_zone_id"></a> [aurora\_postgresql\_cluster\_hosted\_zone\_id](#output\_aurora\_postgresql\_cluster\_hosted\_zone\_id) | The Route53 Hosted Zone ID of the endpoint |
+| <a name="output_aurora_postgresql_cluster_id"></a> [aurora\_postgresql\_cluster\_id](#output\_aurora\_postgresql\_cluster\_id) | The RDS Cluster Identifier |
+| <a name="output_aurora_postgresql_cluster_instances"></a> [aurora\_postgresql\_cluster\_instances](#output\_aurora\_postgresql\_cluster\_instances) | A map of cluster instances and their attributes |
+| <a name="output_aurora_postgresql_cluster_master_username"></a> [aurora\_postgresql\_cluster\_master\_username](#output\_aurora\_postgresql\_cluster\_master\_username) | The database master username |
+| <a name="output_aurora_postgresql_cluster_members"></a> [aurora\_postgresql\_cluster\_members](#output\_aurora\_postgresql\_cluster\_members) | List of RDS Instances that are a part of this cluster |
+| <a name="output_aurora_postgresql_cluster_port"></a> [aurora\_postgresql\_cluster\_port](#output\_aurora\_postgresql\_cluster\_port) | The database port |
+| <a name="output_aurora_postgresql_cluster_reader_endpoint"></a> [aurora\_postgresql\_cluster\_reader\_endpoint](#output\_aurora\_postgresql\_cluster\_reader\_endpoint) | A read-only endpoint for the cluster, automatically load-balanced across replicas |
+| <a name="output_aurora_postgresql_cluster_resource_id"></a> [aurora\_postgresql\_cluster\_resource\_id](#output\_aurora\_postgresql\_cluster\_resource\_id) | The RDS Cluster Resource ID |
+| <a name="output_aurora_postgresql_cluster_role_associations"></a> [aurora\_postgresql\_cluster\_role\_associations](#output\_aurora\_postgresql\_cluster\_role\_associations) | A map of IAM roles associated with the cluster and their attributes |
+| <a name="output_aurora_postgresql_cluster_upgrade_rollout_order"></a> [aurora\_postgresql\_cluster\_upgrade\_rollout\_order](#output\_aurora\_postgresql\_cluster\_upgrade\_rollout\_order) | Order in which the clusters are upgraded (first, second, last) |
+| <a name="output_aurora_postgresql_db_subnet_group_name"></a> [aurora\_postgresql\_db\_subnet\_group\_name](#output\_aurora\_postgresql\_db\_subnet\_group\_name) | The db subnet group name |
+| <a name="output_aurora_postgresql_enhanced_monitoring_iam_role_arn"></a> [aurora\_postgresql\_enhanced\_monitoring\_iam\_role\_arn](#output\_aurora\_postgresql\_enhanced\_monitoring\_iam\_role\_arn) | The Amazon Resource Name (ARN) specifying the enhanced monitoring role |
+| <a name="output_aurora_postgresql_enhanced_monitoring_iam_role_name"></a> [aurora\_postgresql\_enhanced\_monitoring\_iam\_role\_name](#output\_aurora\_postgresql\_enhanced\_monitoring\_iam\_role\_name) | The name of the enhanced monitoring role |
+| <a name="output_aurora_postgresql_enhanced_monitoring_iam_role_unique_id"></a> [aurora\_postgresql\_enhanced\_monitoring\_iam\_role\_unique\_id](#output\_aurora\_postgresql\_enhanced\_monitoring\_iam\_role\_unique\_id) | Stable and unique string identifying the enhanced monitoring role |
+| <a name="output_aurora_postgresql_security_group_id"></a> [aurora\_postgresql\_security\_group\_id](#output\_aurora\_postgresql\_security\_group\_id) | The security group ID of the cluster |
+| <a name="output_aurora_postresql_cloudwatch_log_groups"></a> [aurora\_postresql\_cloudwatch\_log\_groups](#output\_aurora\_postresql\_cloudwatch\_log\_groups) | Map of CloudWatch log groups created and their attributes |
+<!-- END_TF_DOCS -->
