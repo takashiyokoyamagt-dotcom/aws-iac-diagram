@@ -2,11 +2,13 @@
 
 辞書全体を LLM に読ませる代わりに、このスクリプトで必要なエントリだけを引く。
 スタイル文字列は辞書にあるものをそのまま使い、手で組み立てないこと（PLAN 2.2 の 1〜3）。
+退役アイコン（retired）と、check_icons.py が壊れていると判定したアイコン（broken、C2）は既定で除外する。
 
 使い方:
   python scripts/find_aws_icon.py lambda
   python scripts/find_aws_icon.py "application load balancer" --kind shape --limit 3
   python scripts/find_aws_icon.py --id resource_icon:lambda --json
+  python scripts/find_aws_icon.py dynamodb --include-broken
 """
 from __future__ import annotations
 
@@ -47,11 +49,15 @@ def score(entry: dict, terms: list[str]) -> int:
 
 
 def main() -> None:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("query", nargs="*", help="検索語（AND 検索）")
     ap.add_argument("--id", help="id で完全一致検索")
     ap.add_argument("--kind", choices=KINDS)
     ap.add_argument("--include-retired", action="store_true")
+    ap.add_argument("--include-broken", action="store_true", help="壊れていると判定されたアイコンも表示する")
     ap.add_argument("--limit", type=int, default=5)
     ap.add_argument("--json", action="store_true", help="スタイル文字列を含む JSON で出力")
     args = ap.parse_args()
@@ -59,6 +65,10 @@ def main() -> None:
     catalog = load()
     if args.id:
         hits = [c for c in catalog if c["id"] == args.id]
+        for c in hits:
+            if c.get("broken"):
+                print(f"注意: {c['id']} は描画が壊れています（{c.get('broken_reason', '')}）。使わないでください。",
+                      file=sys.stderr)
     else:
         terms = [t.lower() for t in " ".join(args.query).split()]
         if not terms:
@@ -68,6 +78,8 @@ def main() -> None:
             if args.kind and c["kind"] != args.kind:
                 continue
             if c["retired"] and not args.include_retired:
+                continue
+            if c.get("broken") and not args.include_broken:
                 continue
             s = score(c, terms)
             if s > 0:
@@ -81,7 +93,8 @@ def main() -> None:
         print("該当なし")
         sys.exit(1)
     for c in hits:
-        print(f"{c['id']}\t{c['title']}\t{c['kind']}\t{c['width']}x{c['height']}\t[{c['category']}]")
+        mark = "\tBROKEN" if c.get("broken") else ""
+        print(f"{c['id']}\t{c['title']}\t{c['kind']}\t{c['width']}x{c['height']}\t[{c['category']}]{mark}")
 
 
 if __name__ == "__main__":

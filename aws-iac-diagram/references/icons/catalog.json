@@ -1,5 +1,6 @@
 [
  {
+  "broken": false,
   "category": "arrows",
   "height": 0,
   "id": "edge:default_left",
@@ -19,6 +20,7 @@
   "width": 100
  },
  {
+  "broken": false,
   "category": "arrows",
   "height": 0,
   "id": "edge:default_right",
@@ -38,6 +40,7 @@
   "width": 100
  },
  {
+  "broken": false,
   "category": "arrows",
   "height": 0,
   "id": "edge:default_double",
@@ -57,6 +60,7 @@
   "width": 100
  },
  {
+  "broken": false,
   "category": "arrows",
   "height": 0,
   "id": "edge:open_thin_left",
@@ -77,6 +81,7 @@
   "width": 100
  },
  {
+  "broken": false,
   "category": "arrows",
   "height": 0,
   "id": "edge:open_thin_right",
@@ -97,6 +102,7 @@
   "width": 100
  },
  {
+  "broken": false,
   "category": "arrows",
   "height": 0,
   "id": "edge:open_thin_double",
@@ -117,6 +123,7 @@
   "width": 100
  },
  {
+  "broken": false,
   "category": "arrows",
   "height": 0,
   "id": "edge:open_left",
@@ -136,6 +143,7 @@
   "width": 100
  },
  {
+  "broken": false,
   "category": "arrows",
   "height": 0,
   "id": "edge:open_right",
@@ -155,6 +163,7 @@
   "width": 100
  },
  {
+  "broken": false,
   "category": "arrows",
   "height": 0,
   "id": "edge:open_double",
@@ -174,6 +183,7 @@
   "width": 100
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "resource_icon:marketplace",
@@ -192,6 +202,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:marketplace",
@@ -210,6 +221,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "resource_icon:general",
@@ -227,6 +239,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "resource_icon:all_products",
@@ -246,6 +259,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:all_products",
@@ -265,6 +279,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 69,
   "id": "shape:alert",
@@ -283,6 +298,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:authenticated_user",
@@ -302,6 +318,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 69,
   "id": "shape:management_console2",
@@ -321,6 +338,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 62,
   "id": "shape:camera2",
@@ -339,6 +357,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 68,
   "id": "shape:chat",
@@ -357,6 +376,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 76,
   "id": "shape:client",
@@ -375,6 +395,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:cold_storage",
@@ -394,6 +415,7 @@
   "width": 71
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:credentials",
@@ -412,6 +434,7 @@
   "width": 56
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:corporate_data_center",
@@ -432,6 +455,7 @@
   "width": 53
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:data_stream",
@@ -451,6 +475,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 59,
   "id": "shape:data_table",
@@ -470,6 +495,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:disk",
@@ -488,6 +514,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:document",
@@ -506,6 +533,7 @@
   "width": 57
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:documents3",
@@ -524,6 +552,7 @@
   "width": 57
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:documents",
@@ -542,6 +571,7 @@
   "width": 64
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:documents2",
@@ -560,6 +590,7 @@
   "width": 67
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 49,
   "id": "shape:email_2",
@@ -578,6 +609,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 76,
   "id": "shape:forums",
@@ -596,6 +628,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:gear",
@@ -614,6 +647,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:generic_application",
@@ -633,6 +667,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:generic_database",
@@ -652,6 +687,7 @@
   "width": 59
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:git_repository",
@@ -671,6 +707,7 @@
   "width": 60
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 66,
   "id": "shape:generic_firewall",
@@ -690,6 +727,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:globe",
@@ -708,6 +746,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 71,
   "id": "shape:folder",
@@ -726,6 +765,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 71,
   "id": "shape:folders",
@@ -744,6 +784,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 48,
   "id": "shape:internet",
@@ -762,6 +803,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 48,
   "id": "shape:internet_alt1",
@@ -780,6 +822,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:internet_alt2",
@@ -799,6 +842,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:internet_alt22",
@@ -818,6 +862,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:json_script",
@@ -837,6 +882,7 @@
   "width": 57
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:logs",
@@ -855,6 +901,7 @@
   "width": 57
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:magnifying_glass_2",
@@ -874,6 +921,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 71,
   "id": "shape:metrics",
@@ -892,6 +940,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:mobile_client",
@@ -911,6 +960,7 @@
   "width": 41
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 73,
   "id": "shape:multimedia",
@@ -929,6 +979,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:office_building",
@@ -948,6 +999,7 @@
   "width": 50
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 51,
   "id": "shape:programming_language",
@@ -967,6 +1019,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:question",
@@ -985,6 +1038,7 @@
   "width": 41
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:recover",
@@ -1003,6 +1057,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:saml_token",
@@ -1022,6 +1077,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 76,
   "id": "shape:ssl_padlock",
@@ -1041,6 +1097,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 38,
   "id": "shape:tape_storage",
@@ -1060,6 +1117,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:traditional_server",
@@ -1079,6 +1137,7 @@
   "width": 45
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:user",
@@ -1097,6 +1156,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:users",
@@ -1115,6 +1175,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:external_toolkit",
@@ -1134,6 +1195,7 @@
   "width": 68
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:external_sdk",
@@ -1156,6 +1218,7 @@
   "width": 68
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:servers",
@@ -1174,6 +1237,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:shield2",
@@ -1192,6 +1256,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "general_resources",
   "height": 78,
   "id": "shape:source_code",
@@ -1211,6 +1276,7 @@
   "width": 57
  },
  {
+  "broken": false,
   "category": "illustrations",
   "height": 100,
   "id": "shape:illustration_users",
@@ -1228,6 +1294,7 @@
   "width": 100
  },
  {
+  "broken": false,
   "category": "illustrations",
   "height": 81,
   "id": "shape:illustration_notification",
@@ -1245,6 +1312,7 @@
   "width": 100
  },
  {
+  "broken": false,
   "category": "illustrations",
   "height": 73,
   "id": "shape:illustration_devices",
@@ -1262,6 +1330,7 @@
   "width": 100
  },
  {
+  "broken": false,
   "category": "illustrations",
   "height": 91,
   "id": "shape:illustration_desktop",
@@ -1279,6 +1348,7 @@
   "width": 100
  },
  {
+  "broken": false,
   "category": "illustrations",
   "height": 71,
   "id": "shape:illustration_office_building",
@@ -1297,6 +1367,7 @@
   "width": 100
  },
  {
+  "broken": false,
   "category": "groups",
   "height": 130,
   "id": "group:group_aws_cloud_alt",
@@ -1315,6 +1386,7 @@
   "width": 130
  },
  {
+  "broken": false,
   "category": "groups",
   "height": 130,
   "id": "group:group_aws_cloud",
@@ -1333,6 +1405,7 @@
   "width": 130
  },
  {
+  "broken": false,
   "category": "groups",
   "height": 130,
   "id": "group:group_region",
@@ -1351,6 +1424,7 @@
   "width": 130
  },
  {
+  "broken": false,
   "category": "groups",
   "height": 130,
   "id": "plain_group:availability_zone",
@@ -1370,6 +1444,7 @@
   "width": 130
  },
  {
+  "broken": false,
   "category": "groups",
   "height": 130,
   "id": "plain_group:security_group",
@@ -1388,6 +1463,7 @@
   "width": 130
  },
  {
+  "broken": false,
   "category": "groups",
   "height": 130,
   "id": "group:group_auto_scaling_group",
@@ -1407,6 +1483,7 @@
   "width": 130
  },
  {
+  "broken": false,
   "category": "groups",
   "height": 130,
   "id": "group:group_vpc2",
@@ -1428,6 +1505,7 @@
   "width": 130
  },
  {
+  "broken": false,
   "category": "groups",
   "height": 130,
   "id": "group:private_subnet",
@@ -1447,6 +1525,7 @@
   "width": 130
  },
  {
+  "broken": false,
   "category": "groups",
   "height": 130,
   "id": "group:public_subnet",
@@ -1466,6 +1545,7 @@
   "width": 130
  },
  {
+  "broken": false,
   "category": "groups",
   "height": 130,
   "id": "group:group_on_premise",
@@ -1485,6 +1565,7 @@
   "width": 130
  },
  {
+  "broken": false,
   "category": "groups",
   "height": 130,
   "id": "group:group_corporate_data_center",
@@ -1505,6 +1586,7 @@
   "width": 130
  },
  {
+  "broken": false,
   "category": "groups",
   "height": 130,
   "id": "group:group_elastic_beanstalk",
@@ -1525,6 +1607,7 @@
   "width": 130
  },
  {
+  "broken": false,
   "category": "groups",
   "height": 130,
   "id": "group:group_ec2_instance_contents",
@@ -1545,6 +1628,7 @@
   "width": 130
  },
  {
+  "broken": false,
   "category": "groups",
   "height": 130,
   "id": "group:group_spot_fleet",
@@ -1564,6 +1648,7 @@
   "width": 130
  },
  {
+  "broken": false,
   "category": "groups",
   "height": 130,
   "id": "group:group_aws_step_functions_workflow",
@@ -1583,6 +1668,7 @@
   "width": 130
  },
  {
+  "broken": false,
   "category": "groups",
   "height": 130,
   "id": "group:group_account",
@@ -1601,6 +1687,7 @@
   "width": 130
  },
  {
+  "broken": false,
   "category": "groups",
   "height": 130,
   "id": "group:group_iot_greengrass_deployment",
@@ -1624,6 +1711,7 @@
   "width": 130
  },
  {
+  "broken": false,
   "category": "groups",
   "height": 130,
   "id": "group:group_iot_greengrass",
@@ -1646,6 +1734,7 @@
   "width": 130
  },
  {
+  "broken": false,
   "category": "groups",
   "height": 130,
   "id": "plain_group:generic_group",
@@ -1664,6 +1753,7 @@
   "width": 130
  },
  {
+  "broken": false,
   "category": "groups",
   "height": 130,
   "id": "plain_group:generic_group#2",
@@ -1682,6 +1772,7 @@
   "width": 130
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "resource_icon:analytics",
@@ -1698,6 +1789,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "resource_icon:athena",
@@ -1715,6 +1807,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "resource_icon:datazone",
@@ -1732,6 +1825,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "resource_icon:cloudsearch2",
@@ -1749,6 +1843,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "resource_icon:elasticsearch_service",
@@ -1769,6 +1864,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "resource_icon:emr",
@@ -1786,6 +1882,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "resource_icon:finspace",
@@ -1803,6 +1900,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "resource_icon:kinesis",
@@ -1820,6 +1918,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "resource_icon:kinesis_data_firehose",
@@ -1839,6 +1938,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "resource_icon:kinesis_data_streams",
@@ -1858,6 +1958,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "resource_icon:kinesis_video_streams",
@@ -1877,6 +1978,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "resource_icon:managed_service_for_apache_flink",
@@ -1899,6 +2001,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "resource_icon:clean_rooms",
@@ -1917,6 +2020,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "resource_icon:redshift",
@@ -1934,6 +2038,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "resource_icon:sagemaker_2",
@@ -1951,6 +2056,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "resource_icon:entity_resolution",
@@ -1969,6 +2075,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "resource_icon:managed_streaming_for_kafka",
@@ -1991,6 +2098,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "resource_icon:glue",
@@ -2008,6 +2116,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "resource_icon:glue_databrew",
@@ -2026,6 +2135,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "resource_icon:lake_formation",
@@ -2044,6 +2154,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "resource_icon:data_exchange",
@@ -2062,6 +2173,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "shape:athena_data_source_connectors",
@@ -2082,6 +2194,7 @@
   "width": 77
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "shape:search_documents",
@@ -2102,6 +2215,7 @@
   "width": 68
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "shape:datazone_business_data_catalog",
@@ -2122,6 +2236,7 @@
   "width": 71
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "shape:datazone_data_portal",
@@ -2141,6 +2256,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "shape:datazone_data_projects",
@@ -2160,6 +2276,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "shape:cluster",
@@ -2178,6 +2295,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 77,
   "id": "shape:msk_amazon_msk_connect",
@@ -2196,6 +2314,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "shape:opensearch_service_cluster_administrator_node",
@@ -2216,6 +2335,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "shape:opensearch_service_data_node",
@@ -2235,6 +2355,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "shape:opensearch_service_index",
@@ -2253,6 +2374,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "shape:opensearch_observability",
@@ -2271,6 +2393,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 59,
   "id": "shape:opensearch_dashboards",
@@ -2289,6 +2412,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "shape:opensearch_ingestion",
@@ -2307,6 +2431,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "shape:opensearch_service_traces",
@@ -2325,6 +2450,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "shape:opensearch_service_ultrawarm_node",
@@ -2344,6 +2470,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "shape:redshift_auto_copy",
@@ -2363,6 +2490,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "shape:redshift_data_sharing_governance",
@@ -2383,6 +2511,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "shape:data_lake_resource_icon",
@@ -2401,6 +2530,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 59,
   "id": "shape:emr_engine",
@@ -2419,6 +2549,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "shape:hdfs_cluster",
@@ -2436,6 +2567,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "shape:dense_compute_node",
@@ -2455,6 +2587,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "shape:dense_storage_node",
@@ -2474,6 +2607,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "shape:redshift_ra3",
@@ -2492,6 +2626,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "shape:redshift_streaming_ingestion",
@@ -2511,6 +2646,7 @@
   "width": 71
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "shape:data_exchange_for_apis",
@@ -2531,6 +2667,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "shape:aws_glue_for_ray",
@@ -2550,6 +2687,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "shape:glue_crawlers",
@@ -2567,6 +2705,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "shape:glue_databrew",
@@ -2585,6 +2724,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "shape:glue_data_catalog",
@@ -2604,6 +2744,7 @@
   "width": 72
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "shape:aws_glue_data_quality",
@@ -2623,6 +2764,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "shape:redshift_ml",
@@ -2641,6 +2783,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "analytics",
   "height": 78,
   "id": "shape:redshift_query_editor_v20_light",
@@ -2664,6 +2807,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "application_integration",
   "height": 78,
   "id": "resource_icon:application_integration",
@@ -2681,6 +2825,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "application_integration",
   "height": 78,
   "id": "resource_icon:api_gateway",
@@ -2700,6 +2845,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "application_integration",
   "height": 78,
   "id": "resource_icon:mq",
@@ -2718,6 +2864,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "application_integration",
   "height": 78,
   "id": "resource_icon:sns",
@@ -2738,6 +2885,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "application_integration",
   "height": 78,
   "id": "resource_icon:sqs",
@@ -2758,6 +2906,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "application_integration",
   "height": 78,
   "id": "resource_icon:appsync",
@@ -2776,6 +2925,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "application_integration",
   "height": 78,
   "id": "resource_icon:b2b_data_interchange",
@@ -2796,6 +2946,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "application_integration",
   "height": 78,
   "id": "resource_icon:eventbridge",
@@ -2816,6 +2967,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "application_integration",
   "height": 78,
   "id": "resource_icon:managed_workflows_for_apache_airflow",
@@ -2838,6 +2990,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "application_integration",
   "height": 78,
   "id": "resource_icon:step_functions",
@@ -2857,6 +3010,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "application_integration",
   "height": 78,
   "id": "resource_icon:express_workflow",
@@ -2876,6 +3030,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "application_integration",
   "height": 78,
   "id": "resource_icon:appflow",
@@ -2894,6 +3049,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "application_integration",
   "height": 78,
   "id": "shape:endpoint",
@@ -2916,6 +3072,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "application_integration",
   "height": 78,
   "id": "shape:email_notification",
@@ -2935,6 +3092,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "application_integration",
   "height": 78,
   "id": "shape:event",
@@ -2954,6 +3112,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "application_integration",
   "height": 78,
   "id": "shape:eventbridge_pipes",
@@ -2975,6 +3134,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "application_integration",
   "height": 69,
   "id": "shape:eventbridge_custom_event_bus_resource",
@@ -2997,6 +3157,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "application_integration",
   "height": 53,
   "id": "shape:eventbridge_default_event_bus_resource",
@@ -3019,6 +3180,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "application_integration",
   "height": 78,
   "id": "shape:eventbridge_saas_partner_event_bus_resource",
@@ -3042,6 +3204,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "application_integration",
   "height": 78,
   "id": "shape:eventbridge_scheduler",
@@ -3061,6 +3224,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "application_integration",
   "height": 78,
   "id": "shape:eventbridge_schema",
@@ -3080,6 +3244,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "application_integration",
   "height": 78,
   "id": "shape:eventbridge_schema_registry",
@@ -3100,6 +3265,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "application_integration",
   "height": 69,
   "id": "shape:mq_broker",
@@ -3119,6 +3285,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "application_integration",
   "height": 78,
   "id": "shape:http_notification",
@@ -3138,6 +3305,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "application_integration",
   "height": 67,
   "id": "shape:topic",
@@ -3156,6 +3324,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "application_integration",
   "height": 78,
   "id": "shape:message",
@@ -3174,6 +3343,7 @@
   "width": 67
  },
  {
+  "broken": false,
   "category": "application_integration",
   "height": 47,
   "id": "shape:queue",
@@ -3192,6 +3362,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "application_integration",
   "height": 68,
   "id": "shape:rule_3",
@@ -3210,6 +3381,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:machine_learning",
@@ -3230,6 +3402,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:augmented_ai",
@@ -3250,6 +3423,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:bedrock",
@@ -3269,6 +3443,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:bedrock_agentcore",
@@ -3289,6 +3464,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:codeguru_2",
@@ -3308,6 +3484,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:codewhisperer",
@@ -3327,6 +3504,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:comprehend",
@@ -3346,6 +3524,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:comprehend_medical",
@@ -3366,6 +3545,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:devops_guru",
@@ -3386,6 +3566,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:elastic_inference_2",
@@ -3406,6 +3587,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:forecast",
@@ -3425,6 +3607,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:fraud_detector",
@@ -3445,6 +3628,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:healthlake",
@@ -3464,6 +3648,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:kendra",
@@ -3483,6 +3668,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:neuron_ml_sdk",
@@ -3507,6 +3693,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:panorama",
@@ -3526,6 +3713,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:lex",
@@ -3545,6 +3733,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:lookout_for_equipment",
@@ -3566,6 +3755,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:lookout_for_vision",
@@ -3587,6 +3777,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:monitron",
@@ -3606,6 +3797,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:nova2",
@@ -3625,6 +3817,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:omics",
@@ -3646,6 +3839,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:healthscribe",
@@ -3665,6 +3859,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:personalize",
@@ -3684,6 +3879,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:polly",
@@ -3703,6 +3899,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:q",
@@ -3722,6 +3919,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:rekognition_2",
@@ -3741,6 +3939,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:sagemaker",
@@ -3760,6 +3959,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:sagemaker_ground_truth",
@@ -3781,6 +3981,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:sagemaker_studio_lab",
@@ -3802,6 +4003,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:textract",
@@ -3821,6 +4023,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:transcribe",
@@ -3840,6 +4043,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:translate",
@@ -3859,6 +4063,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:apache_mxnet_on_aws",
@@ -3880,6 +4085,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:app_studio",
@@ -3901,6 +4107,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:deep_learning_amis",
@@ -3922,6 +4129,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:deepracer",
@@ -3941,6 +4149,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:healthimaging",
@@ -3960,6 +4169,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:tensorflow_on_aws",
@@ -3980,6 +4190,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:torchserve",
@@ -4003,6 +4214,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:deep_learning_containers",
@@ -4024,6 +4236,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "resource_icon:elemental_inference",
@@ -4044,6 +4257,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "shape:devops_guru_insights",
@@ -4065,6 +4279,7 @@
   "width": 77
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "shape:rekognition_image",
@@ -4085,6 +4300,7 @@
   "width": 77
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "shape:rekognition_video",
@@ -4105,6 +4321,7 @@
   "width": 77
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "shape:sagemaker_canvas",
@@ -4125,6 +4342,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "shape:sagemaker_geospatial_ml",
@@ -4146,6 +4364,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "shape:sagemaker_model",
@@ -4166,6 +4385,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "shape:sagemaker_notebook",
@@ -4186,6 +4406,7 @@
   "width": 68
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "shape:sagemaker_shadow_testing",
@@ -4207,6 +4428,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 65,
   "id": "shape:sagemaker_train",
@@ -4227,6 +4449,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "artificial_intelligence",
   "height": 78,
   "id": "shape:textract_analyze_lending",
@@ -4248,6 +4471,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "blockchain",
   "height": 78,
   "id": "resource_icon:blockchain",
@@ -4266,6 +4490,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "blockchain",
   "height": 78,
   "id": "resource_icon:managed_blockchain",
@@ -4285,6 +4510,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "blockchain",
   "height": 25,
   "id": "shape:blockchain_resource",
@@ -4304,6 +4530,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "business_applications",
   "height": 78,
   "id": "resource_icon:business_application",
@@ -4322,6 +4549,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "business_applications",
   "height": 78,
   "id": "resource_icon:chime",
@@ -4340,6 +4568,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "business_applications",
   "height": 78,
   "id": "resource_icon:chime_sdk",
@@ -4362,6 +4591,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "business_applications",
   "height": 78,
   "id": "resource_icon:connect",
@@ -4380,6 +4610,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "business_applications",
   "height": 78,
   "id": "resource_icon:chime#2",
@@ -4400,6 +4631,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "business_applications",
   "height": 78,
   "id": "resource_icon:pinpoint",
@@ -4418,6 +4650,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "business_applications",
   "height": 78,
   "id": "resource_icon:pinpoint#2",
@@ -4440,6 +4673,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "business_applications",
   "height": 78,
   "id": "resource_icon:quick_suite",
@@ -4460,6 +4694,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "business_applications",
   "height": 78,
   "id": "resource_icon:simple_email_service",
@@ -4479,6 +4714,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "business_applications",
   "height": 78,
   "id": "resource_icon:workdocs",
@@ -4501,6 +4737,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "business_applications",
   "height": 78,
   "id": "resource_icon:workmail",
@@ -4519,6 +4756,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "business_applications",
   "height": 78,
   "id": "resource_icon:appfabric",
@@ -4537,6 +4775,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "business_applications",
   "height": 78,
   "id": "resource_icon:end_user_messaging",
@@ -4557,6 +4796,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "business_applications",
   "height": 78,
   "id": "resource_icon:supply_chain",
@@ -4576,6 +4816,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "business_applications",
   "height": 78,
   "id": "resource_icon:wickr",
@@ -4594,6 +4835,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "business_applications",
   "height": 75,
   "id": "shape:pinpoint_journey",
@@ -4613,6 +4855,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "business_applications",
   "height": 69,
   "id": "shape:email",
@@ -4631,6 +4874,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "cloud_financial_management",
   "height": 78,
   "id": "resource_icon:cost_management",
@@ -4650,6 +4894,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "cloud_financial_management",
   "height": 78,
   "id": "resource_icon:budgets_2",
@@ -4668,6 +4913,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "cloud_financial_management",
   "height": 78,
   "id": "resource_icon:cost_and_usage_report",
@@ -4688,6 +4934,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "cloud_financial_management",
   "height": 78,
   "id": "resource_icon:cost_explorer",
@@ -4706,6 +4953,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "cloud_financial_management",
   "height": 78,
   "id": "resource_icon:finops_agent",
@@ -4725,6 +4973,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "cloud_financial_management",
   "height": 78,
   "id": "resource_icon:custom_billing_manager",
@@ -4746,6 +4995,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "cloud_financial_management",
   "height": 78,
   "id": "resource_icon:reserved_instance_reporting",
@@ -4766,6 +5016,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "cloud_financial_management",
   "height": 78,
   "id": "resource_icon:savings_plans",
@@ -4785,6 +5036,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 78,
   "id": "resource_icon:compute",
@@ -4801,6 +5053,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 78,
   "id": "resource_icon:ec2",
@@ -4818,6 +5071,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 78,
   "id": "resource_icon:auto_scaling2",
@@ -4837,6 +5091,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 78,
   "id": "resource_icon:auto_scaling3",
@@ -4855,6 +5110,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 78,
   "id": "resource_icon:bottlerocket",
@@ -4872,6 +5128,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 78,
   "id": "resource_icon:lightsail",
@@ -4889,6 +5146,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 78,
   "id": "resource_icon:lightsail_for_research",
@@ -4908,6 +5166,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 78,
   "id": "resource_icon:app_runner",
@@ -4927,6 +5186,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 78,
   "id": "resource_icon:batch",
@@ -4944,6 +5204,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 78,
   "id": "resource_icon:compute_optimizer",
@@ -4961,6 +5222,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 78,
   "id": "resource_icon:elastic_beanstalk",
@@ -4979,6 +5241,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 78,
   "id": "resource_icon:elastic_fabric_adapter",
@@ -4998,6 +5261,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 78,
   "id": "resource_icon:fargate",
@@ -5015,6 +5279,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 78,
   "id": "resource_icon:ec2_image_builder",
@@ -5034,6 +5299,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 78,
   "id": "resource_icon:elastic_vmware_service",
@@ -5052,6 +5318,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 78,
   "id": "resource_icon:lambda",
@@ -5069,6 +5336,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 78,
   "id": "resource_icon:local_zones",
@@ -5087,6 +5355,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 78,
   "id": "resource_icon:nice_dcv",
@@ -5105,6 +5374,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 78,
   "id": "resource_icon:nitro_enclaves",
@@ -5123,6 +5393,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 78,
   "id": "resource_icon:outposts",
@@ -5141,6 +5412,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 78,
   "id": "resource_icon:outposts_1u_and_2u_servers",
@@ -5159,6 +5431,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 78,
   "id": "resource_icon:parallel_cluster",
@@ -5177,6 +5450,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 78,
   "id": "resource_icon:parallel_computing_service",
@@ -5195,6 +5469,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 78,
   "id": "resource_icon:serverless_application_repository",
@@ -5214,6 +5489,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 78,
   "id": "resource_icon:simspace_weaver",
@@ -5232,6 +5508,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 78,
   "id": "resource_icon:elastic_load_balancing",
@@ -5251,6 +5528,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 78,
   "id": "resource_icon:wavelength",
@@ -5268,6 +5546,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:a1_instance",
@@ -5285,6 +5564,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ami",
@@ -5303,6 +5583,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:auto_scaling2",
@@ -5322,6 +5603,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:c4_instance",
@@ -5339,6 +5621,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:c5_instance",
@@ -5356,6 +5639,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:c5a",
@@ -5373,6 +5657,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:c5ad",
@@ -5390,6 +5675,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:c5d",
@@ -5407,6 +5693,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:c5n_instance",
@@ -5424,6 +5711,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_c6a_instance",
@@ -5441,6 +5729,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:c6gd",
@@ -5458,6 +5747,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:c6g_instance",
@@ -5475,6 +5765,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_c6gn_instance",
@@ -5492,6 +5783,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_c6i_instance",
@@ -5509,6 +5801,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_c6in_instance",
@@ -5526,6 +5819,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_c7g_instance",
@@ -5543,6 +5837,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_c7gn_instance",
@@ -5560,6 +5855,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:d2_instance",
@@ -5577,6 +5873,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:d3en_instance",
@@ -5594,6 +5891,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:d3_instance",
@@ -5611,6 +5909,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:db_on_instance2",
@@ -5630,6 +5929,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_dl1_instance",
@@ -5647,6 +5947,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:rescue",
@@ -5664,6 +5965,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:application",
@@ -5683,6 +5985,7 @@
   "width": 31
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 46,
   "id": "shape:deployment",
@@ -5702,6 +6005,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 20,
   "id": "shape:elastic_ip_address",
@@ -5723,6 +6027,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:f1_instance",
@@ -5740,6 +6045,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:g3_instance",
@@ -5757,6 +6063,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:g4ad_instance",
@@ -5774,6 +6081,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:g4dn",
@@ -5791,6 +6099,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_g5g_instance",
@@ -5808,6 +6117,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_g5_instance",
@@ -5825,6 +6135,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:h1_instance",
@@ -5842,6 +6153,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:habana_gaudi",
@@ -5860,6 +6172,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:high_memory_instance",
@@ -5879,6 +6192,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_hpc6a_instance",
@@ -5897,6 +6211,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_hpc6id_instance",
@@ -5915,6 +6230,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:i2",
@@ -5932,6 +6248,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:i3en",
@@ -5949,6 +6266,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:i3_instance",
@@ -5966,6 +6284,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_i4i_instance",
@@ -5983,6 +6302,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_im4gn_instance",
@@ -6000,6 +6320,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:inf1",
@@ -6017,6 +6338,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_inf2_instance",
@@ -6034,6 +6356,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:inferentia",
@@ -6051,6 +6374,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_aws_microservice_extractor_for_net",
@@ -6072,6 +6396,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:instance2",
@@ -6088,6 +6413,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:instances",
@@ -6104,6 +6430,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:instance_with_cloudwatch2",
@@ -6123,6 +6450,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_is4gen_instance",
@@ -6140,6 +6468,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_m1_mac_instance",
@@ -6160,6 +6489,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:lambda_function",
@@ -6178,6 +6508,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:m4_instance",
@@ -6195,6 +6526,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:m5a_instance",
@@ -6212,6 +6544,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:m5d_instance",
@@ -6229,6 +6562,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:m5dn_instance",
@@ -6246,6 +6580,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:m5_instance",
@@ -6263,6 +6598,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:m5n_instance",
@@ -6280,6 +6616,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:m5zn_instance",
@@ -6297,6 +6634,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_m6a_instance",
@@ -6314,6 +6652,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:m6gd_instance",
@@ -6331,6 +6670,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:m6g_instance",
@@ -6348,6 +6688,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_m6idn_instance",
@@ -6365,6 +6706,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_m6i_instance",
@@ -6382,6 +6724,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_m6in_instance",
@@ -6399,6 +6742,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:mac_instance",
@@ -6416,6 +6760,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:optimized_instance",
@@ -6434,6 +6779,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:p2_instance",
@@ -6451,6 +6797,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:p3dn_instance",
@@ -6468,6 +6815,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:p3_instance",
@@ -6485,6 +6833,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_p4de_instance",
@@ -6502,6 +6851,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:p4d_instance",
@@ -6519,6 +6869,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:p4_instance",
@@ -6536,6 +6887,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:r4_instance",
@@ -6553,6 +6905,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:r5ad_instance",
@@ -6570,6 +6923,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:r5a_instance",
@@ -6587,6 +6941,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:r5b_instance",
@@ -6604,6 +6959,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:r5d_instance",
@@ -6621,6 +6977,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:r5gd_instance",
@@ -6638,6 +6995,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:r5_instance",
@@ -6655,6 +7013,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:r5n_instance",
@@ -6672,6 +7031,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_r6a_instance",
@@ -6689,6 +7049,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:r6g_instance",
@@ -6706,6 +7067,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_r6idn_instance",
@@ -6723,6 +7085,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_r6i_instance",
@@ -6740,6 +7103,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_r6in_instance",
@@ -6757,6 +7121,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_r7iz_instance",
@@ -6774,6 +7139,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:rdn_instance",
@@ -6791,6 +7157,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:spot_instance",
@@ -6808,6 +7175,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:t2_instance",
@@ -6825,6 +7193,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:t3a_instance",
@@ -6842,6 +7211,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:t3_instance",
@@ -6859,6 +7229,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:t4g_instance",
@@ -6876,6 +7247,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:trainium_instance",
@@ -6893,6 +7265,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_trn1_instance",
@@ -6910,6 +7283,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_vt1_instance",
@@ -6927,6 +7301,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:x1e_instance",
@@ -6944,6 +7319,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:x1_instance2",
@@ -6961,6 +7337,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_x2gd_instance",
@@ -6978,6 +7355,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_x2idn_instance",
@@ -6995,6 +7373,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_x2iedn_instance",
@@ -7012,6 +7391,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:ec2_x2iezn_instance",
@@ -7029,6 +7409,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "compute",
   "height": 48,
   "id": "shape:z1d_instance",
@@ -7046,6 +7427,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "contact_center",
   "height": 78,
   "id": "resource_icon:contact_center",
@@ -7065,6 +7447,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "contact_center",
   "height": 78,
   "id": "resource_icon:connect#2",
@@ -7085,6 +7468,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "containers",
   "height": 78,
   "id": "resource_icon:containers",
@@ -7102,6 +7486,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "containers",
   "height": 78,
   "id": "resource_icon:ecs_anywhere",
@@ -7121,6 +7506,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "containers",
   "height": 78,
   "id": "resource_icon:eks_anywhere",
@@ -7140,6 +7526,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "containers",
   "height": 78,
   "id": "resource_icon:eks_distro",
@@ -7159,6 +7546,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "containers",
   "height": 78,
   "id": "resource_icon:eks",
@@ -7181,6 +7569,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "containers",
   "height": 78,
   "id": "resource_icon:ecr",
@@ -7201,6 +7590,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "containers",
   "height": 78,
   "id": "resource_icon:ecs",
@@ -7220,6 +7610,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "containers",
   "height": 78,
   "id": "resource_icon:fargate#2",
@@ -7238,6 +7629,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "containers",
   "height": 78,
   "id": "resource_icon:red_hat_openshift",
@@ -7260,6 +7652,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "containers",
   "height": 44,
   "id": "shape:ecs_copilot_cli",
@@ -7280,6 +7673,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "containers",
   "height": 48,
   "id": "shape:registry",
@@ -7298,6 +7692,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "containers",
   "height": 48,
   "id": "shape:container_registry_image",
@@ -7316,6 +7711,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "containers",
   "height": 31,
   "id": "shape:container_1",
@@ -7335,6 +7731,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "containers",
   "height": 31,
   "id": "shape:container_2",
@@ -7354,6 +7751,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "containers",
   "height": 31,
   "id": "shape:container_3",
@@ -7373,6 +7771,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "containers",
   "height": 48,
   "id": "shape:ecs_anywhere",
@@ -7392,6 +7791,7 @@
   "width": 44
  },
  {
+  "broken": false,
   "category": "containers",
   "height": 44,
   "id": "shape:ecs_service_connect",
@@ -7411,6 +7811,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "containers",
   "height": 48,
   "id": "shape:ecs_service",
@@ -7430,6 +7831,7 @@
   "width": 39
  },
  {
+  "broken": false,
   "category": "containers",
   "height": 48,
   "id": "shape:ecs_task",
@@ -7450,6 +7852,7 @@
   "width": 37
  },
  {
+  "broken": false,
   "category": "containers",
   "height": 48,
   "id": "shape:eks_on_outposts",
@@ -7470,6 +7873,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "customer_enablement",
   "height": 78,
   "id": "resource_icon:customer_enablement",
@@ -7487,6 +7891,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "customer_enablement",
   "height": 78,
   "id": "resource_icon:activate",
@@ -7505,6 +7910,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "customer_enablement",
   "height": 78,
   "id": "resource_icon:iq",
@@ -7523,6 +7929,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "customer_enablement",
   "height": 78,
   "id": "resource_icon:managed_services",
@@ -7542,6 +7949,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "customer_enablement",
   "height": 78,
   "id": "resource_icon:professional_services",
@@ -7561,6 +7969,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "customer_enablement",
   "height": 78,
   "id": "resource_icon:repost",
@@ -7579,6 +7988,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "customer_enablement",
   "height": 78,
   "id": "resource_icon:repost_private",
@@ -7598,6 +8008,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "customer_enablement",
   "height": 78,
   "id": "resource_icon:support",
@@ -7616,6 +8027,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "customer_enablement",
   "height": 78,
   "id": "resource_icon:training_certification",
@@ -7635,6 +8047,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "customer_engagement",
   "height": 78,
   "id": "resource_icon:customer_engagement",
@@ -7652,6 +8065,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "customer_engagement",
   "height": 78,
   "id": "resource_icon:connect#3",
@@ -7670,6 +8084,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "customer_engagement",
   "height": 78,
   "id": "resource_icon:pinpoint#3",
@@ -7688,6 +8103,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "customer_engagement",
   "height": 78,
   "id": "resource_icon:simple_email_service#2",
@@ -7707,6 +8123,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "resource_icon:database",
@@ -7725,6 +8142,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "resource_icon:aurora",
@@ -7743,6 +8161,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "resource_icon:documentdb_with_mongodb_compatibility",
@@ -7764,6 +8183,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "resource_icon:dynamodb",
@@ -7782,6 +8202,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "resource_icon:elasticache",
@@ -7800,6 +8221,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "resource_icon:managed_apache_cassandra_service",
@@ -7820,6 +8242,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "resource_icon:neptune",
@@ -7838,6 +8261,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "resource_icon:rds",
@@ -7856,6 +8280,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "resource_icon:redshift#2",
@@ -7874,6 +8299,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "resource_icon:timestream",
@@ -7892,6 +8318,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "resource_icon:database_migration_service",
@@ -7910,6 +8337,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "resource_icon:oracle_database_at_aws",
@@ -7929,6 +8357,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "resource_icon:keyspaces",
@@ -7947,6 +8376,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "resource_icon:memorydb_for_redis",
@@ -7967,6 +8397,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:attribute",
@@ -7987,6 +8418,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:attributes",
@@ -8007,6 +8439,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:aurora_instance",
@@ -8026,6 +8459,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:aurora_instance_alt",
@@ -8045,6 +8479,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:rds_instance",
@@ -8064,6 +8499,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:rds_instance_alt",
@@ -8083,6 +8519,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:rds_mariadb_instance",
@@ -8103,6 +8540,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:rds_mariadb_instance_alt",
@@ -8123,6 +8561,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:rds_mysql_instance",
@@ -8142,6 +8581,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:rds_mysql_instance_alt",
@@ -8161,6 +8601,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:rds_oracle_instance",
@@ -8180,6 +8621,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:rds_oracle_instance_alt",
@@ -8199,6 +8641,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:rds_piops",
@@ -8218,6 +8661,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:rds_postgresql_instance",
@@ -8238,6 +8682,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:rds_postgresql_instance_alt",
@@ -8258,6 +8703,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:rds_proxy",
@@ -8278,6 +8724,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:rds_proxy_alt",
@@ -8298,6 +8745,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:rds_sql_server_instance",
@@ -8318,6 +8766,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:rds_sql_server_instance_alt",
@@ -8338,6 +8787,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:documentdb_elastic_clusters",
@@ -8358,6 +8808,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 72,
   "id": "shape:dynamodb_dax",
@@ -8379,6 +8830,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:global_secondary_index",
@@ -8399,6 +8851,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:item",
@@ -8417,6 +8870,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:items",
@@ -8435,6 +8889,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:dynamodb_standard_access_table_class",
@@ -8457,6 +8912,7 @@
   "width": 75
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:dynamodb_standard_infrequent_access_table_class",
@@ -8480,6 +8936,7 @@
   "width": 75
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:dynamodb_stream",
@@ -8499,6 +8956,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:table",
@@ -8517,6 +8975,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:cache_node",
@@ -8538,6 +8997,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 69,
   "id": "shape:elasticache_for_memcached",
@@ -8558,6 +9018,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 69,
   "id": "shape:elasticache_for_redis",
@@ -8578,6 +9039,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 69,
   "id": "shape:elasticache_for_valkey",
@@ -8598,6 +9060,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 59,
   "id": "shape:rds_blue_green_deployments",
@@ -8619,6 +9082,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 58,
   "id": "shape:rds_multi_az",
@@ -8639,6 +9103,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:rds_optimized_writes",
@@ -8659,6 +9124,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:rds_trusted_language_extensions_for_postgresql",
@@ -8682,6 +9148,7 @@
   "width": 59
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:rds_multi_az_db_cluster",
@@ -8703,6 +9170,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:dense_compute_node#2",
@@ -8723,6 +9191,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:dense_storage_node#2",
@@ -8743,6 +9212,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "database",
   "height": 78,
   "id": "shape:database_migration_workflow_job",
@@ -8763,6 +9233,7 @@
   "width": 50
  },
  {
+  "broken": false,
   "category": "developer_tools",
   "height": 78,
   "id": "resource_icon:developer_tools",
@@ -8781,6 +9252,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "developer_tools",
   "height": 78,
   "id": "resource_icon:codecatalyst",
@@ -8800,6 +9272,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "developer_tools",
   "height": 78,
   "id": "resource_icon:cloud9",
@@ -8819,6 +9292,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "developer_tools",
   "height": 78,
   "id": "resource_icon:cloud_control_api",
@@ -8843,6 +9317,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "developer_tools",
   "height": 78,
   "id": "resource_icon:cloud_development_kit",
@@ -8864,6 +9339,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "developer_tools",
   "height": 78,
   "id": "resource_icon:cloudshell",
@@ -8883,6 +9359,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "developer_tools",
   "height": 78,
   "id": "resource_icon:codeartifact",
@@ -8902,6 +9379,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "developer_tools",
   "height": 78,
   "id": "resource_icon:codebuild",
@@ -8921,6 +9399,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "developer_tools",
   "height": 78,
   "id": "resource_icon:codecommit",
@@ -8940,6 +9419,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "developer_tools",
   "height": 78,
   "id": "resource_icon:codedeploy",
@@ -8959,6 +9439,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "developer_tools",
   "height": 78,
   "id": "resource_icon:codepipeline",
@@ -8978,6 +9459,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "developer_tools",
   "height": 78,
   "id": "resource_icon:command_line_interface",
@@ -8999,6 +9481,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "developer_tools",
   "height": 78,
   "id": "resource_icon:fault_injection_simulator",
@@ -9021,6 +9504,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "developer_tools",
   "height": 78,
   "id": "resource_icon:corretto",
@@ -9040,6 +9524,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "developer_tools",
   "height": 78,
   "id": "resource_icon:application_composer",
@@ -9061,6 +9546,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "developer_tools",
   "height": 78,
   "id": "resource_icon:tools_and_sdks",
@@ -9084,6 +9570,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "developer_tools",
   "height": 78,
   "id": "resource_icon:xray",
@@ -9104,6 +9591,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "developer_tools",
   "height": 50,
   "id": "shape:cloud9",
@@ -9123,6 +9611,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "end_user_computing",
   "height": 78,
   "id": "resource_icon:desktop_and_app_streaming",
@@ -9147,6 +9636,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "end_user_computing",
   "height": 78,
   "id": "resource_icon:workspaces",
@@ -9166,6 +9656,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "end_user_computing",
   "height": 78,
   "id": "resource_icon:workspaces_thin_client",
@@ -9186,6 +9677,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "end_user_computing",
   "height": 78,
   "id": "shape:workspaces_family_amazon_workspaces_core",
@@ -9205,6 +9697,7 @@
   "width": 77
  },
  {
+  "broken": false,
   "category": "end_user_computing",
   "height": 74,
   "id": "shape:workspaces_workspaces_web",
@@ -9225,6 +9718,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "front_end_web_mobile",
   "height": 78,
   "id": "resource_icon:mobile",
@@ -9243,6 +9737,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "front_end_web_mobile",
   "height": 78,
   "id": "resource_icon:amplify",
@@ -9260,6 +9755,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "front_end_web_mobile",
   "height": 78,
   "id": "resource_icon:device_farm",
@@ -9278,6 +9774,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "front_end_web_mobile",
   "height": 78,
   "id": "resource_icon:location_service",
@@ -9295,6 +9792,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "front_end_web_mobile",
   "height": 48,
   "id": "shape:location_service_geofence",
@@ -9313,6 +9811,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "front_end_web_mobile",
   "height": 48,
   "id": "shape:location_service_map",
@@ -9331,6 +9830,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "front_end_web_mobile",
   "height": 48,
   "id": "shape:location_service_place",
@@ -9349,6 +9849,7 @@
   "width": 37
  },
  {
+  "broken": false,
   "category": "front_end_web_mobile",
   "height": 48,
   "id": "shape:location_service_routes",
@@ -9367,6 +9868,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "front_end_web_mobile",
   "height": 48,
   "id": "shape:location_service_track",
@@ -9385,6 +9887,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "front_end_web_mobile",
   "height": 44,
   "id": "shape:amplify_aws_amplify_studio",
@@ -9403,6 +9906,7 @@
   "width": 48
  },
  {
+  "broken": false,
   "category": "games",
   "height": 78,
   "id": "resource_icon:games",
@@ -9421,6 +9925,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "games",
   "height": 78,
   "id": "resource_icon:gamelift_2",
@@ -9439,6 +9944,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "games",
   "height": 78,
   "id": "resource_icon:gamelift_streams",
@@ -9457,6 +9963,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "games",
   "height": 78,
   "id": "resource_icon:open_3d_engine_2",
@@ -9478,6 +9985,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "resource_icon:internet_of_things",
@@ -9497,6 +10005,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "resource_icon:freertos",
@@ -9517,6 +10026,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "resource_icon:iot_core",
@@ -9537,6 +10047,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "resource_icon:iot_device_defender",
@@ -9558,6 +10069,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "resource_icon:iot_device_management",
@@ -9579,6 +10091,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "resource_icon:iot_events",
@@ -9599,6 +10112,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "resource_icon:iot_expresslink",
@@ -9619,6 +10133,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "resource_icon:iot_fleetwise",
@@ -9639,6 +10154,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "resource_icon:greengrass",
@@ -9659,6 +10175,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "resource_icon:iot_sitewise",
@@ -9679,6 +10196,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "resource_icon:iot_twinmaker",
@@ -9699,6 +10217,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:iot_lorawan_protocol",
@@ -9720,6 +10239,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:iot_sailboat",
@@ -9740,6 +10260,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:sensor",
@@ -9760,6 +10281,7 @@
   "width": 70
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:iot_core_device_advisor",
@@ -9782,6 +10304,7 @@
   "width": 77
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:iot_core_device_location",
@@ -9804,6 +10327,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:notebook",
@@ -9824,6 +10348,7 @@
   "width": 68
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 29,
   "id": "shape:connector",
@@ -9844,6 +10369,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:iot_greengrass_interprocess_communication",
@@ -9866,6 +10392,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:iot_greengrass_protocol",
@@ -9887,6 +10414,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:iot_greengrass_recipe",
@@ -9908,6 +10436,7 @@
   "width": 55
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 60,
   "id": "shape:iot_greengrass_stream_manager",
@@ -9930,6 +10459,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:action",
@@ -9950,6 +10480,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:actuator",
@@ -9970,6 +10501,7 @@
   "width": 72
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:alexa_voice_service_2",
@@ -9991,6 +10523,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:alexa_enabled_device_2",
@@ -10013,6 +10546,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:alexa_skill",
@@ -10034,6 +10568,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:bank",
@@ -10054,6 +10589,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:bicycle",
@@ -10075,6 +10611,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:camera",
@@ -10095,6 +10632,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:car",
@@ -10115,6 +10653,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:cart",
@@ -10135,6 +10674,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:certificate_manager",
@@ -10156,6 +10696,7 @@
   "width": 59
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:coffee_pot",
@@ -10177,6 +10718,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:desired_state",
@@ -10198,6 +10740,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 73,
   "id": "shape:iot_device_gateway",
@@ -10219,6 +10762,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:iot_device_jobs_resource",
@@ -10240,6 +10784,7 @@
   "width": 64
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:iot_device_management_fleet",
@@ -10262,6 +10807,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:iot_device_tester",
@@ -10283,6 +10829,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:iot_greengrass_artifact",
@@ -10304,6 +10851,7 @@
   "width": 69
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:iot_greengrass_component",
@@ -10325,6 +10873,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:iot_greengrass_component_machine_learning",
@@ -10348,6 +10897,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:iot_greengrass_component_nucleus",
@@ -10370,6 +10920,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:iot_greengrass_component_private",
@@ -10392,6 +10943,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:iot_greengrass_component_public",
@@ -10414,6 +10966,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:door_lock",
@@ -10435,6 +10988,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:echo",
@@ -10455,6 +11009,7 @@
   "width": 41
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:factory",
@@ -10475,6 +11030,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 55,
   "id": "shape:firetv",
@@ -10496,6 +11052,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 34,
   "id": "shape:firetv_stick",
@@ -10518,6 +11075,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:generic",
@@ -10538,6 +11096,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:hardware_board",
@@ -10559,6 +11118,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:house",
@@ -10579,6 +11139,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:http2_protocol",
@@ -10600,6 +11161,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:http_protocol",
@@ -10621,6 +11183,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:iot_certificate",
@@ -10641,6 +11204,7 @@
   "width": 60
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:lambda_function#2",
@@ -10662,6 +11226,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:lightbulb",
@@ -10682,6 +11247,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:medical_emergency",
@@ -10703,6 +11269,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:mqtt_protocol",
@@ -10724,6 +11291,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:iot_sitewise_asset",
@@ -10745,6 +11313,7 @@
   "width": 77
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:iot_sitewise_asset_hierarchy",
@@ -10767,6 +11336,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:iot_sitewise_asset_model",
@@ -10789,6 +11359,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:iot_sitewise_asset_properties",
@@ -10811,6 +11382,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:iot_sitewise_data_streams",
@@ -10833,6 +11405,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 63,
   "id": "shape:iot_over_the_air_update",
@@ -10856,6 +11429,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:police_emergency",
@@ -10877,6 +11451,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 67,
   "id": "shape:policy",
@@ -10897,6 +11472,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:reported_state",
@@ -10918,6 +11494,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:rule",
@@ -10938,6 +11515,7 @@
   "width": 46
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:sensor#2",
@@ -10958,6 +11536,7 @@
   "width": 72
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 56,
   "id": "shape:servo",
@@ -10978,6 +11557,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 77,
   "id": "shape:shadow",
@@ -10998,6 +11578,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:simulator",
@@ -11018,6 +11599,7 @@
   "width": 71
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:iot_thing_freertos_device",
@@ -11038,6 +11620,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:iot_thing_humidity_sensor",
@@ -11059,6 +11642,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:iot_thing_industrial_pc",
@@ -11080,6 +11664,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:iot_thing_plc",
@@ -11103,6 +11688,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:iot_thing_relay",
@@ -11123,6 +11709,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:iot_thing_stacklight",
@@ -11143,6 +11730,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:iot_thing_temperature_humidity_sensor",
@@ -11165,6 +11753,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:iot_thing_temperature_sensor",
@@ -11186,6 +11775,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:iot_thing_temperature_vibration_sensor",
@@ -11208,6 +11798,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:iot_thing_vibration_sensor",
@@ -11229,6 +11820,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:thermostat",
@@ -11249,6 +11841,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:topic_2",
@@ -11269,6 +11862,7 @@
   "width": 53
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:travel",
@@ -11289,6 +11883,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:utility",
@@ -11309,6 +11904,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "internet_of_things",
   "height": 78,
   "id": "shape:windfarm",
@@ -11329,6 +11925,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:management_and_governance",
@@ -11348,6 +11945,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:multicloud_and_hybrid",
@@ -11369,6 +11967,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:cloudwatch_2",
@@ -11387,6 +11986,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:managed_service_for_grafana",
@@ -11407,6 +12007,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:managed_service_for_prometheus",
@@ -11427,6 +12028,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:app_config",
@@ -11446,6 +12048,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:app_wizard",
@@ -11466,6 +12069,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:application_auto_scaling",
@@ -11487,6 +12091,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:autoscaling",
@@ -11506,6 +12111,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:backint_agent",
@@ -11525,6 +12131,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:chatbot",
@@ -11543,6 +12150,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:cloudformation",
@@ -11561,6 +12169,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:cloudtrail",
@@ -11579,6 +12188,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:codeguru",
@@ -11597,6 +12207,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:command_line_interface#2",
@@ -11617,6 +12228,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:compute_optimizer#2",
@@ -11636,6 +12248,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:config",
@@ -11654,6 +12267,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:control_tower",
@@ -11673,6 +12287,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:devops_agent",
@@ -11692,6 +12307,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:distro_for_opentelemetry",
@@ -11712,6 +12328,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:fault_injection_simulator#2",
@@ -11733,6 +12350,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:license_manager",
@@ -11752,6 +12370,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:managed_services#2",
@@ -11771,6 +12390,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:management_console",
@@ -11789,6 +12409,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:console_mobile_application",
@@ -11810,6 +12431,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:organizations",
@@ -11828,6 +12450,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:personal_health_dashboard",
@@ -11848,6 +12471,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:partner_central",
@@ -11867,6 +12491,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:proton",
@@ -11885,6 +12510,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:resilience_hub",
@@ -11904,6 +12530,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:resource_explorer",
@@ -11923,6 +12550,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:service_catalog",
@@ -11941,6 +12569,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:service_management_connector",
@@ -11959,6 +12588,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:systems_manager",
@@ -11978,6 +12608,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:telco_network_builder",
@@ -11998,6 +12629,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:systems_manager_incident_manager",
@@ -12018,6 +12650,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:trusted_advisor",
@@ -12037,6 +12670,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:user_notifications",
@@ -12056,6 +12690,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:well_architect_tool",
@@ -12076,6 +12711,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "resource_icon:sustainability",
@@ -12094,6 +12730,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:alarm",
@@ -12113,6 +12750,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:cloudwatch_cross_account_observability",
@@ -12134,6 +12772,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 69,
   "id": "shape:cloudwatch_data_protection",
@@ -12154,6 +12793,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:event_event_based",
@@ -12174,6 +12814,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:event_time_based",
@@ -12195,6 +12836,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:cloudwatch_evidently",
@@ -12214,6 +12856,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 58,
   "id": "shape:cloudwatch_logs",
@@ -12233,6 +12876,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:cloudwatch_metrics_insights",
@@ -12253,6 +12897,7 @@
   "width": 77
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 76,
   "id": "shape:rule_2",
@@ -12272,6 +12917,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:cloudwatch_rum",
@@ -12291,6 +12937,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 77,
   "id": "shape:cloudwatch_synthetics",
@@ -12310,6 +12957,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:change_set",
@@ -12330,6 +12978,7 @@
   "width": 65
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 76,
   "id": "shape:stack",
@@ -12349,6 +12998,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:template",
@@ -12368,6 +13018,7 @@
   "width": 65
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:cloudtrail_cloudtrail_lake",
@@ -12387,6 +13038,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:license_manager_license_blending",
@@ -12407,6 +13059,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:license_manager_application_discovery",
@@ -12428,6 +13081,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:instances_2",
@@ -12446,6 +13100,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:logs#2",
@@ -12464,6 +13119,7 @@
   "width": 57
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:stack2",
@@ -12482,6 +13138,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:organizations_account",
@@ -12501,6 +13158,7 @@
   "width": 74
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:organizations_account2",
@@ -12520,6 +13178,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:organizations_management_account",
@@ -12539,6 +13198,7 @@
   "width": 74
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:organizations_management_account2",
@@ -12558,6 +13218,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:organizations_organizational_unit2",
@@ -12578,6 +13239,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 74,
   "id": "shape:systems_manager_application_manager",
@@ -12598,6 +13260,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 72,
   "id": "shape:systems_manager_change_calendar",
@@ -12619,6 +13282,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 72,
   "id": "shape:systems_manager_change_manager",
@@ -12639,6 +13303,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:systems_manager_compliance",
@@ -12659,6 +13324,7 @@
   "width": 67
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:systems_manager_distributor",
@@ -12679,6 +13345,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:shield_shield_advanced",
@@ -12698,6 +13365,7 @@
   "width": 70
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:automation",
@@ -12718,6 +13386,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:documents#2",
@@ -12738,6 +13407,7 @@
   "width": 64
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:systems_manager_incident_manager",
@@ -12758,6 +13428,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:inventory",
@@ -12778,6 +13449,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:maintenance_windows",
@@ -12799,6 +13471,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:parameter_store",
@@ -12820,6 +13493,7 @@
   "width": 75
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:patch_manager",
@@ -12840,6 +13514,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 55,
   "id": "shape:run_command",
@@ -12861,6 +13536,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:systems_manager_session_manager",
@@ -12881,6 +13557,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:state_manager",
@@ -12901,6 +13578,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:checklist",
@@ -12921,6 +13599,7 @@
   "width": 66
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:checklist_cost",
@@ -12942,6 +13621,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 77,
   "id": "shape:checklist_fault_tolerant",
@@ -12963,6 +13643,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:checklist_performance",
@@ -12984,6 +13665,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:checklist_security",
@@ -13005,6 +13687,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "management_governance",
   "height": 78,
   "id": "shape:systems_manager_opscenter",
@@ -13023,6 +13706,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "media_services",
   "height": 78,
   "id": "resource_icon:media_services",
@@ -13040,6 +13724,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "media_services",
   "height": 78,
   "id": "resource_icon:kinesis_video_streams#2",
@@ -13060,6 +13745,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "media_services",
   "height": 78,
   "id": "resource_icon:deadline_cloud",
@@ -13079,6 +13765,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "media_services",
   "height": 78,
   "id": "resource_icon:elemental",
@@ -13099,6 +13786,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "media_services",
   "height": 78,
   "id": "resource_icon:elemental_mediaconnect",
@@ -13118,6 +13806,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "media_services",
   "height": 78,
   "id": "resource_icon:elemental_mediaconvert",
@@ -13137,6 +13826,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "media_services",
   "height": 78,
   "id": "resource_icon:elemental_medialive",
@@ -13156,6 +13846,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "media_services",
   "height": 78,
   "id": "resource_icon:elemental_mediapackage",
@@ -13175,6 +13866,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "media_services",
   "height": 78,
   "id": "resource_icon:elemental_mediastore",
@@ -13194,6 +13886,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "media_services",
   "height": 78,
   "id": "resource_icon:elemental_mediatailor",
@@ -13213,6 +13906,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "media_services",
   "height": 78,
   "id": "resource_icon:elemental#2",
@@ -13232,6 +13926,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "media_services",
   "height": 78,
   "id": "resource_icon:elemental#3",
@@ -13251,6 +13946,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "media_services",
   "height": 78,
   "id": "resource_icon:elemental#4",
@@ -13270,6 +13966,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "media_services",
   "height": 78,
   "id": "resource_icon:elemental#5",
@@ -13289,6 +13986,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "media_services",
   "height": 78,
   "id": "resource_icon:thinkbox_deadline",
@@ -13308,6 +14006,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "media_services",
   "height": 78,
   "id": "resource_icon:thinkbox_frost",
@@ -13327,6 +14026,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "media_services",
   "height": 78,
   "id": "resource_icon:thinkbox_krakatoa",
@@ -13346,6 +14046,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "media_services",
   "height": 78,
   "id": "resource_icon:thinkbox_stoke",
@@ -13365,6 +14066,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "media_services",
   "height": 78,
   "id": "resource_icon:thinkbox_xmesh",
@@ -13384,6 +14086,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "media_services",
   "height": 78,
   "id": "resource_icon:interactive_video",
@@ -13404,6 +14107,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "media_services",
   "height": 78,
   "id": "resource_icon:elemental_link",
@@ -13423,6 +14127,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "media_services",
   "height": 78,
   "id": "shape:cloud_digital_interface",
@@ -13443,6 +14148,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "media_services",
   "height": 78,
   "id": "shape:mediaconnect_gateway",
@@ -13462,6 +14168,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "migration_modernization",
   "height": 78,
   "id": "resource_icon:migration_and_transfer",
@@ -13481,6 +14188,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "migration_modernization",
   "height": 78,
   "id": "resource_icon:elastic_vmware_service#2",
@@ -13500,6 +14208,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "migration_modernization",
   "height": 78,
   "id": "resource_icon:application_discovery_service",
@@ -13519,6 +14228,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "migration_modernization",
   "height": 78,
   "id": "resource_icon:database_migration_service#2",
@@ -13538,6 +14248,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "migration_modernization",
   "height": 78,
   "id": "resource_icon:datasync",
@@ -13556,6 +14267,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "migration_modernization",
   "height": 78,
   "id": "resource_icon:data_transfer_terminal",
@@ -13576,6 +14288,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "migration_modernization",
   "height": 78,
   "id": "resource_icon:mainframe_modernization",
@@ -13594,6 +14307,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "migration_modernization",
   "height": 78,
   "id": "resource_icon:migration_evaluator",
@@ -13612,6 +14326,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "migration_modernization",
   "height": 78,
   "id": "resource_icon:snowball",
@@ -13630,6 +14345,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "migration_modernization",
   "height": 78,
   "id": "resource_icon:snowball_edge",
@@ -13649,6 +14365,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "migration_modernization",
   "height": 78,
   "id": "resource_icon:cloudendure_migration",
@@ -13669,6 +14386,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "migration_modernization",
   "height": 78,
   "id": "resource_icon:transfer_family",
@@ -13690,6 +14408,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "migration_modernization",
   "height": 78,
   "id": "resource_icon:transform",
@@ -13708,6 +14427,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "migration_modernization",
   "height": 78,
   "id": "shape:application_discovery_service_aws_agentless_collector",
@@ -13729,6 +14449,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "migration_modernization",
   "height": 63,
   "id": "shape:application_discovery_service_aws_discovery_agent",
@@ -13749,6 +14470,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "migration_modernization",
   "height": 78,
   "id": "shape:application_discovery_service_migration_evaluator_collector",
@@ -13770,6 +14492,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "migration_modernization",
   "height": 78,
   "id": "shape:agent2",
@@ -13788,6 +14511,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "migration_modernization",
   "height": 77,
   "id": "shape:datasync_discovery",
@@ -13807,6 +14531,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "migration_modernization",
   "height": 78,
   "id": "shape:mainframe_modernization_analyzer",
@@ -13826,6 +14551,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "migration_modernization",
   "height": 78,
   "id": "shape:mainframe_modernization_compiler",
@@ -13845,6 +14571,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "migration_modernization",
   "height": 78,
   "id": "shape:mainframe_modernization_converter",
@@ -13864,6 +14591,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "migration_modernization",
   "height": 78,
   "id": "shape:mainframe_modernization_developer",
@@ -13883,6 +14611,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "migration_modernization",
   "height": 45,
   "id": "shape:mainframe_modernization_runtime",
@@ -13902,6 +14631,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "migration_modernization",
   "height": 78,
   "id": "shape:transfer_family_aws_as2",
@@ -13922,6 +14652,7 @@
   "width": 76
  },
  {
+  "broken": false,
   "category": "migration_modernization",
   "height": 78,
   "id": "shape:transfer_for_ftp_resource",
@@ -13943,6 +14674,7 @@
   "width": 76
  },
  {
+  "broken": false,
   "category": "migration_modernization",
   "height": 78,
   "id": "shape:transfer_for_ftps_resource",
@@ -13964,6 +14696,7 @@
   "width": 76
  },
  {
+  "broken": false,
   "category": "migration_modernization",
   "height": 78,
   "id": "shape:transfer_for_sftp_resource",
@@ -13985,6 +14718,7 @@
   "width": 76
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "resource_icon:networking_and_content_delivery",
@@ -14005,6 +14739,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "resource_icon:api_gateway#2",
@@ -14028,6 +14763,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "resource_icon:application_recovery_controller",
@@ -14051,6 +14787,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "resource_icon:cloud_directory",
@@ -14071,6 +14808,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "resource_icon:cloudfront",
@@ -14090,6 +14828,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "resource_icon:route_53",
@@ -14110,6 +14849,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "resource_icon:vpc_privatelink",
@@ -14129,6 +14869,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "resource_icon:vpc",
@@ -14151,6 +14892,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "resource_icon:vpc_lattice",
@@ -14173,6 +14915,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "resource_icon:app_mesh",
@@ -14194,6 +14937,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "resource_icon:client_vpn",
@@ -14217,6 +14961,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "resource_icon:site_to_site_vpn",
@@ -14242,6 +14987,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "resource_icon:elastic_load_balancing#2",
@@ -14263,6 +15009,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "resource_icon:cloud_map",
@@ -14283,6 +15030,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "resource_icon:cloud_wan",
@@ -14303,6 +15051,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "resource_icon:direct_connect",
@@ -14323,6 +15072,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "resource_icon:global_accelerator",
@@ -14343,6 +15093,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "resource_icon:rtb_fabric",
@@ -14363,6 +15114,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "resource_icon:transit_gateway",
@@ -14383,6 +15135,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "resource_icon:verified_access",
@@ -14403,6 +15156,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "resource_icon:interconnect",
@@ -14422,6 +15176,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:endpoint#2",
@@ -14441,6 +15196,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:download_distribution",
@@ -14461,6 +15217,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:cloudfront_functions",
@@ -14481,6 +15238,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:edge_location",
@@ -14501,6 +15259,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:streaming_distribution",
@@ -14521,6 +15280,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:route_53_readiness_checks",
@@ -14543,6 +15303,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 77,
   "id": "shape:hosted_zone",
@@ -14563,6 +15324,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:vpc_carrier_gateway",
@@ -14584,6 +15346,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:route_53_resolver",
@@ -14605,6 +15368,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:route_53_resolver_dns_firewall",
@@ -14628,6 +15392,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:route_53_resolver_query_logging",
@@ -14651,6 +15416,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 76,
   "id": "shape:route_table",
@@ -14671,6 +15437,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:route_53_routing_controls",
@@ -14693,6 +15460,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:customer_gateway",
@@ -14718,6 +15486,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:elastic_network_adapter",
@@ -14743,6 +15512,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:elastic_network_interface",
@@ -14768,6 +15538,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:endpoints",
@@ -14791,6 +15562,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:flow_logs",
@@ -14815,6 +15587,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:gateway",
@@ -14834,6 +15607,7 @@
   "width": 76
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:transit_gateway_attachment",
@@ -14855,6 +15629,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:internet_gateway",
@@ -14879,6 +15654,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 77,
   "id": "shape:mesh",
@@ -14898,6 +15674,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:nat_gateway",
@@ -14922,6 +15699,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:vpc_network_access_analyzer",
@@ -14944,6 +15722,7 @@
   "width": 77
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:namespace",
@@ -14963,6 +15742,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:network_access_control_list",
@@ -14989,6 +15769,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:peering",
@@ -15009,6 +15790,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:vpc_reachability_analyzer",
@@ -15030,6 +15812,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:resource",
@@ -15049,6 +15832,7 @@
   "width": 76
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:cloud_wan_segment_network",
@@ -15073,6 +15857,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:cloud_wan_core_network_edge",
@@ -15098,6 +15883,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:cloud_wan_transit_gateway_route_table_attachment",
@@ -15123,6 +15909,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:cloud_wan_virtual_pop",
@@ -15148,6 +15935,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 76,
   "id": "shape:service",
@@ -15166,6 +15954,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:application_load_balancer",
@@ -15187,6 +15976,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:classic_load_balancer",
@@ -15208,6 +15998,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:gateway_load_balancer",
@@ -15229,6 +16020,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:router",
@@ -15248,6 +16040,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:virtual_gateway",
@@ -15268,6 +16061,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:virtual_node",
@@ -15288,6 +16082,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:virtual_router",
@@ -15308,6 +16103,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 74,
   "id": "shape:virtual_service",
@@ -15327,6 +16123,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:vpn_connection",
@@ -15352,6 +16149,7 @@
   "width": 70
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:vpn_gateway",
@@ -15377,6 +16175,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:vpc_traffic_mirroring",
@@ -15401,6 +16200,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 76,
   "id": "shape:vpc_virtual_private_cloud_vpc",
@@ -15423,6 +16223,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "network_content_delivery",
   "height": 78,
   "id": "shape:network_load_balancer",
@@ -15444,6 +16245,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "quantum_technologies",
   "height": 78,
   "id": "resource_icon:quantum_technologies",
@@ -15461,6 +16263,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "quantum_technologies",
   "height": 78,
   "id": "resource_icon:braket",
@@ -15479,6 +16282,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "quantum_technologies",
   "height": 78,
   "id": "shape:braket_chandelier",
@@ -15498,6 +16302,7 @@
   "width": 53
  },
  {
+  "broken": false,
   "category": "quantum_technologies",
   "height": 78,
   "id": "shape:braket_chip",
@@ -15517,6 +16322,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "quantum_technologies",
   "height": 78,
   "id": "shape:braket_embedded_simulator",
@@ -15537,6 +16343,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "quantum_technologies",
   "height": 78,
   "id": "shape:braket_managed_simulator",
@@ -15557,6 +16364,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "quantum_technologies",
   "height": 78,
   "id": "shape:braket_noise_simulator",
@@ -15577,6 +16385,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "quantum_technologies",
   "height": 78,
   "id": "shape:braket_qpu",
@@ -15596,6 +16405,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "quantum_technologies",
   "height": 70,
   "id": "shape:braket_simulator",
@@ -15615,6 +16425,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "quantum_technologies",
   "height": 78,
   "id": "shape:braket_simulator_1",
@@ -15634,6 +16445,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "quantum_technologies",
   "height": 78,
   "id": "shape:braket_simulator_2",
@@ -15653,6 +16465,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "quantum_technologies",
   "height": 78,
   "id": "shape:braket_simulator_3",
@@ -15672,6 +16485,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "quantum_technologies",
   "height": 78,
   "id": "shape:braket_simulator_4",
@@ -15691,6 +16505,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "quantum_technologies",
   "height": 78,
   "id": "shape:braket_state_vector",
@@ -15711,6 +16526,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "quantum_technologies",
   "height": 78,
   "id": "shape:braket_tensor_network",
@@ -15731,6 +16547,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "satellite",
   "height": 78,
   "id": "resource_icon:satellite",
@@ -15747,6 +16564,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "satellite",
   "height": 78,
   "id": "resource_icon:ground_station",
@@ -15765,6 +16583,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "resource_icon:security_identity_and_compliance",
@@ -15784,6 +16603,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "resource_icon:cloud_directory#2",
@@ -15804,6 +16624,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "resource_icon:cognito",
@@ -15823,6 +16644,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "resource_icon:detective",
@@ -15842,6 +16664,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "resource_icon:guardduty",
@@ -15863,6 +16686,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "resource_icon:inspector",
@@ -15882,6 +16706,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "resource_icon:macie",
@@ -15901,6 +16726,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "resource_icon:security_lake",
@@ -15920,6 +16746,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "resource_icon:verified_permissions",
@@ -15940,6 +16767,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "resource_icon:artifact",
@@ -15959,6 +16787,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "resource_icon:audit_manager",
@@ -15979,6 +16808,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "resource_icon:certificate_manager_3",
@@ -15999,6 +16829,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "resource_icon:cloudhsm",
@@ -16020,6 +16851,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "resource_icon:directory_service",
@@ -16039,6 +16871,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "resource_icon:firewall_manager",
@@ -16059,6 +16892,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "resource_icon:identity_and_access_management",
@@ -16080,6 +16914,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "resource_icon:key_management_service",
@@ -16100,6 +16935,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "resource_icon:network_firewall",
@@ -16120,6 +16956,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "resource_icon:payment_cryptography",
@@ -16140,6 +16977,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "resource_icon:private_certificate_authority",
@@ -16161,6 +16999,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "resource_icon:resource_access_manager",
@@ -16182,6 +17021,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "resource_icon:organizations#2",
@@ -16201,6 +17041,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "resource_icon:secrets_manager",
@@ -16221,6 +17062,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "resource_icon:security_agent",
@@ -16240,6 +17082,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "resource_icon:security_hub",
@@ -16259,6 +17102,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "resource_icon:security_incident_response",
@@ -16279,6 +17123,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "resource_icon:shield",
@@ -16298,6 +17143,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "resource_icon:signer",
@@ -16317,6 +17163,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "resource_icon:single_sign_on",
@@ -16341,6 +17188,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "resource_icon:waf",
@@ -16360,6 +17208,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 77,
   "id": "shape:access_analyzer",
@@ -16380,6 +17229,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "shape:identity_access_management_iam_roles_anywhere",
@@ -16403,6 +17253,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 73,
   "id": "shape:ad_connector",
@@ -16423,6 +17274,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 76,
   "id": "shape:aws_managed_microsoft_ad",
@@ -16446,6 +17298,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 74,
   "id": "shape:agent",
@@ -16465,6 +17318,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 72,
   "id": "shape:certificate_manager_2",
@@ -16485,6 +17339,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 40,
   "id": "shape:addon",
@@ -16510,6 +17365,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 50,
   "id": "shape:sts",
@@ -16533,6 +17389,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "shape:sts_alternate",
@@ -16556,6 +17413,7 @@
   "width": 62
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "shape:data_encryption_key",
@@ -16581,6 +17439,7 @@
   "width": 62
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "shape:encrypted_data",
@@ -16605,6 +17464,7 @@
   "width": 62
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 69,
   "id": "shape:long_term_security_credential",
@@ -16630,6 +17490,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "shape:mfa_token",
@@ -16654,6 +17515,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "shape:permissions",
@@ -16677,6 +17539,7 @@
   "width": 62
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 44,
   "id": "shape:role",
@@ -16700,6 +17563,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "shape:temporary_security_credential",
@@ -16724,6 +17588,7 @@
   "width": 77
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "shape:key_management_service_external_key_store",
@@ -16746,6 +17611,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "shape:network_firewall_endpoints",
@@ -16767,6 +17633,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 77,
   "id": "shape:managed_ms_ad",
@@ -16788,6 +17655,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "shape:organizations_account#2",
@@ -16808,6 +17676,7 @@
   "width": 74
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 67,
   "id": "shape:organizations_organizational_unit",
@@ -16829,6 +17698,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "shape:finding",
@@ -16848,6 +17718,7 @@
   "width": 70
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "shape:shield_shield_advanced#2",
@@ -16868,6 +17739,7 @@
   "width": 70
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 71,
   "id": "shape:waf_bad_bot",
@@ -16889,6 +17761,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "shape:waf_bot",
@@ -16909,6 +17782,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "shape:waf_bot_control",
@@ -16930,6 +17804,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "shape:waf_labels",
@@ -16950,6 +17825,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "shape:waf_managed_rule",
@@ -16971,6 +17847,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "shape:waf_rule",
@@ -16991,6 +17868,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "shape:filtering_rule",
@@ -17011,6 +17889,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 78,
   "id": "shape:waf_labels#2",
@@ -17031,6 +17910,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "security_identity_compliance",
   "height": 77,
   "id": "shape:simple_ad",
@@ -17051,6 +17931,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "serverless",
   "height": 78,
   "id": "resource_icon:serverless",
@@ -17067,6 +17948,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "resource_icon:storage",
@@ -17083,6 +17965,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "resource_icon:elastic_block_store",
@@ -17102,6 +17985,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "resource_icon:file_cache",
@@ -17120,6 +18004,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "resource_icon:elastic_file_system",
@@ -17139,6 +18024,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "resource_icon:fsx",
@@ -17156,6 +18042,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "resource_icon:fsx_for_lustre",
@@ -17175,6 +18062,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "resource_icon:fsx_for_netapp_ontap",
@@ -17195,6 +18083,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "resource_icon:fsx_for_openzfs",
@@ -17214,6 +18103,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "resource_icon:fsx_for_windows_file_server",
@@ -17236,6 +18126,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "resource_icon:s3_on_outposts_storage",
@@ -17255,6 +18146,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "resource_icon:glacier",
@@ -17274,6 +18166,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "resource_icon:s3",
@@ -17292,6 +18185,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "resource_icon:backup",
@@ -17309,6 +18203,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "resource_icon:snowball#2",
@@ -17326,6 +18221,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "resource_icon:snowball_edge#2",
@@ -17344,6 +18240,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "resource_icon:storage_gateway",
@@ -17361,6 +18258,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "resource_icon:cloudendure_disaster_recovery",
@@ -17382,6 +18280,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:elastic_block_store_amazon_data_lifecycle_manager",
@@ -17404,6 +18303,7 @@
   "width": 76
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:snapshot",
@@ -17421,6 +18321,7 @@
   "width": 56
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:volume",
@@ -17438,6 +18339,7 @@
   "width": 62
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:elastic_block_store_volume_gp3",
@@ -17459,6 +18361,7 @@
   "width": 64
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 76,
   "id": "shape:elastic_file_system_elastic_throughput",
@@ -17479,6 +18382,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:file_gateway",
@@ -17497,6 +18401,7 @@
   "width": 69
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:fsx_file_gateway",
@@ -17516,6 +18421,7 @@
   "width": 75
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:s3_file_gateway",
@@ -17535,6 +18441,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 73,
   "id": "shape:file_system",
@@ -17553,6 +18460,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 77,
   "id": "shape:elastic_file_system_intelligent_tiering",
@@ -17574,6 +18482,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:elastic_file_system_one_zone",
@@ -17595,6 +18504,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 76,
   "id": "shape:elastic_file_system_infrequent_access",
@@ -17618,6 +18528,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:elastic_file_system_one_zone_infrequent_access",
@@ -17642,6 +18553,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:elastic_file_system_standard",
@@ -17663,6 +18575,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:file_cache_hybrid_nfs_linked_datasets",
@@ -17685,6 +18598,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:file_cache_on_premises_nfs_linked_datasets",
@@ -17707,6 +18621,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:file_cache_s3_linked_datasets",
@@ -17728,6 +18643,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:general_access_points",
@@ -17746,6 +18662,7 @@
   "width": 65
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:archive",
@@ -17766,6 +18683,7 @@
   "width": 63
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:backup_audit_manager",
@@ -17785,6 +18703,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 64,
   "id": "shape:aws_backup_for_aws_cloudformation",
@@ -17804,6 +18723,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 64,
   "id": "shape:aws_backup_support_for_amazon_fsx_for_netapp_ontap",
@@ -17826,6 +18746,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:backup_aws_backup_support_for_amazon_s3",
@@ -17846,6 +18767,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:backup_aws_backup_support_for_vmware_workloads",
@@ -17867,6 +18789,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:backup_plan",
@@ -17885,6 +18808,7 @@
   "width": 60
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:backup_restore",
@@ -17903,6 +18827,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:backup_vault",
@@ -17921,6 +18846,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:backup_compliance_reporting",
@@ -17940,6 +18866,7 @@
   "width": 64
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 77,
   "id": "shape:backup_compute",
@@ -17958,6 +18885,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 77,
   "id": "shape:backup_database",
@@ -17976,6 +18904,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 77,
   "id": "shape:backup_gateway",
@@ -17994,6 +18923,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:aws_backup_legal_hold",
@@ -18013,6 +18943,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 77,
   "id": "shape:backup_recovery_point_objective",
@@ -18033,6 +18964,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 75,
   "id": "shape:backup_recovery_time_objective",
@@ -18053,6 +18985,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 77,
   "id": "shape:backup_storage",
@@ -18070,6 +19003,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:aws_backup_vault_lock",
@@ -18089,6 +19023,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:backup_virtual_machine",
@@ -18108,6 +19043,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:backup_virtual_machine_monitor",
@@ -18128,6 +19064,7 @@
   "width": 70
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:vault",
@@ -18148,6 +19085,7 @@
   "width": 62
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:bucket",
@@ -18167,6 +19105,7 @@
   "width": 75
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:intelligent_tiering",
@@ -18185,6 +19124,7 @@
   "width": 75
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:s3_multi_region_access_points",
@@ -18206,6 +19146,7 @@
   "width": 76
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:s3_object_lambda",
@@ -18225,6 +19166,7 @@
   "width": 53
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:s3_object_lambda_access_points",
@@ -18246,6 +19188,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:s3_object_lock",
@@ -18265,6 +19208,7 @@
   "width": 71
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:s3_on_outposts",
@@ -18284,6 +19228,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:standard_ia",
@@ -18302,6 +19247,7 @@
   "width": 75
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:s3_storage_lens",
@@ -18320,6 +19266,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:s3_tables",
@@ -18338,6 +19285,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:s3_vectors",
@@ -18356,6 +19304,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:one_zone_ia",
@@ -18375,6 +19324,7 @@
   "width": 75
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:glacier",
@@ -18394,6 +19344,7 @@
   "width": 75
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:simple_storage_service_s3_glacier_instant_retrieval",
@@ -18413,6 +19364,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:glacier_deep_archive",
@@ -18432,6 +19384,7 @@
   "width": 75
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:bucket_with_objects",
@@ -18453,6 +19406,7 @@
   "width": 75
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:simple_storage_service_directory_bucket",
@@ -18473,6 +19427,7 @@
   "width": 75
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:replication",
@@ -18490,6 +19445,7 @@
   "width": 76
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:replication_time_control",
@@ -18509,6 +19465,7 @@
   "width": 76
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:s3_select",
@@ -18527,6 +19484,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:object",
@@ -18546,6 +19504,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:s3_batch_operations",
@@ -18565,6 +19524,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:s3_express_one_zone",
@@ -18585,6 +19545,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:s3_files",
@@ -18603,6 +19564,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 61,
   "id": "shape:import_export",
@@ -18622,6 +19584,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:tape_gateway",
@@ -18640,6 +19603,7 @@
   "width": 74
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:volume_gateway",
@@ -18658,6 +19622,7 @@
   "width": 65
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:cached_volume",
@@ -18677,6 +19642,7 @@
   "width": 62
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:non_cached_volume",
@@ -18697,6 +19663,7 @@
   "width": 62
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:virtual_tape_library",
@@ -18718,6 +19685,7 @@
   "width": 62
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 60,
   "id": "shape:multiple_volumes_resource",
@@ -18736,6 +19704,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "storage",
   "height": 78,
   "id": "shape:vpc_access_points",
@@ -18758,6 +19727,7 @@
   "width": 53
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:kinesis_data_analytics",
@@ -18778,6 +19748,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "shape:quicksight_paginated_reports",
@@ -18799,6 +19770,7 @@
   "width": 62
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:quicksight",
@@ -18820,6 +19792,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:sql_workbench",
@@ -18840,6 +19813,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "shape:event_resource",
@@ -18861,6 +19835,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:workdocs#2",
@@ -18884,6 +19859,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:outposts_family",
@@ -18904,6 +19880,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:eks_cloud",
@@ -18925,6 +19902,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:server_migration_service",
@@ -18946,6 +19924,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:migration_hub",
@@ -18966,6 +19945,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "shape:migration_hub_refactor_spaces_applications",
@@ -18989,6 +19969,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "shape:migration_hub_refactor_spaces_environments",
@@ -19012,6 +19993,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "shape:migration_hub_refactor_spaces_services",
@@ -19035,6 +20017,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:transfer_for_sftp",
@@ -19056,6 +20039,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:deepcomposer",
@@ -19079,6 +20063,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:lookout_for_metrics",
@@ -19104,6 +20089,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:deeplens",
@@ -19127,6 +20113,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:quantum_ledger_database",
@@ -19148,6 +20135,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:quantum_ledger_database#2",
@@ -19169,6 +20157,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:alexa_for_business",
@@ -19190,6 +20179,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:honeycode",
@@ -19210,6 +20200,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:application_cost_profiler",
@@ -19233,6 +20224,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:nice_enginframe",
@@ -19253,6 +20245,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:genomics_cli",
@@ -19273,6 +20266,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:vmware_cloud_on_aws",
@@ -19297,6 +20291,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:rds_on_vmware",
@@ -19319,6 +20314,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:codestar",
@@ -19340,6 +20336,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:appstream_20",
@@ -19364,6 +20361,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:worklink",
@@ -19385,6 +20383,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:workspaces_family",
@@ -19407,6 +20406,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 73,
   "id": "shape:workspaces_family_amazon_workspaces",
@@ -19429,6 +20429,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:gamekit",
@@ -19450,6 +20451,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:gamesparks",
@@ -19471,6 +20473,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:lumberyard",
@@ -19492,6 +20495,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:open_3d_engine",
@@ -19516,6 +20520,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:iot_analytics",
@@ -19538,6 +20543,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "shape:iot_analytics_channel",
@@ -19561,6 +20567,7 @@
   "width": 65
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "shape:iot_analytics_data_store",
@@ -19585,6 +20592,7 @@
   "width": 54
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 42,
   "id": "shape:iot_analytics_pipeline",
@@ -19608,6 +20616,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "shape:data_set",
@@ -19632,6 +20641,7 @@
   "width": 63
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:iot_button",
@@ -19654,6 +20664,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:iot_1click",
@@ -19678,6 +20689,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:iot_edukit",
@@ -19700,6 +20712,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:iot_roborunner",
@@ -19722,6 +20735,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:iot_things_graph",
@@ -19744,6 +20758,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:mobile_application",
@@ -19767,6 +20782,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:opsworks",
@@ -19787,6 +20803,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "shape:opsworks_apps",
@@ -19808,6 +20825,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "shape:deployments",
@@ -19829,6 +20847,7 @@
   "width": 65
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "shape:layers",
@@ -19850,6 +20869,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 58,
   "id": "shape:monitoring",
@@ -19871,6 +20891,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "shape:opsworks_permissions",
@@ -19892,6 +20913,7 @@
   "width": 54
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "shape:resources",
@@ -19913,6 +20935,7 @@
   "width": 68
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:elastic_transcoder",
@@ -19934,6 +20957,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:nimble_studio",
@@ -19955,6 +20979,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:thinkbox_draft",
@@ -19976,6 +21001,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:thinkbox_sequoia",
@@ -19997,6 +21023,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:snowmobile",
@@ -20017,6 +21044,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:snowmobile#2",
@@ -20036,6 +21064,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:snowcone",
@@ -20055,6 +21084,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:infrequent_access_storage_class",
@@ -20079,6 +21109,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:private_5g",
@@ -20101,6 +21132,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "shape:route_53_application_recovery_controller",
@@ -20126,6 +21158,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 59,
   "id": "shape:emr_engine_mapr_m3",
@@ -20148,6 +21181,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 59,
   "id": "shape:emr_engine_mapr_m5",
@@ -20170,6 +21204,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 59,
   "id": "shape:emr_engine_mapr_m7",
@@ -20192,6 +21227,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:data_pipeline",
@@ -20212,6 +21248,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:glue_elastic_views",
@@ -20233,6 +21270,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:sumerian",
@@ -20256,6 +21294,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:ar_vr",
@@ -20279,6 +21318,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:robotics",
@@ -20298,6 +21338,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "resource_icon:robomaker",
@@ -20317,6 +21358,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "shape:cloud_extension_ros",
@@ -20339,6 +21381,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 71,
   "id": "shape:development_environment",
@@ -20360,6 +21403,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 78,
   "id": "shape:fleet_management",
@@ -20381,6 +21425,7 @@
   "width": 78
  },
  {
+  "broken": false,
   "category": "retired",
   "height": 64,
   "id": "shape:simulation",

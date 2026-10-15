@@ -7,6 +7,9 @@ JS の解析は正規表現ではなく、Node 上で Sidebar をスタブ化し
   references/icons/catalog.json   機械用の辞書（find_aws_icon.py などが読む）
   references/icons/<category>.md  人と LLM 向けのカテゴリ別一覧（スタイル文字列は載せない）
 
+壊れたアイコンの情報は references/icons/broken.json（check_icons.py の出力、C2）から読み、
+各エントリの `broken`（と `broken_reason`）としてマージする。辞書を再生成しても消えない。
+
 使い方: python scripts/build_icon_catalog.py [--sidebar PATH]
 """
 from __future__ import annotations
@@ -23,6 +26,7 @@ SKILL_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_SIDEBAR = SKILL_DIR / "assets" / "vendor" / "Sidebar-AWS4.js"
 HARNESS = Path(__file__).resolve().parent / "lib" / "sidebar_harness.js"
 OUT_DIR = SKILL_DIR / "references" / "icons"
+BROKEN_JSON = OUT_DIR / "broken.json"
 
 
 def run_harness(sidebar: Path) -> list[dict]:
@@ -121,37 +125,81 @@ def write_markdown(catalog: list[dict], out_dir: Path) -> list[Path]:
             "",
             "<!-- 生成物: scripts/build_icon_catalog.py が出力。手で編集しない -->",
             "",
-            "| id | title | kind | size |",
-            "|---|---|---|---|",
+            "| id | title | kind | size | note |",
+            "|---|---|---|---|---|",
         ]
         for c in items:
-            lines.append(f"| `{c['id']}` | {c['title']} | {c['kind']} | {c['width']}x{c['height']} |")
+            note = f"**broken**: {c['broken_reason']}" if c.get("broken") else ""
+            lines.append(f"| `{c['id']}` | {c['title']} | {c['kind']} | {c['width']}x{c['height']} | {note} |")
         p = out_dir / f"{cat}.md"
         p.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
         written.append(p)
     return written
 
 
+def strip_broken(catalog: list[dict]) -> list[dict]:
+    """catalog.json を読み直したときに、前回マージした broken の情報を外す。"""
+    return [{k: v for k, v in c.items() if k not in ("broken", "broken_reason")} for c in catalog]
+
+
+def apply_broken(catalog: list[dict], sidebar: Path | None = None, broken_path: Path | None = None) -> list[dict]:
+    """broken.json（check_icons.py の出力）を辞書にマージする。無ければ全件 broken=false。"""
+    broken_path = BROKEN_JSON if broken_path is None else broken_path
+    data = json.loads(broken_path.read_text(encoding="utf-8")) if broken_path.exists() else {"broken": []}
+    reasons = {b["id"]: b["detail"] for b in data["broken"]}
+    ids = {c["id"] for c in catalog}
+    unknown = sorted(set(reasons) - ids)
+    if unknown:
+        print(f"注意: broken.json に辞書に無い id があります（check_icons.py を再実行してください）: {unknown}",
+              file=sys.stderr)
+    if sidebar is not None and broken_path.exists() and data.get("sidebar_sha256"):
+        import hashlib
+        if hashlib.sha256(sidebar.read_bytes()).hexdigest().upper() != data["sidebar_sha256"]:
+            print("注意: broken.json は別の Sidebar-AWS4.js で作られています。check_icons.py を再実行してください。",
+                  file=sys.stderr)
+    for c in catalog:
+        c["broken"] = c["id"] in reasons
+        if c["broken"]:
+            c["broken_reason"] = reasons[c["id"]]
+    return catalog
+
+
+def write_outputs(catalog: list[dict], out_dir: Path | None = None, sidebar: Path | None = DEFAULT_SIDEBAR,
+                  broken_path: Path | None = None) -> list[Path]:
+    """broken.json をマージして catalog.json とカテゴリ別 .md を書く（UTF-8・LF、順序固定）。
+
+    out_dir と broken_path の既定は references/icons/（呼び出し時に解決する）。
+    """
+    out_dir = OUT_DIR if out_dir is None else out_dir
+    broken_path = out_dir / "broken.json" if broken_path is None else broken_path
+    catalog = apply_broken(catalog, sidebar, broken_path)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for old in out_dir.glob("*.md"):
+        old.unlink()
+    (out_dir / "catalog.json").write_text(
+        json.dumps(catalog, ensure_ascii=False, indent=1, sort_keys=True) + "\n",
+        encoding="utf-8", newline="\n",
+    )
+    return write_markdown(catalog, out_dir)
+
+
 def main() -> None:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--sidebar", type=Path, default=DEFAULT_SIDEBAR)
     args = ap.parse_args()
 
     catalog = build(run_harness(args.sidebar))
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    for old in OUT_DIR.glob("*.md"):
-        old.unlink()
-    (OUT_DIR / "catalog.json").write_text(
-        json.dumps(catalog, ensure_ascii=False, indent=1, sort_keys=True) + "\n",
-        encoding="utf-8", newline="\n",
-    )
-    mds = write_markdown(catalog, OUT_DIR)
+    mds = write_outputs(catalog, sidebar=args.sidebar)
 
     kinds: dict[str, int] = {}
     for c in catalog:
         kinds[c["kind"]] = kinds.get(c["kind"], 0) + 1
     print(f"{len(catalog)} entries, {len(mds)} categories -> {OUT_DIR}")
     print("  " + ", ".join(f"{k}={v}" for k, v in sorted(kinds.items())))
+    print(f"  broken={sum(c['broken'] for c in catalog)}" + ("" if BROKEN_JSON.exists() else "（broken.json なし。check_icons.py で作る）"))
 
 
 if __name__ == "__main__":
