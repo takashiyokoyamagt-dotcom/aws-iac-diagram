@@ -1,7 +1,7 @@
 # aws-iac-diagram 計画書
 
 - 作成日: 2026-10-14
-- 状態: **計画確定（実装未着手）**。再開時は [HANDOFF.md](HANDOFF.md) から読むこと
+- 状態: **フェーズ0 実施中**（2026-10-15）。再開時は [HANDOFF.md](HANDOFF.md) から読むこと
 - 目的: Terraform と CloudFormation のコードを読み込み、AWS 構成図を draw.io・Mermaid・PNG の3形式で出力する Claude Code 用の SKILL を作る
 
 ---
@@ -18,9 +18,24 @@
 | ダウンロード（許可済み） | draw.io の `Sidebar-AWS4.js`（Apache-2.0）、awslabs/aws-icons-for-plantuml の Mermaid 用アイコン JSON（AWS アイコンの利用規約に従う） |
 | ライセンス上の注意 | TerraVision は AGPL-3.0 なので、考え方だけを参考にしてコードは流用しない。awslabs のスキル（Apache-2.0）や vidanov のスキル（MIT）から取り入れた知見は、NOTICE に出典を明記する |
 
-環境の確認結果（2026-10-14）:
+環境の確認結果（2026-10-14、Mac）:
 - インストール済み: Node/npm、Python 3.14、PyYAML、gh
 - 未インストール: draw.io、mmdc（mermaid-cli）、python-hcl2、terraform、graphviz
+
+### 1.1 Windows への移行（2026-10-15）
+
+開発環境を Windows 11 に移した。Mac と Windows の両方で動くことを前提にする。
+
+| 項目 | Mac | Windows |
+|---|---|---|
+| draw.io Desktop | `brew install --cask drawio` | `winget install JGraph.Draw`（v32.4.1、`%LOCALAPPDATA%\Programs\draw.io\draw.io.exe`） |
+| SKILL の登録 | symlink（`ln -s`） | ジャンクション（`mklink /J`。管理者権限も開発者モードも不要） |
+| venv の Python | `.venv/bin/python` | `.venv\Scripts\python.exe`（3.12.10） |
+| PNG 書き出し | `export_png.sh` の予定だった | **`export_png.py` に変更**し、両 OS で同じスクリプトを使う。draw.io の実行ファイルの場所は OS ごとに探す |
+
+- スクリプトは Python で書き、シェルスクリプトは作らない。パスは `pathlib` で扱う。
+- 生成するテキストファイルは UTF-8・LF で書く（`newline="\n"`）。git の自動改行変換で C5（バイト単位で同じ出力）が崩れないよう、`.gitattributes` で LF に固定する。
+- Windows で確認済み: draw.io `-x -f png --disable-gpu` で PNG が出る。`mmdc` 12.0.0 で architecture-beta の PNG が出る。
 
 ---
 
@@ -144,7 +159,7 @@ aws-iac-diagram/
 │       ├── adapters/{tf_plan,tf_hcl,cfn}.py
 │       ├── evaluate.py              # 変数・条件の評価（A4）
 │       ├── normalize.py  layout.py  emit_drawio.py  emit_mermaid.py
-│       ├── export_png.sh  validate.py  find_aws_icon.py
+│       ├── export_png.py  validate.py  find_aws_icon.py
 │       ├── build_icon_catalog.py    # Sidebar-AWS4.js から辞書を再生成
 │       └── check_icons.py           # 全アイコンを描画して壊れたものを検出（C2）
 └── aws-iac-diagram-workspace/

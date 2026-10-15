@@ -1,0 +1,88 @@
+"""AWS アイコン辞書（references/icons/catalog.json）を検索する。
+
+辞書全体を LLM に読ませる代わりに、このスクリプトで必要なエントリだけを引く。
+スタイル文字列は辞書にあるものをそのまま使い、手で組み立てないこと（PLAN 2.2 の 1〜3）。
+
+使い方:
+  python scripts/find_aws_icon.py lambda
+  python scripts/find_aws_icon.py "application load balancer" --kind shape --limit 3
+  python scripts/find_aws_icon.py --id resource_icon:lambda --json
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+CATALOG = Path(__file__).resolve().parent.parent / "references" / "icons" / "catalog.json"
+KINDS = ("resource_icon", "shape", "group", "plain_group", "plain", "edge")
+
+
+def load() -> list[dict]:
+    if not CATALOG.exists():
+        sys.exit(f"{CATALOG} がありません。先に build_icon_catalog.py を実行してください。")
+    return json.loads(CATALOG.read_text(encoding="utf-8"))
+
+
+def score(entry: dict, terms: list[str]) -> int:
+    title = entry["title"].lower()
+    name = entry["name"].lower()
+    words = set(title.split()) | set(name.split("_")) | set(entry["tags"])
+    s = 0
+    for t in terms:
+        if t == name or t == title:
+            s += 100
+        elif t in words:
+            s += 10
+        elif t in title or t in name:
+            s += 3
+        else:
+            return 0  # すべての語を含むものだけを返す
+    if " ".join(terms) == title:
+        s += 100
+    if entry["retired"]:
+        s -= 50
+    return s
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("query", nargs="*", help="検索語（AND 検索）")
+    ap.add_argument("--id", help="id で完全一致検索")
+    ap.add_argument("--kind", choices=KINDS)
+    ap.add_argument("--include-retired", action="store_true")
+    ap.add_argument("--limit", type=int, default=5)
+    ap.add_argument("--json", action="store_true", help="スタイル文字列を含む JSON で出力")
+    args = ap.parse_args()
+
+    catalog = load()
+    if args.id:
+        hits = [c for c in catalog if c["id"] == args.id]
+    else:
+        terms = [t.lower() for t in " ".join(args.query).split()]
+        if not terms:
+            ap.error("検索語か --id を指定してください")
+        scored = []
+        for i, c in enumerate(catalog):
+            if args.kind and c["kind"] != args.kind:
+                continue
+            if c["retired"] and not args.include_retired:
+                continue
+            s = score(c, terms)
+            if s > 0:
+                scored.append((-s, i, c))
+        hits = [c for _, _, c in sorted(scored)[: args.limit]]
+
+    if args.json:
+        print(json.dumps(hits, ensure_ascii=False, indent=1))
+        return
+    if not hits:
+        print("該当なし")
+        sys.exit(1)
+    for c in hits:
+        print(f"{c['id']}\t{c['title']}\t{c['kind']}\t{c['width']}x{c['height']}\t[{c['category']}]")
+
+
+if __name__ == "__main__":
+    main()
