@@ -159,3 +159,21 @@ HANDOFF.md の「次にやること」から再開する（C2 の `check_icons.p
 - **R6** alb・rds のソースを GitHub で確認（WebFetch）。alb の `target_groups` は `protocol`／`port` で正しかった。rds は ~> 7.0 に変更（aws >= 6.28、Terraform >= 1.11.1 なので fixture の `required_version` も変更）、`port` は string 型なので `"5432"` に。中身のアドレスは照合の結果どれも正しかった。
 - **R7** `multiplicity` は値が決まらないときだけ。値が決まる count／for_each はインスタンスごとにノードにする、と明記。
 - 軽微: ir-schema.md の由来部の例、H-RT-NOROUTE の条件（Gateway 型エンドポイントも関連付いていない）、R-LAMBDA-PERMISSION／R-SQS-QUEUE-POLICY で他の辺が無いときの kind、R-SG の「公開」の判定と外部 CIDR（prod の踏み台の SSH）の扱い、E-MERGE で同じ規則からラベルが複数出たときの結合、CFN 版 README の SG egress の差（TF は egress を書かないと egress なし、CFN は既定の全許可）、S3 バケット名の一意性（デプロイしない前提、するなら接尾辞）、.gitignore に `build/`・`.terraform/`・`*.tfstate*`・`.terraform.lock.hcl`、cfn-lint の非推奨バージョンの記述を具体化、一時ファイルは `%TEMP%` 下の専用フォルダにシェルで書く。
+
+---
+
+## 2026-10-15（続き）実行環境の方針（Windows・GitHub Web UI・WSL）
+
+### 概要
+HANDOFF の表の 4 は、2回目の第三者レビューで「コミット可」となり、`46ae7c3` にコミットした。続いて、Windows に加えて GitHub の Web UI（Claude Code on the web、Actions の `@claude`。どちらも Linux コンテナ）でも動かす方針をユーザーと合意し、PLAN.md に「1.2 実行環境」を追加した。フェーズ5 の手前にスパイク 5a を入れ、フェーズ5・6 の作業と完了基準を更新した。文書の第三者レビュー（「修正後コミット」）の指摘も反映した。
+
+### 決めたこと
+| 決定 | 理由 |
+|---|---|
+| 1. 中心部分（解析 → IR → 正規化 → 配置 → `.drawio`／`.mmd` → 検証）は Python と pip パッケージだけで動かし、外部アプリを呼ばない。外部アプリは中心部分の後の PNG の書き出し（draw.io）と `.mmd` の描画確認（mmdc）だけに使う | どの環境でも正本の `.drawio` を必ず出せるように |
+| 2. PNG は環境で切り替える。Windows／Mac は draw.io Desktop、Linux は `xvfb-run`＋`--no-sandbox`（`drawio_cli.py` に画面判定と xvfb を使う指定を追加）。draw.io が使えなければ（見つからない・起動できない・タイムアウト・無出力か 0 バイト）PNG だけスキップして報告し、全体は失敗にしない。mmdc も Linux では Chromium＋`--no-sandbox` で、使えなければ描画確認だけスキップ | Linux コンテナには画面が無く、Electron／Chromium はサンドボックスで落ちやすい。PNG が出せないことで正本まで失敗にしないため |
+| 3. GitHub の画面で使う場合、PNG は GitHub Actions で作る（コミットか artifact）。draw.io の版・ランナーのイメージ・フォントを固定する。同じ GitHub Actions で（ワークフローは別）Windows と Ubuntu のテストを流す。手元の PNG と CI の PNG のどちらをコミットするかは未決（ユーザーが決める） | クラウドのセッションで draw.io が動く保証が無い。固定は C5 のため（バイト一致になるかは 5a で試す） |
+| 4. SKILL はプラグインとして配る（このリポジトリをマーケットプレイスにし、使う側の `.claude/settings.json` で有効化する案）。置き方は `plugins/` の下に作る案とルート自体をプラグインにする案の2つを候補にし、フェーズ6 で決める | ジャンクションは手元でしか効かない。非公開リポジトリをクラウドから読めるか、キャッシュにコピーされてディレクトリの外を参照できなくなるかは未確認 |
+| 5. WSL（Ubuntu）は Linux での動作確認用。普段の開発と SKILL の利用は Windows ネイティブのまま。確認用のリポジトリは WSL 側へ clone する。WSLg の `DISPLAY`／`WAYLAND_DISPLAY` を外すか xvfb を使う指定をして、画面なしの経路を試す | push の前に Linux の動きを試せるように。`/mnt/c` 越しのファイル I/O は遅い。WSLg のままでは xvfb の経路を通らない |
+| 採らない: IR → SVG → resvg の自前描画（最後の予備として残す）、Docker イメージ（drawio-export など） | 自前描画は正本の `.drawio` と見た目がずれ、C6 の採点対象が二重になる。Docker はクラウドのセッションで使えるとは限らない |
+| WSL と CI に入れる物（draw.io の deb、xvfb、Chromium）は、入れる前にユーザーの許可を得る | 1 の要件表の「インストール（許可済み）」に入っていないため |

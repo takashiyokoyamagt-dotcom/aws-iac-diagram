@@ -1,7 +1,7 @@
 # aws-iac-diagram 計画書
 
 - 作成日: 2026-10-14
-- 状態: **フェーズ0 実施中**（2026-10-15）。再開時は [HANDOFF.md](HANDOFF.md) から読むこと
+- 状態: **フェーズ0 実施中**（2026-10-15）。HANDOFF の表の 4（自作テスト構成・正解 IR・第三者レビュー）まで完了し、次は表の 5（評価基準値）。実行環境の方針は 1.2 に追加した。再開時は [HANDOFF.md](HANDOFF.md) から読むこと
 - 目的: Terraform と CloudFormation のコードを読み込み、AWS 構成図を draw.io・Mermaid・PNG の3形式で出力する Claude Code 用の SKILL を作る
 
 ---
@@ -13,8 +13,8 @@
 | 入力（Terraform） | `.tf` を python-hcl2 で静的に解析するのが基本。`terraform show -json` の plan JSON があれば、そちらを優先して使う |
 | 入力（CloudFormation） | YAML と JSON の両方。SAM と CDK の出力（`cdk.out` 配下のテンプレート）も対象 |
 | 出力 | `.drawio`（これを正本とする）、`.mmd`（Mermaid）、`.png` の3形式 |
-| 置き場所 | 独立した private リポジトリ `takashiyokoyamagt-dotcom/aws-iac-diagram`。`~/.claude/skills/aws-iac-diagram` から symlink で参照する |
-| インストール（許可済み） | draw.io Desktop（brew cask）、`@mermaid-js/mermaid-cli`（npm）、`python-hcl2`・`defusedxml`（venv に入れる） |
+| 置き場所 | 独立した private リポジトリ `takashiyokoyamagt-dotcom/aws-iac-diagram`。`~/.claude/skills/aws-iac-diagram` から symlink で参照する（手元用）。ほかのリポジトリやクラウドへの配り方は 1.2 の 4（プラグイン） |
+| インストール（許可済み） | draw.io Desktop（brew cask）、`@mermaid-js/mermaid-cli`（npm）、`python-hcl2`・`defusedxml`（venv に入れる）。WSL と CI に入れる物（draw.io の deb、xvfb、Chromium）は未許可で、入れる前にユーザーの許可を得る |
 | ダウンロード（許可済み） | draw.io の `Sidebar-AWS4.js`（Apache-2.0）、awslabs/aws-icons-for-plantuml の Mermaid 用アイコン JSON（AWS アイコンの利用規約に従う） |
 | ライセンス上の注意 | TerraVision は AGPL-3.0 なので、考え方だけを参考にしてコードは流用しない。awslabs のスキル（Apache-2.0）や vidanov のスキル（MIT）から取り入れた知見は、NOTICE に出典を明記する |
 
@@ -36,6 +36,59 @@
 - スクリプトは Python で書き、シェルスクリプトは作らない。パスは `pathlib` で扱う。
 - 生成するテキストファイルは UTF-8・LF で書く（`newline="\n"`）。git の自動改行変換で C5（バイト単位で同じ出力）が崩れないよう、`.gitattributes` で LF に固定する。
 - Windows で確認済み: draw.io `-x -f png --disable-gpu` で PNG が出る。`mmdc` 12.0.0 で architecture-beta の PNG が出る。
+
+### 1.2 実行環境（Windows・GitHub Web UI・WSL）（2026-10-15）
+
+Windows（手元）と GitHub の Web UI（Claude Code on the web、GitHub Actions の `@claude`）の両方で動かす。Web UI 側はどちらも Linux コンテナで動く。
+
+**方針**
+1. **中心部分は Python と pip パッケージだけで動かす。** IaC 解析 → IR → 正規化 → 配置 → `.drawio`／`.mmd` の出力 → 検証（validate.py）の間は外部アプリ（draw.io、mmdc、terraform など）を呼ばない。どの環境でも正本の `.drawio` は必ず出せる。外部アプリを使うのは、中心部分の後に任意で行う次の2つだけ。
+   - PNG の書き出し（draw.io。下の 2）。PNG は `.drawio` から作る。
+   - `.mmd` の描画確認（mmdc。`.mmd` が Mermaid で描けるかを PNG に書き出して確かめる。この PNG は成果物にしない）。mmdc が無い・動かないときは、この確認だけスキップして報告する。
+2. **PNG の書き出しは環境で切り替える。**
+   - Windows／Mac: 手元の draw.io Desktop を使う（いまの `drawio_cli.py` のまま）。
+   - Linux: draw.io を `xvfb-run` と `--no-sandbox` 付きで動かす。`drawio_cli.py` に画面の有無の判定（`DISPLAY`／`WAYLAND_DISPLAY`）と、画面が無いときの `xvfb-run -a` の付与を足す。画面があっても xvfb を使う指定（環境変数か引数。名前は仮）も設ける。
+   - draw.io が使えなければ PNG だけ飛ばして知らせ、全体は失敗にしない（終了コードは 0、報告に「PNG スキップ」と理由を出す）。「使えない」は、見つからない（`DRAWIO` のパスが無いことを含む）・起動できない・タイムアウト・出力が無いか 0 バイトで終わる（2.2 の 12）のいずれか。いまの `drawio_cli.py` は `DRAWIO` のパスが無いとエラーにするので、スキップにする際に合わせて直す。
+   - mmdc も Linux では Chromium と `--no-sandbox`（puppeteer の設定ファイルを `-p` で渡す）が要る見込み。
+3. **GitHub の画面で使う場合は PNG を GitHub Actions で作る。**
+   - `.drawio` がコミットされたら CI が PNG を作り（`.mmd` は描画確認だけ）、コミットするか artifact に置く。
+   - CI では draw.io の版、ランナーのイメージ（例 `ubuntu-24.04`）、フォントを固定する（C5 を守る。どれかが違うと PNG の差分が出る）。これでバイト単位で同じ PNG になるかは 5a で試し、駄目なら PNG の基準（バイト一致）を見直す。
+   - 同じ GitHub Actions で（ワークフローは別）、Windows と Ubuntu の両方でテストを流す。
+   - 手元の Windows で作った PNG と CI で作った PNG のどちらをコミットするかは未決（ユーザーが決める）。
+4. **SKILL はプラグインとして配る。** いまの `~/.claude/skills` のジャンクションは手元でしか効かない。このリポジトリをプラグインのマーケットプレイスにして、図を作りたいリポジトリの `.claude/settings.json` で有効化する案。プラグインの置き方は次の2案を候補にし、5a の結果を見てフェーズ6 で決める。
+   - マーケットプレイスの下に `plugins/aws-iac-diagram/` を作り、そこから SKILL 本体を参照する。
+   - リポジトリのルート自体をプラグインにする。
+
+   プラグインはキャッシュにコピーされる可能性があり、そのときはプラグインのディレクトリの外のファイルを参照できない。非公開リポジトリをクラウドから読めるかも未確認。
+5. **WSL（Ubuntu）は Linux での動作確認用に使う。**
+   - 普段の開発と SKILL の利用は Windows ネイティブのまま。
+   - WSL には Linux 用の `.venv`、draw.io の deb、xvfb、mmdc を入れ、push の前に Linux での動きを試す。
+   - 確認用のリポジトリは WSL 側へ clone する（`/mnt/c` 越しはファイル I/O が遅い）。
+   - WSL は通常 WSLg で `DISPLAY`／`WAYLAND_DISPLAY` があるので、そのままでは画面ありの経路になり、クラウドや CI と同じ xvfb の経路を通らない。WSL では `DISPLAY`／`WAYLAND_DISPLAY` を外すか、xvfb を使う指定をして画面なしの経路を試す。
+
+**環境ごとの役割と PNG の作り方**
+
+| 環境 | 役割 | `.drawio`／`.mmd` | PNG の作り方 |
+|---|---|---|---|
+| Windows 11（手元） | 普段の開発、SKILL の利用 | Python だけで生成 | draw.io Desktop（`--disable-gpu`）。mmdc は `.mmd` の描画確認 |
+| Mac | 予備の開発環境 | Python だけで生成 | draw.io Desktop。mmdc は `.mmd` の描画確認 |
+| WSL（Ubuntu） | push 前の Linux での動作確認 | Python だけで生成（Linux 用の `.venv`。リポジトリは WSL 側へ clone） | draw.io の deb を `DISPLAY`／`WAYLAND_DISPLAY` を外して（または xvfb を使う指定で）`xvfb-run`＋`--no-sandbox` で。`--disable-gpu` も付ける（Windows と引数をそろえる。xvfb には GPU が無い）。mmdc は Chromium＋`--no-sandbox` |
+| Claude Code on the web／Actions の `@claude` | GitHub の画面からの SKILL の利用 | Python だけで生成 | 動けば `xvfb-run`＋`--no-sandbox`＋`--disable-gpu`。動かなければ PNG をスキップして報告し、下の CI に任せる |
+| GitHub Actions（CI） | PNG の生成、両 OS のテスト | テストで生成して検証 | 版・ランナーのイメージ・フォントを固定した draw.io（Ubuntu は `xvfb-run`）。結果をコミットか artifact に |
+
+**採らない案**
+
+| 案 | 採らない理由 |
+|---|---|
+| draw.io を使わず、IR → SVG → resvg で PNG を自前で描く | 正本の `.drawio` と見た目がずれ、C6 で採点する対象が二重になる。draw.io がどこでも動かないと分かったときの最後の予備として残す |
+| Docker イメージ（drawio-export など）で書き出す | Actions では使えるが、クラウドのセッションで Docker が使えるとは限らない |
+
+**未確認事項**（フェーズ5 の手前のスパイク 5a で小さく試す）
+- クラウドの環境（Claude Code on the web、Actions の `@claude`）で draw.io＋xvfb が動くか。apt で入れられるか、ネットワークの制限で deb を取れるか。
+- 同じ環境で mmdc（Chromium＋`--no-sandbox`）が動くか。
+- 非公開リポジトリのプラグイン（マーケットプレイス）をクラウドのセッションから読み込めるか。
+- プラグインのディレクトリの外のファイルを参照できるか（プラグインがキャッシュにコピーされる場合は参照できない）。
+- Actions で draw.io の版・ランナーのイメージ・フォントを固定したとき、PNG がバイト単位で同じになるか。
 
 ---
 
@@ -136,16 +189,28 @@
  ② 正規化（型別の設定表）: 統合 / 非表示 / 移動、AZ の挿入、関係リソースの辺への変換、SG を辺に変換
  ③ 配置: 枠と階層はスクリプトでグリッド計算。候補を複数作り、スコアで選ぶ（B1）
  ④ 出力: .drawio（正本）、.mmd（アイコン付き版と GitHub 表示用の素の版）、.png
+    ├ ①〜④ の .drawio／.mmd までは Python だけ。外部アプリを呼ばない（1.2 の 1）
+    └ .png は環境で切り替え（1.2 の 2）: Windows／Mac は draw.io Desktop、Linux は（画面が無ければ）xvfb-run＋--no-sandbox、
+      draw.io が使えなければ PNG だけスキップして報告（全体は失敗にしない）。GitHub の画面からは Actions で生成（1.2 の 3）
  ⑤ 検証: XML 構造、アイコンの辞書照合、重なりと貫通の数値判定、IR との突き合わせ、網羅（A6）
  ⑥ LLM: あいまいな点を一括で確認、ラベル付け、別のサブエージェントによる目視採点（C6）、説明 .md の作成
 ```
 
 ### リポジトリ構成（予定）
 
+`.github/workflows/` と `.claude-plugin/`、`plugins/` のファイル名と配置は仮（フェーズ5・6 で決める）。
+
 ```
 aws-iac-diagram/
 ├── PLAN.md  HANDOFF.md  README.md  NOTICE
-├── aws-iac-diagram/                 ← ~/.claude/skills/aws-iac-diagram からの symlink 先
+├── .github/workflows/               # （仮）1.2 の 3
+│   ├── render-png.yml               # .drawio のコミットで PNG を生成（.mmd は描画確認のみ）（draw.io の版を固定）
+│   └── test-matrix.yml              # Windows と Ubuntu で単体テストと3形式の生成・検証
+├── .claude-plugin/
+│   └── marketplace.json             # （仮）このリポジトリをプラグインのマーケットプレイスにする（1.2 の 4）
+├── plugins/aws-iac-diagram/         # （仮）プラグイン本体（.claude-plugin/plugin.json と skills/）。
+│                                    #   ルート自体をプラグインにする案もある。どちらにするかは 1.2 の 4 と 5a の結果を見てフェーズ6 で決める
+├── aws-iac-diagram/                 ← ~/.claude/skills/aws-iac-diagram からの symlink（Windows はジャンクション）先
 │   ├── SKILL.md
 │   ├── references/
 │   │   ├── resource-catalog.md      # aws_* ⇔ AWS::* ⇔ アイコン ⇔ 扱い（描く/統合/非表示/移動）
@@ -160,6 +225,7 @@ aws-iac-diagram/
 │       ├── evaluate.py              # 変数・条件の評価（A4）
 │       ├── normalize.py  layout.py  emit_drawio.py  emit_mermaid.py
 │       ├── export_png.py  validate.py  find_aws_icon.py
+│       ├── lib/drawio_cli.py        # draw.io の探索と呼び出し。Linux の画面判定と xvfb-run の付与を足す（1.2 の 2）
 │       ├── build_icon_catalog.py    # Sidebar-AWS4.js から辞書を再生成
 │       └── check_icons.py           # 全アイコンを描画して壊れたものを検出（C2）
 └── aws-iac-diagram-workspace/
@@ -233,8 +299,9 @@ aws-iac-diagram/
 | 2 | ・Terraform アダプタ: plan JSON の `configuration` にある参照を優先し、なければ .tf<br>・count／for_each のうち値が決まらないものは「×N」として扱う<br>・A4（Terraform 側の評価）<br>・A5（4モジュール） | 同じ構成の Terraform 版と CloudFormation 版が同じ IR になる |
 | 3 | 正規化: 型別の表、A1、A2、A3、A6、AZ の挿入、SG を辺に変換、B3 | 未分類が0件。正解 IR に対する再現率と適合率が基準を満たす |
 | 4 | draw.io の出力と配置<br>・相対座標、辺と図形の2レイヤ、背景矩形<br>・B1、B2、C5<br>・ELK が入れ子のコンテナを保てるか試し、採否を決める | 重なりと貫通が0件。同じ入力を再実行してもバイト単位で同じになる |
-| 5 | ・Mermaid の出力（アイコン付き版と GitHub 表示用版。ノードが多いときは flowchart に切り替える）<br>・PNG の書き出し<br>・validate.py（必要なら PostToolUse フックも） | 3形式とも生成でき、検証が通る |
-| 6 | ・SKILL.md の作成<br>・評価: C3、C4、C6、3回実行したときのばらつき<br>・第三者レビューのサイクル | 評価基準を満たす（基準値はフェーズ0で決める）。README と NOTICE を整える |
+| 5a | スパイク（1.2 の未確認事項。フェーズ5 の手前で小さく試す）<br>・Claude Code on the web と Actions の `@claude` で、draw.io の deb＋xvfb を入れて `xvfb-run drawio --no-sandbox -x` が動くか<br>・同じ環境で mmdc（Chromium＋`--no-sandbox`）が動くか<br>・非公開リポジトリのプラグインをクラウドのセッションから読み込めるか<br>・プラグインのディレクトリの外のファイルを参照できるか（キャッシュにコピーされるか）。結果でプラグインの置き方（1.2 の 4 の2案）を絞る<br>・Actions で draw.io の版・ランナーのイメージ（例 `ubuntu-24.04`）・フォントを固定して、PNG がバイト単位で同じになるか | 各項目の可否と手順（または動かない理由）が WORKLOG に記録され、1.2 の表とフェーズ5・6 の作業が結果に合わせて直っている |
+| 5 | ・Mermaid の出力（アイコン付き版と GitHub 表示用版。ノードが多いときは flowchart に切り替える）<br>・PNG の書き出し（`export_png.py`）と環境による切り替え（1.2 の 2）: draw.io が使えない（見つからない・起動できない・タイムアウト・無出力か 0 バイト）ときは PNG だけスキップして報告し、`.drawio`／`.mmd` は出す。`DRAWIO` のパスが無いときもエラーではなくスキップにする。mmdc が使えないときは `.mmd` の描画確認だけスキップして報告<br>・Linux 対応: `drawio_cli.py` に画面の有無の判定と `xvfb-run`・`--no-sandbox` の付与、xvfb を使う指定（名前は仮）、Linux の既定の場所（`_candidates()` に既にある）の確認と追加。mmdc の puppeteer 設定（`--no-sandbox`）<br>・WSL（Ubuntu）での動作確認（`DISPLAY`／`WAYLAND_DISPLAY` を外すか xvfb を使う指定で、画面なしの経路を通す）<br>・GitHub Actions のワークフロー `render-png`（仮）: `.drawio`／`.mmd` のコミットで PNG を生成してコミットか artifact に。draw.io の版・ランナーのイメージ・フォントを固定<br>・validate.py（必要なら PostToolUse フックも） | ・Windows で3形式とも生成でき、検証が通る<br>・WSL（Ubuntu）で画面なし（xvfb）の経路で3形式とも生成でき、検証が通る<br>・draw.io が無い環境（`DRAWIO` を存在しないパスにする、または PATH と既定の場所から外して試す）で `.drawio` と `.mmd` は出て検証が通り、PNG のスキップが報告され、終了コードは失敗にならない<br>・`render-png` が固定した版・イメージ・フォントで PNG を作り、同じ入力で再実行してもバイト単位で同じになる（5a で再現しないと分かれば基準を見直す） |
+| 6 | ・SKILL.md の作成<br>・プラグイン化: このリポジトリをマーケットプレイスにし（`.claude-plugin/` など、名前は仮。置き方は 1.2 の 4 の2案から選ぶ）、図を作りたいリポジトリの `.claude/settings.json` で有効化する手順を README に書く<br>・両 OS の CI `test-matrix`（仮。`render-png` とは別のワークフロー）: Windows と Ubuntu で単体テストと3形式の生成・検証<br>・評価: C3、C4、C6、3回実行したときのばらつき<br>・第三者レビューのサイクル | ・評価基準を満たす（基準値はフェーズ0で決める）<br>・Windows と Ubuntu の CI で3形式が生成でき、検証が通る<br>・別のリポジトリでプラグインを有効化して SKILL を使える（手元と、5a で可能と分かればクラウドのセッションでも）<br>・README と NOTICE を整える |
 
 ### 進め方
 - 実装はサブエージェントが行い、そのレビューは別のサブエージェントが第三者として行う（ほかのスキルと同じやり方）

@@ -17,18 +17,15 @@
 | 2 | `aws-iac-diagram/` の作成と SKILL の登録 | **済**: `~/.claude/skills/aws-iac-diagram` → リポジトリの `aws-iac-diagram/` をジャンクションで登録 |
 | 3 | アイコン素材の取得と辞書の生成 | **済**: 版と SHA-256 は [assets/SOURCES.md](aws-iac-diagram/assets/SOURCES.md)。`scripts/build_icon_catalog.py` で `references/icons/`（1045件、31カテゴリ）を生成。検索は `scripts/find_aws_icon.py`。再実行してもバイト単位で同じ出力になることを確認済み |
 | 3b | C2（壊れたアイコンの自動検出 `check_icons.py`） | **済**: draw.io 32.4.1 で 1032 件（shape・resource_icon・group）を判定し、**壊れたものは 0 件**。対照 9 件（壊れ 6 種・正常 3 種）はすべて期待どおり。結果は `references/icons/broken.json` → 辞書の `broken`。テストは `scripts/tests/`（31件） |
-| 4 | 自作テスト構成5種（TF 版と CFN 版）と正解 IR、公開サンプルからの選定、第三者レビュー | **第三者レビュー済み（判定「修正後コミット」、正解 IR の誤りは無し）・指摘は反映済みでコミット待ち**: 構成5種（three-tier、serverless-api、vpc-endpoints、three-tier-modules、rag）を `fixtures/tf/`・`fixtures/cfn/`（YAML・SAM・JSON・ネストスタック）に、正解 IR を `expected/*.ir.json` に作成。IR スキーマ草案 v0.1（`references/ir-schema.md`・`ir.schema.json`）と規則表の草案（`resource-catalog.md`・`relation-resources.md`・`edge-rules.md`）。検証: `scripts/validate_ir.py`（全正解 IR が通過）、`workspace/tools/check_coverage.py --lint`（網羅分類と入力が一致、cfn-lint 警告0、hcl2 で全 .tf を読める）。公開サンプルの選定は `fixtures/public/SELECTION.md`（主セット12、補助セット） |
+| 4 | 自作テスト構成5種（TF 版と CFN 版）と正解 IR、公開サンプルからの選定、第三者レビュー | **済（`46ae7c3`）**: 第三者レビュー2回（1回目「修正後コミット」、正解 IR の誤りは無し。指摘反映後の2回目「コミット可」）。構成5種（three-tier、serverless-api、vpc-endpoints、three-tier-modules、rag）を `fixtures/tf/`・`fixtures/cfn/`（YAML・SAM・JSON・ネストスタック）に、正解 IR を `expected/*.ir.json` に作成。IR スキーマ草案 v0.1（`references/ir-schema.md`・`ir.schema.json`）と規則表の草案（`resource-catalog.md`・`relation-resources.md`・`edge-rules.md`）。検証: `scripts/validate_ir.py`（全正解 IR が通過）、`workspace/tools/check_coverage.py --lint`（網羅分類と入力が一致、cfn-lint 警告0、hcl2 で全 .tf を読める）。公開サンプルの選定は `fixtures/public/SELECTION.md`（主セット12、補助セット） |
 | 5 | フェーズ6の評価基準値を決めてユーザーの了承を得る | 未着手 |
 
 ## 次にやること
-1. 表の 4 のレビュー指摘の反映を確認してコミットする（反映の内容は WORKLOG.md の「レビューで直したこと」）。再レビューするなら観点は次のとおり:
-   - 正解 IR の判断（何をノードにするか、統合・非表示、向き、確信度）が規則表と一致し、規則表自体が妥当か。判断の理由は各 IR の `note`・`notes` と fixture の README にある。
-   - fixture の TF／CFN が同じ構成か、属性が実在するか（terraform は入っておらず `terraform validate` はしていない）。
-   - three-tier-modules の alb（v10.5.1）・rds（v7.2.2）の中身のアドレスは GitHub のソースで照合済み（README の「ソースでの確認」）。`terraform plan` での確認はしていない。
-   - レビューで直したら `validate_ir.py --write` と `check_coverage.py --lint` を再実行する。
-2. 表の 5（評価基準値）。案は `fixtures/public/SELECTION.md` の 3 の 5。
-3. フェーズ1 で IR スキーマを確定させる（`ir-schema.md` の「未決事項」）。公開サンプルで見つかった問題（SELECTION.md の 4: hcl2 が heredoc の終端の空白で落ちる、S3 URL のネストスタック、ルートの外のローカルモジュール、AWS 以外の型、大量の data）をアダプタの設計に入れる。
-4. フェーズ5 の `export_png.py` は `scripts/lib/drawio_cli.py`（draw.io の探索と `-x -f png --disable-gpu` の呼び出し、0 バイトの失敗扱い）を使って作る。
+1. 表の 5（評価基準値）。案は `fixtures/public/SELECTION.md` の 3 の 5。
+2. フェーズ1 で IR スキーマを確定させる（`ir-schema.md` の「未決事項」）。公開サンプルで見つかった問題（SELECTION.md の 4: hcl2 が heredoc の終端の空白で落ちる、S3 URL のネストスタック、ルートの外のローカルモジュール、AWS 以外の型、大量の data）をアダプタの設計に入れる。
+3. フェーズ5 の `export_png.py` は `scripts/lib/drawio_cli.py`（draw.io の探索と `-x -f png --disable-gpu` の呼び出し、0 バイトの失敗扱い）を使って作る。Linux 用に画面の有無の判定と `xvfb-run`・`--no-sandbox` の付与を足し、draw.io が使えなければ PNG だけスキップして報告する。
+4. **実行環境の方針（Windows・GitHub Web UI・WSL）は PLAN.md の「1.2 実行環境」にある。** 中心部分は Python だけ、PNG は環境で切り替え、GitHub の画面からは Actions で PNG を作る、SKILL はプラグインで配る、WSL は Linux の確認用。フェーズ5・6 の作業と完了基準もこれに合わせて更新済み。
+5. **フェーズ5 の手前でスパイク（PLAN のフェーズ表の 5a）を行う**: クラウド（Claude Code on the web、Actions の `@claude`）で draw.io＋xvfb と mmdc が動くか、非公開リポジトリのプラグインをクラウドから読み込めるか、プラグインのディレクトリの外のファイルを参照できるか、Actions の PNG がバイト単位で再現するか。結果は WORKLOG に記録し、PLAN の 1.2 とフェーズ5・6 を直す。
 
 ## 正解 IR と fixture について（実装で分かったこと）
 - 正解 IR は TF・CFN で共通の1ファイル。`nodes`・`edges`（canonical 部）は形式によらず同じで、形式ごとの違いは `sources.tf`／`sources.cfn`（網羅分類と辺の根拠）に書く。5種とも canonical 部は TF 版と CFN 版で同じになるように作った。
