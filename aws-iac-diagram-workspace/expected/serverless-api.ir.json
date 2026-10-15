@@ -1,0 +1,644 @@
+{
+  "description": "サーバーレス。HTTP API → Lambda → DynamoDB、DynamoDB ストリーム → Lambda → SNS → SQS、Lambda → S3（推定）。CFN 版は SAM。",
+  "edges": [
+    {
+      "confidence": "derived",
+      "from": "apigw_http_api/shop-api",
+      "id": "apigw_http_api/shop-api->lambda_function/shop-api-handler",
+      "kind": "request",
+      "label": "GET /orders, POST /orders",
+      "note": "統合とルート2つ（for_each）を1本の辺にまとめ、ルートキーをラベルに並べる（R-APIGW-HTTP）",
+      "to": "lambda_function/shop-api-handler"
+    },
+    {
+      "confidence": "derived",
+      "from": "dynamodb_table/shop-orders",
+      "id": "dynamodb_table/shop-orders->lambda_function/shop-stream-processor",
+      "kind": "event",
+      "label": "",
+      "note": "ESM はテーブルのストリームと関数の両方を参照する関係リソース。向きはデータの流れ（R-LAMBDA-ESM）。ストリームを読む IAM（関数 → テーブル）は逆向きなので作らない（E-IAM-SUPPRESS）",
+      "to": "lambda_function/shop-stream-processor"
+    },
+    {
+      "confidence": "derived",
+      "from": "external/internet",
+      "id": "external/internet->apigw_http_api/shop-api",
+      "kind": "request",
+      "label": "HTTPS",
+      "to": "apigw_http_api/shop-api"
+    },
+    {
+      "confidence": "confirmed",
+      "from": "lambda_function/shop-api-handler",
+      "id": "lambda_function/shop-api-handler->dynamodb_table/shop-orders",
+      "kind": "data",
+      "label": "",
+      "note": "環境変数 TABLE_NAME が参照（E-ENV-REF）。IAM（E-IAM）も同じ向きで、確定が勝つ",
+      "to": "dynamodb_table/shop-orders"
+    },
+    {
+      "confidence": "inferred",
+      "from": "lambda_function/shop-stream-processor",
+      "id": "lambda_function/shop-stream-processor->s3_bucket/shop-orders-archive",
+      "kind": "data",
+      "label": "",
+      "note": "バケットへの参照が無く、IAM の Resource ARN の文字列と環境変数 ARCHIVE_BUCKET の文字列がバケット名と一致するだけ（E-IAM、E-ENV-STR）",
+      "to": "s3_bucket/shop-orders-archive"
+    },
+    {
+      "confidence": "confirmed",
+      "from": "lambda_function/shop-stream-processor",
+      "id": "lambda_function/shop-stream-processor->sns_topic/shop-order-events",
+      "kind": "event",
+      "label": "",
+      "note": "環境変数 TOPIC_ARN が参照（E-ENV-REF）",
+      "to": "sns_topic/shop-order-events"
+    },
+    {
+      "confidence": "derived",
+      "from": "sns_topic/shop-order-events",
+      "id": "sns_topic/shop-order-events->sqs_queue/shop-order-events",
+      "kind": "event",
+      "label": "",
+      "note": "サブスクリプション（R-SNS-SUBSCRIPTION）。キューポリシーは同じ辺の根拠（R-SQS-QUEUE-POLICY）",
+      "to": "sqs_queue/shop-order-events"
+    }
+  ],
+  "evaluation": {
+    "assumptions": [
+      "変数・パラメータはすべて既定値（project / Project = shop）"
+    ],
+    "cfn": {
+      "parameters": {}
+    },
+    "tf": {
+      "var_files": [],
+      "vars": {}
+    }
+  },
+  "ir_version": "0.1",
+  "name": "serverless-api",
+  "nodes": [
+    {
+      "category": "resource",
+      "id": "apigw_http_api/shop-api",
+      "label": "shop-api",
+      "name": "shop-api",
+      "note": "ステージ（$default）は統合（M-APIGW-STAGE）",
+      "parent": null,
+      "type": "apigw_http_api"
+    },
+    {
+      "category": "resource",
+      "id": "dynamodb_table/shop-orders",
+      "label": "shop-orders",
+      "name": "shop-orders",
+      "parent": null,
+      "type": "dynamodb_table"
+    },
+    {
+      "category": "external",
+      "id": "external/internet",
+      "label": "Internet",
+      "name": "internet",
+      "note": "N-EXT-INTERNET（パブリックな HTTP API）",
+      "parent": null,
+      "synthetic": true,
+      "type": "external"
+    },
+    {
+      "category": "resource",
+      "id": "lambda_function/shop-api-handler",
+      "label": "shop-api-handler",
+      "name": "shop-api-handler",
+      "parent": null,
+      "type": "lambda_function"
+    },
+    {
+      "category": "resource",
+      "id": "lambda_function/shop-stream-processor",
+      "label": "shop-stream-processor",
+      "name": "shop-stream-processor",
+      "parent": null,
+      "type": "lambda_function"
+    },
+    {
+      "category": "resource",
+      "id": "s3_bucket/shop-orders-archive",
+      "label": "shop-orders-archive",
+      "name": "shop-orders-archive",
+      "parent": null,
+      "type": "s3_bucket"
+    },
+    {
+      "category": "resource",
+      "id": "sns_topic/shop-order-events",
+      "label": "shop-order-events",
+      "name": "shop-order-events",
+      "parent": null,
+      "type": "sns_topic"
+    },
+    {
+      "category": "resource",
+      "id": "sqs_queue/shop-order-events",
+      "label": "shop-order-events",
+      "name": "shop-order-events",
+      "note": "トピックと同じ名前だが型が違うので id は重ならない",
+      "parent": null,
+      "type": "sqs_queue"
+    }
+  ],
+  "notes": [
+    "SAM の Events（HttpApi、DynamoDB）はリソースではなくプロパティなので、CFN 側の網羅分類には現れず、辺の根拠にだけ現れる。",
+    "SAM が変換時に作る暗黙のリソース（IAM ロール、Lambda の権限、ステージ、ESM）は、変換前のテンプレートを読むので網羅分類の対象外。",
+    "SAM はストリームを読む権限を Events から自動で付けるので、テンプレートに IAM の記述が無い。TF 版にはあり、E-IAM-SUPPRESS で消える。"
+  ],
+  "sources": {
+    "cfn": {
+      "edges": [
+        {
+          "edge": "apigw_http_api/shop-api->lambda_function/shop-api-handler",
+          "evidence": [
+            "ApiHandler.Events.GetOrders (Type: HttpApi, GET /orders)",
+            "ApiHandler.Events.PostOrders (Type: HttpApi, POST /orders)"
+          ],
+          "rules": [
+            "R-APIGW-HTTP"
+          ]
+        },
+        {
+          "edge": "dynamodb_table/shop-orders->lambda_function/shop-stream-processor",
+          "evidence": [
+            "StreamProcessor.Events.OrdersStream.Stream (Type: DynamoDB)"
+          ],
+          "rules": [
+            "R-LAMBDA-ESM"
+          ]
+        },
+        {
+          "edge": "external/internet->apigw_http_api/shop-api",
+          "evidence": [
+            "HttpApi (AWS::Serverless::HttpApi)"
+          ],
+          "rules": [
+            "N-EXT-INTERNET"
+          ]
+        },
+        {
+          "edge": "lambda_function/shop-api-handler->dynamodb_table/shop-orders",
+          "evidence": [
+            "ApiHandler.Environment.Variables.TABLE_NAME",
+            "ApiHandler.Policies.DynamoDBCrudPolicy.TableName"
+          ],
+          "rules": [
+            "E-ENV-REF",
+            "E-IAM"
+          ]
+        },
+        {
+          "edge": "lambda_function/shop-stream-processor->s3_bucket/shop-orders-archive",
+          "evidence": [
+            "StreamProcessor.Environment.Variables.ARCHIVE_BUCKET = \"shop-orders-archive\"",
+            "StreamProcessor.Policies.Statement[Archive].Resource"
+          ],
+          "rules": [
+            "E-ENV-STR",
+            "E-IAM"
+          ]
+        },
+        {
+          "edge": "lambda_function/shop-stream-processor->sns_topic/shop-order-events",
+          "evidence": [
+            "StreamProcessor.Environment.Variables.TOPIC_ARN",
+            "StreamProcessor.Policies.SNSPublishMessagePolicy.TopicName"
+          ],
+          "rules": [
+            "E-ENV-REF",
+            "E-IAM"
+          ]
+        },
+        {
+          "edge": "sns_topic/shop-order-events->sqs_queue/shop-order-events",
+          "evidence": [
+            "OrderEventsQueuePolicy.PolicyDocument (aws:SourceArn)",
+            "OrderEventsQueueSubscription.Endpoint"
+          ],
+          "rules": [
+            "R-SNS-SUBSCRIPTION",
+            "R-SQS-QUEUE-POLICY"
+          ]
+        }
+      ],
+      "resources": [
+        {
+          "address": "ApiHandler",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "lambda_function/shop-api-handler",
+          "type": "AWS::Serverless::Function"
+        },
+        {
+          "address": "ApiHandlerLogGroup",
+          "class": "hidden",
+          "file": "template.yaml",
+          "rule": "H-LOGS",
+          "type": "AWS::Logs::LogGroup"
+        },
+        {
+          "address": "ArchiveBucket",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "s3_bucket/shop-orders-archive",
+          "type": "AWS::S3::Bucket"
+        },
+        {
+          "address": "HttpApi",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "apigw_http_api/shop-api",
+          "type": "AWS::Serverless::HttpApi"
+        },
+        {
+          "address": "OrderEventsQueue",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "sqs_queue/shop-order-events",
+          "type": "AWS::SQS::Queue"
+        },
+        {
+          "address": "OrderEventsQueuePolicy",
+          "class": "merged_into",
+          "file": "template.yaml",
+          "into": [
+            "sns_topic/shop-order-events->sqs_queue/shop-order-events"
+          ],
+          "rule": "R-SQS-QUEUE-POLICY",
+          "type": "AWS::SQS::QueuePolicy"
+        },
+        {
+          "address": "OrderEventsQueueSubscription",
+          "class": "merged_into",
+          "file": "template.yaml",
+          "into": [
+            "sns_topic/shop-order-events->sqs_queue/shop-order-events"
+          ],
+          "rule": "R-SNS-SUBSCRIPTION",
+          "type": "AWS::SNS::Subscription"
+        },
+        {
+          "address": "OrderEventsTopic",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "sns_topic/shop-order-events",
+          "type": "AWS::SNS::Topic"
+        },
+        {
+          "address": "OrdersTable",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "dynamodb_table/shop-orders",
+          "type": "AWS::DynamoDB::Table"
+        },
+        {
+          "address": "StreamProcessor",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "lambda_function/shop-stream-processor",
+          "type": "AWS::Serverless::Function"
+        },
+        {
+          "address": "StreamProcessorLogGroup",
+          "class": "hidden",
+          "file": "template.yaml",
+          "rule": "H-LOGS",
+          "type": "AWS::Logs::LogGroup"
+        }
+      ],
+      "root": "fixtures/cfn/serverless-api/template.yaml"
+    },
+    "tf": {
+      "edges": [
+        {
+          "edge": "apigw_http_api/shop-api->lambda_function/shop-api-handler",
+          "evidence": [
+            "aws_apigatewayv2_integration.api_handler.integration_uri",
+            "aws_apigatewayv2_route.this[\"get_orders\"].route_key",
+            "aws_apigatewayv2_route.this[\"post_orders\"].route_key",
+            "aws_lambda_permission.apigw.source_arn"
+          ],
+          "rules": [
+            "R-APIGW-HTTP",
+            "R-LAMBDA-PERMISSION"
+          ]
+        },
+        {
+          "edge": "dynamodb_table/shop-orders->lambda_function/shop-stream-processor",
+          "evidence": [
+            "aws_lambda_event_source_mapping.orders_stream.event_source_arn",
+            "aws_lambda_event_source_mapping.orders_stream.function_name",
+            "data.aws_iam_policy_document.stream_processor.statement[ReadStream]（逆向きなので辺にしない）"
+          ],
+          "rules": [
+            "E-IAM-SUPPRESS",
+            "R-LAMBDA-ESM"
+          ]
+        },
+        {
+          "edge": "external/internet->apigw_http_api/shop-api",
+          "evidence": [
+            "aws_apigatewayv2_api.http.protocol_type = \"HTTP\""
+          ],
+          "rules": [
+            "N-EXT-INTERNET"
+          ]
+        },
+        {
+          "edge": "lambda_function/shop-api-handler->dynamodb_table/shop-orders",
+          "evidence": [
+            "aws_lambda_function.api_handler.environment.TABLE_NAME",
+            "data.aws_iam_policy_document.api_handler.statement.resources"
+          ],
+          "rules": [
+            "E-ENV-REF",
+            "E-IAM"
+          ]
+        },
+        {
+          "edge": "lambda_function/shop-stream-processor->s3_bucket/shop-orders-archive",
+          "evidence": [
+            "aws_lambda_function.stream_processor.environment.ARCHIVE_BUCKET = \"shop-orders-archive\"",
+            "data.aws_iam_policy_document.stream_processor.statement[Archive] = \"arn:aws:s3:::shop-orders-archive/*\""
+          ],
+          "rules": [
+            "E-ENV-STR",
+            "E-IAM"
+          ]
+        },
+        {
+          "edge": "lambda_function/shop-stream-processor->sns_topic/shop-order-events",
+          "evidence": [
+            "aws_lambda_function.stream_processor.environment.TOPIC_ARN",
+            "data.aws_iam_policy_document.stream_processor.statement[Publish]"
+          ],
+          "rules": [
+            "E-ENV-REF",
+            "E-IAM"
+          ]
+        },
+        {
+          "edge": "sns_topic/shop-order-events->sqs_queue/shop-order-events",
+          "evidence": [
+            "aws_sns_topic_subscription.order_events_queue.endpoint",
+            "aws_sqs_queue_policy.order_events (aws:SourceArn)"
+          ],
+          "rules": [
+            "R-SNS-SUBSCRIPTION",
+            "R-SQS-QUEUE-POLICY"
+          ]
+        }
+      ],
+      "resources": [
+        {
+          "address": "aws_apigatewayv2_api.http",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "apigw_http_api/shop-api",
+          "type": "aws_apigatewayv2_api"
+        },
+        {
+          "address": "aws_apigatewayv2_integration.api_handler",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "apigw_http_api/shop-api->lambda_function/shop-api-handler"
+          ],
+          "rule": "R-APIGW-HTTP",
+          "type": "aws_apigatewayv2_integration"
+        },
+        {
+          "address": "aws_apigatewayv2_route.this[\"get_orders\"]",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "apigw_http_api/shop-api->lambda_function/shop-api-handler"
+          ],
+          "rule": "R-APIGW-HTTP",
+          "type": "aws_apigatewayv2_route"
+        },
+        {
+          "address": "aws_apigatewayv2_route.this[\"post_orders\"]",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "apigw_http_api/shop-api->lambda_function/shop-api-handler"
+          ],
+          "rule": "R-APIGW-HTTP",
+          "type": "aws_apigatewayv2_route"
+        },
+        {
+          "address": "aws_apigatewayv2_stage.default",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "apigw_http_api/shop-api"
+          ],
+          "rule": "M-APIGW-STAGE",
+          "type": "aws_apigatewayv2_stage"
+        },
+        {
+          "address": "aws_cloudwatch_log_group.api_handler",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-LOGS",
+          "type": "aws_cloudwatch_log_group"
+        },
+        {
+          "address": "aws_cloudwatch_log_group.stream_processor",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-LOGS",
+          "type": "aws_cloudwatch_log_group"
+        },
+        {
+          "address": "aws_dynamodb_table.orders",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "dynamodb_table/shop-orders",
+          "type": "aws_dynamodb_table"
+        },
+        {
+          "address": "aws_iam_role.api_handler",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role"
+        },
+        {
+          "address": "aws_iam_role.stream_processor",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role"
+        },
+        {
+          "address": "aws_iam_role_policy.api_handler",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role_policy"
+        },
+        {
+          "address": "aws_iam_role_policy.stream_processor",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role_policy"
+        },
+        {
+          "address": "aws_iam_role_policy_attachment.api_handler_logs",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role_policy_attachment"
+        },
+        {
+          "address": "aws_iam_role_policy_attachment.stream_processor_logs",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role_policy_attachment"
+        },
+        {
+          "address": "aws_lambda_event_source_mapping.orders_stream",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "dynamodb_table/shop-orders->lambda_function/shop-stream-processor"
+          ],
+          "rule": "R-LAMBDA-ESM",
+          "type": "aws_lambda_event_source_mapping"
+        },
+        {
+          "address": "aws_lambda_function.api_handler",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "lambda_function/shop-api-handler",
+          "type": "aws_lambda_function"
+        },
+        {
+          "address": "aws_lambda_function.stream_processor",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "lambda_function/shop-stream-processor",
+          "type": "aws_lambda_function"
+        },
+        {
+          "address": "aws_lambda_permission.apigw",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "apigw_http_api/shop-api->lambda_function/shop-api-handler"
+          ],
+          "rule": "R-LAMBDA-PERMISSION",
+          "type": "aws_lambda_permission"
+        },
+        {
+          "address": "aws_s3_bucket.archive",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "s3_bucket/shop-orders-archive",
+          "type": "aws_s3_bucket"
+        },
+        {
+          "address": "aws_s3_bucket_public_access_block.archive",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "s3_bucket/shop-orders-archive"
+          ],
+          "rule": "M-S3-CONFIG",
+          "type": "aws_s3_bucket_public_access_block"
+        },
+        {
+          "address": "aws_sns_topic.order_events",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "sns_topic/shop-order-events",
+          "type": "aws_sns_topic"
+        },
+        {
+          "address": "aws_sns_topic_subscription.order_events_queue",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "sns_topic/shop-order-events->sqs_queue/shop-order-events"
+          ],
+          "rule": "R-SNS-SUBSCRIPTION",
+          "type": "aws_sns_topic_subscription"
+        },
+        {
+          "address": "aws_sqs_queue.order_events",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "sqs_queue/shop-order-events",
+          "type": "aws_sqs_queue"
+        },
+        {
+          "address": "aws_sqs_queue_policy.order_events",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "sns_topic/shop-order-events->sqs_queue/shop-order-events"
+          ],
+          "rule": "R-SQS-QUEUE-POLICY",
+          "type": "aws_sqs_queue_policy"
+        },
+        {
+          "address": "data.archive_file.api_handler",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-DATA",
+          "type": "archive_file"
+        },
+        {
+          "address": "data.archive_file.stream_processor",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-DATA",
+          "type": "archive_file"
+        },
+        {
+          "address": "data.aws_iam_policy_document.api_handler",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_policy_document"
+        },
+        {
+          "address": "data.aws_iam_policy_document.lambda_assume",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_policy_document"
+        },
+        {
+          "address": "data.aws_iam_policy_document.order_events_queue",
+          "class": "hidden",
+          "file": "main.tf",
+          "note": "キューポリシーの本文。辺の根拠としては aws_sqs_queue_policy の側に書く",
+          "rule": "H-IAM",
+          "type": "aws_iam_policy_document"
+        },
+        {
+          "address": "data.aws_iam_policy_document.stream_processor",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_policy_document"
+        }
+      ],
+      "root": "fixtures/tf/serverless-api"
+    }
+  },
+  "stage": "normalized"
+}

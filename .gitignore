@@ -4,3 +4,9 @@ __pycache__/
 .DS_Store
 # check_icons.py の作業ファイル（.drawio・PNG・report.json）
 aws-iac-diagram-workspace/icon-check/
+# fixture の Terraform の生成物（archive_file の出力、terraform init／apply を試したとき）
+build/
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl

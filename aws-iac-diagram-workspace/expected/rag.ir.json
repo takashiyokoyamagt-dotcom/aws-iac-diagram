@@ -1,0 +1,930 @@
+{
+  "description": "RAG。S3 の文書 → Bedrock ナレッジベース（ベクトルストアは OpenSearch Serverless）、REST API → Lambda → RetrieveAndGenerate、S3 への追加 → Lambda → 取り込みジョブ。",
+  "edges": [
+    {
+      "confidence": "derived",
+      "from": "apigw_rest_api/rag-api",
+      "id": "apigw_rest_api/rag-api->lambda_function/rag-query",
+      "kind": "request",
+      "label": "POST /query",
+      "note": "リソース・メソッド・統合を1本にまとめる（R-APIGW-REST）。CFN ではメソッドが統合を含む",
+      "to": "lambda_function/rag-query"
+    },
+    {
+      "confidence": "derived",
+      "from": "bedrock_knowledge_base/rag-kb",
+      "id": "bedrock_knowledge_base/rag-kb->bedrock_model/amazon.titan-embed-text-v2-0",
+      "kind": "request",
+      "label": "",
+      "note": "embedding_model_arn は型の定義で意味が決まっている文字列なので導出（E-BEDROCK-EMBEDDING）",
+      "to": "bedrock_model/amazon.titan-embed-text-v2-0"
+    },
+    {
+      "confidence": "confirmed",
+      "from": "bedrock_knowledge_base/rag-kb",
+      "id": "bedrock_knowledge_base/rag-kb->opensearchserverless_collection/rag-kb",
+      "kind": "data",
+      "label": "",
+      "note": "KB の storage_configuration がコレクションを参照（E-KB-STORAGE）",
+      "to": "opensearchserverless_collection/rag-kb"
+    },
+    {
+      "confidence": "derived",
+      "from": "external/internet",
+      "id": "external/internet->apigw_rest_api/rag-api",
+      "kind": "request",
+      "label": "HTTPS",
+      "to": "apigw_rest_api/rag-api"
+    },
+    {
+      "confidence": "confirmed",
+      "from": "lambda_function/rag-ingest",
+      "id": "lambda_function/rag-ingest->bedrock_knowledge_base/rag-kb",
+      "kind": "request",
+      "label": "",
+      "note": "環境変数 KNOWLEDGE_BASE_ID が参照（E-ENV-REF）",
+      "to": "bedrock_knowledge_base/rag-kb"
+    },
+    {
+      "confidence": "confirmed",
+      "from": "lambda_function/rag-query",
+      "id": "lambda_function/rag-query->bedrock_knowledge_base/rag-kb",
+      "kind": "request",
+      "label": "",
+      "note": "環境変数 KNOWLEDGE_BASE_ID が参照（E-ENV-REF）",
+      "to": "bedrock_knowledge_base/rag-kb"
+    },
+    {
+      "confidence": "inferred",
+      "from": "lambda_function/rag-query",
+      "id": "lambda_function/rag-query->bedrock_model/anthropic.claude-3-haiku-20240307-v1-0",
+      "kind": "request",
+      "label": "",
+      "note": "モデルは文字列の ARN でしか現れない（IAM の Resource と環境変数 MODEL_ARN）。E-IAM と E-ENV-STR で推定",
+      "to": "bedrock_model/anthropic.claude-3-haiku-20240307-v1-0"
+    },
+    {
+      "confidence": "derived",
+      "from": "s3_bucket/rag-docs",
+      "id": "s3_bucket/rag-docs->bedrock_knowledge_base/rag-kb",
+      "kind": "data",
+      "label": "",
+      "note": "データソースは KB とバケットを結ぶ関係リソース。向きは取り込みの流れ S3 → KB（R-BEDROCK-DATA-SOURCE）。KB ロールの S3 読み取り（KB → S3）は逆向きなので作らない（E-IAM-SUPPRESS）",
+      "to": "bedrock_knowledge_base/rag-kb"
+    },
+    {
+      "confidence": "derived",
+      "from": "s3_bucket/rag-docs",
+      "id": "s3_bucket/rag-docs->lambda_function/rag-ingest",
+      "kind": "event",
+      "label": "",
+      "note": "バケット通知（R-S3-NOTIFICATION）と Lambda の権限（R-LAMBDA-PERMISSION）",
+      "to": "lambda_function/rag-ingest"
+    }
+  ],
+  "evaluation": {
+    "assumptions": [
+      "変数・パラメータはすべて既定値（project / Project = rag、region = ap-northeast-1）"
+    ],
+    "cfn": {
+      "parameters": {}
+    },
+    "tf": {
+      "var_files": [],
+      "vars": {}
+    }
+  },
+  "ir_version": "0.1",
+  "name": "rag",
+  "nodes": [
+    {
+      "category": "resource",
+      "id": "apigw_rest_api/rag-api",
+      "label": "rag-api",
+      "name": "rag-api",
+      "note": "デプロイとステージは統合（M-APIGW-STAGE）",
+      "parent": null,
+      "type": "apigw_rest_api"
+    },
+    {
+      "category": "resource",
+      "id": "bedrock_knowledge_base/rag-kb",
+      "label": "rag-kb",
+      "name": "rag-kb",
+      "note": "KB とコレクションは同じ名前 rag-kb だが型が違うので id は重ならない",
+      "parent": null,
+      "type": "bedrock_knowledge_base"
+    },
+    {
+      "category": "resource",
+      "id": "bedrock_model/amazon.titan-embed-text-v2-0",
+      "label": "amazon.titan-embed-text-v2:0",
+      "name": "amazon.titan-embed-text-v2:0",
+      "note": "N-BEDROCK-MODEL。key は ':' を '-' にしたもの",
+      "parent": null,
+      "synthetic": true,
+      "type": "bedrock_model"
+    },
+    {
+      "category": "resource",
+      "id": "bedrock_model/anthropic.claude-3-haiku-20240307-v1-0",
+      "label": "anthropic.claude-3-haiku-20240307-v1:0",
+      "name": "anthropic.claude-3-haiku-20240307-v1:0",
+      "note": "N-BEDROCK-MODEL",
+      "parent": null,
+      "synthetic": true,
+      "type": "bedrock_model"
+    },
+    {
+      "category": "external",
+      "id": "external/internet",
+      "label": "Internet",
+      "name": "internet",
+      "note": "N-EXT-INTERNET（REGIONAL の REST API）",
+      "parent": null,
+      "synthetic": true,
+      "type": "external"
+    },
+    {
+      "category": "resource",
+      "id": "lambda_function/rag-ingest",
+      "label": "rag-ingest",
+      "name": "rag-ingest",
+      "parent": null,
+      "type": "lambda_function"
+    },
+    {
+      "category": "resource",
+      "id": "lambda_function/rag-query",
+      "label": "rag-query",
+      "name": "rag-query",
+      "parent": null,
+      "type": "lambda_function"
+    },
+    {
+      "category": "resource",
+      "id": "opensearchserverless_collection/rag-kb",
+      "label": "rag-kb",
+      "name": "rag-kb",
+      "note": "セキュリティポリシー2つ・アクセスポリシー（M-AOSS-POLICY）とベクトルインデックス（M-AOSS-INDEX）を統合",
+      "parent": null,
+      "type": "opensearchserverless_collection"
+    },
+    {
+      "category": "resource",
+      "id": "s3_bucket/rag-docs",
+      "label": "rag-docs",
+      "name": "rag-docs",
+      "note": "バージョニング等の設定リソースは統合（M-S3-CONFIG）",
+      "parent": null,
+      "type": "s3_bucket"
+    }
+  ],
+  "notes": [
+    "基盤モデルはリソースではないので、ARN の文字列から bedrock_model の合成ノードを作る（N-BEDROCK-MODEL）。埋め込みモデルは KB の設定から（導出）、生成モデルは IAM と環境変数の文字列から（推定）。",
+    "TF のベクトルインデックスは opensearch-project/opensearch プロバイダの opensearch_index、CFN は AWS::OpenSearchServerless::Index。どちらもコレクションに統合する。",
+    "CFN 版は循環を避けるため、ingest 関数がデータソース ID を環境変数で受け取らず実行時に引く。KB は参照しているので辺は TF 版と同じ。"
+  ],
+  "sources": {
+    "cfn": {
+      "edges": [
+        {
+          "edge": "apigw_rest_api/rag-api->lambda_function/rag-query",
+          "evidence": [
+            "ApiInvokeQueryPermission.SourceArn",
+            "QueryPostMethod.HttpMethod",
+            "QueryPostMethod.Integration.Uri",
+            "QueryResource.PathPart"
+          ],
+          "rules": [
+            "R-APIGW-REST",
+            "R-LAMBDA-PERMISSION"
+          ]
+        },
+        {
+          "edge": "bedrock_knowledge_base/rag-kb->bedrock_model/amazon.titan-embed-text-v2-0",
+          "evidence": [
+            "KnowledgeBase.KnowledgeBaseConfiguration.VectorKnowledgeBaseConfiguration.EmbeddingModelArn",
+            "KnowledgeBaseRole.Policies[knowledge-base].Statement[Embedding]"
+          ],
+          "rules": [
+            "E-BEDROCK-EMBEDDING",
+            "E-IAM",
+            "N-BEDROCK-MODEL"
+          ]
+        },
+        {
+          "edge": "bedrock_knowledge_base/rag-kb->opensearchserverless_collection/rag-kb",
+          "evidence": [
+            "KnowledgeBase.StorageConfiguration.OpensearchServerlessConfiguration.CollectionArn",
+            "KnowledgeBaseRole の VectorStore は collection/* のワイルドカードなので E-IAM では照合しない（v0.1）"
+          ],
+          "rules": [
+            "E-KB-STORAGE"
+          ]
+        },
+        {
+          "edge": "external/internet->apigw_rest_api/rag-api",
+          "evidence": [
+            "RestApi.EndpointConfiguration.Types = [REGIONAL]"
+          ],
+          "rules": [
+            "N-EXT-INTERNET"
+          ]
+        },
+        {
+          "edge": "lambda_function/rag-ingest->bedrock_knowledge_base/rag-kb",
+          "evidence": [
+            "IngestFunction.Environment.Variables.KNOWLEDGE_BASE_ID",
+            "IngestRole の StartIngestionJob は knowledge-base/* のワイルドカードなので E-IAM では照合しない（v0.1）"
+          ],
+          "rules": [
+            "E-ENV-REF"
+          ]
+        },
+        {
+          "edge": "lambda_function/rag-query->bedrock_knowledge_base/rag-kb",
+          "evidence": [
+            "QueryFunction.Environment.Variables.KNOWLEDGE_BASE_ID",
+            "QueryRole.Policies[query].Statement[Retrieve] (!GetAtt KnowledgeBase.KnowledgeBaseArn)"
+          ],
+          "rules": [
+            "E-ENV-REF",
+            "E-IAM"
+          ]
+        },
+        {
+          "edge": "lambda_function/rag-query->bedrock_model/anthropic.claude-3-haiku-20240307-v1-0",
+          "evidence": [
+            "QueryFunction.Environment.Variables.MODEL_ARN",
+            "QueryRole.Policies[query].Statement[Generate]"
+          ],
+          "rules": [
+            "E-ENV-STR",
+            "E-IAM",
+            "N-BEDROCK-MODEL"
+          ]
+        },
+        {
+          "edge": "s3_bucket/rag-docs->bedrock_knowledge_base/rag-kb",
+          "evidence": [
+            "DocsDataSource.DataSourceConfiguration.S3Configuration.BucketArn",
+            "KnowledgeBaseRole.Policies[knowledge-base].Statement[ReadDocs]（逆向きなので辺にしない）"
+          ],
+          "rules": [
+            "E-IAM-SUPPRESS",
+            "R-BEDROCK-DATA-SOURCE"
+          ]
+        },
+        {
+          "edge": "s3_bucket/rag-docs->lambda_function/rag-ingest",
+          "evidence": [
+            "DocsBucket.NotificationConfiguration.LambdaConfigurations.Function",
+            "IngestS3Permission.SourceArn"
+          ],
+          "rules": [
+            "R-LAMBDA-PERMISSION",
+            "R-S3-NOTIFICATION"
+          ]
+        }
+      ],
+      "resources": [
+        {
+          "address": "ApiDeployment",
+          "class": "merged_into",
+          "file": "template.yaml",
+          "into": [
+            "apigw_rest_api/rag-api"
+          ],
+          "rule": "M-APIGW-STAGE",
+          "type": "AWS::ApiGateway::Deployment"
+        },
+        {
+          "address": "ApiInvokeQueryPermission",
+          "class": "merged_into",
+          "file": "template.yaml",
+          "into": [
+            "apigw_rest_api/rag-api->lambda_function/rag-query"
+          ],
+          "rule": "R-LAMBDA-PERMISSION",
+          "type": "AWS::Lambda::Permission"
+        },
+        {
+          "address": "ApiStage",
+          "class": "merged_into",
+          "file": "template.yaml",
+          "into": [
+            "apigw_rest_api/rag-api"
+          ],
+          "rule": "M-APIGW-STAGE",
+          "type": "AWS::ApiGateway::Stage"
+        },
+        {
+          "address": "Collection",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "opensearchserverless_collection/rag-kb",
+          "type": "AWS::OpenSearchServerless::Collection"
+        },
+        {
+          "address": "DataAccessPolicy",
+          "class": "merged_into",
+          "file": "template.yaml",
+          "into": [
+            "opensearchserverless_collection/rag-kb"
+          ],
+          "rule": "M-AOSS-POLICY",
+          "type": "AWS::OpenSearchServerless::AccessPolicy"
+        },
+        {
+          "address": "DocsBucket",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "s3_bucket/rag-docs",
+          "type": "AWS::S3::Bucket"
+        },
+        {
+          "address": "DocsDataSource",
+          "class": "merged_into",
+          "file": "template.yaml",
+          "into": [
+            "s3_bucket/rag-docs->bedrock_knowledge_base/rag-kb"
+          ],
+          "rule": "R-BEDROCK-DATA-SOURCE",
+          "type": "AWS::Bedrock::DataSource"
+        },
+        {
+          "address": "EncryptionPolicy",
+          "class": "merged_into",
+          "file": "template.yaml",
+          "into": [
+            "opensearchserverless_collection/rag-kb"
+          ],
+          "rule": "M-AOSS-POLICY",
+          "type": "AWS::OpenSearchServerless::SecurityPolicy"
+        },
+        {
+          "address": "IngestFunction",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "lambda_function/rag-ingest",
+          "type": "AWS::Lambda::Function"
+        },
+        {
+          "address": "IngestLogGroup",
+          "class": "hidden",
+          "file": "template.yaml",
+          "rule": "H-LOGS",
+          "type": "AWS::Logs::LogGroup"
+        },
+        {
+          "address": "IngestRole",
+          "class": "hidden",
+          "file": "template.yaml",
+          "rule": "H-IAM",
+          "type": "AWS::IAM::Role"
+        },
+        {
+          "address": "IngestS3Permission",
+          "class": "merged_into",
+          "file": "template.yaml",
+          "into": [
+            "s3_bucket/rag-docs->lambda_function/rag-ingest"
+          ],
+          "rule": "R-LAMBDA-PERMISSION",
+          "type": "AWS::Lambda::Permission"
+        },
+        {
+          "address": "KnowledgeBase",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "bedrock_knowledge_base/rag-kb",
+          "type": "AWS::Bedrock::KnowledgeBase"
+        },
+        {
+          "address": "KnowledgeBaseRole",
+          "class": "hidden",
+          "file": "template.yaml",
+          "rule": "H-IAM",
+          "type": "AWS::IAM::Role"
+        },
+        {
+          "address": "NetworkPolicy",
+          "class": "merged_into",
+          "file": "template.yaml",
+          "into": [
+            "opensearchserverless_collection/rag-kb"
+          ],
+          "rule": "M-AOSS-POLICY",
+          "type": "AWS::OpenSearchServerless::SecurityPolicy"
+        },
+        {
+          "address": "QueryFunction",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "lambda_function/rag-query",
+          "type": "AWS::Lambda::Function"
+        },
+        {
+          "address": "QueryLogGroup",
+          "class": "hidden",
+          "file": "template.yaml",
+          "rule": "H-LOGS",
+          "type": "AWS::Logs::LogGroup"
+        },
+        {
+          "address": "QueryPostMethod",
+          "class": "merged_into",
+          "file": "template.yaml",
+          "into": [
+            "apigw_rest_api/rag-api->lambda_function/rag-query"
+          ],
+          "rule": "R-APIGW-REST",
+          "type": "AWS::ApiGateway::Method"
+        },
+        {
+          "address": "QueryResource",
+          "class": "merged_into",
+          "file": "template.yaml",
+          "into": [
+            "apigw_rest_api/rag-api->lambda_function/rag-query"
+          ],
+          "rule": "R-APIGW-REST",
+          "type": "AWS::ApiGateway::Resource"
+        },
+        {
+          "address": "QueryRole",
+          "class": "hidden",
+          "file": "template.yaml",
+          "rule": "H-IAM",
+          "type": "AWS::IAM::Role"
+        },
+        {
+          "address": "RestApi",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "apigw_rest_api/rag-api",
+          "type": "AWS::ApiGateway::RestApi"
+        },
+        {
+          "address": "VectorIndex",
+          "class": "merged_into",
+          "file": "template.yaml",
+          "into": [
+            "opensearchserverless_collection/rag-kb"
+          ],
+          "rule": "M-AOSS-INDEX",
+          "type": "AWS::OpenSearchServerless::Index"
+        }
+      ],
+      "root": "fixtures/cfn/rag/template.yaml"
+    },
+    "tf": {
+      "edges": [
+        {
+          "edge": "apigw_rest_api/rag-api->lambda_function/rag-query",
+          "evidence": [
+            "aws_api_gateway_integration.query_post.uri",
+            "aws_api_gateway_method.query_post.http_method",
+            "aws_api_gateway_resource.query.path_part",
+            "aws_lambda_permission.apigw_invoke_query.source_arn"
+          ],
+          "rules": [
+            "R-APIGW-REST",
+            "R-LAMBDA-PERMISSION"
+          ]
+        },
+        {
+          "edge": "bedrock_knowledge_base/rag-kb->bedrock_model/amazon.titan-embed-text-v2-0",
+          "evidence": [
+            "aws_bedrockagent_knowledge_base.docs.knowledge_base_configuration.vector_knowledge_base_configuration.embedding_model_arn",
+            "data.aws_iam_policy_document.kb.statement[Embedding]"
+          ],
+          "rules": [
+            "E-BEDROCK-EMBEDDING",
+            "E-IAM",
+            "N-BEDROCK-MODEL"
+          ]
+        },
+        {
+          "edge": "bedrock_knowledge_base/rag-kb->opensearchserverless_collection/rag-kb",
+          "evidence": [
+            "aws_bedrockagent_knowledge_base.docs.storage_configuration.opensearch_serverless_configuration.collection_arn",
+            "data.aws_iam_policy_document.kb.statement[VectorStore]"
+          ],
+          "rules": [
+            "E-IAM",
+            "E-KB-STORAGE"
+          ]
+        },
+        {
+          "edge": "external/internet->apigw_rest_api/rag-api",
+          "evidence": [
+            "aws_api_gateway_rest_api.api.endpoint_configuration.types = [\"REGIONAL\"]"
+          ],
+          "rules": [
+            "N-EXT-INTERNET"
+          ]
+        },
+        {
+          "edge": "lambda_function/rag-ingest->bedrock_knowledge_base/rag-kb",
+          "evidence": [
+            "aws_lambda_function.ingest.environment.DATA_SOURCE_ID（参照先 aws_bedrockagent_data_source.docs は R-BEDROCK-DATA-SOURCE で辺に変換された関係リソースでノードが無いので、辺にしない: E-REF-NONODE）",
+            "aws_lambda_function.ingest.environment.KNOWLEDGE_BASE_ID",
+            "data.aws_iam_policy_document.ingest.statement"
+          ],
+          "rules": [
+            "E-ENV-REF",
+            "E-IAM",
+            "E-REF-NONODE"
+          ]
+        },
+        {
+          "edge": "lambda_function/rag-query->bedrock_knowledge_base/rag-kb",
+          "evidence": [
+            "aws_lambda_function.query.environment.KNOWLEDGE_BASE_ID",
+            "data.aws_iam_policy_document.query.statement[Retrieve]"
+          ],
+          "rules": [
+            "E-ENV-REF",
+            "E-IAM"
+          ]
+        },
+        {
+          "edge": "lambda_function/rag-query->bedrock_model/anthropic.claude-3-haiku-20240307-v1-0",
+          "evidence": [
+            "aws_lambda_function.query.environment.MODEL_ARN (local.generation_model_arn)",
+            "data.aws_iam_policy_document.query.statement[Generate]"
+          ],
+          "rules": [
+            "E-ENV-STR",
+            "E-IAM",
+            "N-BEDROCK-MODEL"
+          ]
+        },
+        {
+          "edge": "s3_bucket/rag-docs->bedrock_knowledge_base/rag-kb",
+          "evidence": [
+            "aws_bedrockagent_data_source.docs.data_source_configuration.s3_configuration.bucket_arn",
+            "data.aws_iam_policy_document.kb.statement[ReadDocs]（逆向きなので辺にしない）"
+          ],
+          "rules": [
+            "E-IAM-SUPPRESS",
+            "R-BEDROCK-DATA-SOURCE"
+          ]
+        },
+        {
+          "edge": "s3_bucket/rag-docs->lambda_function/rag-ingest",
+          "evidence": [
+            "aws_lambda_permission.s3_invoke_ingest.source_arn",
+            "aws_s3_bucket_notification.docs.lambda_function.lambda_function_arn"
+          ],
+          "rules": [
+            "R-LAMBDA-PERMISSION",
+            "R-S3-NOTIFICATION"
+          ]
+        }
+      ],
+      "resources": [
+        {
+          "address": "aws_api_gateway_deployment.api",
+          "class": "merged_into",
+          "file": "api.tf",
+          "into": [
+            "apigw_rest_api/rag-api"
+          ],
+          "rule": "M-APIGW-STAGE",
+          "type": "aws_api_gateway_deployment"
+        },
+        {
+          "address": "aws_api_gateway_integration.query_post",
+          "class": "merged_into",
+          "file": "api.tf",
+          "into": [
+            "apigw_rest_api/rag-api->lambda_function/rag-query"
+          ],
+          "rule": "R-APIGW-REST",
+          "type": "aws_api_gateway_integration"
+        },
+        {
+          "address": "aws_api_gateway_method.query_post",
+          "class": "merged_into",
+          "file": "api.tf",
+          "into": [
+            "apigw_rest_api/rag-api->lambda_function/rag-query"
+          ],
+          "rule": "R-APIGW-REST",
+          "type": "aws_api_gateway_method"
+        },
+        {
+          "address": "aws_api_gateway_resource.query",
+          "class": "merged_into",
+          "file": "api.tf",
+          "into": [
+            "apigw_rest_api/rag-api->lambda_function/rag-query"
+          ],
+          "rule": "R-APIGW-REST",
+          "type": "aws_api_gateway_resource"
+        },
+        {
+          "address": "aws_api_gateway_rest_api.api",
+          "class": "drawn",
+          "file": "api.tf",
+          "node": "apigw_rest_api/rag-api",
+          "type": "aws_api_gateway_rest_api"
+        },
+        {
+          "address": "aws_api_gateway_stage.prod",
+          "class": "merged_into",
+          "file": "api.tf",
+          "into": [
+            "apigw_rest_api/rag-api"
+          ],
+          "rule": "M-APIGW-STAGE",
+          "type": "aws_api_gateway_stage"
+        },
+        {
+          "address": "aws_bedrockagent_data_source.docs",
+          "class": "merged_into",
+          "file": "knowledge_base.tf",
+          "into": [
+            "s3_bucket/rag-docs->bedrock_knowledge_base/rag-kb"
+          ],
+          "rule": "R-BEDROCK-DATA-SOURCE",
+          "type": "aws_bedrockagent_data_source"
+        },
+        {
+          "address": "aws_bedrockagent_knowledge_base.docs",
+          "class": "drawn",
+          "file": "knowledge_base.tf",
+          "node": "bedrock_knowledge_base/rag-kb",
+          "type": "aws_bedrockagent_knowledge_base"
+        },
+        {
+          "address": "aws_cloudwatch_log_group.ingest",
+          "class": "hidden",
+          "file": "functions.tf",
+          "rule": "H-LOGS",
+          "type": "aws_cloudwatch_log_group"
+        },
+        {
+          "address": "aws_cloudwatch_log_group.query",
+          "class": "hidden",
+          "file": "functions.tf",
+          "rule": "H-LOGS",
+          "type": "aws_cloudwatch_log_group"
+        },
+        {
+          "address": "aws_iam_role.ingest",
+          "class": "hidden",
+          "file": "functions.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role"
+        },
+        {
+          "address": "aws_iam_role.kb",
+          "class": "hidden",
+          "file": "knowledge_base.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role"
+        },
+        {
+          "address": "aws_iam_role.query",
+          "class": "hidden",
+          "file": "functions.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role"
+        },
+        {
+          "address": "aws_iam_role_policy.ingest",
+          "class": "hidden",
+          "file": "functions.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role_policy"
+        },
+        {
+          "address": "aws_iam_role_policy.kb",
+          "class": "hidden",
+          "file": "knowledge_base.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role_policy"
+        },
+        {
+          "address": "aws_iam_role_policy.query",
+          "class": "hidden",
+          "file": "functions.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role_policy"
+        },
+        {
+          "address": "aws_iam_role_policy_attachment.ingest_logs",
+          "class": "hidden",
+          "file": "functions.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role_policy_attachment"
+        },
+        {
+          "address": "aws_iam_role_policy_attachment.query_logs",
+          "class": "hidden",
+          "file": "functions.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role_policy_attachment"
+        },
+        {
+          "address": "aws_lambda_function.ingest",
+          "class": "drawn",
+          "file": "functions.tf",
+          "node": "lambda_function/rag-ingest",
+          "type": "aws_lambda_function"
+        },
+        {
+          "address": "aws_lambda_function.query",
+          "class": "drawn",
+          "file": "functions.tf",
+          "node": "lambda_function/rag-query",
+          "type": "aws_lambda_function"
+        },
+        {
+          "address": "aws_lambda_permission.apigw_invoke_query",
+          "class": "merged_into",
+          "file": "api.tf",
+          "into": [
+            "apigw_rest_api/rag-api->lambda_function/rag-query"
+          ],
+          "rule": "R-LAMBDA-PERMISSION",
+          "type": "aws_lambda_permission"
+        },
+        {
+          "address": "aws_lambda_permission.s3_invoke_ingest",
+          "class": "merged_into",
+          "file": "functions.tf",
+          "into": [
+            "s3_bucket/rag-docs->lambda_function/rag-ingest"
+          ],
+          "rule": "R-LAMBDA-PERMISSION",
+          "type": "aws_lambda_permission"
+        },
+        {
+          "address": "aws_opensearchserverless_access_policy.data",
+          "class": "merged_into",
+          "file": "knowledge_base.tf",
+          "into": [
+            "opensearchserverless_collection/rag-kb"
+          ],
+          "rule": "M-AOSS-POLICY",
+          "type": "aws_opensearchserverless_access_policy"
+        },
+        {
+          "address": "aws_opensearchserverless_collection.kb",
+          "class": "drawn",
+          "file": "knowledge_base.tf",
+          "node": "opensearchserverless_collection/rag-kb",
+          "type": "aws_opensearchserverless_collection"
+        },
+        {
+          "address": "aws_opensearchserverless_security_policy.encryption",
+          "class": "merged_into",
+          "file": "knowledge_base.tf",
+          "into": [
+            "opensearchserverless_collection/rag-kb"
+          ],
+          "rule": "M-AOSS-POLICY",
+          "type": "aws_opensearchserverless_security_policy"
+        },
+        {
+          "address": "aws_opensearchserverless_security_policy.network",
+          "class": "merged_into",
+          "file": "knowledge_base.tf",
+          "into": [
+            "opensearchserverless_collection/rag-kb"
+          ],
+          "rule": "M-AOSS-POLICY",
+          "type": "aws_opensearchserverless_security_policy"
+        },
+        {
+          "address": "aws_s3_bucket.docs",
+          "class": "drawn",
+          "file": "knowledge_base.tf",
+          "node": "s3_bucket/rag-docs",
+          "type": "aws_s3_bucket"
+        },
+        {
+          "address": "aws_s3_bucket_notification.docs",
+          "class": "merged_into",
+          "file": "functions.tf",
+          "into": [
+            "s3_bucket/rag-docs->lambda_function/rag-ingest"
+          ],
+          "rule": "R-S3-NOTIFICATION",
+          "type": "aws_s3_bucket_notification"
+        },
+        {
+          "address": "aws_s3_bucket_public_access_block.docs",
+          "class": "merged_into",
+          "file": "knowledge_base.tf",
+          "into": [
+            "s3_bucket/rag-docs"
+          ],
+          "rule": "M-S3-CONFIG",
+          "type": "aws_s3_bucket_public_access_block"
+        },
+        {
+          "address": "aws_s3_bucket_server_side_encryption_configuration.docs",
+          "class": "merged_into",
+          "file": "knowledge_base.tf",
+          "into": [
+            "s3_bucket/rag-docs"
+          ],
+          "rule": "M-S3-CONFIG",
+          "type": "aws_s3_bucket_server_side_encryption_configuration"
+        },
+        {
+          "address": "aws_s3_bucket_versioning.docs",
+          "class": "merged_into",
+          "file": "knowledge_base.tf",
+          "into": [
+            "s3_bucket/rag-docs"
+          ],
+          "rule": "M-S3-CONFIG",
+          "type": "aws_s3_bucket_versioning"
+        },
+        {
+          "address": "data.archive_file.ingest",
+          "class": "hidden",
+          "file": "functions.tf",
+          "rule": "H-DATA",
+          "type": "archive_file"
+        },
+        {
+          "address": "data.archive_file.query",
+          "class": "hidden",
+          "file": "functions.tf",
+          "rule": "H-DATA",
+          "type": "archive_file"
+        },
+        {
+          "address": "data.aws_caller_identity.current",
+          "class": "hidden",
+          "file": "knowledge_base.tf",
+          "rule": "H-DATA",
+          "type": "aws_caller_identity"
+        },
+        {
+          "address": "data.aws_iam_policy_document.bedrock_assume",
+          "class": "hidden",
+          "file": "knowledge_base.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_policy_document"
+        },
+        {
+          "address": "data.aws_iam_policy_document.ingest",
+          "class": "hidden",
+          "file": "functions.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_policy_document"
+        },
+        {
+          "address": "data.aws_iam_policy_document.kb",
+          "class": "hidden",
+          "file": "knowledge_base.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_policy_document"
+        },
+        {
+          "address": "data.aws_iam_policy_document.lambda_assume",
+          "class": "hidden",
+          "file": "functions.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_policy_document"
+        },
+        {
+          "address": "data.aws_iam_policy_document.query",
+          "class": "hidden",
+          "file": "functions.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_policy_document"
+        },
+        {
+          "address": "opensearch_index.kb",
+          "class": "merged_into",
+          "file": "knowledge_base.tf",
+          "into": [
+            "opensearchserverless_collection/rag-kb"
+          ],
+          "note": "AWS 以外のプロバイダ（opensearch-project/opensearch）の型",
+          "rule": "M-AOSS-INDEX",
+          "type": "opensearch_index"
+        },
+        {
+          "address": "time_sleep.wait_for_policies",
+          "class": "hidden",
+          "file": "knowledge_base.tf",
+          "rule": "H-UTILITY",
+          "type": "time_sleep"
+        }
+      ],
+      "root": "fixtures/tf/rag"
+    }
+  },
+  "stage": "normalized"
+}

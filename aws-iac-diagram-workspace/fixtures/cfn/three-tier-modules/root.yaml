@@ -1,0 +1,93 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Fixture three-tier-modules (root). The three-tier architecture split into nested stacks.
+  TemplateURL values are local paths for `aws cloudformation package`.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: demo
+  AppImage:
+    Type: String
+    Default: public.ecr.aws/nginx/nginx-unprivileged:1.27
+  AppPort:
+    Type: Number
+    Default: 8080
+
+Resources:
+  NetworkStack:
+    Type: AWS::CloudFormation::Stack
+    Metadata:
+      cfn-lint:
+        config:
+          ignore_checks: [W3002]  # TemplateURL is a local path on purpose (aws cloudformation package)
+    Properties:
+      TemplateURL: network.yaml
+      Parameters:
+        ProjectName: !Ref ProjectName
+
+  AlbStack:
+    Type: AWS::CloudFormation::Stack
+    Metadata:
+      cfn-lint:
+        config:
+          ignore_checks: [W3002]  # TemplateURL is a local path on purpose (aws cloudformation package)
+    Properties:
+      TemplateURL: alb.yaml
+      Parameters:
+        ProjectName: !Ref ProjectName
+        VpcId: !GetAtt NetworkStack.Outputs.VpcId
+        VpcCidr: !GetAtt NetworkStack.Outputs.VpcCidr
+        PublicSubnetIds: !GetAtt NetworkStack.Outputs.PublicSubnetIds
+        AppPort: !Ref AppPort
+
+  # TF 版では app の SG はローカルモジュールの中、DB の SG はルートにある。
+  # CFN ではネストスタックの間で循環しないよう、2つの SG を1つのスタックにまとめた。
+  SecurityStack:
+    Type: AWS::CloudFormation::Stack
+    Metadata:
+      cfn-lint:
+        config:
+          ignore_checks: [W3002]  # TemplateURL is a local path on purpose (aws cloudformation package)
+    Properties:
+      TemplateURL: security.yaml
+      Parameters:
+        ProjectName: !Ref ProjectName
+        VpcId: !GetAtt NetworkStack.Outputs.VpcId
+        AlbSecurityGroupId: !GetAtt AlbStack.Outputs.SecurityGroupId
+        AppPort: !Ref AppPort
+
+  DatabaseStack:
+    Type: AWS::CloudFormation::Stack
+    Metadata:
+      cfn-lint:
+        config:
+          ignore_checks: [W3002]  # TemplateURL is a local path on purpose (aws cloudformation package)
+    Properties:
+      TemplateURL: database.yaml
+      Parameters:
+        ProjectName: !Ref ProjectName
+        DbSubnetGroupName: !GetAtt NetworkStack.Outputs.DatabaseSubnetGroupName
+        DbSecurityGroupId: !GetAtt SecurityStack.Outputs.DbSecurityGroupId
+
+  ServiceStack:
+    Type: AWS::CloudFormation::Stack
+    Metadata:
+      cfn-lint:
+        config:
+          ignore_checks: [W3002]  # TemplateURL is a local path on purpose (aws cloudformation package)
+    Properties:
+      TemplateURL: service.yaml
+      Parameters:
+        Name: !Sub "${ProjectName}-app"
+        ClusterName: !Ref ProjectName
+        PrivateSubnetIds: !GetAtt NetworkStack.Outputs.PrivateSubnetIds
+        AppSecurityGroupId: !GetAtt SecurityStack.Outputs.AppSecurityGroupId
+        TargetGroupArn: !GetAtt AlbStack.Outputs.TargetGroupArn
+        Image: !Ref AppImage
+        ContainerPort: !Ref AppPort
+        DbHost: !GetAtt DatabaseStack.Outputs.DbAddress
+
+Outputs:
+  AlbDnsName:
+    Value: !GetAtt AlbStack.Outputs.DnsName

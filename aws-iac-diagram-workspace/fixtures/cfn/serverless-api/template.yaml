@@ -1,0 +1,165 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >-
+  Fixture serverless-api (SAM). HTTP API -> Lambda -> DynamoDB, DynamoDB stream -> Lambda -> SNS -> SQS, and an S3 archive.
+  Same architecture as fixtures/tf/serverless-api. SAM Events (HttpApi, DynamoDB) and SAM policy templates are used on purpose.
+
+Parameters:
+  Project:
+    Type: String
+    Default: shop
+
+Globals:
+  Function:
+    Runtime: python3.13
+    Handler: app.handler
+
+Resources:
+  OrdersTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      TableName: !Sub "${Project}-orders"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      Name: !Sub "${Project}-api"
+
+  ApiHandlerLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${Project}-api-handler"
+      RetentionInDays: 14
+
+  ApiHandler:
+    Type: AWS::Serverless::Function
+    DependsOn: ApiHandlerLogGroup
+    Properties:
+      FunctionName: !Sub "${Project}-api-handler"
+      CodeUri: src/api_handler/
+      Timeout: 10
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref OrdersTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrdersTable
+      Events:
+        GetOrders:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: GET
+            Path: /orders
+        PostOrders:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: POST
+            Path: /orders
+
+  StreamProcessorLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${Project}-stream-processor"
+      RetentionInDays: 14
+
+  StreamProcessor:
+    Type: AWS::Serverless::Function
+    DependsOn: StreamProcessorLogGroup
+    Properties:
+      FunctionName: !Sub "${Project}-stream-processor"
+      CodeUri: src/stream_processor/
+      Timeout: 30
+      Environment:
+        Variables:
+          TOPIC_ARN: !Ref OrderEventsTopic
+          ARCHIVE_BUCKET: !Sub "${Project}-orders-archive"
+      Policies:
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt OrderEventsTopic.TopicName
+        - Statement:
+            - Sid: Archive
+              Effect: Allow
+              Action: s3:PutObject
+              Resource: !Sub "arn:${AWS::Partition}:s3:::${Project}-orders-archive/*"
+      Events:
+        OrdersStream:
+          Type: DynamoDB
+          Properties:
+            Stream: !GetAtt OrdersTable.StreamArn
+            StartingPosition: LATEST
+            BatchSize: 100
+
+  OrderEventsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "${Project}-order-events"
+
+  OrderEventsQueue:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      QueueName: !Sub "${Project}-order-events"
+      MessageRetentionPeriod: 345600
+
+  OrderEventsQueueSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref OrderEventsTopic
+      Protocol: sqs
+      Endpoint: !GetAtt OrderEventsQueue.Arn
+      RawMessageDelivery: true
+
+  OrderEventsQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref OrderEventsQueue
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt OrderEventsQueue.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !Ref OrderEventsTopic
+
+  ArchiveBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      BucketName: !Sub "${Project}-orders-archive"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+Outputs:
+  ApiEndpoint:
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}"

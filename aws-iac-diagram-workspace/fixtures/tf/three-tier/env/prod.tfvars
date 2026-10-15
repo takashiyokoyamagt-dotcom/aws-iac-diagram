@@ -1,0 +1,2 @@
+environment = "prod"
+admin_cidr  = "198.51.100.0/24"

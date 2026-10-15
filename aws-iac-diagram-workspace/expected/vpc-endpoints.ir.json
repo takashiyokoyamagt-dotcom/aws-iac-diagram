@@ -1,0 +1,1089 @@
+{
+  "description": "VPC（2AZ）、AZ ごとの NAT、S3 の Gateway エンドポイント、SSM 用の Interface エンドポイント3つ、SSM で管理する EC2。CFN 版は JSON。",
+  "edges": [
+    {
+      "confidence": "derived",
+      "from": "ec2_instance/net-app",
+      "id": "ec2_instance/net-app->vpc_endpoint/net-ec2messages",
+      "kind": "network",
+      "label": "TCP 443",
+      "note": "エンドポイントの SG の ingress（送信元は app の SG）から。1つのルールが3つのエンドポイントへの辺になる（R-SG）。通信の目的（SSM）は IR からは分からないので kind は network",
+      "to": "vpc_endpoint/net-ec2messages"
+    },
+    {
+      "confidence": "derived",
+      "from": "ec2_instance/net-app",
+      "id": "ec2_instance/net-app->vpc_endpoint/net-ssm",
+      "kind": "network",
+      "label": "TCP 443",
+      "to": "vpc_endpoint/net-ssm"
+    },
+    {
+      "confidence": "derived",
+      "from": "ec2_instance/net-app",
+      "id": "ec2_instance/net-app->vpc_endpoint/net-ssmmessages",
+      "kind": "network",
+      "label": "TCP 443",
+      "to": "vpc_endpoint/net-ssmmessages"
+    },
+    {
+      "confidence": "derived",
+      "from": "subnet/net-private-ap-northeast-1a",
+      "id": "subnet/net-private-ap-northeast-1a->nat_gateway/net-nat-ap-northeast-1a",
+      "kind": "route",
+      "label": "0.0.0.0/0",
+      "note": "AZ ごとのルートテーブルで、同じ AZ の NAT へ",
+      "to": "nat_gateway/net-nat-ap-northeast-1a"
+    },
+    {
+      "confidence": "derived",
+      "from": "subnet/net-private-ap-northeast-1a",
+      "id": "subnet/net-private-ap-northeast-1a->vpc_endpoint/net-s3",
+      "kind": "route",
+      "label": "s3 prefix list",
+      "note": "Gateway 型はルートテーブルに関連付く。そのルートテーブルに関連付いたサブネットから辺を出す（R-VPCE-GATEWAY）",
+      "to": "vpc_endpoint/net-s3"
+    },
+    {
+      "confidence": "derived",
+      "from": "subnet/net-private-ap-northeast-1c",
+      "id": "subnet/net-private-ap-northeast-1c->nat_gateway/net-nat-ap-northeast-1c",
+      "kind": "route",
+      "label": "0.0.0.0/0",
+      "to": "nat_gateway/net-nat-ap-northeast-1c"
+    },
+    {
+      "confidence": "derived",
+      "from": "subnet/net-private-ap-northeast-1c",
+      "id": "subnet/net-private-ap-northeast-1c->vpc_endpoint/net-s3",
+      "kind": "route",
+      "label": "s3 prefix list",
+      "to": "vpc_endpoint/net-s3"
+    },
+    {
+      "confidence": "derived",
+      "from": "subnet/net-public-ap-northeast-1a",
+      "id": "subnet/net-public-ap-northeast-1a->internet_gateway/net",
+      "kind": "route",
+      "label": "0.0.0.0/0",
+      "to": "internet_gateway/net"
+    },
+    {
+      "confidence": "derived",
+      "from": "subnet/net-public-ap-northeast-1c",
+      "id": "subnet/net-public-ap-northeast-1c->internet_gateway/net",
+      "kind": "route",
+      "label": "0.0.0.0/0",
+      "to": "internet_gateway/net"
+    }
+  ],
+  "evaluation": {
+    "assumptions": [
+      "terraform.tfvars は自動で読み込まれる。CFN のパラメータは parameters.json（aws cloudformation deploy --parameter-overrides 相当）"
+    ],
+    "cfn": {
+      "parameters": {
+        "Project": "net"
+      }
+    },
+    "tf": {
+      "var_files": [
+        "terraform.tfvars"
+      ],
+      "vars": {}
+    }
+  },
+  "ir_version": "0.1",
+  "name": "vpc-endpoints",
+  "nodes": [
+    {
+      "category": "group",
+      "id": "availability_zone/net.ap-northeast-1a",
+      "label": "ap-northeast-1a",
+      "name": "ap-northeast-1a",
+      "parent": "vpc/net",
+      "synthetic": true,
+      "type": "availability_zone"
+    },
+    {
+      "category": "group",
+      "id": "availability_zone/net.ap-northeast-1c",
+      "label": "ap-northeast-1c",
+      "name": "ap-northeast-1c",
+      "parent": "vpc/net",
+      "synthetic": true,
+      "type": "availability_zone"
+    },
+    {
+      "category": "resource",
+      "id": "ec2_instance/net-app",
+      "label": "net-app",
+      "name": "net-app",
+      "note": "P-SUBNET",
+      "parent": "subnet/net-private-ap-northeast-1a",
+      "type": "ec2_instance"
+    },
+    {
+      "category": "resource",
+      "id": "internet_gateway/net",
+      "label": "net",
+      "name": "net",
+      "parent": "vpc/net",
+      "type": "internet_gateway"
+    },
+    {
+      "category": "resource",
+      "id": "nat_gateway/net-nat-ap-northeast-1a",
+      "label": "net-nat-ap-northeast-1a",
+      "name": "net-nat-ap-northeast-1a",
+      "parent": "subnet/net-public-ap-northeast-1a",
+      "type": "nat_gateway"
+    },
+    {
+      "category": "resource",
+      "id": "nat_gateway/net-nat-ap-northeast-1c",
+      "label": "net-nat-ap-northeast-1c",
+      "name": "net-nat-ap-northeast-1c",
+      "parent": "subnet/net-public-ap-northeast-1c",
+      "type": "nat_gateway"
+    },
+    {
+      "attrs": {
+        "access": "private",
+        "cidr": "10.10.10.0/24"
+      },
+      "category": "group",
+      "id": "subnet/net-private-ap-northeast-1a",
+      "label": "net-private-ap-northeast-1a",
+      "name": "net-private-ap-northeast-1a",
+      "parent": "availability_zone/net.ap-northeast-1a",
+      "type": "subnet"
+    },
+    {
+      "attrs": {
+        "access": "private",
+        "cidr": "10.10.11.0/24"
+      },
+      "category": "group",
+      "id": "subnet/net-private-ap-northeast-1c",
+      "label": "net-private-ap-northeast-1c",
+      "name": "net-private-ap-northeast-1c",
+      "parent": "availability_zone/net.ap-northeast-1c",
+      "type": "subnet"
+    },
+    {
+      "attrs": {
+        "access": "public",
+        "cidr": "10.10.0.0/24"
+      },
+      "category": "group",
+      "id": "subnet/net-public-ap-northeast-1a",
+      "label": "net-public-ap-northeast-1a",
+      "name": "net-public-ap-northeast-1a",
+      "parent": "availability_zone/net.ap-northeast-1a",
+      "type": "subnet"
+    },
+    {
+      "attrs": {
+        "access": "public",
+        "cidr": "10.10.1.0/24"
+      },
+      "category": "group",
+      "id": "subnet/net-public-ap-northeast-1c",
+      "label": "net-public-ap-northeast-1c",
+      "name": "net-public-ap-northeast-1c",
+      "parent": "availability_zone/net.ap-northeast-1c",
+      "type": "subnet"
+    },
+    {
+      "attrs": {
+        "cidr": "10.10.0.0/16"
+      },
+      "category": "group",
+      "id": "vpc/net",
+      "label": "net",
+      "name": "net",
+      "parent": null,
+      "type": "vpc"
+    },
+    {
+      "attrs": {
+        "endpoint_type": "Interface",
+        "service": "ec2messages"
+      },
+      "category": "resource",
+      "id": "vpc_endpoint/net-ec2messages",
+      "label": "net-ec2messages",
+      "name": "net-ec2messages",
+      "parent": "vpc/net",
+      "spans": [
+        "subnet/net-private-ap-northeast-1a",
+        "subnet/net-private-ap-northeast-1c"
+      ],
+      "type": "vpc_endpoint"
+    },
+    {
+      "attrs": {
+        "endpoint_type": "Gateway",
+        "service": "s3"
+      },
+      "category": "resource",
+      "id": "vpc_endpoint/net-s3",
+      "label": "net-s3",
+      "name": "net-s3",
+      "note": "Gateway 型はサブネットに置かれないので VPC の直下（P-VPC）",
+      "parent": "vpc/net",
+      "type": "vpc_endpoint"
+    },
+    {
+      "attrs": {
+        "endpoint_type": "Interface",
+        "service": "ssm"
+      },
+      "category": "resource",
+      "id": "vpc_endpoint/net-ssm",
+      "label": "net-ssm",
+      "name": "net-ssm",
+      "parent": "vpc/net",
+      "spans": [
+        "subnet/net-private-ap-northeast-1a",
+        "subnet/net-private-ap-northeast-1c"
+      ],
+      "type": "vpc_endpoint"
+    },
+    {
+      "attrs": {
+        "endpoint_type": "Interface",
+        "service": "ssmmessages"
+      },
+      "category": "resource",
+      "id": "vpc_endpoint/net-ssmmessages",
+      "label": "net-ssmmessages",
+      "name": "net-ssmmessages",
+      "parent": "vpc/net",
+      "spans": [
+        "subnet/net-private-ap-northeast-1a",
+        "subnet/net-private-ap-northeast-1c"
+      ],
+      "type": "vpc_endpoint"
+    }
+  ],
+  "notes": [
+    "名前は project = net で評価した。TF は variables.tf の既定値 example を terraform.tfvars が上書きし、CFN は parameters.json が Project を上書きする（A4）。既定値のまま評価すると id がすべて example-… になり、正解と一致しない。",
+    "VPC フローログとそのロググループ・ロールは非表示（H-OBSERVABILITY、H-LOGS、H-IAM）。",
+    "EC2 の SG は egress が 0.0.0.0/0 だけで、ここからは辺を作らない。EC2 → NAT（インターネット）の経路はルートの辺で表される。"
+  ],
+  "sources": {
+    "cfn": {
+      "edges": [
+        {
+          "edge": "ec2_instance/net-app->vpc_endpoint/net-ec2messages",
+          "evidence": [
+            "AppInstance.SecurityGroupIds",
+            "Ec2MessagesEndpoint.SecurityGroupIds",
+            "EndpointsSecurityGroup.SecurityGroupIngress.SourceSecurityGroupId"
+          ],
+          "rules": [
+            "R-SG"
+          ]
+        },
+        {
+          "edge": "ec2_instance/net-app->vpc_endpoint/net-ssm",
+          "evidence": [
+            "AppInstance.SecurityGroupIds",
+            "EndpointsSecurityGroup.SecurityGroupIngress.SourceSecurityGroupId",
+            "SsmEndpoint.SecurityGroupIds"
+          ],
+          "rules": [
+            "R-SG"
+          ]
+        },
+        {
+          "edge": "ec2_instance/net-app->vpc_endpoint/net-ssmmessages",
+          "evidence": [
+            "AppInstance.SecurityGroupIds",
+            "EndpointsSecurityGroup.SecurityGroupIngress.SourceSecurityGroupId",
+            "SsmMessagesEndpoint.SecurityGroupIds"
+          ],
+          "rules": [
+            "R-SG"
+          ]
+        },
+        {
+          "edge": "subnet/net-private-ap-northeast-1a->nat_gateway/net-nat-ap-northeast-1a",
+          "evidence": [
+            "PrivateNatRoute1.NatGatewayId",
+            "PrivateSubnet1RouteTableAssociation.SubnetId"
+          ],
+          "rules": [
+            "R-ROUTE"
+          ]
+        },
+        {
+          "edge": "subnet/net-private-ap-northeast-1a->vpc_endpoint/net-s3",
+          "evidence": [
+            "PrivateSubnet1RouteTableAssociation.SubnetId",
+            "S3GatewayEndpoint.RouteTableIds"
+          ],
+          "rules": [
+            "R-ROUTE",
+            "R-VPCE-GATEWAY"
+          ]
+        },
+        {
+          "edge": "subnet/net-private-ap-northeast-1c->nat_gateway/net-nat-ap-northeast-1c",
+          "evidence": [
+            "PrivateNatRoute2.NatGatewayId",
+            "PrivateSubnet2RouteTableAssociation.SubnetId"
+          ],
+          "rules": [
+            "R-ROUTE"
+          ]
+        },
+        {
+          "edge": "subnet/net-private-ap-northeast-1c->vpc_endpoint/net-s3",
+          "evidence": [
+            "PrivateSubnet2RouteTableAssociation.SubnetId",
+            "S3GatewayEndpoint.RouteTableIds"
+          ],
+          "rules": [
+            "R-ROUTE",
+            "R-VPCE-GATEWAY"
+          ]
+        },
+        {
+          "edge": "subnet/net-public-ap-northeast-1a->internet_gateway/net",
+          "evidence": [
+            "PublicInternetRoute.GatewayId",
+            "PublicSubnet1RouteTableAssociation.SubnetId"
+          ],
+          "rules": [
+            "R-ROUTE"
+          ]
+        },
+        {
+          "edge": "subnet/net-public-ap-northeast-1c->internet_gateway/net",
+          "evidence": [
+            "PublicInternetRoute.GatewayId",
+            "PublicSubnet2RouteTableAssociation.SubnetId"
+          ],
+          "rules": [
+            "R-ROUTE"
+          ]
+        }
+      ],
+      "resources": [
+        {
+          "address": "AppInstance",
+          "class": "drawn",
+          "file": "template.json",
+          "node": "ec2_instance/net-app",
+          "type": "AWS::EC2::Instance"
+        },
+        {
+          "address": "AppInstanceProfile",
+          "class": "hidden",
+          "file": "template.json",
+          "rule": "H-IAM",
+          "type": "AWS::IAM::InstanceProfile"
+        },
+        {
+          "address": "AppRole",
+          "class": "hidden",
+          "file": "template.json",
+          "rule": "H-IAM",
+          "type": "AWS::IAM::Role"
+        },
+        {
+          "address": "AppSecurityGroup",
+          "class": "merged_into",
+          "file": "template.json",
+          "into": [
+            "ec2_instance/net-app->vpc_endpoint/net-ec2messages",
+            "ec2_instance/net-app->vpc_endpoint/net-ssm",
+            "ec2_instance/net-app->vpc_endpoint/net-ssmmessages"
+          ],
+          "rule": "R-SG",
+          "type": "AWS::EC2::SecurityGroup"
+        },
+        {
+          "address": "Ec2MessagesEndpoint",
+          "class": "drawn",
+          "file": "template.json",
+          "node": "vpc_endpoint/net-ec2messages",
+          "type": "AWS::EC2::VPCEndpoint"
+        },
+        {
+          "address": "EndpointsSecurityGroup",
+          "class": "merged_into",
+          "file": "template.json",
+          "into": [
+            "ec2_instance/net-app->vpc_endpoint/net-ec2messages",
+            "ec2_instance/net-app->vpc_endpoint/net-ssm",
+            "ec2_instance/net-app->vpc_endpoint/net-ssmmessages"
+          ],
+          "rule": "R-SG",
+          "type": "AWS::EC2::SecurityGroup"
+        },
+        {
+          "address": "FlowLogsLogGroup",
+          "class": "hidden",
+          "file": "template.json",
+          "rule": "H-LOGS",
+          "type": "AWS::Logs::LogGroup"
+        },
+        {
+          "address": "FlowLogsRole",
+          "class": "hidden",
+          "file": "template.json",
+          "rule": "H-IAM",
+          "type": "AWS::IAM::Role"
+        },
+        {
+          "address": "InternetGateway",
+          "class": "drawn",
+          "file": "template.json",
+          "node": "internet_gateway/net",
+          "type": "AWS::EC2::InternetGateway"
+        },
+        {
+          "address": "NatEip1",
+          "class": "merged_into",
+          "file": "template.json",
+          "into": [
+            "nat_gateway/net-nat-ap-northeast-1a"
+          ],
+          "rule": "M-EIP-NAT",
+          "type": "AWS::EC2::EIP"
+        },
+        {
+          "address": "NatEip2",
+          "class": "merged_into",
+          "file": "template.json",
+          "into": [
+            "nat_gateway/net-nat-ap-northeast-1c"
+          ],
+          "rule": "M-EIP-NAT",
+          "type": "AWS::EC2::EIP"
+        },
+        {
+          "address": "NatGateway1",
+          "class": "drawn",
+          "file": "template.json",
+          "node": "nat_gateway/net-nat-ap-northeast-1a",
+          "type": "AWS::EC2::NatGateway"
+        },
+        {
+          "address": "NatGateway2",
+          "class": "drawn",
+          "file": "template.json",
+          "node": "nat_gateway/net-nat-ap-northeast-1c",
+          "type": "AWS::EC2::NatGateway"
+        },
+        {
+          "address": "PrivateNatRoute1",
+          "class": "merged_into",
+          "file": "template.json",
+          "into": [
+            "subnet/net-private-ap-northeast-1a->nat_gateway/net-nat-ap-northeast-1a"
+          ],
+          "rule": "R-ROUTE",
+          "type": "AWS::EC2::Route"
+        },
+        {
+          "address": "PrivateNatRoute2",
+          "class": "merged_into",
+          "file": "template.json",
+          "into": [
+            "subnet/net-private-ap-northeast-1c->nat_gateway/net-nat-ap-northeast-1c"
+          ],
+          "rule": "R-ROUTE",
+          "type": "AWS::EC2::Route"
+        },
+        {
+          "address": "PrivateRouteTable1",
+          "class": "merged_into",
+          "file": "template.json",
+          "into": [
+            "subnet/net-private-ap-northeast-1a->nat_gateway/net-nat-ap-northeast-1a",
+            "subnet/net-private-ap-northeast-1a->vpc_endpoint/net-s3"
+          ],
+          "rule": "R-ROUTE",
+          "type": "AWS::EC2::RouteTable"
+        },
+        {
+          "address": "PrivateRouteTable2",
+          "class": "merged_into",
+          "file": "template.json",
+          "into": [
+            "subnet/net-private-ap-northeast-1c->nat_gateway/net-nat-ap-northeast-1c",
+            "subnet/net-private-ap-northeast-1c->vpc_endpoint/net-s3"
+          ],
+          "rule": "R-ROUTE",
+          "type": "AWS::EC2::RouteTable"
+        },
+        {
+          "address": "PrivateSubnet1",
+          "class": "drawn",
+          "file": "template.json",
+          "node": "subnet/net-private-ap-northeast-1a",
+          "type": "AWS::EC2::Subnet"
+        },
+        {
+          "address": "PrivateSubnet1RouteTableAssociation",
+          "class": "merged_into",
+          "file": "template.json",
+          "into": [
+            "subnet/net-private-ap-northeast-1a->nat_gateway/net-nat-ap-northeast-1a",
+            "subnet/net-private-ap-northeast-1a->vpc_endpoint/net-s3"
+          ],
+          "rule": "R-ROUTE",
+          "type": "AWS::EC2::SubnetRouteTableAssociation"
+        },
+        {
+          "address": "PrivateSubnet2",
+          "class": "drawn",
+          "file": "template.json",
+          "node": "subnet/net-private-ap-northeast-1c",
+          "type": "AWS::EC2::Subnet"
+        },
+        {
+          "address": "PrivateSubnet2RouteTableAssociation",
+          "class": "merged_into",
+          "file": "template.json",
+          "into": [
+            "subnet/net-private-ap-northeast-1c->nat_gateway/net-nat-ap-northeast-1c",
+            "subnet/net-private-ap-northeast-1c->vpc_endpoint/net-s3"
+          ],
+          "rule": "R-ROUTE",
+          "type": "AWS::EC2::SubnetRouteTableAssociation"
+        },
+        {
+          "address": "PublicInternetRoute",
+          "class": "merged_into",
+          "file": "template.json",
+          "into": [
+            "subnet/net-public-ap-northeast-1a->internet_gateway/net",
+            "subnet/net-public-ap-northeast-1c->internet_gateway/net"
+          ],
+          "rule": "R-ROUTE",
+          "type": "AWS::EC2::Route"
+        },
+        {
+          "address": "PublicRouteTable",
+          "class": "merged_into",
+          "file": "template.json",
+          "into": [
+            "subnet/net-public-ap-northeast-1a->internet_gateway/net",
+            "subnet/net-public-ap-northeast-1c->internet_gateway/net"
+          ],
+          "rule": "R-ROUTE",
+          "type": "AWS::EC2::RouteTable"
+        },
+        {
+          "address": "PublicSubnet1",
+          "class": "drawn",
+          "file": "template.json",
+          "node": "subnet/net-public-ap-northeast-1a",
+          "type": "AWS::EC2::Subnet"
+        },
+        {
+          "address": "PublicSubnet1RouteTableAssociation",
+          "class": "merged_into",
+          "file": "template.json",
+          "into": [
+            "subnet/net-public-ap-northeast-1a->internet_gateway/net"
+          ],
+          "rule": "R-ROUTE",
+          "type": "AWS::EC2::SubnetRouteTableAssociation"
+        },
+        {
+          "address": "PublicSubnet2",
+          "class": "drawn",
+          "file": "template.json",
+          "node": "subnet/net-public-ap-northeast-1c",
+          "type": "AWS::EC2::Subnet"
+        },
+        {
+          "address": "PublicSubnet2RouteTableAssociation",
+          "class": "merged_into",
+          "file": "template.json",
+          "into": [
+            "subnet/net-public-ap-northeast-1c->internet_gateway/net"
+          ],
+          "rule": "R-ROUTE",
+          "type": "AWS::EC2::SubnetRouteTableAssociation"
+        },
+        {
+          "address": "S3GatewayEndpoint",
+          "class": "drawn",
+          "file": "template.json",
+          "node": "vpc_endpoint/net-s3",
+          "type": "AWS::EC2::VPCEndpoint"
+        },
+        {
+          "address": "SsmEndpoint",
+          "class": "drawn",
+          "file": "template.json",
+          "node": "vpc_endpoint/net-ssm",
+          "type": "AWS::EC2::VPCEndpoint"
+        },
+        {
+          "address": "SsmMessagesEndpoint",
+          "class": "drawn",
+          "file": "template.json",
+          "node": "vpc_endpoint/net-ssmmessages",
+          "type": "AWS::EC2::VPCEndpoint"
+        },
+        {
+          "address": "Vpc",
+          "class": "drawn",
+          "file": "template.json",
+          "node": "vpc/net",
+          "type": "AWS::EC2::VPC"
+        },
+        {
+          "address": "VpcFlowLog",
+          "class": "hidden",
+          "file": "template.json",
+          "rule": "H-OBSERVABILITY",
+          "type": "AWS::EC2::FlowLog"
+        },
+        {
+          "address": "VpcGatewayAttachment",
+          "class": "merged_into",
+          "file": "template.json",
+          "into": [
+            "internet_gateway/net"
+          ],
+          "rule": "M-IGW-ATTACH",
+          "type": "AWS::EC2::VPCGatewayAttachment"
+        }
+      ],
+      "root": "fixtures/cfn/vpc-endpoints/template.json"
+    },
+    "tf": {
+      "edges": [
+        {
+          "edge": "ec2_instance/net-app->vpc_endpoint/net-ec2messages",
+          "evidence": [
+            "aws_instance.app.vpc_security_group_ids",
+            "aws_security_group.endpoints.ingress.security_groups",
+            "aws_vpc_endpoint.interface[\"ec2messages\"].security_group_ids"
+          ],
+          "rules": [
+            "R-SG"
+          ]
+        },
+        {
+          "edge": "ec2_instance/net-app->vpc_endpoint/net-ssm",
+          "evidence": [
+            "aws_instance.app.vpc_security_group_ids",
+            "aws_security_group.endpoints.ingress.security_groups",
+            "aws_vpc_endpoint.interface[\"ssm\"].security_group_ids"
+          ],
+          "rules": [
+            "R-SG"
+          ]
+        },
+        {
+          "edge": "ec2_instance/net-app->vpc_endpoint/net-ssmmessages",
+          "evidence": [
+            "aws_instance.app.vpc_security_group_ids",
+            "aws_security_group.endpoints.ingress.security_groups",
+            "aws_vpc_endpoint.interface[\"ssmmessages\"].security_group_ids"
+          ],
+          "rules": [
+            "R-SG"
+          ]
+        },
+        {
+          "edge": "subnet/net-private-ap-northeast-1a->nat_gateway/net-nat-ap-northeast-1a",
+          "evidence": [
+            "aws_route.private_nat[0].nat_gateway_id",
+            "aws_route_table_association.private[0].subnet_id"
+          ],
+          "rules": [
+            "R-ROUTE"
+          ]
+        },
+        {
+          "edge": "subnet/net-private-ap-northeast-1a->vpc_endpoint/net-s3",
+          "evidence": [
+            "aws_route_table_association.private[0].subnet_id",
+            "aws_vpc_endpoint.s3.route_table_ids"
+          ],
+          "rules": [
+            "R-ROUTE",
+            "R-VPCE-GATEWAY"
+          ]
+        },
+        {
+          "edge": "subnet/net-private-ap-northeast-1c->nat_gateway/net-nat-ap-northeast-1c",
+          "evidence": [
+            "aws_route.private_nat[1].nat_gateway_id",
+            "aws_route_table_association.private[1].subnet_id"
+          ],
+          "rules": [
+            "R-ROUTE"
+          ]
+        },
+        {
+          "edge": "subnet/net-private-ap-northeast-1c->vpc_endpoint/net-s3",
+          "evidence": [
+            "aws_route_table_association.private[1].subnet_id",
+            "aws_vpc_endpoint.s3.route_table_ids"
+          ],
+          "rules": [
+            "R-ROUTE",
+            "R-VPCE-GATEWAY"
+          ]
+        },
+        {
+          "edge": "subnet/net-public-ap-northeast-1a->internet_gateway/net",
+          "evidence": [
+            "aws_route.public_internet.gateway_id",
+            "aws_route_table_association.public[0].subnet_id"
+          ],
+          "rules": [
+            "R-ROUTE"
+          ]
+        },
+        {
+          "edge": "subnet/net-public-ap-northeast-1c->internet_gateway/net",
+          "evidence": [
+            "aws_route.public_internet.gateway_id",
+            "aws_route_table_association.public[1].subnet_id"
+          ],
+          "rules": [
+            "R-ROUTE"
+          ]
+        }
+      ],
+      "resources": [
+        {
+          "address": "aws_cloudwatch_log_group.flow_logs",
+          "class": "hidden",
+          "file": "network.tf",
+          "rule": "H-LOGS",
+          "type": "aws_cloudwatch_log_group"
+        },
+        {
+          "address": "aws_eip.nat[0]",
+          "class": "merged_into",
+          "file": "network.tf",
+          "into": [
+            "nat_gateway/net-nat-ap-northeast-1a"
+          ],
+          "rule": "M-EIP-NAT",
+          "type": "aws_eip"
+        },
+        {
+          "address": "aws_eip.nat[1]",
+          "class": "merged_into",
+          "file": "network.tf",
+          "into": [
+            "nat_gateway/net-nat-ap-northeast-1c"
+          ],
+          "rule": "M-EIP-NAT",
+          "type": "aws_eip"
+        },
+        {
+          "address": "aws_flow_log.vpc",
+          "class": "hidden",
+          "file": "network.tf",
+          "rule": "H-OBSERVABILITY",
+          "type": "aws_flow_log"
+        },
+        {
+          "address": "aws_iam_instance_profile.app",
+          "class": "hidden",
+          "file": "compute.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_instance_profile"
+        },
+        {
+          "address": "aws_iam_role.app",
+          "class": "hidden",
+          "file": "compute.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role"
+        },
+        {
+          "address": "aws_iam_role.flow_logs",
+          "class": "hidden",
+          "file": "network.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role"
+        },
+        {
+          "address": "aws_iam_role_policy.flow_logs",
+          "class": "hidden",
+          "file": "network.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role_policy"
+        },
+        {
+          "address": "aws_iam_role_policy_attachment.app_ssm",
+          "class": "hidden",
+          "file": "compute.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role_policy_attachment"
+        },
+        {
+          "address": "aws_instance.app",
+          "class": "drawn",
+          "file": "compute.tf",
+          "node": "ec2_instance/net-app",
+          "type": "aws_instance"
+        },
+        {
+          "address": "aws_internet_gateway.main",
+          "class": "drawn",
+          "file": "network.tf",
+          "node": "internet_gateway/net",
+          "type": "aws_internet_gateway"
+        },
+        {
+          "address": "aws_nat_gateway.main[0]",
+          "class": "drawn",
+          "file": "network.tf",
+          "node": "nat_gateway/net-nat-ap-northeast-1a",
+          "type": "aws_nat_gateway"
+        },
+        {
+          "address": "aws_nat_gateway.main[1]",
+          "class": "drawn",
+          "file": "network.tf",
+          "node": "nat_gateway/net-nat-ap-northeast-1c",
+          "type": "aws_nat_gateway"
+        },
+        {
+          "address": "aws_route.private_nat[0]",
+          "class": "merged_into",
+          "file": "network.tf",
+          "into": [
+            "subnet/net-private-ap-northeast-1a->nat_gateway/net-nat-ap-northeast-1a"
+          ],
+          "rule": "R-ROUTE",
+          "type": "aws_route"
+        },
+        {
+          "address": "aws_route.private_nat[1]",
+          "class": "merged_into",
+          "file": "network.tf",
+          "into": [
+            "subnet/net-private-ap-northeast-1c->nat_gateway/net-nat-ap-northeast-1c"
+          ],
+          "rule": "R-ROUTE",
+          "type": "aws_route"
+        },
+        {
+          "address": "aws_route.public_internet",
+          "class": "merged_into",
+          "file": "network.tf",
+          "into": [
+            "subnet/net-public-ap-northeast-1a->internet_gateway/net",
+            "subnet/net-public-ap-northeast-1c->internet_gateway/net"
+          ],
+          "rule": "R-ROUTE",
+          "type": "aws_route"
+        },
+        {
+          "address": "aws_route_table.private[0]",
+          "class": "merged_into",
+          "file": "network.tf",
+          "into": [
+            "subnet/net-private-ap-northeast-1a->nat_gateway/net-nat-ap-northeast-1a",
+            "subnet/net-private-ap-northeast-1a->vpc_endpoint/net-s3"
+          ],
+          "note": "NAT へのルートと、S3 の Gateway エンドポイントの関連付けの両方を持つ",
+          "rule": "R-ROUTE",
+          "type": "aws_route_table"
+        },
+        {
+          "address": "aws_route_table.private[1]",
+          "class": "merged_into",
+          "file": "network.tf",
+          "into": [
+            "subnet/net-private-ap-northeast-1c->nat_gateway/net-nat-ap-northeast-1c",
+            "subnet/net-private-ap-northeast-1c->vpc_endpoint/net-s3"
+          ],
+          "rule": "R-ROUTE",
+          "type": "aws_route_table"
+        },
+        {
+          "address": "aws_route_table.public",
+          "class": "merged_into",
+          "file": "network.tf",
+          "into": [
+            "subnet/net-public-ap-northeast-1a->internet_gateway/net",
+            "subnet/net-public-ap-northeast-1c->internet_gateway/net"
+          ],
+          "rule": "R-ROUTE",
+          "type": "aws_route_table"
+        },
+        {
+          "address": "aws_route_table_association.private[0]",
+          "class": "merged_into",
+          "file": "network.tf",
+          "into": [
+            "subnet/net-private-ap-northeast-1a->nat_gateway/net-nat-ap-northeast-1a",
+            "subnet/net-private-ap-northeast-1a->vpc_endpoint/net-s3"
+          ],
+          "rule": "R-ROUTE",
+          "type": "aws_route_table_association"
+        },
+        {
+          "address": "aws_route_table_association.private[1]",
+          "class": "merged_into",
+          "file": "network.tf",
+          "into": [
+            "subnet/net-private-ap-northeast-1c->nat_gateway/net-nat-ap-northeast-1c",
+            "subnet/net-private-ap-northeast-1c->vpc_endpoint/net-s3"
+          ],
+          "rule": "R-ROUTE",
+          "type": "aws_route_table_association"
+        },
+        {
+          "address": "aws_route_table_association.public[0]",
+          "class": "merged_into",
+          "file": "network.tf",
+          "into": [
+            "subnet/net-public-ap-northeast-1a->internet_gateway/net"
+          ],
+          "rule": "R-ROUTE",
+          "type": "aws_route_table_association"
+        },
+        {
+          "address": "aws_route_table_association.public[1]",
+          "class": "merged_into",
+          "file": "network.tf",
+          "into": [
+            "subnet/net-public-ap-northeast-1c->internet_gateway/net"
+          ],
+          "rule": "R-ROUTE",
+          "type": "aws_route_table_association"
+        },
+        {
+          "address": "aws_security_group.app",
+          "class": "merged_into",
+          "file": "compute.tf",
+          "into": [
+            "ec2_instance/net-app->vpc_endpoint/net-ec2messages",
+            "ec2_instance/net-app->vpc_endpoint/net-ssm",
+            "ec2_instance/net-app->vpc_endpoint/net-ssmmessages"
+          ],
+          "note": "ingress は無いが、エンドポイントの SG のルールの送信元として辺を生む",
+          "rule": "R-SG",
+          "type": "aws_security_group"
+        },
+        {
+          "address": "aws_security_group.endpoints",
+          "class": "merged_into",
+          "file": "endpoints.tf",
+          "into": [
+            "ec2_instance/net-app->vpc_endpoint/net-ec2messages",
+            "ec2_instance/net-app->vpc_endpoint/net-ssm",
+            "ec2_instance/net-app->vpc_endpoint/net-ssmmessages"
+          ],
+          "rule": "R-SG",
+          "type": "aws_security_group"
+        },
+        {
+          "address": "aws_subnet.private[0]",
+          "class": "drawn",
+          "file": "network.tf",
+          "node": "subnet/net-private-ap-northeast-1a",
+          "type": "aws_subnet"
+        },
+        {
+          "address": "aws_subnet.private[1]",
+          "class": "drawn",
+          "file": "network.tf",
+          "node": "subnet/net-private-ap-northeast-1c",
+          "type": "aws_subnet"
+        },
+        {
+          "address": "aws_subnet.public[0]",
+          "class": "drawn",
+          "file": "network.tf",
+          "node": "subnet/net-public-ap-northeast-1a",
+          "type": "aws_subnet"
+        },
+        {
+          "address": "aws_subnet.public[1]",
+          "class": "drawn",
+          "file": "network.tf",
+          "node": "subnet/net-public-ap-northeast-1c",
+          "type": "aws_subnet"
+        },
+        {
+          "address": "aws_vpc.main",
+          "class": "drawn",
+          "file": "network.tf",
+          "node": "vpc/net",
+          "type": "aws_vpc"
+        },
+        {
+          "address": "aws_vpc_endpoint.interface[\"ec2messages\"]",
+          "class": "drawn",
+          "file": "endpoints.tf",
+          "node": "vpc_endpoint/net-ec2messages",
+          "type": "aws_vpc_endpoint"
+        },
+        {
+          "address": "aws_vpc_endpoint.interface[\"ssm\"]",
+          "class": "drawn",
+          "file": "endpoints.tf",
+          "node": "vpc_endpoint/net-ssm",
+          "type": "aws_vpc_endpoint"
+        },
+        {
+          "address": "aws_vpc_endpoint.interface[\"ssmmessages\"]",
+          "class": "drawn",
+          "file": "endpoints.tf",
+          "node": "vpc_endpoint/net-ssmmessages",
+          "type": "aws_vpc_endpoint"
+        },
+        {
+          "address": "aws_vpc_endpoint.s3",
+          "class": "drawn",
+          "file": "endpoints.tf",
+          "node": "vpc_endpoint/net-s3",
+          "type": "aws_vpc_endpoint"
+        },
+        {
+          "address": "data.aws_iam_policy_document.ec2_assume",
+          "class": "hidden",
+          "file": "compute.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_policy_document"
+        },
+        {
+          "address": "data.aws_iam_policy_document.flow_logs",
+          "class": "hidden",
+          "file": "network.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_policy_document"
+        },
+        {
+          "address": "data.aws_iam_policy_document.flow_logs_assume",
+          "class": "hidden",
+          "file": "network.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_policy_document"
+        },
+        {
+          "address": "data.aws_ssm_parameter.al2023_ami",
+          "class": "hidden",
+          "file": "compute.tf",
+          "rule": "H-DATA",
+          "type": "aws_ssm_parameter"
+        }
+      ],
+      "root": "fixtures/tf/vpc-endpoints"
+    }
+  },
+  "stage": "normalized"
+}

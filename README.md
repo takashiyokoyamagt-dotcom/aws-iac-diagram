@@ -53,6 +53,18 @@ draw.io Desktop を更新したとき、または `Sidebar-AWS4.js` を取り直
 - 作業ファイル（`.drawio`、ページごとの PNG、全件の指標 `report.json`）は `aws-iac-diagram-workspace/icon-check/` に出ます（git 管理外）。
 - draw.io の場所は自動で探します。見つからないときは環境変数 `DRAWIO` に実行ファイルのパスを設定してください。
 
+### 正解 IR と fixture の検証
+
+開発用の依存（cfn-lint、jsonschema）は `requirements-dev.txt` にあります。
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv\Scripts\python.exe aws-iac-diagram\scripts\validate_ir.py aws-iac-diagram-workspace\expected\*.ir.json
+.\.venv\Scripts\python.exe aws-iac-diagram-workspace\tools\check_coverage.py --lint
+```
+
+fixture の説明は [aws-iac-diagram-workspace/fixtures/README.md](aws-iac-diagram-workspace/fixtures/README.md)、IR の形は [references/ir-schema.md](aws-iac-diagram/references/ir-schema.md) にあります。
+
 ### テスト
 
 ```powershell

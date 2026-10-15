@@ -1,0 +1,1094 @@
+{
+  "description": "3層（ALB → ECS Fargate → RDS PostgreSQL）。VPC は2AZ、パブリック／プライベート／DB のサブネット、NAT は1つ。踏み台は prod のみ。",
+  "edges": [
+    {
+      "confidence": "derived",
+      "from": "alb/demo-alb",
+      "id": "alb/demo-alb->ecs_service/demo-app",
+      "kind": "request",
+      "label": "HTTP 8080",
+      "note": "参照はサービス → ターゲットグループだが、向きは ALB → サービス（R-LB-TG）。SG の app_from_alb も同じ組（E-MERGE）",
+      "to": "ecs_service/demo-app"
+    },
+    {
+      "confidence": "confirmed",
+      "from": "ecs_service/demo-app",
+      "id": "ecs_service/demo-app->db_instance/demo-db",
+      "kind": "data",
+      "label": "TCP 5432",
+      "note": "タスク定義の環境変数 DB_HOST が DB のアドレスを参照（E-ENV-REF、確定）。ラベルは SG から（E-MERGE の 3）",
+      "to": "db_instance/demo-db"
+    },
+    {
+      "confidence": "derived",
+      "from": "external/internet",
+      "id": "external/internet->alb/demo-alb",
+      "kind": "request",
+      "label": "HTTP 80",
+      "to": "alb/demo-alb"
+    },
+    {
+      "confidence": "derived",
+      "from": "subnet/demo-private-ap-northeast-1a",
+      "id": "subnet/demo-private-ap-northeast-1a->nat_gateway/demo-ap-northeast-1a",
+      "kind": "route",
+      "label": "0.0.0.0/0",
+      "to": "nat_gateway/demo-ap-northeast-1a"
+    },
+    {
+      "confidence": "derived",
+      "from": "subnet/demo-private-ap-northeast-1c",
+      "id": "subnet/demo-private-ap-northeast-1c->nat_gateway/demo-ap-northeast-1a",
+      "kind": "route",
+      "label": "0.0.0.0/0",
+      "to": "nat_gateway/demo-ap-northeast-1a"
+    },
+    {
+      "confidence": "derived",
+      "from": "subnet/demo-public-ap-northeast-1a",
+      "id": "subnet/demo-public-ap-northeast-1a->internet_gateway/demo",
+      "kind": "route",
+      "label": "0.0.0.0/0",
+      "to": "internet_gateway/demo"
+    },
+    {
+      "confidence": "derived",
+      "from": "subnet/demo-public-ap-northeast-1c",
+      "id": "subnet/demo-public-ap-northeast-1c->internet_gateway/demo",
+      "kind": "route",
+      "label": "0.0.0.0/0",
+      "to": "internet_gateway/demo"
+    }
+  ],
+  "evaluation": {
+    "assumptions": [
+      "environment / EnvType は dev（複数環境のため A4 で最初に確認する想定）"
+    ],
+    "cfn": {
+      "parameters": {
+        "EnvType": "dev"
+      }
+    },
+    "tf": {
+      "var_files": [
+        "env/dev.tfvars"
+      ],
+      "vars": {}
+    }
+  },
+  "ir_version": "0.1",
+  "name": "three-tier",
+  "nodes": [
+    {
+      "category": "resource",
+      "id": "alb/demo-alb",
+      "label": "demo-alb",
+      "name": "demo-alb",
+      "note": "P-SPANS。2つの AZ のパブリックサブネットにまたがるので parent は VPC",
+      "parent": "vpc/demo",
+      "spans": [
+        "subnet/demo-public-ap-northeast-1a",
+        "subnet/demo-public-ap-northeast-1c"
+      ],
+      "type": "alb"
+    },
+    {
+      "category": "group",
+      "id": "availability_zone/demo.ap-northeast-1a",
+      "label": "ap-northeast-1a",
+      "name": "ap-northeast-1a",
+      "parent": "vpc/demo",
+      "synthetic": true,
+      "type": "availability_zone"
+    },
+    {
+      "category": "group",
+      "id": "availability_zone/demo.ap-northeast-1c",
+      "label": "ap-northeast-1c",
+      "name": "ap-northeast-1c",
+      "parent": "vpc/demo",
+      "synthetic": true,
+      "type": "availability_zone"
+    },
+    {
+      "category": "resource",
+      "id": "db_instance/demo-db",
+      "label": "demo-db",
+      "name": "demo-db",
+      "note": "DB サブネットグループ（M-DB-SUBNET-GROUP）のサブネットを spans にする。単一 AZ の DB でも、どちらの AZ に置かれるかは静的に決まらないので両方",
+      "parent": "vpc/demo",
+      "spans": [
+        "subnet/demo-db-ap-northeast-1a",
+        "subnet/demo-db-ap-northeast-1c"
+      ],
+      "type": "db_instance"
+    },
+    {
+      "category": "resource",
+      "id": "ecs_service/demo-app",
+      "label": "demo-app",
+      "name": "demo-app",
+      "note": "クラスタ（M-ECS-CLUSTER）とタスク定義（M-ECS-TASKDEF）を統合。desired_count はノード数に反映しない",
+      "parent": "vpc/demo",
+      "spans": [
+        "subnet/demo-private-ap-northeast-1a",
+        "subnet/demo-private-ap-northeast-1c"
+      ],
+      "type": "ecs_service"
+    },
+    {
+      "category": "external",
+      "id": "external/internet",
+      "label": "Internet",
+      "name": "internet",
+      "note": "N-EXT-INTERNET。インターネット向け ALB で、SG が 0.0.0.0/0 から 80 を許す",
+      "parent": null,
+      "synthetic": true,
+      "type": "external"
+    },
+    {
+      "category": "resource",
+      "id": "internet_gateway/demo",
+      "label": "demo",
+      "name": "demo",
+      "note": "P-VPC。IGW は VPC に付くので VPC の直下",
+      "parent": "vpc/demo",
+      "type": "internet_gateway"
+    },
+    {
+      "category": "resource",
+      "id": "nat_gateway/demo-ap-northeast-1a",
+      "label": "demo-ap-northeast-1a",
+      "name": "demo-ap-northeast-1a",
+      "note": "P-SUBNET。EIP は統合（M-EIP-NAT）",
+      "parent": "subnet/demo-public-ap-northeast-1a",
+      "type": "nat_gateway"
+    },
+    {
+      "attrs": {
+        "access": "private",
+        "cidr": "10.0.20.0/24"
+      },
+      "category": "group",
+      "id": "subnet/demo-db-ap-northeast-1a",
+      "label": "demo-db-ap-northeast-1a",
+      "name": "demo-db-ap-northeast-1a",
+      "note": "local 以外のルートが無い（隔離）。access は public でないので private",
+      "parent": "availability_zone/demo.ap-northeast-1a",
+      "type": "subnet"
+    },
+    {
+      "attrs": {
+        "access": "private",
+        "cidr": "10.0.21.0/24"
+      },
+      "category": "group",
+      "id": "subnet/demo-db-ap-northeast-1c",
+      "label": "demo-db-ap-northeast-1c",
+      "name": "demo-db-ap-northeast-1c",
+      "parent": "availability_zone/demo.ap-northeast-1c",
+      "type": "subnet"
+    },
+    {
+      "attrs": {
+        "access": "private",
+        "cidr": "10.0.10.0/24"
+      },
+      "category": "group",
+      "id": "subnet/demo-private-ap-northeast-1a",
+      "label": "demo-private-ap-northeast-1a",
+      "name": "demo-private-ap-northeast-1a",
+      "parent": "availability_zone/demo.ap-northeast-1a",
+      "type": "subnet"
+    },
+    {
+      "attrs": {
+        "access": "private",
+        "cidr": "10.0.11.0/24"
+      },
+      "category": "group",
+      "id": "subnet/demo-private-ap-northeast-1c",
+      "label": "demo-private-ap-northeast-1c",
+      "name": "demo-private-ap-northeast-1c",
+      "parent": "availability_zone/demo.ap-northeast-1c",
+      "type": "subnet"
+    },
+    {
+      "attrs": {
+        "access": "public",
+        "cidr": "10.0.0.0/24"
+      },
+      "category": "group",
+      "id": "subnet/demo-public-ap-northeast-1a",
+      "label": "demo-public-ap-northeast-1a",
+      "name": "demo-public-ap-northeast-1a",
+      "parent": "availability_zone/demo.ap-northeast-1a",
+      "type": "subnet"
+    },
+    {
+      "attrs": {
+        "access": "public",
+        "cidr": "10.0.1.0/24"
+      },
+      "category": "group",
+      "id": "subnet/demo-public-ap-northeast-1c",
+      "label": "demo-public-ap-northeast-1c",
+      "name": "demo-public-ap-northeast-1c",
+      "parent": "availability_zone/demo.ap-northeast-1c",
+      "type": "subnet"
+    },
+    {
+      "attrs": {
+        "cidr": "10.0.0.0/16"
+      },
+      "category": "group",
+      "id": "vpc/demo",
+      "label": "demo",
+      "name": "demo",
+      "parent": null,
+      "type": "vpc"
+    }
+  ],
+  "notes": [
+    "環境は dev として評価した（TF: env/dev.tfvars、CFN: EnvType=dev）。prod では踏み台（EC2 と SG）が描かれる。差分は fixtures/tf/three-tier/README.md。",
+    "three-tier-modules と canonical 部が同じになるように、名前を terraform-aws-modules/vpc の規則に合わせてある。",
+    "ルートの辺はサブネット（枠）から出す（relation-resources.md の補足）。DB サブネットは local 以外のルートが無いので辺が無い。"
+  ],
+  "sources": {
+    "cfn": {
+      "edges": [
+        {
+          "edge": "alb/demo-alb->ecs_service/demo-app",
+          "evidence": [
+            "AppFromAlbIngress.SourceSecurityGroupId",
+            "AppService.LoadBalancers.TargetGroupArn",
+            "HttpListener.DefaultActions.TargetGroupArn"
+          ],
+          "rules": [
+            "R-LB-LISTENER",
+            "R-LB-TG",
+            "R-SG"
+          ]
+        },
+        {
+          "edge": "ecs_service/demo-app->db_instance/demo-db",
+          "evidence": [
+            "DbSecurityGroup.SecurityGroupIngress.SourceSecurityGroupId",
+            "TaskDefinition.ContainerDefinitions.Environment.DB_HOST (!GetAtt Database.Endpoint.Address)"
+          ],
+          "rules": [
+            "E-ENV-REF",
+            "R-SG"
+          ]
+        },
+        {
+          "edge": "external/internet->alb/demo-alb",
+          "evidence": [
+            "Alb.Scheme = internet-facing",
+            "AlbSecurityGroup.SecurityGroupIngress.CidrIp",
+            "HttpListener.Port"
+          ],
+          "rules": [
+            "N-EXT-INTERNET",
+            "R-LB-LISTENER",
+            "R-SG"
+          ]
+        },
+        {
+          "edge": "subnet/demo-private-ap-northeast-1a->nat_gateway/demo-ap-northeast-1a",
+          "evidence": [
+            "PrivateNatRoute.NatGatewayId",
+            "PrivateSubnet1RouteTableAssociation.SubnetId"
+          ],
+          "rules": [
+            "R-ROUTE"
+          ]
+        },
+        {
+          "edge": "subnet/demo-private-ap-northeast-1c->nat_gateway/demo-ap-northeast-1a",
+          "evidence": [
+            "PrivateNatRoute.NatGatewayId",
+            "PrivateSubnet2RouteTableAssociation.SubnetId"
+          ],
+          "rules": [
+            "R-ROUTE"
+          ]
+        },
+        {
+          "edge": "subnet/demo-public-ap-northeast-1a->internet_gateway/demo",
+          "evidence": [
+            "PublicInternetRoute.GatewayId",
+            "PublicSubnet1RouteTableAssociation.SubnetId"
+          ],
+          "rules": [
+            "R-ROUTE"
+          ]
+        },
+        {
+          "edge": "subnet/demo-public-ap-northeast-1c->internet_gateway/demo",
+          "evidence": [
+            "PublicInternetRoute.GatewayId",
+            "PublicSubnet2RouteTableAssociation.SubnetId"
+          ],
+          "rules": [
+            "R-ROUTE"
+          ]
+        }
+      ],
+      "resources": [
+        {
+          "address": "Alb",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "alb/demo-alb",
+          "type": "AWS::ElasticLoadBalancingV2::LoadBalancer"
+        },
+        {
+          "address": "AlbSecurityGroup",
+          "class": "merged_into",
+          "file": "template.yaml",
+          "into": [
+            "alb/demo-alb->ecs_service/demo-app",
+            "external/internet->alb/demo-alb"
+          ],
+          "rule": "R-SG",
+          "type": "AWS::EC2::SecurityGroup"
+        },
+        {
+          "address": "AppFromAlbIngress",
+          "class": "merged_into",
+          "file": "template.yaml",
+          "into": [
+            "alb/demo-alb->ecs_service/demo-app"
+          ],
+          "rule": "R-SG",
+          "type": "AWS::EC2::SecurityGroupIngress"
+        },
+        {
+          "address": "AppLogGroup",
+          "class": "hidden",
+          "file": "template.yaml",
+          "rule": "H-LOGS",
+          "type": "AWS::Logs::LogGroup"
+        },
+        {
+          "address": "AppSecurityGroup",
+          "class": "merged_into",
+          "file": "template.yaml",
+          "into": [
+            "alb/demo-alb->ecs_service/demo-app",
+            "ecs_service/demo-app->db_instance/demo-db"
+          ],
+          "rule": "R-SG",
+          "type": "AWS::EC2::SecurityGroup"
+        },
+        {
+          "address": "AppService",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "ecs_service/demo-app",
+          "type": "AWS::ECS::Service"
+        },
+        {
+          "address": "AppTargetGroup",
+          "class": "merged_into",
+          "file": "template.yaml",
+          "into": [
+            "alb/demo-alb->ecs_service/demo-app"
+          ],
+          "rule": "R-LB-TG",
+          "type": "AWS::ElasticLoadBalancingV2::TargetGroup"
+        },
+        {
+          "address": "Bastion",
+          "class": "hidden",
+          "file": "template.yaml",
+          "note": "Condition: IsProd（EnvType=dev で偽）",
+          "rule": "H-COND-FALSE",
+          "type": "AWS::EC2::Instance"
+        },
+        {
+          "address": "BastionSecurityGroup",
+          "class": "hidden",
+          "file": "template.yaml",
+          "note": "Condition: IsProd（EnvType=dev で偽）",
+          "rule": "H-COND-FALSE",
+          "type": "AWS::EC2::SecurityGroup"
+        },
+        {
+          "address": "Cluster",
+          "class": "merged_into",
+          "file": "template.yaml",
+          "into": [
+            "ecs_service/demo-app"
+          ],
+          "rule": "M-ECS-CLUSTER",
+          "type": "AWS::ECS::Cluster"
+        },
+        {
+          "address": "Database",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "db_instance/demo-db",
+          "type": "AWS::RDS::DBInstance"
+        },
+        {
+          "address": "DatabaseRouteTable",
+          "class": "hidden",
+          "file": "template.yaml",
+          "rule": "H-RT-NOROUTE",
+          "type": "AWS::EC2::RouteTable"
+        },
+        {
+          "address": "DatabaseSubnet1",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "subnet/demo-db-ap-northeast-1a",
+          "type": "AWS::EC2::Subnet"
+        },
+        {
+          "address": "DatabaseSubnet1RouteTableAssociation",
+          "class": "hidden",
+          "file": "template.yaml",
+          "rule": "H-RT-NOROUTE",
+          "type": "AWS::EC2::SubnetRouteTableAssociation"
+        },
+        {
+          "address": "DatabaseSubnet2",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "subnet/demo-db-ap-northeast-1c",
+          "type": "AWS::EC2::Subnet"
+        },
+        {
+          "address": "DatabaseSubnet2RouteTableAssociation",
+          "class": "hidden",
+          "file": "template.yaml",
+          "rule": "H-RT-NOROUTE",
+          "type": "AWS::EC2::SubnetRouteTableAssociation"
+        },
+        {
+          "address": "DbSecurityGroup",
+          "class": "merged_into",
+          "file": "template.yaml",
+          "into": [
+            "ecs_service/demo-app->db_instance/demo-db"
+          ],
+          "rule": "R-SG",
+          "type": "AWS::EC2::SecurityGroup"
+        },
+        {
+          "address": "DbSubnetGroup",
+          "class": "merged_into",
+          "file": "template.yaml",
+          "into": [
+            "db_instance/demo-db"
+          ],
+          "rule": "M-DB-SUBNET-GROUP",
+          "type": "AWS::RDS::DBSubnetGroup"
+        },
+        {
+          "address": "HttpListener",
+          "class": "merged_into",
+          "file": "template.yaml",
+          "into": [
+            "alb/demo-alb->ecs_service/demo-app",
+            "external/internet->alb/demo-alb"
+          ],
+          "rule": "R-LB-LISTENER",
+          "type": "AWS::ElasticLoadBalancingV2::Listener"
+        },
+        {
+          "address": "InternetGateway",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "internet_gateway/demo",
+          "type": "AWS::EC2::InternetGateway"
+        },
+        {
+          "address": "NatEip",
+          "class": "merged_into",
+          "file": "template.yaml",
+          "into": [
+            "nat_gateway/demo-ap-northeast-1a"
+          ],
+          "rule": "M-EIP-NAT",
+          "type": "AWS::EC2::EIP"
+        },
+        {
+          "address": "NatGateway",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "nat_gateway/demo-ap-northeast-1a",
+          "type": "AWS::EC2::NatGateway"
+        },
+        {
+          "address": "PrivateNatRoute",
+          "class": "merged_into",
+          "file": "template.yaml",
+          "into": [
+            "subnet/demo-private-ap-northeast-1a->nat_gateway/demo-ap-northeast-1a",
+            "subnet/demo-private-ap-northeast-1c->nat_gateway/demo-ap-northeast-1a"
+          ],
+          "rule": "R-ROUTE",
+          "type": "AWS::EC2::Route"
+        },
+        {
+          "address": "PrivateRouteTable",
+          "class": "merged_into",
+          "file": "template.yaml",
+          "into": [
+            "subnet/demo-private-ap-northeast-1a->nat_gateway/demo-ap-northeast-1a",
+            "subnet/demo-private-ap-northeast-1c->nat_gateway/demo-ap-northeast-1a"
+          ],
+          "rule": "R-ROUTE",
+          "type": "AWS::EC2::RouteTable"
+        },
+        {
+          "address": "PrivateSubnet1",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "subnet/demo-private-ap-northeast-1a",
+          "type": "AWS::EC2::Subnet"
+        },
+        {
+          "address": "PrivateSubnet1RouteTableAssociation",
+          "class": "merged_into",
+          "file": "template.yaml",
+          "into": [
+            "subnet/demo-private-ap-northeast-1a->nat_gateway/demo-ap-northeast-1a"
+          ],
+          "rule": "R-ROUTE",
+          "type": "AWS::EC2::SubnetRouteTableAssociation"
+        },
+        {
+          "address": "PrivateSubnet2",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "subnet/demo-private-ap-northeast-1c",
+          "type": "AWS::EC2::Subnet"
+        },
+        {
+          "address": "PrivateSubnet2RouteTableAssociation",
+          "class": "merged_into",
+          "file": "template.yaml",
+          "into": [
+            "subnet/demo-private-ap-northeast-1c->nat_gateway/demo-ap-northeast-1a"
+          ],
+          "rule": "R-ROUTE",
+          "type": "AWS::EC2::SubnetRouteTableAssociation"
+        },
+        {
+          "address": "PublicInternetRoute",
+          "class": "merged_into",
+          "file": "template.yaml",
+          "into": [
+            "subnet/demo-public-ap-northeast-1a->internet_gateway/demo",
+            "subnet/demo-public-ap-northeast-1c->internet_gateway/demo"
+          ],
+          "rule": "R-ROUTE",
+          "type": "AWS::EC2::Route"
+        },
+        {
+          "address": "PublicRouteTable",
+          "class": "merged_into",
+          "file": "template.yaml",
+          "into": [
+            "subnet/demo-public-ap-northeast-1a->internet_gateway/demo",
+            "subnet/demo-public-ap-northeast-1c->internet_gateway/demo"
+          ],
+          "rule": "R-ROUTE",
+          "type": "AWS::EC2::RouteTable"
+        },
+        {
+          "address": "PublicSubnet1",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "subnet/demo-public-ap-northeast-1a",
+          "type": "AWS::EC2::Subnet"
+        },
+        {
+          "address": "PublicSubnet1RouteTableAssociation",
+          "class": "merged_into",
+          "file": "template.yaml",
+          "into": [
+            "subnet/demo-public-ap-northeast-1a->internet_gateway/demo"
+          ],
+          "rule": "R-ROUTE",
+          "type": "AWS::EC2::SubnetRouteTableAssociation"
+        },
+        {
+          "address": "PublicSubnet2",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "subnet/demo-public-ap-northeast-1c",
+          "type": "AWS::EC2::Subnet"
+        },
+        {
+          "address": "PublicSubnet2RouteTableAssociation",
+          "class": "merged_into",
+          "file": "template.yaml",
+          "into": [
+            "subnet/demo-public-ap-northeast-1c->internet_gateway/demo"
+          ],
+          "rule": "R-ROUTE",
+          "type": "AWS::EC2::SubnetRouteTableAssociation"
+        },
+        {
+          "address": "TaskDefinition",
+          "class": "merged_into",
+          "file": "template.yaml",
+          "into": [
+            "ecs_service/demo-app"
+          ],
+          "rule": "M-ECS-TASKDEF",
+          "type": "AWS::ECS::TaskDefinition"
+        },
+        {
+          "address": "TaskExecutionRole",
+          "class": "hidden",
+          "file": "template.yaml",
+          "rule": "H-IAM",
+          "type": "AWS::IAM::Role"
+        },
+        {
+          "address": "Vpc",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "vpc/demo",
+          "type": "AWS::EC2::VPC"
+        },
+        {
+          "address": "VpcGatewayAttachment",
+          "class": "merged_into",
+          "file": "template.yaml",
+          "into": [
+            "internet_gateway/demo"
+          ],
+          "rule": "M-IGW-ATTACH",
+          "type": "AWS::EC2::VPCGatewayAttachment"
+        }
+      ],
+      "root": "fixtures/cfn/three-tier/template.yaml"
+    },
+    "tf": {
+      "edges": [
+        {
+          "edge": "alb/demo-alb->ecs_service/demo-app",
+          "evidence": [
+            "aws_ecs_service.app.load_balancer.target_group_arn",
+            "aws_lb_listener.http.default_action.target_group_arn",
+            "aws_vpc_security_group_ingress_rule.app_from_alb.referenced_security_group_id"
+          ],
+          "rules": [
+            "R-LB-LISTENER",
+            "R-LB-TG",
+            "R-SG"
+          ]
+        },
+        {
+          "edge": "ecs_service/demo-app->db_instance/demo-db",
+          "evidence": [
+            "aws_ecs_task_definition.app.container_definitions.environment.DB_HOST",
+            "aws_security_group.db.ingress.security_groups"
+          ],
+          "rules": [
+            "E-ENV-REF",
+            "R-SG"
+          ]
+        },
+        {
+          "edge": "external/internet->alb/demo-alb",
+          "evidence": [
+            "aws_lb.app.internal = false",
+            "aws_lb_listener.http.port",
+            "aws_security_group.alb.ingress.cidr_blocks"
+          ],
+          "rules": [
+            "N-EXT-INTERNET",
+            "R-LB-LISTENER",
+            "R-SG"
+          ]
+        },
+        {
+          "edge": "subnet/demo-private-ap-northeast-1a->nat_gateway/demo-ap-northeast-1a",
+          "evidence": [
+            "aws_route_table.private.route.nat_gateway_id",
+            "aws_route_table_association.private[0].subnet_id"
+          ],
+          "rules": [
+            "R-ROUTE"
+          ]
+        },
+        {
+          "edge": "subnet/demo-private-ap-northeast-1c->nat_gateway/demo-ap-northeast-1a",
+          "evidence": [
+            "aws_route_table.private.route.nat_gateway_id",
+            "aws_route_table_association.private[1].subnet_id"
+          ],
+          "rules": [
+            "R-ROUTE"
+          ]
+        },
+        {
+          "edge": "subnet/demo-public-ap-northeast-1a->internet_gateway/demo",
+          "evidence": [
+            "aws_route.public_internet.gateway_id",
+            "aws_route_table_association.public[0].subnet_id"
+          ],
+          "rules": [
+            "R-ROUTE"
+          ]
+        },
+        {
+          "edge": "subnet/demo-public-ap-northeast-1c->internet_gateway/demo",
+          "evidence": [
+            "aws_route.public_internet.gateway_id",
+            "aws_route_table_association.public[1].subnet_id"
+          ],
+          "rules": [
+            "R-ROUTE"
+          ]
+        }
+      ],
+      "resources": [
+        {
+          "address": "aws_cloudwatch_log_group.app",
+          "class": "hidden",
+          "file": "ecs.tf",
+          "rule": "H-LOGS",
+          "type": "aws_cloudwatch_log_group"
+        },
+        {
+          "address": "aws_db_instance.main",
+          "class": "drawn",
+          "file": "rds.tf",
+          "node": "db_instance/demo-db",
+          "type": "aws_db_instance"
+        },
+        {
+          "address": "aws_db_subnet_group.main",
+          "class": "merged_into",
+          "file": "rds.tf",
+          "into": [
+            "db_instance/demo-db"
+          ],
+          "rule": "M-DB-SUBNET-GROUP",
+          "type": "aws_db_subnet_group"
+        },
+        {
+          "address": "aws_ecs_cluster.main",
+          "class": "merged_into",
+          "file": "ecs.tf",
+          "into": [
+            "ecs_service/demo-app"
+          ],
+          "rule": "M-ECS-CLUSTER",
+          "type": "aws_ecs_cluster"
+        },
+        {
+          "address": "aws_ecs_service.app",
+          "class": "drawn",
+          "file": "ecs.tf",
+          "node": "ecs_service/demo-app",
+          "type": "aws_ecs_service"
+        },
+        {
+          "address": "aws_ecs_task_definition.app",
+          "class": "merged_into",
+          "file": "ecs.tf",
+          "into": [
+            "ecs_service/demo-app"
+          ],
+          "rule": "M-ECS-TASKDEF",
+          "type": "aws_ecs_task_definition"
+        },
+        {
+          "address": "aws_eip.nat",
+          "class": "merged_into",
+          "file": "network.tf",
+          "into": [
+            "nat_gateway/demo-ap-northeast-1a"
+          ],
+          "rule": "M-EIP-NAT",
+          "type": "aws_eip"
+        },
+        {
+          "address": "aws_iam_role.task_execution",
+          "class": "hidden",
+          "file": "ecs.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role"
+        },
+        {
+          "address": "aws_iam_role_policy_attachment.task_execution",
+          "class": "hidden",
+          "file": "ecs.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role_policy_attachment"
+        },
+        {
+          "address": "aws_instance.bastion",
+          "class": "hidden",
+          "file": "bastion.tf",
+          "note": "dev では count = 0（local.env.enable_bastion）",
+          "rule": "H-COND-FALSE",
+          "type": "aws_instance"
+        },
+        {
+          "address": "aws_internet_gateway.main",
+          "class": "drawn",
+          "file": "network.tf",
+          "node": "internet_gateway/demo",
+          "type": "aws_internet_gateway"
+        },
+        {
+          "address": "aws_lb.app",
+          "class": "drawn",
+          "file": "alb.tf",
+          "node": "alb/demo-alb",
+          "type": "aws_lb"
+        },
+        {
+          "address": "aws_lb_listener.http",
+          "class": "merged_into",
+          "file": "alb.tf",
+          "into": [
+            "alb/demo-alb->ecs_service/demo-app",
+            "external/internet->alb/demo-alb"
+          ],
+          "rule": "R-LB-LISTENER",
+          "type": "aws_lb_listener"
+        },
+        {
+          "address": "aws_lb_target_group.app",
+          "class": "merged_into",
+          "file": "alb.tf",
+          "into": [
+            "alb/demo-alb->ecs_service/demo-app"
+          ],
+          "rule": "R-LB-TG",
+          "type": "aws_lb_target_group"
+        },
+        {
+          "address": "aws_nat_gateway.main",
+          "class": "drawn",
+          "file": "network.tf",
+          "node": "nat_gateway/demo-ap-northeast-1a",
+          "type": "aws_nat_gateway"
+        },
+        {
+          "address": "aws_route.public_internet",
+          "class": "merged_into",
+          "file": "network.tf",
+          "into": [
+            "subnet/demo-public-ap-northeast-1a->internet_gateway/demo",
+            "subnet/demo-public-ap-northeast-1c->internet_gateway/demo"
+          ],
+          "rule": "R-ROUTE",
+          "type": "aws_route"
+        },
+        {
+          "address": "aws_route_table.database",
+          "class": "hidden",
+          "file": "network.tf",
+          "rule": "H-RT-NOROUTE",
+          "type": "aws_route_table"
+        },
+        {
+          "address": "aws_route_table.private",
+          "class": "merged_into",
+          "file": "network.tf",
+          "into": [
+            "subnet/demo-private-ap-northeast-1a->nat_gateway/demo-ap-northeast-1a",
+            "subnet/demo-private-ap-northeast-1c->nat_gateway/demo-ap-northeast-1a"
+          ],
+          "note": "ルートはインラインの route ブロック",
+          "rule": "R-ROUTE",
+          "type": "aws_route_table"
+        },
+        {
+          "address": "aws_route_table.public",
+          "class": "merged_into",
+          "file": "network.tf",
+          "into": [
+            "subnet/demo-public-ap-northeast-1a->internet_gateway/demo",
+            "subnet/demo-public-ap-northeast-1c->internet_gateway/demo"
+          ],
+          "rule": "R-ROUTE",
+          "type": "aws_route_table"
+        },
+        {
+          "address": "aws_route_table_association.database[0]",
+          "class": "hidden",
+          "file": "network.tf",
+          "rule": "H-RT-NOROUTE",
+          "type": "aws_route_table_association"
+        },
+        {
+          "address": "aws_route_table_association.database[1]",
+          "class": "hidden",
+          "file": "network.tf",
+          "rule": "H-RT-NOROUTE",
+          "type": "aws_route_table_association"
+        },
+        {
+          "address": "aws_route_table_association.private[0]",
+          "class": "merged_into",
+          "file": "network.tf",
+          "into": [
+            "subnet/demo-private-ap-northeast-1a->nat_gateway/demo-ap-northeast-1a"
+          ],
+          "rule": "R-ROUTE",
+          "type": "aws_route_table_association"
+        },
+        {
+          "address": "aws_route_table_association.private[1]",
+          "class": "merged_into",
+          "file": "network.tf",
+          "into": [
+            "subnet/demo-private-ap-northeast-1c->nat_gateway/demo-ap-northeast-1a"
+          ],
+          "rule": "R-ROUTE",
+          "type": "aws_route_table_association"
+        },
+        {
+          "address": "aws_route_table_association.public[0]",
+          "class": "merged_into",
+          "file": "network.tf",
+          "into": [
+            "subnet/demo-public-ap-northeast-1a->internet_gateway/demo"
+          ],
+          "rule": "R-ROUTE",
+          "type": "aws_route_table_association"
+        },
+        {
+          "address": "aws_route_table_association.public[1]",
+          "class": "merged_into",
+          "file": "network.tf",
+          "into": [
+            "subnet/demo-public-ap-northeast-1c->internet_gateway/demo"
+          ],
+          "rule": "R-ROUTE",
+          "type": "aws_route_table_association"
+        },
+        {
+          "address": "aws_security_group.alb",
+          "class": "merged_into",
+          "file": "security.tf",
+          "into": [
+            "alb/demo-alb->ecs_service/demo-app",
+            "external/internet->alb/demo-alb"
+          ],
+          "note": "internet → ALB の送信先、ALB → サービスの送信元",
+          "rule": "R-SG",
+          "type": "aws_security_group"
+        },
+        {
+          "address": "aws_security_group.app",
+          "class": "merged_into",
+          "file": "security.tf",
+          "into": [
+            "alb/demo-alb->ecs_service/demo-app",
+            "ecs_service/demo-app->db_instance/demo-db"
+          ],
+          "rule": "R-SG",
+          "type": "aws_security_group"
+        },
+        {
+          "address": "aws_security_group.bastion",
+          "class": "hidden",
+          "file": "security.tf",
+          "note": "dev では count = 0",
+          "rule": "H-COND-FALSE",
+          "type": "aws_security_group"
+        },
+        {
+          "address": "aws_security_group.db",
+          "class": "merged_into",
+          "file": "security.tf",
+          "into": [
+            "ecs_service/demo-app->db_instance/demo-db"
+          ],
+          "rule": "R-SG",
+          "type": "aws_security_group"
+        },
+        {
+          "address": "aws_subnet.database[0]",
+          "class": "drawn",
+          "file": "network.tf",
+          "node": "subnet/demo-db-ap-northeast-1a",
+          "type": "aws_subnet"
+        },
+        {
+          "address": "aws_subnet.database[1]",
+          "class": "drawn",
+          "file": "network.tf",
+          "node": "subnet/demo-db-ap-northeast-1c",
+          "type": "aws_subnet"
+        },
+        {
+          "address": "aws_subnet.private[0]",
+          "class": "drawn",
+          "file": "network.tf",
+          "node": "subnet/demo-private-ap-northeast-1a",
+          "type": "aws_subnet"
+        },
+        {
+          "address": "aws_subnet.private[1]",
+          "class": "drawn",
+          "file": "network.tf",
+          "node": "subnet/demo-private-ap-northeast-1c",
+          "type": "aws_subnet"
+        },
+        {
+          "address": "aws_subnet.public[0]",
+          "class": "drawn",
+          "file": "network.tf",
+          "node": "subnet/demo-public-ap-northeast-1a",
+          "type": "aws_subnet"
+        },
+        {
+          "address": "aws_subnet.public[1]",
+          "class": "drawn",
+          "file": "network.tf",
+          "node": "subnet/demo-public-ap-northeast-1c",
+          "type": "aws_subnet"
+        },
+        {
+          "address": "aws_vpc.main",
+          "class": "drawn",
+          "file": "network.tf",
+          "node": "vpc/demo",
+          "type": "aws_vpc"
+        },
+        {
+          "address": "aws_vpc_security_group_ingress_rule.app_from_alb",
+          "class": "merged_into",
+          "file": "security.tf",
+          "into": [
+            "alb/demo-alb->ecs_service/demo-app"
+          ],
+          "rule": "R-SG",
+          "type": "aws_vpc_security_group_ingress_rule"
+        },
+        {
+          "address": "data.aws_iam_policy_document.ecs_tasks_assume",
+          "class": "hidden",
+          "file": "ecs.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_policy_document"
+        },
+        {
+          "address": "data.aws_ssm_parameter.al2023_ami",
+          "class": "hidden",
+          "file": "bastion.tf",
+          "rule": "H-DATA",
+          "type": "aws_ssm_parameter"
+        }
+      ],
+      "root": "fixtures/tf/three-tier"
+    }
+  },
+  "stage": "normalized"
+}

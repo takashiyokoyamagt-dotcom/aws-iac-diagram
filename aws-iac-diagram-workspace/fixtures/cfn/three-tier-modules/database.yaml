@@ -1,0 +1,35 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: three-tier-modules / RDS PostgreSQL instance (mirrors terraform-aws-modules/rds with only the DB instance created).
+
+Parameters:
+  ProjectName:
+    Type: String
+  DbSubnetGroupName:
+    Type: String
+  DbSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+
+Resources:
+  DbInstance:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      DBInstanceIdentifier: !Sub "${ProjectName}-db"
+      Engine: postgres
+      EngineVersion: "17.9"
+      DBInstanceClass: db.t4g.micro
+      AllocatedStorage: "20"
+      StorageEncrypted: true
+      DBName: app
+      MasterUsername: app_admin
+      ManageMasterUserPassword: true
+      Port: "5432"
+      MultiAZ: false
+      DBSubnetGroupName: !Ref DbSubnetGroupName
+      VPCSecurityGroups:
+        - !Ref DbSecurityGroupId
+
+Outputs:
+  DbAddress:
+    Value: !GetAtt DbInstance.Endpoint.Address

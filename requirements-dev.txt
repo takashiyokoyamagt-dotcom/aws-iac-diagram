@@ -1,0 +1,4 @@
+# 開発用（fixture の検証と validate_ir.py）。実行時の依存は requirements.txt
+-r requirements.txt
+cfn-lint==1.57.2
+jsonschema==4.26.0

@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:aws-iac-diagram:ir:0.1",
+  "title": "aws-iac-diagram IR v0.1 (draft)",
+  "description": "正規化後の中間表現（IR）。説明は references/ir-schema.md。canonical 部（nodes・edges）と由来部（sources）を分けている。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["ir_version", "stage", "name", "nodes", "edges", "sources"],
+  "properties": {
+    "ir_version": {"const": "0.1"},
+    "stage": {"const": "normalized", "description": "v0.1 は正規化後（フェーズ3 の出力相当）だけを定義する"},
+    "name": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+    "description": {"type": "string"},
+    "notes": {"type": "array", "items": {"type": "string"}},
+    "evaluation": {"$ref": "#/$defs/evaluation"},
+    "nodes": {"type": "array", "items": {"$ref": "#/$defs/node"}},
+    "edges": {"type": "array", "items": {"$ref": "#/$defs/edge"}},
+    "sources": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "tf": {"$ref": "#/$defs/source"},
+        "cfn": {"$ref": "#/$defs/source"}
+      }
+    }
+  },
+  "$defs": {
+    "node_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+/[a-z0-9][a-z0-9._-]*$",
+      "description": "<正規の型名>/<キー>。キーは名前（B3 の採用順）を小文字化し、[a-z0-9._-] 以外を - にしたもの。ARN は使わない（失敗知見17）"
+    },
+    "edge_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+/[a-z0-9][a-z0-9._-]*->[a-z0-9_]+/[a-z0-9][a-z0-9._-]*$",
+      "description": "<from>-><to>。順序付きの組ごとに辺は1本"
+    },
+    "scalar": {"type": ["string", "number", "boolean"]},
+    "evaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tf": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "var_files": {"type": "array", "items": {"type": "string"}},
+            "vars": {"type": "object", "additionalProperties": {"$ref": "#/$defs/scalar"}}
+          }
+        },
+        "cfn": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "parameters": {"type": "object", "additionalProperties": {"$ref": "#/$defs/scalar"}}
+          }
+        },
+        "assumptions": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "category", "name", "label", "parent"],
+      "properties": {
+        "id": {"$ref": "#/$defs/node_id"},
+        "type": {"type": "string", "pattern": "^[a-z0-9_]+$", "description": "resource-catalog.md の正規の型名"},
+        "category": {"enum": ["resource", "group", "external"]},
+        "name": {"type": "string", "minLength": 1, "description": "B3 の採用順で決めた名前（評価後の値）。合成ノード以外は id の key = name を小文字にして [a-z0-9._-] 以外を - にしたもの"},
+        "label": {"type": "string", "minLength": 1, "description": "表示名。v0.1 は合成ノード以外 name と同じ。省略・日本語化は label だけを変える"},
+        "parent": {"oneOf": [{"$ref": "#/$defs/node_id"}, {"type": "null"}]},
+        "spans": {
+          "type": "array", "items": {"$ref": "#/$defs/node_id"}, "uniqueItems": true,
+          "description": "複数のサブネットに置かれるリソースの、置き場所のサブネット。parent はそれらの最も近い共通の祖先"
+        },
+        "synthetic": {"type": "boolean", "description": "入力に対応するリソースが無い、正規化で作ったノード（AZ、external/internet、bedrock_model）"},
+        "multiplicity": {"oneOf": [{"type": "integer", "minimum": 2}, {"const": "N"}], "description": "値が決まらない count/for_each を1つのノードにまとめたときだけ \"N\"（×N）。v0.1 では値が決まるものはまとめずインスタンスごとにノードにする。整数は将来のために予約。省略は1"},
+        "attrs": {"type": "object", "additionalProperties": {"$ref": "#/$defs/scalar"}},
+        "note": {"type": "string", "description": "判断理由。比較には使わない"}
+      }
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "from", "to", "kind", "label", "confidence"],
+      "properties": {
+        "id": {"$ref": "#/$defs/edge_id"},
+        "from": {"$ref": "#/$defs/node_id"},
+        "to": {"$ref": "#/$defs/node_id"},
+        "kind": {"enum": ["request", "event", "data", "route", "network"]},
+        "label": {"type": "string", "description": "空文字はラベルなし"},
+        "confidence": {"enum": ["confirmed", "derived", "inferred"]},
+        "note": {"type": "string", "description": "判断理由。比較には使わない"}
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root", "resources", "edges"],
+      "properties": {
+        "root": {"type": "string", "description": "aws-iac-diagram-workspace/ からの相対パス。TF はルートモジュールのディレクトリ、CFN は最上位のテンプレート"},
+        "resources": {"type": "array", "items": {"$ref": "#/$defs/coverage"}},
+        "edges": {"type": "array", "items": {"$ref": "#/$defs/edge_evidence"}}
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["address", "type", "file", "class"],
+      "properties": {
+        "address": {"type": "string", "minLength": 1, "description": "TF: plan と同じ形のインスタンスアドレス（module.x.aws_y.z[0]、data. を含む）。CFN: 論理ID（ネストスタックの中は <親の論理ID>/<論理ID>）"},
+        "type": {"type": "string", "description": "入力の型（aws_vpc、AWS::EC2::VPC など）"},
+        "file": {"type": "string", "description": "root からの相対パス（/ 区切り）。レジストリモジュールの中身はモジュール呼び出しのあるファイル"},
+        "class": {"enum": ["drawn", "merged_into", "hidden", "unknown"]},
+        "node": {"$ref": "#/$defs/node_id"},
+        "into": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"oneOf": [{"$ref": "#/$defs/node_id"}, {"$ref": "#/$defs/edge_id"}]}},
+        "rule": {"type": "string", "pattern": "^[A-Z][A-Z0-9]*(-[A-Z0-9]+)+$"},
+        "via": {"const": "module_summary", "description": "レジストリモジュールの中身で、A5 の要約表から展開したもの"},
+        "note": {"type": "string"}
+      },
+      "allOf": [
+        {"if": {"properties": {"class": {"const": "drawn"}}}, "then": {"required": ["node"], "not": {"anyOf": [{"required": ["into"]}, {"required": ["rule"]}]}}},
+        {"if": {"properties": {"class": {"const": "merged_into"}}}, "then": {"required": ["into", "rule"], "not": {"required": ["node"]}}},
+        {"if": {"properties": {"class": {"const": "hidden"}}}, "then": {"required": ["rule"], "not": {"anyOf": [{"required": ["node"]}, {"required": ["into"]}]}}},
+        {"if": {"properties": {"class": {"const": "unknown"}}}, "then": {"not": {"anyOf": [{"required": ["node"]}, {"required": ["into"]}, {"required": ["rule"]}]}}}
+      ]
+    },
+    "edge_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["edge", "rules", "evidence"],
+      "properties": {
+        "edge": {"$ref": "#/$defs/edge_id"},
+        "rules": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "pattern": "^[A-Z][A-Z0-9]*(-[A-Z0-9]+)+$"}},
+        "evidence": {"type": "array", "minItems": 1, "items": {"type": "string"}, "description": "根拠の参照（アドレス.属性 の形の短い文字列）"}
+      }
+    }
+  }
+}
