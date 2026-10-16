@@ -375,3 +375,32 @@ HANDOFF の表の 4 は、2回目の第三者レビューで「コミット可�
 - **R3** URL を読み替える候補から `node_modules`・`.git`・`cdk.out` などの下を除いた。
 - 軽微: 循環の診断の address をスタックにした。YAML 1.1 の `On`／`Yes` などが真偽値になる件は、手順4 で条件の名前を引くときに気をつける（HANDOFF）。
 - テストは計 114 件。
+
+---
+
+## 2026-10-17（続き）フェーズ1 の手順4: CloudFormation 側の評価（A4）
+
+### やったこと
+1. **条件:** `Conditions` を、真・偽・決まらない（`null`）の3つの値で評価する（`Fn::Equals`・`And`・`Or`・`Not`・`Condition`）。`Fn::Equals` は値を文字列にして比べる。条件の循環は `CFN-CONDITION-CYCLE`。評価したすべての条件を `evaluation.conditions` に書く（ネストスタックは `<スタック>/<名前>`）。
+2. **リソースの `Condition`:** `enabled` を決める。ネストスタックの子は、親のスタックのリソースの値を引き継ぐ（弱い方）。決まらないときは `CFN-CONDITION-UNKNOWN`（info）。
+3. **関数:** `Fn::If`（決まれば選んだ側を評価し、選ばれなかった側の参照は `pruned`。決まらなければ `$unknown` で中の参照は `unevaluated`）、`Fn::FindInMap`（`DefaultValue` を含む。無ければ `CFN-MAPPING-MISSING`）、`Fn::Length`、`Fn::ToJsonString`（`$json`）。
+4. **パラメータの値:** アダプタに `--param KEY=VALUE` と `--param-file` を足した（CLI の `parameters.json` の形、`{"Parameters": {...}}`、`{キー: 値}`）。外から渡した値 → Default の順。`AllowedValues` に無い値は `CFN-PARAM-NOT-ALLOWED`、テンプレートに無い名前は `CFN-PARAM-UNUSED`。擬似パラメータ（`AWS::Region` など）に渡した値は、条件の評価にだけ使う（props は `$pseudo` のまま）。
+5. **`Fn::ForEach`:** コレクションが決まれば展開する（`${Id}`・`&{Id}`・`Ref Id`）。決まらなければ1つだけを `multiplicity: "N"`、address は `Queue*` の形（`CFN-FOREACH-UNRESOLVED`）。
+6. **YAML の真偽値:** `true`／`false` の書き方だけにした（YAML 1.1 の `On`・`Yes` などは文字列のまま）。
+7. テスト: 条件の評価に合わせて、手順2・3 のテスト5件の期待を直した（決まらない条件で試したいものは、値の無いパラメータを使う形に）。A4 のテスト 9 件を足した。計 123 件が通過。
+
+### 確かめたこと
+- three-tier（CFN）を `EnvType=dev` と `prod` で読むと、`IsProd` が偽・真になり、IsProd のときだけ作るリソース（踏み台など）の `enabled` が切り替わる。DB の `MultiAZ`（`Fn::If`）と `DBInstanceClass`（`FindInMap`）も変わる。VPC の CIDR は `FindInMap` から `10.0.0.0/16`。警告・エラーの診断は0件（SSM の型のパラメータを除く）。
+- vpc-endpoints（CFN）を `parameters.json`（`Project=net`）で読むと、VPC の名前が正解 IR と一致した（手順2 からの既知の差の解消）。
+- cfn-lint のグラフとの照合（自作 fixture、three-tier-modules の親子、公開サンプルのネストスタック5種）は、条件を評価した後も対応の無い辺が 0 件。
+
+### 第三者レビュー（判定「修正後コミット」）と対応
+- レビュアーの確認: 正解 IR の CFN 側の網羅分類と raw IR を5構成で突き合わせ、address の集合・type・file・enabled（H-COND-FALSE は false、それ以外は true）が**すべて一致**（three-tier の dev 38、serverless-api 11、vpc-endpoints 33、rag 22、three-tier-modules 41）。公開サンプルの 33 本は落ちたものも不正な出力も無く、親子をまたいだ C1 の照合は 0 件のまま。手順2・3 のテスト5件の期待の直し方は妥当（元の意図を保ち、親の Condition の件は偽の場合も足して強くなった）。
+- **M1** 外から渡すパラメータの値: List 型にリストを渡すと壊れた、`null`（`UsePreviousValue`）で Default を使わなかった、SSM の型でパラメータの名前を値にしていた → リストはそのまま、`null` は Default に進む、SSM の型は値を渡されても `$unknown`。CLI の形の `ParameterValue` の無い行は読まない。
+- **M2** `Fn::ForEach`: 決まらない ForEach の ×N の名前が重なると1件消えた → 後ろに `.<ForEach の名前>` を付けて両方残す。展開した名前の重なりは `CFN-FOREACH-DUPLICATE`。プロパティの中と `Outputs` の中の ForEach も展開する。×N のひな形の識別子は `*` にする（未定義の Ref の警告にしない）。
+- **R1** YAML の真偽値を true／false だけにしたのは、cfn-lint（YAML 1.1）と食い違い、`!Equals [yes, "true"]` などの評価が変わる → 値は YAML 1.1 に戻し、マップのキーだけ元の文字のまま読む。名前の位置の真偽値（`Condition: Yes`、`Ref: On`）は、同じ文字の名前が1つだけなら戻す。
+- **R2** `Fn::FindInMap` の数字のキーと、`!Ref AWS::Region` で引く表 → キーは文字列で引き、キーの評価に擬似パラメータの値を使う。
+- **R3** 条件が偽の関数から作る暗黙の API が `enabled: true` だった → 作る関数の enabled の強い方。条件が偽の出力の Export は登録しない（決まらなければ登録して診断）。
+- **R4** 正解 IR との address・type・file・enabled の全件の突き合わせを回帰テスト（`ExpectedIrTest`）にした。レビューの再現ケースもテストにした。
+- 軽微: 未定義の条件で診断が2つ出ていたのを1つにした。
+- テストは計 130 件。

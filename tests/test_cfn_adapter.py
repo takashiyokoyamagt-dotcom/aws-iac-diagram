@@ -155,16 +155,17 @@ class IntrinsicTest(unittest.TestCase):
         self.assertEqual(raw["evaluation"]["parameters"]["Env"], "dev")
         assert_valid(self, raw)
 
-    def test_deferred_and_unevaluated_keep_references(self):
+    def test_undecidable_and_unevaluated_keep_references(self):
+        # KeyName には値が無いので、HasKey は決まらない（None）
         raw = build("""
 Conditions:
-  IsProd: !Equals [!Ref Env, prod]
+  HasKey: !Not [!Equals [!Ref KeyName, ""]]
 """ + BASE + """
   Fn:
     Type: AWS::Lambda::Function
-    Condition: IsProd
+    Condition: HasKey
     Properties:
-      If: !If [IsProd, !Ref Bucket, !Ref Topic]
+      If: !If [HasKey, !Ref Bucket, !Ref Topic]
       Code:
         ZipFile: !Base64 {"Fn::Sub": "${Topic}"}
       Policy:
@@ -183,8 +184,8 @@ Conditions:
         self.assertIn(("Fn", "Properties.Code.ZipFile", "Topic", None, "Sub", "unevaluated"), r)
         self.assertIn(("Fn", 'Properties.Policy.Condition.StringEquals["aws:SourceArn"]', "Topic", None, "Ref", "active"), r)
         codes = {d["code"] for d in raw["diagnostics"]}
-        self.assertIn("CFN-DEFERRED", codes)
-        self.assertIn("CFN-CONDITION-DEFERRED", codes)
+        self.assertIn("CFN-CONDITION-UNKNOWN", codes)
+        self.assertIsNone(raw["evaluation"]["conditions"]["HasKey"])
         assert_valid(self, raw)
 
     def test_depends_on_and_metadata(self):
@@ -251,11 +252,10 @@ Resources:
       Resolve: !Sub "x-{{resolve:ssm:/p}}-${Bucket}"
       Import: !ImportValue {"Fn::Sub": "${AWS::StackName}-Vpc"}
 """)
-        self.assertEqual(sorted(r["address"] for r in raw["resources"]), ["Bucket", "Fn"])
+        self.assertEqual(sorted(r["address"] for r in raw["resources"]), ["Bucket", "Fn", "Queuea", "Queueb"])
         codes = [(d["address"], d["code"]) for d in raw["diagnostics"]]
         self.assertIn(("Broken", "CFN-MALFORMED-RESOURCE"), codes)
         self.assertIn(("NoType", "CFN-MALFORMED-RESOURCE"), codes)
-        self.assertIn(("Fn::ForEach::Queues", "CFN-DEFERRED"), codes)
         p = props(raw, "Fn")
         self.assertIn("$unknown", p["NoValueInSub"])
         self.assertEqual(p["Bool"], "atrue")
@@ -481,8 +481,10 @@ class NestedStackTest(unittest.TestCase):
                       B: !GetAtt Kid.Outputs.Literal
                 """,
             "kid.yaml": """
+                Parameters:
+                  Mode: {Type: String}
                 Conditions:
-                  C: !Equals [a, b]
+                  C: !Equals [!Ref Mode, x]
                 Resources:
                   Q: {Type: AWS::SQS::Queue}
                   T: {Type: AWS::SNS::Topic}
@@ -502,18 +504,27 @@ class NestedStackTest(unittest.TestCase):
     def test_condition_on_parent_stack_is_inherited(self):
         raw = self.nested({
             "main.yaml": """
+                Parameters:
+                  Mode: {Type: String}
                 Conditions:
-                  On: !Equals [a, a]
+                  Maybe: !Equals [!Ref Mode, on]
+                  Never: !Equals [a, b]
                 Resources:
                   Kid:
                     Type: AWS::CloudFormation::Stack
-                    Condition: On
+                    Condition: Maybe
+                    Properties: {TemplateURL: kid.yaml}
+                  Off:
+                    Type: AWS::CloudFormation::Stack
+                    Condition: Never
                     Properties: {TemplateURL: kid.yaml}
                 """,
             "kid.yaml": "Resources: {Q: {Type: AWS::SQS::Queue}}\n"})
         res = {r["address"]: r for r in raw["resources"]}
         self.assertIsNone(res["Kid"]["enabled"])
         self.assertIsNone(res["Kid/Q"]["enabled"])
+        self.assertFalse(res["Off"]["enabled"])
+        self.assertFalse(res["Off/Q"]["enabled"])
 
     def test_single_item_join_into_list_parameter(self):
         raw = self.nested({
@@ -611,8 +622,9 @@ Resources:
         Rest: {Type: Api, Properties: {Path: /y, Method: post}}
 """)
         p = props(raw, "Fn")
-        self.assertIn("$unknown", p["Environment"])  # !If のまま（Globals を混ぜない）
-        self.assertIn(("Fn", "Properties.Environment", "Q", None, "Ref", "unevaluated"), refs(raw, "Fn"))
+        # !If は1つの値として扱い Globals を混ぜない。条件 C は偽なので AWS::NoValue が選ばれ、Environment ごと消える
+        self.assertNotIn("Environment", p)
+        self.assertIn(("Fn", "Properties.Environment", "Q", None, "Ref", "pruned"), refs(raw, "Fn"))
         api = next(r for r in raw["resources"] if r["address"] == "ServerlessRestApi")
         self.assertEqual(api["props"], {"EndpointConfiguration": "PRIVATE"})
         self.assertEqual(len([r for r in raw["resources"] if r.get("implicit")]), 1)
@@ -723,6 +735,338 @@ class CdkOutTest(unittest.TestCase):
         sg = next(r for r in raw["resources"] if r["address"] == "App::Sg")
         self.assertEqual(sg["props"]["VpcId"], {"$res": "Net::Vpc", "attr": None})
         assert_valid(self, raw)
+
+
+class EvaluationTest(unittest.TestCase):
+    """フェーズ1 の手順4: A4（CloudFormation 側の評価）。"""
+
+    def three_tier(self, env: str | None = None) -> dict:
+        params = {"EnvType": env} if env else None
+        return cfn.build_raw(FIXTURES / "three-tier" / "template.yaml", ROOT / "aws-iac-diagram-workspace", params)
+
+    def test_three_tier_dev_and_prod(self):
+        dev, prod = self.three_tier(), self.three_tier("prod")
+        for raw in (dev, prod):
+            assert_valid(self, raw)
+            self.assertFalse([d for d in raw["diagnostics"] if d["level"] in ("warn", "error")
+                              and d["code"] != "CFN-SSM-PARAM"], raw["diagnostics"])
+        self.assertEqual(dev["evaluation"]["conditions"], {"IsProd": False})
+        self.assertEqual(prod["evaluation"]["conditions"], {"IsProd": True})
+        d, p = ({r["address"]: r for r in raw["resources"]} for raw in (dev, prod))
+        conditional = sorted(a for a, r in d.items() if r["enabled"] is False)
+        self.assertTrue(conditional)  # 踏み台など、IsProd のときだけ作るもの
+        for a in conditional:
+            self.assertTrue(p[a]["enabled"], a)
+        self.assertEqual(d["Vpc"]["props"]["CidrBlock"], "10.0.0.0/16")  # FindInMap
+        db = next(a for a, r in d.items() if r["type"] == "AWS::RDS::DBInstance")
+        self.assertEqual((d[db]["props"]["MultiAZ"], p[db]["props"]["MultiAZ"]), (False, True))  # Fn::If
+        self.assertNotEqual(d[db]["props"]["DBInstanceClass"], p[db]["props"]["DBInstanceClass"])
+
+    def test_vpc_endpoints_parameters_file(self):
+        params = cfn.load_parameter_file(FIXTURES / "vpc-endpoints" / "parameters.json")
+        self.assertEqual(params, {"Project": "net"})
+        raw = cfn.build_raw(FIXTURES / "vpc-endpoints" / "template.json", ROOT / "aws-iac-diagram-workspace", params)
+        assert_valid(self, raw)
+        self.assertEqual(raw["evaluation"]["parameters"]["Project"], "net")
+        vpc = next(r for r in raw["resources"] if r["type"] == "AWS::EC2::VPC")
+        names = [t["Value"] for t in vpc["props"].get("Tags", []) if t.get("Key") == "Name"]
+        expected = json.loads((ROOT / "aws-iac-diagram-workspace" / "expected" / "vpc-endpoints.ir.json")
+                              .read_text(encoding="utf-8"))
+        vpc_names = [n["name"] for n in expected["nodes"] if n["type"] == "vpc"]
+        self.assertEqual(names, vpc_names)  # 名前が正解 IR と合う（手順2 からの既知の差の解消）
+
+    def test_cli_parameters(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            (tmp / "p.json").write_text(json.dumps({"Parameters": {"EnvType": "prod"}}), encoding="utf-8")
+            out = tmp / "raw.json"
+            code = cfn.main(["--input", str(FIXTURES / "three-tier" / "template.yaml"), "--out", str(out),
+                             "--param-file", str(tmp / "p.json"), "--param", "ProjectName=x", "--param", "Nope=1"])
+            self.assertEqual(code, 0)
+            raw = json.loads(out.read_text(encoding="utf-8"))
+            self.assertEqual(raw["evaluation"]["conditions"], {"IsProd": True})
+            self.assertEqual(raw["evaluation"]["parameters"]["ProjectName"], "x")
+            self.assertIn("CFN-PARAM-UNUSED", [d["code"] for d in raw["diagnostics"]])
+            self.assertEqual(cfn.main(["--input", "x", "--out", str(out), "--param", "noequal"]), 2)
+
+    def test_allowed_values(self):
+        raw = self.three_tier("staging")
+        self.assertIn("CFN-PARAM-NOT-ALLOWED", [d["code"] for d in raw["diagnostics"]])
+
+    def test_logic_and_pseudo(self):
+        text = """
+Parameters:
+  Mode: {Type: String}
+  Count: {Type: Number, Default: 3}
+Conditions:
+  Unknown: !Equals [!Ref Mode, x]
+  T: !Equals [!Ref Count, "3"]
+  F: !Not [{Condition: T}]
+  AndF: !And [{Condition: Unknown}, {Condition: F}]
+  AndU: !And [{Condition: Unknown}, {Condition: T}]
+  OrT: !Or [{Condition: Unknown}, {Condition: T}]
+  OrU: !Or [{Condition: Unknown}, {Condition: F}]
+  NotU: !Not [{Condition: Unknown}]
+  InTokyo: !Equals [!Ref AWS::Region, ap-northeast-1]
+  On: !Equals [a, a]
+Resources:
+  Q:
+    Type: AWS::SQS::Queue
+    Properties:
+      Region: !Ref AWS::Region
+"""
+        raw = build(text)
+        c = raw["evaluation"]["conditions"]
+        self.assertEqual((c["T"], c["F"], c["AndF"], c["AndU"], c["OrT"], c["OrU"], c["NotU"]),
+                         (True, False, False, None, True, None, None))
+        self.assertIsNone(c["InTokyo"])
+        self.assertTrue(c["On"])  # YAML 1.1 の On は文字列のまま（条件の名前を失わない）
+        with tempfile.TemporaryDirectory() as tmp:
+            p = Path(tmp) / "t.yaml"
+            p.write_text(textwrap.dedent(text), encoding="utf-8")
+            raw = cfn.build_raw(p, Path(tmp), {"AWS::Region": "ap-northeast-1"})
+        self.assertTrue(raw["evaluation"]["conditions"]["InTokyo"])
+        # 擬似パラメータの値は条件の評価にだけ使い、props は $pseudo のまま
+        self.assertEqual(props(raw, "Q")["Region"], {"$pseudo": "AWS::Region"})
+
+    def test_condition_cycle(self):
+        raw = build("""
+Conditions:
+  A: !Not [{Condition: B}]
+  B: !Not [{Condition: A}]
+Resources:
+  Q: {Type: AWS::SQS::Queue, Condition: A}
+""")
+        self.assertIn("CFN-CONDITION-CYCLE", [d["code"] for d in raw["diagnostics"]])
+        assert_valid(self, raw)
+
+    def test_find_in_map_default_length_tojsonstring(self):
+        raw = build(BASE + """
+  Fn:
+    Type: AWS::Lambda::Function
+    Properties:
+      Missing: !FindInMap [M, a, b]
+      WithDefault: !FindInMap [M, a, b, {DefaultValue: d}]
+      Length: {"Fn::Length": [1, 2, 3]}
+      Json: {"Fn::ToJsonString": {"k": !Ref Bucket}}
+""")
+        p = props(raw, "Fn")
+        self.assertIn("$unknown", p["Missing"])
+        self.assertEqual(p["WithDefault"], "d")
+        self.assertEqual(p["Length"], 3)
+        self.assertEqual(p["Json"], {"$json": {"k": {"$res": "Bucket", "attr": None}}})
+        self.assertIn("CFN-MAPPING-MISSING", [d["code"] for d in raw["diagnostics"]])
+        assert_valid(self, raw)
+
+    def test_foreach_unresolved_is_xn(self):
+        raw = build("""
+Transform: AWS::LanguageExtensions
+Parameters:
+  Names: {Type: CommaDelimitedList}
+Resources:
+  "Fn::ForEach::Queues":
+    - Name
+    - !Ref Names
+    - "Queue${Name}":
+        Type: AWS::SQS::Queue
+""")
+        q = next(r for r in raw["resources"] if r["address"] == "Queue*")
+        self.assertEqual(q["multiplicity"], "N")
+        self.assertIn("CFN-FOREACH-UNRESOLVED", [d["code"] for d in raw["diagnostics"]])
+        assert_valid(self, raw)
+
+    def test_foreach_with_ampersand_and_ref(self):
+        raw = build("""
+Transform: AWS::LanguageExtensions
+Resources:
+  "Fn::ForEach::Topics":
+    - Name
+    - [a-b, c]
+    - "Topic&{Name}":
+        Type: AWS::SNS::Topic
+        Properties:
+          TopicName: !Ref Name
+          Display: !Sub "t-${Name}"
+""")
+        res = {r["address"]: r for r in raw["resources"]}
+        self.assertEqual(set(res), {"Topicab", "Topicc"})
+        self.assertEqual(res["Topicab"]["props"], {"TopicName": "a-b", "Display": "t-a-b"})
+
+
+class EvaluationReviewTest(unittest.TestCase):
+    """手順4 の第三者レビュー（2026-10-17）で見つかった入力。"""
+
+    def build_with(self, text: str, params: dict) -> dict:
+        with tempfile.TemporaryDirectory() as tmp:
+            p = Path(tmp) / "t.yaml"
+            p.write_text(textwrap.dedent(text), encoding="utf-8")
+            return cfn.build_raw(p, Path(tmp), params)
+
+    def test_given_parameter_values(self):
+        text = """
+Parameters:
+  L: {Type: CommaDelimitedList}
+  S: {Type: String, Default: d}
+  Ami: {Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"}
+Resources:
+  Q:
+    Type: AWS::SQS::Queue
+    Properties: {A: !Ref L, B: !Ref S, C: !Ref Ami}
+"""
+        raw = self.build_with(text, {"L": ["a", "b"], "S": None, "Ami": "/aws/service/x"})
+        p = props(raw, "Q")
+        self.assertEqual(p["A"], ["a", "b"])
+        self.assertEqual(p["B"], "d")  # null は渡されていないものとして Default
+        self.assertIn("$unknown", p["C"])  # SSM のパラメータの名前は値ではない
+        with tempfile.TemporaryDirectory() as tmp:
+            f = Path(tmp) / "p.json"
+            f.write_text(json.dumps([{"ParameterKey": "S", "UsePreviousValue": True},
+                                     {"ParameterKey": "L", "ParameterValue": "x,y"}]), encoding="utf-8")
+            self.assertEqual(cfn.load_parameter_file(f), {"L": "x,y"})
+
+    def test_foreach_collisions_inline_and_outputs(self):
+        raw = build("""
+Transform: AWS::LanguageExtensions
+Parameters:
+  A: {Type: CommaDelimitedList}
+  B: {Type: CommaDelimitedList}
+Resources:
+  T: {Type: AWS::SNS::Topic}
+  "Fn::ForEach::X":
+    - I
+    - !Ref A
+    - "Q${I}":
+        Type: AWS::SQS::Queue
+        Properties: {Name: !Ref I}
+  "Fn::ForEach::Y":
+    - J
+    - !Ref B
+    - "Q${J}":
+        Type: AWS::SQS::Queue
+  Tagged:
+    Type: AWS::SQS::Queue
+    Properties:
+      Name: q
+      "Fn::ForEach::Tags":
+        - K
+        - [a, b]
+        - "${K}": !Ref T
+Outputs:
+  "Fn::ForEach::Out":
+    - N
+    - [x]
+    - "Out${N}": {Value: !Ref T}
+""")
+        res = {r["address"]: r for r in raw["resources"]}
+        self.assertIn("Q*", res)
+        self.assertIn("Q*.Y", res)  # ×N の名前が重なっても落とさない
+        self.assertEqual(res["Q*"]["props"], {"Name": "*"})  # 識別子は *（未定義の Ref の警告にしない）
+        self.assertEqual(res["Tagged"]["props"], {"Name": "q", "a": {"$res": "T", "attr": None},
+                                                  "b": {"$res": "T", "attr": None}})
+        self.assertNotIn("CFN-UNDEFINED-REF", [d["code"] for d in raw["diagnostics"]])
+        assert_valid(self, raw)
+
+    def test_yaml11_booleans_and_name_positions(self):
+        raw = build("""
+Conditions:
+  Yes: !Equals [on, "true"]
+Resources:
+  On:
+    Type: AWS::SQS::Queue
+    Condition: Yes
+    Properties:
+      Flag: yes
+  Q:
+    Type: AWS::SQS::Queue
+    Properties:
+      R: {Ref: On}
+""")
+        self.assertEqual(raw["evaluation"]["conditions"], {"Yes": True})  # 値の on は YAML 1.1 で真偽値（cfn-lint と同じ）
+        res = {r["address"]: r for r in raw["resources"]}
+        self.assertIn("On", res)  # キーは元の文字のまま
+        self.assertTrue(res["On"]["enabled"])  # Condition: Yes（真偽値）を名前に戻して引く
+        self.assertIs(res["On"]["props"]["Flag"], True)
+        self.assertEqual(res["Q"]["props"]["R"], {"$res": "On", "attr": None})
+
+    def test_find_in_map_numeric_keys_and_region(self):
+        text = """
+Mappings:
+  Num: {1: {2: x}}
+  Ami: {ap-northeast-1: {Id: ami-tokyo}}
+Resources:
+  I:
+    Type: AWS::EC2::Instance
+    Properties:
+      N: !FindInMap [Num, 1, 2]
+      Ami: !FindInMap [Ami, !Ref AWS::Region, Id]
+"""
+        p = props(self.build_with(text, {"AWS::Region": "ap-northeast-1"}), "I")
+        self.assertEqual((p["N"], p["Ami"]), ("x", "ami-tokyo"))
+
+    def test_disabled_function_and_output(self):
+        raw = build("""
+Transform: AWS::Serverless-2016-10-31
+Conditions:
+  Never: !Equals [a, b]
+Resources:
+  Q: {Type: AWS::SQS::Queue}
+  Fn:
+    Type: AWS::Serverless::Function
+    Condition: Never
+    Properties:
+      Events:
+        Rest: {Type: Api, Properties: {Path: /x, Method: get}}
+Outputs:
+  QArn:
+    Condition: Never
+    Value: !GetAtt Q.Arn
+    Export: {Name: q-arn}
+""")
+        api = next(r for r in raw["resources"] if r["address"] == "ServerlessRestApi")
+        self.assertFalse(api["enabled"])
+
+    def test_disabled_output_is_not_exported(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp) / "cdk.out"
+            write_files(tmp, {
+                "manifest.json": json.dumps({"artifacts": {
+                    "A": {"type": "aws:cloudformation:stack", "properties": {"templateFile": "A.json"}},
+                    "B": {"type": "aws:cloudformation:stack", "properties": {"templateFile": "B.json"}}}}),
+                "A.json": json.dumps({"Conditions": {"Never": {"Fn::Equals": ["a", "b"]}},
+                                      "Resources": {"Q": {"Type": "AWS::SQS::Queue"}},
+                                      "Outputs": {"X": {"Condition": "Never", "Value": {"Ref": "Q"},
+                                                        "Export": {"Name": "x"}}}}),
+                "B.json": json.dumps({"Resources": {"Fn": {"Type": "AWS::Lambda::Function",
+                                                           "Properties": {"X": {"Fn::ImportValue": "x"}}}}}),
+            })
+            raw = cfn.build_raw(tmp, tmp.parent)
+        fn = next(r for r in raw["resources"] if r["address"] == "B::Fn")
+        self.assertEqual(fn["props"]["X"], {"$import": "x"})
+
+
+class ExpectedIrTest(unittest.TestCase):
+    """正解 IR（expected）の CFN 側の網羅分類と、raw IR の address・type・file・enabled が一致する（第三者レビューの R4）。"""
+
+    def test_addresses_and_enabled_match_expected(self):
+        ws = ROOT / "aws-iac-diagram-workspace"
+        cases = {
+            "three-tier": ("three-tier/template.yaml", None),
+            "serverless-api": ("serverless-api/template.yaml", None),
+            "vpc-endpoints": ("vpc-endpoints/template.json", "vpc-endpoints/parameters.json"),
+            "rag": ("rag/template.yaml", None),
+            "three-tier-modules": ("three-tier-modules/root.yaml", None),
+        }
+        for name, (tpl, pfile) in cases.items():
+            with self.subTest(name):
+                expected = json.loads((ws / "expected" / f"{name}.ir.json").read_text(encoding="utf-8"))
+                params = dict(expected.get("evaluation", {}).get("cfn", {}).get("parameters", {}))
+                if pfile:
+                    params.update(cfn.load_parameter_file(FIXTURES / pfile))
+                raw = cfn.build_raw(FIXTURES / tpl, ws, params)
+                got = {r["address"]: (r["type"], r["file"], r["enabled"]) for r in raw["resources"]}
+                want = {r["address"]: (r["type"], r["file"], r.get("rule") != "H-COND-FALSE")
+                        for r in expected["sources"]["cfn"]["resources"]}
+                self.assertEqual(got, want)
 
 
 class SplitConcatTest(unittest.TestCase):

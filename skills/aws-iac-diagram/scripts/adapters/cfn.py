@@ -4,21 +4,29 @@
 # ///
 """CloudFormation のテンプレートを読み、アダプタの出力（raw IR。references/ir-schema.md の 7章）を作る。
 
-いまの範囲（フェーズ1 の手順2・3）:
+いまの範囲（フェーズ1 の手順2〜4）:
   - YAML の短縮タグ（!Ref など）を Fn::* の長い形に正規化する（PLAN 2.2 の失敗知見 13。awscli の yamlhelper と同じ考え方）
   - Ref・Fn::GetAtt・Fn::Sub・Fn::Join・Fn::Select・Fn::Split・Fn::GetAZs・Fn::ImportValue・DependsOn を評価し、
     props の印（$res・$pseudo・$concat・$json・$az・$import・$unknown）と references を作る
-  - パラメータは Default の値を使う（Default が無ければ $unknown）。ネストスタックでは親から渡された値を使う
+  - パラメータは、外から渡した値（--param、--param-file）→ Default の順に使う（どちらも無ければ $unknown）。
+    ネストスタックでは親から渡された値を使う
+  - A4: Conditions（Fn::Equals・And・Or・Not・Condition）を 真／偽／決まらない の3つの値で評価する。
+    リソースの Condition から enabled を決め、ネストスタックの子にも伝える。Fn::If・Fn::FindInMap（DefaultValue を含む）・
+    Fn::Length・Fn::ToJsonString を評価する。Fn::ForEach（AWS::LanguageExtensions）を展開する（値が決まらなければ ×N）
+  - YAML の値の真偽値は YAML 1.1 のまま（cfn-lint と同じ）。マップのキーは元の文字のまま読む
   - SAM: Globals を各リソースに混ぜる。Events に API の指定が無いときは、暗黙の API（implicit）を足す
   - ネストスタック: 子テンプレートを展開し、Outputs・Parameters をたどって元のリソースへの $res にする（経路は through）。
     TemplateURL が URL なら手元のファイルに読み替え、読めなければ黒箱（via: module_blackbox）にする
   - cdk.out: manifest.json のスタックをすべて読み、address に "<スタック名>::" を付ける。Export を ImportValue で解決する
-手順4 で足すもの: Conditions・Fn::If・Fn::FindInMap・Fn::Equals・Fn::ForEach の評価。それまでは $unknown にし、
-中の参照は state: "unevaluated" で残す。
+評価できない値（決まらない条件の Fn::If、Fn::Base64、Fn::Cidr など）は $unknown にし、中の参照は
+state: "unevaluated" で残す。選ばれなかった値の中の参照は state: "pruned" で残す。
 
 使い方:
-  uv run scripts/adapters/cfn.py --input <テンプレートか cdk.out のフォルダ> --out <raw.json> [--root-base <フォルダ>]
+  uv run scripts/adapters/cfn.py --input <テンプレートか cdk.out のフォルダ> --out <raw.json>
+      [--root-base <フォルダ>] [--param KEY=VALUE ...] [--param-file <parameters.json> ...]
   --root-base: raw IR の root を、このフォルダからの相対パスで書く（既定: 作業中のフォルダ）
+  --param: パラメータの値。AWS::Region などの擬似パラメータは、条件の評価にだけ使う（props は $pseudo のまま）
+  --param-file: aws cloudformation の CLI の形（[{"ParameterKey", "ParameterValue"}]）、{"Parameters": {...}}、{キー: 値}
 
 終了コード: 0 = 書けた（diagnostics に warn・error があっても）、2 = テンプレートを読めなかった
 """
@@ -40,10 +48,11 @@ from lib import ir_raw  # noqa: E402
 PSEUDO = {"AWS::Region", "AWS::AccountId", "AWS::Partition", "AWS::StackName", "AWS::StackId",
           "AWS::URLSuffix", "AWS::NotificationARNs"}
 NO_VALUE = object()  # AWS::NoValue（プロパティやリストの要素ごと消す）
-# 手順4 で評価する関数。それまでは $unknown にして、中の参照を unevaluated で残す
-DEFERRED = {"Fn::If", "Fn::FindInMap", "Fn::Equals", "Fn::And", "Fn::Or", "Fn::Not", "Condition"}
+# 条件関数（Conditions の中と、プロパティの中の両方で評価する）
+CONDITION_FNS = {"Fn::Equals", "Fn::And", "Fn::Or", "Fn::Not"}
 # 評価しない関数（値は $unknown。中の参照は unevaluated で残す）
-UNEVALUATED = {"Fn::Base64", "Fn::Cidr", "Fn::Length", "Fn::ToJsonString", "Fn::Transform", "Fn::ForEach"}
+UNEVALUATED = {"Fn::Base64", "Fn::Cidr", "Fn::Transform", "Fn::ForEach"}
+UNKNOWN = object()  # 条件の評価で、値が決まらないもの
 OUTSIDE_PROPS = ("Metadata", "CreationPolicy", "UpdatePolicy")
 SUB_VAR = re.compile(r"\$\{([^}]*)\}")
 
@@ -51,13 +60,41 @@ SUB_VAR = re.compile(r"\$\{([^}]*)\}")
 # ------------------------------------------------------------------ 読み込み
 
 class _Loader(yaml.SafeLoader):
-    """短縮タグを Fn::* の長い形にする。日付・時刻の暗黙の型変換はしない（'2010-09-09' を文字列のまま読む）。"""
+    """短縮タグを Fn::* の長い形にする。日付・時刻の暗黙の型変換はしない（'2010-09-09' を文字列のまま読む）。
+
+    値の真偽値は YAML 1.1 のまま（yes・on なども真偽値。cfn-lint と同じ）。マップのキーは元の文字のまま読む
+    （Yes・On・1 のようなキーも文字列の名前として残す。条件・リソース・Mappings の名前を失わないように）。
+    """
+
+    def construct_mapping(self, node, deep=False):
+        if not isinstance(node, yaml.MappingNode):
+            return super().construct_mapping(node, deep=deep)
+        self.flatten_mapping(node)
+        mapping = {}
+        for key_node, value_node in node.value:
+            if isinstance(key_node, yaml.ScalarNode):
+                key = key_node.value
+            else:
+                key = self.construct_object(key_node, deep=True)
+            mapping[key] = self.construct_object(value_node, deep=True)
+        return mapping
 
 
 _Loader.yaml_implicit_resolvers = {
     k: [(tag, rx) for tag, rx in v if tag != "tag:yaml.org,2002:timestamp"]
     for k, v in yaml.SafeLoader.yaml_implicit_resolvers.items()
 }
+YAML11_TRUE = {"yes", "true", "on"}
+YAML11_FALSE = {"no", "false", "off"}
+
+
+def _bool_name(value, names):
+    """名前の位置に YAML 1.1 の真偽値として読まれた値（Condition: Yes など）を、元の名前に戻す。決まらなければ None。"""
+    if not isinstance(value, bool):
+        return value if isinstance(value, str) else None
+    words = YAML11_TRUE if value else YAML11_FALSE
+    hits = [n for n in names if isinstance(n, str) and n.lower() in words]
+    return hits[0] if len(hits) == 1 else None
 
 
 def _intrinsic(loader: yaml.Loader, suffix: str, node: yaml.Node):
@@ -116,6 +153,12 @@ class Evaluator:
         self.current: str = ""  # いま評価しているリソースの address
         self.stack_name: str | None = None  # 分かっているスタック名（cdk.out）
         self.resolve_stack_name = False  # True の間だけ AWS::StackName をスタック名にする（Export の名前）
+        self.conditions = template.get("Conditions") or {}
+        self.mappings = template.get("Mappings") or {}
+        self.condition_values: dict = {}  # 評価した条件（True／False／None）
+        self.given: dict = {}  # 外から渡されたパラメータの値（最上位のスタックだけ。--param、--param-file）
+        self.pseudo_values: dict = {}  # 条件の評価にだけ使う擬似パラメータの値（--param AWS::Region=…）
+        self.in_condition = False
 
     def addr(self, logical_id: str) -> str:
         return self.prefix + logical_id
@@ -160,6 +203,24 @@ class Evaluator:
                 elif not isinstance(value, list) and not (isinstance(value, dict) and "$unknown" in value):
                     value = [value]  # 要素が1つの !Join は印そのものになるので、リストに包む
             value = _prepend_through(value, f"{self.stack_address}.Parameters.{name}")
+            self.param_values[name] = value
+            return value
+        if ptype.startswith("AWS::SSM::Parameter::Value<"):
+            # SSM のパラメータの名前が渡されても、値は分からない（Default のときと同じ）
+            value = {"$unknown": f"parameter {name} is an SSM parameter"}
+            self.diag("warn", "CFN-SSM-PARAM", path, f"parameter {name} is an SSM parameter")
+            self.param_values[name] = value
+            return value
+        if self.given.get(name) is not None:  # null（UsePreviousValue など）は渡されていないものとして Default に進む
+            value = self.given[name]
+            allowed = p.get("AllowedValues")
+            if isinstance(allowed, list) and str(value) not in [str(a) for a in allowed]:
+                self.diag("warn", "CFN-PARAM-NOT-ALLOWED", path,
+                          f"parameter {name}: {value} is not in AllowedValues {allowed}")
+            if ptype.startswith("List<") or ptype == "CommaDelimitedList":
+                value = [str(x) for x in value] if isinstance(value, list) else [s.strip() for s in str(value).split(",")]
+            elif ptype == "Number" and isinstance(value, str) and re.fullmatch(r"-?[0-9]+", value):
+                value = int(value)
             self.param_values[name] = value
             return value
         if "Default" not in p:
@@ -211,11 +272,24 @@ class Evaluator:
                 if isinstance(name, str):
                     return self.import_value(name, path)
                 return self.unknown(arg, path, f"Fn::ImportValue with a computed name {json.dumps(name, ensure_ascii=False)}")
+            if key == "Fn::If":
+                return self.fn_if(arg, path)
+            if key == "Fn::FindInMap":
+                return self.find_in_map(arg, path)
             # {"Condition": "名前"} だけが条件関数。値がオブジェクトなら、IAM の Condition などのふつうのプロパティ
-            if key in DEFERRED and (key != "Condition" or isinstance(arg, str)):
-                return self.unknown(node, path, f"{key} is not evaluated yet (phase 1 step 4)", "CFN-DEFERRED")
+            if key in CONDITION_FNS or (key == "Condition" and isinstance(arg, str)):
+                v = self.cond_eval(node, path)
+                return v if v is not None else self.unknown(node, path, f"{key} cannot be decided")
+            if key == "Fn::Length":
+                v = self.eval(arg, path)
+                return len(v) if isinstance(v, list) else self.unknown(arg, path, "Fn::Length of a non-list value")
+            if key == "Fn::ToJsonString":
+                v = self.eval(arg, path)
+                return {"$json": v} if v is not NO_VALUE else self.unknown([], path, "Fn::ToJsonString of no value")
             if key in UNEVALUATED or key.startswith("Fn::"):
                 return self.unknown(node, path, f"{key} is not evaluated")
+        if any(isinstance(k, str) and k.startswith("Fn::ForEach::") for k in node):
+            node = self.expand_inline_foreach(node, path)
         out = {}
         for k, v in node.items():
             ev = self.eval(v, ir_raw.join_path(path, k))
@@ -223,16 +297,137 @@ class Evaluator:
                 out["$" + k if k.startswith("$") else k] = ev  # 入力の $ のキーは $$ で逃がす（7.2）
         return out
 
+    def expand_inline_foreach(self, node: dict, path: str) -> dict:
+        """プロパティの中の Fn::ForEach::<名前> を展開する。決まらなければ落とし、中の参照を unevaluated で残す。"""
+        out: dict = {}
+        for k, v in node.items():
+            if not (isinstance(k, str) and k.startswith("Fn::ForEach::")):
+                out[k] = v
+                continue
+            if not (isinstance(v, list) and len(v) == 3 and isinstance(v[0], str) and isinstance(v[2], dict)):
+                self.unknown(v, path, f"malformed {k}")
+                continue
+            ident, collection, templates = v
+            values = self.eval(collection, path)
+            if isinstance(values, list) and all(isinstance(x, (str, int)) and not isinstance(x, bool) for x in values):
+                for x in values:
+                    for tk, tv in templates.items():
+                        out[_foreach_subst(tk, ident, str(x))] = _foreach_subst(tv, ident, str(x))
+            else:
+                self.unknown(templates, path, f"{k}: the collection cannot be decided", "CFN-FOREACH-UNRESOLVED")
+        return out
+
     def pseudo(self, name: str):
         if name == "AWS::StackName" and self.resolve_stack_name and self.stack_name:
             return self.stack_name
+        if self.in_condition and name in self.pseudo_values:
+            return self.pseudo_values[name]
         return {"$pseudo": name}
+
+    # --- 条件（A4）
+    def condition(self, name, path: str = ""):
+        """名前の付いた条件を評価する。True／False／None（決まらない）。"""
+        name = _bool_name(name, self.conditions) if isinstance(name, bool) else name
+        if not isinstance(name, str) or name not in self.conditions:
+            self.diag("warn", "CFN-UNDEFINED-CONDITION", path, f"condition {name} is undefined")
+            return None
+        if name not in self.condition_values:
+            self.condition_values[name] = UNKNOWN  # 循環の検出
+            v = self.cond_eval(self.conditions[name], f"Conditions.{name}")
+            self.condition_values[name] = v
+        v = self.condition_values[name]
+        if v is UNKNOWN:
+            self.diag("error", "CFN-CONDITION-CYCLE", path, f"condition {name} refers to itself")
+            return None
+        return v
+
+    def cond_eval(self, node, path: str):
+        """条件関数を3つの値（True／False／None）で評価する。"""
+        if isinstance(node, bool):
+            return node
+        if isinstance(node, str) and node.lower() in ("true", "false"):
+            return node.lower() == "true"
+        if not (isinstance(node, dict) and len(node) == 1):
+            return None
+        (key, arg), = node.items()
+        if key == "Condition":
+            return self.condition(arg, path)
+        if key == "Fn::Equals" and isinstance(arg, list) and len(arg) == 2:
+            a, b = (self.cond_value(x, path) for x in arg)
+            if a is UNKNOWN or b is UNKNOWN:
+                return None
+            return _cfn_str(a) == _cfn_str(b)
+        if key in ("Fn::And", "Fn::Or") and isinstance(arg, list):
+            vals = [self.cond_eval(x, path) for x in arg]
+            hit = key == "Fn::Or"  # Or は True が1つでもあれば True、And は False が1つでもあれば False
+            if hit in vals:
+                return hit
+            return None if None in vals else not hit
+        if key == "Fn::Not" and isinstance(arg, list) and len(arg) == 1:
+            v = self.cond_eval(arg[0], path)
+            return None if v is None else not v
+        return None
+
+    def cond_value(self, node, path: str):
+        """Fn::Equals の引数を評価する。値が決まらなければ UNKNOWN。参照は残さない（条件はリソースを参照しない）。"""
+        saved, n = self.in_condition, len(self.extra_refs)
+        self.in_condition = True
+        try:
+            v = self.eval(node, path)
+        finally:
+            self.in_condition = saved
+            del self.extra_refs[n:]
+        if isinstance(v, (str, int, float, bool)):
+            return v
+        if isinstance(v, list) and all(isinstance(x, (str, int, float, bool)) for x in v):
+            return v
+        return UNKNOWN
+
+    def fn_if(self, arg, path: str):
+        if not (isinstance(arg, list) and len(arg) == 3):
+            return self.unknown({"Fn::If": arg}, path, "malformed Fn::If")
+        c = self.condition(arg[0], path)
+        if c is None:
+            return self.unknown({"Fn::If": arg}, path, f"condition {arg[0]} cannot be decided",
+                                "CFN-CONDITION-UNKNOWN")
+        chosen, other = (arg[1], arg[2]) if c else (arg[2], arg[1])
+        self.scan_refs(other, path, "pruned")  # 選ばれなかった側の参照は pruned（7.2）
+        return self.eval(chosen, path)
+
+    def find_in_map(self, arg, path: str):
+        if not (isinstance(arg, list) and len(arg) in (3, 4)):
+            return self.unknown({"Fn::FindInMap": arg}, path, "malformed Fn::FindInMap")
+        # キーの評価には擬似パラメータの値を使う（リージョンごとの AMI の表など。マップの値は参照を含まない）
+        saved = self.in_condition
+        self.in_condition = True
+        try:
+            keys = [self.eval(k, path) for k in arg[:3]]
+        finally:
+            self.in_condition = saved
+        default = arg[3].get("DefaultValue") if len(arg) == 4 and isinstance(arg[3], dict) else None
+        if not all(isinstance(k, (str, int)) and not isinstance(k, bool) for k in keys):
+            return self.unknown({"Fn::FindInMap": arg}, path, "Fn::FindInMap with a computed key")
+        m, top, second = (str(k) for k in keys)
+        table = {str(k): v for k, v in self.mappings.items()}.get(m)
+        value = None
+        if isinstance(table, dict):
+            row = {str(k): v for k, v in table.items()}.get(top)
+            if isinstance(row, dict):
+                value = {str(k): v for k, v in row.items()}.get(second)
+        if value is None:
+            if default is not None:  # AWS::LanguageExtensions の DefaultValue
+                return self.eval(default, path)
+            return self.unknown([], path, f"Fn::FindInMap: {m}.{top}.{second} is not in Mappings",
+                                "CFN-MAPPING-MISSING")
+        return self.eval(value, path)
 
     def is_stack(self, logical_id: str) -> bool:
         body = self.resources.get(logical_id)
         return isinstance(body, dict) and body.get("Type") == "AWS::CloudFormation::Stack"
 
     def ref(self, name, path: str):
+        if isinstance(name, bool):
+            name = _bool_name(name, list(self.resources) + list(self.parameters))
         if not isinstance(name, str):
             return self.unknown({"Ref": name}, path, "Ref with a non-string argument")
         if name == "AWS::NoValue":
@@ -368,6 +563,15 @@ class Evaluator:
         if isinstance(src, dict) and "$concat" in src:
             return split_concat(src["$concat"], delim)
         return self.unknown({"Fn::Split": arg}, path, "Fn::Split of a computed value")
+
+
+def _cfn_str(v) -> str:
+    """Fn::Equals で比べるときの文字列（CFN は値を文字列として比べる）。"""
+    if isinstance(v, bool):
+        return "true" if v else "false"
+    if isinstance(v, list):
+        return ",".join(_cfn_str(x) for x in v)
+    return str(v)
 
 
 def _res_with_fn(value):
@@ -616,6 +820,15 @@ def _is_intrinsic(v) -> bool:
     return key in ("Ref", "Condition") or key.startswith("Fn::")
 
 
+def _stronger(a, b):
+    """enabled の強い方。true > null > false（どれか1つでも作られるなら作られる）。"""
+    if a is True or b is True:
+        return True
+    if a is None or b is None:
+        return None
+    return False
+
+
 def _weaker(a, b):
     """作られるか（enabled）の弱い方。false > null > true（親のスタックの Condition を子に引き継ぐ）。"""
     if a is False or b is False:
@@ -641,6 +854,7 @@ class Context:
         self.exports: dict[str, tuple["StackEval", str]] = {}
         self.active_files: list[Path] = []
         self._files: list[str] | None = None
+        self.pseudo_values: dict = {}
 
     def rel(self, path: Path) -> str:
         return Path(os.path.relpath(path.resolve(), self.root_dir.resolve())).as_posix()
@@ -660,9 +874,12 @@ class StackEval(Evaluator):
 
     def __init__(self, ctx: Context, template: dict, path: Path, prefix: str = "",
                  overrides: dict | None = None, stack_address: str | None = None,
-                 enabled: bool | None = True, asset_dir: Path | None = None, stack_name: str | None = None):
+                 enabled: bool | None = True, asset_dir: Path | None = None, stack_name: str | None = None,
+                 given: dict | None = None):
         super().__init__(template, ctx.diagnostics, prefix, overrides, stack_address)
         self.ctx = ctx
+        self.given = given or {}
+        self.pseudo_values = ctx.pseudo_values
         self.path = path
         self.file = ctx.rel(path)
         self.enabled = enabled  # 親のスタックのリソースの enabled（子のリソースに引き継ぐ）
@@ -671,7 +888,61 @@ class StackEval(Evaluator):
         self.children: dict[str, object] = {}
         self.outputs: dict[str, object] = {}
         self.output_extras: dict[str, list[dict]] = {}
+        self.multiplicity: dict[str, str] = {}
+        self.foreach_origin: dict[str, str] = {}
+        self.resources = self.expand_foreach(self.resources)
+        if isinstance(self.template.get("Outputs"), dict):
+            self.template = {**self.template, "Outputs": self.expand_foreach(self.template["Outputs"], record=False)}
         ctx.stacks.append(self)
+
+    # --- Fn::ForEach（AWS::LanguageExtensions）
+    def expand_foreach(self, resources: dict, depth: int = 0, record: bool = True) -> dict:
+        """Resources（と Outputs）の Fn::ForEach::<名前> を展開する。値が決まらなければ ×N（ir-schema.md の 2章）。
+
+        展開した名前が重なったら、後のものは診断を出して飛ばす（CloudFormation でも誤り）。
+        ×N の名前が重なったら、後ろに ".<ForEach の名前>" を付けて両方残す（網羅の A6 で落とさない）。
+        """
+        out: dict = {}
+
+        def put(name, body):
+            if name in out:
+                self.diag("error", "CFN-FOREACH-DUPLICATE", name, f"{name} is defined more than once; the later one is ignored")
+            else:
+                out[name] = body
+        for key, body in resources.items():
+            if not (isinstance(key, str) and key.startswith("Fn::ForEach::")):
+                put(key, body)
+                continue
+            self.current = self.where()
+            if not (isinstance(body, list) and len(body) == 3 and isinstance(body[0], str)
+                    and isinstance(body[2], dict)) or depth > 5:
+                self.diag("error", "CFN-MALFORMED-RESOURCE", key, "malformed Fn::ForEach")
+                continue
+            ident, collection, templates = body
+            saved, n = self.in_condition, len(self.extra_refs)
+            values = self.eval(collection, key)
+            del self.extra_refs[n:]
+            self.in_condition = saved
+            if isinstance(values, list) and all(isinstance(v, (str, int)) and not isinstance(v, bool)
+                                                for v in values):
+                for v in values:
+                    for tkey, tbody in templates.items():
+                        out_key = _foreach_subst(tkey, ident, str(v))
+                        expanded = self.expand_foreach({out_key: _foreach_subst(tbody, ident, str(v))}, depth + 1, record)
+                        for k2, b2 in expanded.items():
+                            put(k2, b2)
+            else:
+                self.diag("warn", "CFN-FOREACH-UNRESOLVED", key,
+                          f"{key}: the collection cannot be decided; drawn once as xN")
+                for tkey, tbody in templates.items():
+                    name = re.sub(r"[$&]\{[^}]*\}", "*", tkey)
+                    if name in out:
+                        name = f"{name}.{key[len('Fn::ForEach::'):]}"
+                    # 識別子は * にする（Ref が未定義の名前の警告にならないように）
+                    put(name, _foreach_subst(tbody, ident, "*"))
+                    if record:
+                        self.multiplicity[name] = "N"
+        return out
 
     def where(self) -> str:
         """このスタックの出力などの診断に使う address（最上位なら空）。"""
@@ -701,6 +972,14 @@ class StackEval(Evaluator):
             if isinstance(body, dict) and isinstance(body.get("Export"), dict):
                 saved, n = self.current, len(self.extra_refs)
                 self.current = self.where()
+                if "Condition" in body:
+                    c = self.condition(body["Condition"], f"Outputs.{name}.Condition")
+                    if c is False:  # 作られない出力の Export は無い
+                        self.current = saved
+                        continue
+                    if c is None:
+                        self.diag("info", "CFN-CONDITION-UNKNOWN", f"Outputs.{name}.Condition",
+                                  f"output {name}: condition cannot be decided; the export is used")
                 self.resolve_stack_name = True  # cdk.out ではスタック名が分かるので、Export の名前の中だけ解く
                 export = self.eval(body["Export"].get("Name"), f"Outputs.{name}.Export.Name")
                 self.resolve_stack_name = False
@@ -809,8 +1088,8 @@ class StackEval(Evaluator):
             self.children[res] = None
             self.diag("error", "CFN-NESTED-UNREADABLE", "Properties.TemplateURL", f"nested stack {res}: {e}")
             return None
-        # 親のスタックのリソースが作られないなら、子のリソースも作られない（手順4 で Condition を評価する）
-        enabled = _weaker(self.enabled, None if "Condition" in body else True)
+        # 親のスタックのリソースが作られないなら、子のリソースも作られない
+        enabled = _weaker(self.enabled, self.condition(body["Condition"], "Condition") if "Condition" in body else True)
         child = StackEval(self.ctx, template, path, prefix=self.addr(res) + "/", overrides=overrides,
                           stack_address=self.addr(res), enabled=enabled, asset_dir=self.asset_dir)
         child.register_exports()
@@ -825,14 +1104,10 @@ class StackEval(Evaluator):
         ctx = self.ctx
         ctx.active_files.append(self.path.resolve())
         globals_ = self.template.get("Globals") or {}
-        implicit: set[str] = set()
-        for logical_id, body in (self.template.get("Resources") or {}).items():
+        implicit: dict[tuple[str, str], object] = {}  # 暗黙の API → それを作る関数の enabled の強い方
+        for logical_id, body in self.resources.items():
             address = self.addr(logical_id)
             self.current = address
-            if logical_id.startswith("Fn::ForEach::"):
-                # AWS::LanguageExtensions の繰り返し。展開は手順4（値が決まらなければ ×N。ir-schema.md の 2章）
-                self.diag("warn", "CFN-DEFERRED", "", "Fn::ForEach is not expanded yet (phase 1 step 4)")
-                continue
             if not isinstance(body, dict):
                 self.diag("error", "CFN-MALFORMED-RESOURCE", "", "resource body is not an object")
                 continue
@@ -844,14 +1119,19 @@ class StackEval(Evaluator):
             for section, target in GLOBALS.items():
                 if rtype == target and isinstance(globals_.get(section), dict) and isinstance(raw_props, dict):
                     raw_props = _merge_globals(globals_[section], raw_props)
-            if rtype in ("AWS::Serverless::Function", "AWS::Serverless::StateMachine") and isinstance(raw_props, dict):
-                implicit |= _implicit_apis(raw_props)
             enabled = self.enabled  # 親のスタックの enabled を引き継ぐ
             if "Condition" in body:
-                enabled = _weaker(enabled, None)  # 手順4 で評価する
-                self.diag("info", "CFN-CONDITION-DEFERRED", "Condition",
-                          f"Condition {body['Condition']} is not evaluated yet (phase 1 step 4)")
+                c = self.condition(body["Condition"], "Condition")
+                enabled = _weaker(enabled, c)
+                if c is None and _bool_name(body["Condition"], self.conditions) in self.conditions:
+                    self.diag("info", "CFN-CONDITION-UNKNOWN", "Condition",
+                              f"condition {body['Condition']} cannot be decided")
+            if rtype in ("AWS::Serverless::Function", "AWS::Serverless::StateMachine") and isinstance(raw_props, dict):
+                for api in _implicit_apis(raw_props):
+                    implicit[api] = _stronger(implicit.get(api, False), enabled)
             entry: dict = {"address": address, "type": rtype, "file": self.file, "enabled": enabled}
+            if logical_id in self.multiplicity:
+                entry["multiplicity"] = self.multiplicity[logical_id]
             if self.stack_address is not None:
                 entry["via"] = "nested_stack"
             if rtype == "AWS::CloudFormation::Stack" and self.child(logical_id) is None:
@@ -876,7 +1156,7 @@ class StackEval(Evaluator):
             ctx.resources.append(entry)
         # SAM が暗黙に作る API（7.2 の implicit）。Globals.Api／Globals.HttpApi も当てる（SAM と同じ）
         sections = {"AWS::Serverless::Api": "Api", "AWS::Serverless::HttpApi": "HttpApi"}
-        for logical_id, rtype in sorted(implicit):
+        for (logical_id, rtype), api_enabled in sorted(implicit.items(), key=lambda kv: kv[0]):
             if logical_id in self.resources:
                 continue
             address = self.addr(logical_id)
@@ -885,7 +1165,7 @@ class StackEval(Evaluator):
             props = self.eval(g, "Properties") if isinstance(g, dict) else {}
             if props is NO_VALUE or not isinstance(props, dict):
                 props = {}
-            entry = {"address": address, "type": rtype, "file": self.file, "enabled": self.enabled,
+            entry = {"address": address, "type": rtype, "file": self.file, "enabled": api_enabled,
                      "props": _collect_active(props, "Properties", address, ctx.refs), "implicit": True}
             if self.stack_address is not None:
                 entry["via"] = "nested_stack"
@@ -957,19 +1237,32 @@ def _cdk_stacks(cdk_dir: Path, diagnostics: list[dict]) -> list[tuple[str, Path,
     return sorted(out)
 
 
-def build_raw(input_path: Path, root_base: Path | None = None) -> dict:
-    """テンプレート1つ（ネストスタックを含む）か、cdk.out（ディレクトリか manifest.json）から raw IR を作る。"""
+def build_raw(input_path: Path, root_base: Path | None = None, parameters: dict | None = None) -> dict:
+    """テンプレート1つ（ネストスタックを含む）か、cdk.out（ディレクトリか manifest.json）から raw IR を作る。
+
+    parameters: 外から渡すパラメータの値（--param、--param-file）。最上位のスタックに渡す。
+    AWS:: で始まる名前（AWS::Region など）は、条件の評価にだけ使う（props は $pseudo のまま）。
+    """
+    parameters = dict(parameters or {})
+    pseudo = {k: v for k, v in parameters.items() if k.startswith("AWS::")}
+    given = {k: v for k, v in parameters.items() if not k.startswith("AWS::")}
     if input_path.is_dir() or input_path.name == "manifest.json":
         cdk_dir = input_path if input_path.is_dir() else input_path.parent
         ctx = Context(cdk_dir)
+        ctx.pseudo_values = pseudo
         # Export の名前の AWS::StackName は、address に使う名前ではなく本当の stackName で解く
-        tops = [StackEval(ctx, load_template(p), p, prefix=f"{name}::", asset_dir=asm, stack_name=real)
+        tops = [StackEval(ctx, load_template(p), p, prefix=f"{name}::", asset_dir=asm, stack_name=real, given=given)
                 for name, p, asm, real in _cdk_stacks(cdk_dir, ctx.diagnostics)]
         root_path = cdk_dir
     else:
         ctx = Context(input_path.parent)
-        tops = [StackEval(ctx, load_template(input_path), input_path)]
+        ctx.pseudo_values = pseudo
+        tops = [StackEval(ctx, load_template(input_path), input_path, given=given)]
         root_path = input_path
+    unused = sorted(set(given) - {k for s in tops for k in s.parameters})
+    for k in unused:
+        ctx.diagnostics.append({"level": "info", "code": "CFN-PARAM-UNUSED", "address": "", "path": "",
+                                "message": f"parameter {k} is given but not defined in the template"})
     for s in tops:
         s.register_exports()
     # 子のスタックの Export も使えるように、最上位のリソースを読む前に子をすべて展開する
@@ -981,6 +1274,11 @@ def build_raw(input_path: Path, root_base: Path | None = None) -> dict:
         ctx.active_files.pop()
     for s in tops:
         s.run()
+    conditions = {}
+    for s in ctx.stacks:
+        for name in s.conditions:
+            s.current = s.where()
+            conditions[s.prefix + str(name)] = s.condition(name, f"Conditions.{name}")
     refs = _dedupe(ctx.refs + [r for s in ctx.stacks for r in s.extra_refs])
     root_base = root_base or Path.cwd()
     try:
@@ -992,22 +1290,54 @@ def build_raw(input_path: Path, root_base: Path | None = None) -> dict:
     # 同じ診断（同じ場所・同じ内容）は1つにまとめる
     diagnostics = list({(d.get("address", ""), d.get("path", ""), d["code"], d["message"]): d
                         for d in ctx.diagnostics}.values())
-    parameters = {}
+    used = {}
     for s in ctx.stacks:
         for k, v in s.param_values.items():
-            parameters[s.prefix + k] = _strip_internal(v)
+            used[s.prefix + k] = _strip_internal(v)
     raw = {
         "ir_version": "1.0",
         "stage": "raw",
         "format": "cfn",
         "root": root,
-        "evaluation": {"parameters": dict(sorted(parameters.items())), "conditions": {},
+        "evaluation": {"parameters": dict(sorted(used.items())), "conditions": dict(sorted(conditions.items())),
                        "assumptions": ctx.assumptions},
         "resources": ctx.resources,
         "references": refs,
         "diagnostics": diagnostics,
     }
     return ir_raw.canonical_raw(raw)
+
+
+def load_parameter_file(path: Path) -> dict:
+    """パラメータの値のファイルを読む。次の3つの形を受け付ける:
+    - aws cloudformation の CLI の形: [{"ParameterKey": "K", "ParameterValue": "V"}, ...]
+    - CodePipeline などの形: {"Parameters": {"K": "V"}}
+    - {"K": "V"}
+    """
+    doc = json.loads(path.read_text(encoding="utf-8-sig"))
+    if isinstance(doc, list):
+        # ParameterValue の無い行（UsePreviousValue: true）は読まない
+        return {str(x["ParameterKey"]): x["ParameterValue"] for x in doc
+                if isinstance(x, dict) and "ParameterKey" in x and x.get("ParameterValue") is not None}
+    if isinstance(doc, dict) and isinstance(doc.get("Parameters"), dict):
+        return {str(k): v for k, v in doc["Parameters"].items()}
+    if isinstance(doc, dict):
+        return {str(k): v for k, v in doc.items()}
+    raise ValueError(f"パラメータのファイルの形が分かりません: {path}")
+
+
+def _foreach_subst(value, ident: str, item: str):
+    """Fn::ForEach の識別子を値に置き換える（${Id} と &{Id}（英数字だけ）と、Ref Id）。"""
+    alnum = re.sub(r"[^A-Za-z0-9]", "", item)
+    if isinstance(value, str):
+        return value.replace("${" + ident + "}", item).replace("&{" + ident + "}", alnum)
+    if isinstance(value, list):
+        return [_foreach_subst(v, ident, item) for v in value]
+    if isinstance(value, dict):
+        if value == {"Ref": ident}:
+            return item
+        return {_foreach_subst(k, ident, item): _foreach_subst(v, ident, item) for k, v in value.items()}
+    return value
 
 
 def dump(raw: dict) -> str:
@@ -1021,9 +1351,22 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--input", required=True, type=Path)
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--root-base", type=Path, default=None)
+    ap.add_argument("--param", action="append", default=[], metavar="KEY=VALUE",
+                    help="パラメータの値（何回でも指定できる。AWS::Region などは条件の評価にだけ使う）")
+    ap.add_argument("--param-file", type=Path, action="append", default=[],
+                    help="パラメータの値のファイル（CLI の parameters.json の形、{\"Parameters\": {...}}、{キー: 値}）")
     a = ap.parse_args(argv)
     try:
-        raw = build_raw(a.input, a.root_base)
+        params: dict = {}
+        for f in a.param_file:
+            params.update(load_parameter_file(f))
+        for kv in a.param:
+            if "=" not in kv:
+                print(f"--param は KEY=VALUE の形で指定してください: {kv}", file=sys.stderr)
+                return 2
+            k, v = kv.split("=", 1)
+            params[k] = v
+        raw = build_raw(a.input, a.root_base, params)
     except (OSError, ValueError, yaml.YAMLError) as e:
         print(f"テンプレートを読めませんでした: {a.input}: {e}", file=sys.stderr)
         return 2

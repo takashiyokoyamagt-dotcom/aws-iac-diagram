@@ -230,7 +230,7 @@ canonical 部の **すべての辺** について、形式ごとに1件ずつ、
 |---|---|
 | `format` | `cfn`／`tf` |
 | `root` | 入力のパス。`aws-iac-diagram-workspace/` からの相対パス（ツールとして使うときは、作業中のフォルダからの相対パス）で、`/` 区切り（C5。OS によらず同じにする）。CFN は最上位のテンプレートか cdk.out のディレクトリ、TF はルートモジュールのディレクトリ |
-| `evaluation` | 評価に使った値。CFN は `parameters`（使った値）と `conditions`（評価の結果。決まらなければ `null`）、TF は `var_files` と `vars`。`assumptions` は読み替えや既定値の採用などの前提（書いた順）。ネストスタックと cdk.out の複数スタックでは、名前の前にスタックのパスを付ける（7.2 の address と同じ形。`NetworkStack/HasNat`、`App::IsProd`）。最上位のテンプレートの名前には付けない |
+| `evaluation` | 評価に使った値。CFN は `parameters`（使った値。外から渡した値か Default）と `conditions`（すべての条件の評価の結果。決まらなければ `null`）、TF は `var_files` と `vars`。`assumptions` は読み替えや既定値の採用などの前提（書いた順）。ネストスタックと cdk.out の複数スタックでは、名前の前にスタックのパスを付ける（7.2 の address と同じ形。`NetworkStack/HasNat`、`App::IsProd`）。最上位のテンプレートの名前には付けない |
 | `resources` | 入力の**すべての**リソース（7.2）。網羅分類（A6）の元になる |
 | `references` | リソースからリソースへの参照の一覧（7.3） |
 | `diagnostics` | 読めなかった・評価できなかったものの記録（7.5） |
@@ -270,6 +270,7 @@ canonical 部の **すべての辺** について、形式ごとに1件ずつ、
 | `{"$import": "<エクスポート名>"}` | 入力の中で解決できなかった `Fn::ImportValue`。解決できたもの（cdk.out の別のスタックが Export しているなど）は、エクスポートした値（`$res` など）に置き換え、参照の `fn` を `ImportValue` にする（7.3） | `{"$import": "shared-vpc-id"}` |
 | `{"$unknown": "<理由>"}` | 評価できなかった値（値の無いパラメータ、`AWS::SSM::Parameter::Value<…>` 型のパラメータ、`{{resolve:…}}`、未対応の関数、plan JSON の「known after apply」など）。中にあった参照は `references` に `state: "unevaluated"` で残す（7.3）。同じ理由を `diagnostics` にも書く | `{"$unknown": "parameter KeyName has no value"}` |
 
+- **A4（CFN）:** パラメータの値は、外から渡した値（アダプタの `--param`・`--param-file`）→ `Default` の順に使う。`AllowedValues` に無い値は診断に出す。擬似パラメータ（`AWS::Region` など）に渡した値は、条件の評価にだけ使い、`props` は `$pseudo` のままにする（TF と ARN の照合を揃えるため）。条件（`Fn::Equals`・`Fn::And`・`Fn::Or`・`Fn::Not`・`Condition`）は、真・偽・決まらない（`null`）の3つの値で評価する（`And` は偽が1つでもあれば偽、`Or` は真が1つでもあれば真、それ以外で決まらないものがあれば決まらない）。`Fn::Equals` は値を文字列にして比べる。`Fn::ForEach` は、コレクションが決まれば展開し（`${Id}`・`&{Id}`・`Ref Id` を置き換える）、決まらなければテンプレートの1つだけを `multiplicity: "N"` で出す（address は 2章の `Bucket*` の形）。値の真偽値は YAML 1.1 のとおり読む（`yes`・`on` なども真偽値。cfn-lint と同じ）。マップのキーは元の文字のまま読む（`Yes:`・`On:`・`1:` も文字列の名前として残す）。名前の位置（`Condition:` の値、`Ref`）に真偽値として読まれた値は、同じ文字の名前（`Yes`・`On` など）が1つだけあればそれに戻す。パラメータの値が `null`（CLI の `UsePreviousValue`）のときは渡されていないものとして `Default` を使う。SSM の型（`AWS::SSM::Parameter::Value<…>`）のパラメータは、値を渡されても `$unknown`。`Fn::FindInMap` のキーは文字列で引き、キーの評価には擬似パラメータの値も使う（リージョンごとの表を引くため。マップの値は参照を含まない）。`Fn::ForEach` はプロパティの中と `Outputs` の中でも展開する。展開した名前が重なったら後のものを診断を出して飛ばし、×N の名前が重なったら後ろに `.<ForEach の名前>` を付けて両方残す。
 - `Fn::If`、`Fn::FindInMap`、`Fn::Select`、`Fn::Split`、`Fn::Equals` などは、値が決まれば評価して結果だけを残す。条件が決まらない `Fn::If` は `$unknown`。評価で選ばれなかった値（`Fn::If` の選ばれなかった側、`Fn::Select` で選ばれなかった要素、`Fn::FindInMap` で引かなかったキーなど）の中にあった参照は、`references` に `state: "pruned"` で残す（cfn-lint は条件を評価せず、これらも辺にするため）。
 - **リストの分割:** `Fn::Split` と、`List<…>`／`CommaDelimitedList` 型のパラメータに文字列を渡したとき（ネストスタックの出力 `!Join [",", [!Ref A, !Ref B]]` を受けるなど）は、`$concat` の文字列の部分を区切り文字の位置で分け、印は分けずにリストにする（`{"$concat": [A の印, ",", B の印]}` → `[A の印, B の印]`）。
 - ネストスタックの出力（`!GetAtt NetworkStack.Outputs.VpcId`）と、子テンプレートの `Parameters` に渡した値は、たどって元のリソースへの `$res` にする（TF のモジュールの出力・変数も同じ）。たどった経路は 7.3 の `through` に書く。`AWS::CloudFormation::Stack` のリソース自身の `props` の `Parameters` は、リストの分割をしない（分割は子テンプレートの側で、パラメータの型を見て行う）。
