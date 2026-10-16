@@ -113,7 +113,7 @@ v0.1 が定義するのは **正規化後の IR**（PLAN 3 の ② の出力、�
 | `drawn` | `node` | そのリソースがノードになった |
 | `merged_into` | `into`、`rule` | ほかのノードに統合された（M-*）か、辺に変換された（R-*。このとき `into` は辺の id） |
 | `hidden` | `rule` | 図に描かない（H-*）。count が 0・Condition が偽のものも `H-COND-FALSE` でここに入る |
-| `unknown` | （なし） | 型が `resource-catalog.md` に無い。フェーズ3 では1件でもあれば検証エラー |
+| `unknown` | （なし） | 型が `resource-catalog.md` に無い。分類としては正しく、検証エラーにはしない（終了コードは 0 のまま）。件数と型を `result.json` と `coverage.md` に出す。検証エラー（終了コード 1）になるのは、分類の漏れと重複。主セットで 0 件にするのは評価の基準（[CRITERIA.md](../../../aws-iac-diagram-workspace/evals/CRITERIA.md) の 1.2） |
 
 - `address`: TF は plan と同じ形のインスタンスアドレス（`aws_subnet.public[0]`、`module.vpc.aws_vpc.this[0]`、`data.aws_iam_policy_document.x`、for_each は `aws_vpc_endpoint.interface["ssm"]`）。count が 0 に評価されたブロックはインデックスなし（`aws_instance.bastion`）で1件。CFN は論理ID で、ネストスタックの中は `<親の論理ID>/<論理ID>`（`NetworkStack/Vpc`）。
 - `type`: 入力のままの型（`aws_vpc`、`AWS::EC2::VPC`）。
@@ -129,6 +129,13 @@ canonical 部の **すべての辺** について、形式ごとに1件ずつ、
 
 正解 IR（G）とツールの出力（O）を、次の集合ごとに比べる。再現率 = |G ∩ O| / |G|、適合率 = |G ∩ O| / |O|。
 
+**比べる前に、ノードの id を対応づける。** O と G のノードを、網羅分類が `drawn` のリソースの address で突き合わせ、O の id を G の id に置き換えてから N・E・P を比べる（名前を1つ間違えただけで、そのノードの辺と入れ子まで外れるのを防ぐため）。
+
+- 1つのノードに `drawn` の address が複数あるときは、どれか1つでも一致すれば対応づける。`merged_into`・`hidden` の address は使わない。
+- address で対応づけられないノード（合成ノードなど）は、id のまま比べる。
+- O の複数のノードが同じ G のノードに対応づくとき（1つのリソースを2つのノードに分けたときなど）は、O の id 順で最初の1つだけを対応づけ、残りは id のまま比べる（フェーズ1 の確定のときに見直す）。
+- 名前の誤りは、別の指標「名前の一致率」（address で対応づけたノードの組のうち、O のもとの id と G の id が一致する組の割合）で数える。
+
 | 単位 | 集合の要素 | 備考 |
 |---|---|---|
 | N（ノード） | `(id, type)` | |
@@ -136,9 +143,10 @@ canonical 部の **すべての辺** について、形式ごとに1件ずつ、
 | P（入れ子） | `(id, parent)` と `(id, span)` の組 | `spans` の各要素を1組として数える |
 | C（網羅） | 形式ごとの `(address, class, node／into／rule)` | 一致率（= 同じ分類になった割合）。`unknown` の件数は別に数える |
 | 付随 | 辺の `confidence`、`label`、ノードの `label` | E で一致した辺・N で一致したノードの中での一致率 |
+| 名前 | address で対応づけたノードの組 | 上の「名前の一致率」 |
 
 - TF 版と CFN 版の一致（フェーズ2）: 両方の出力の canonical 部（`note` を除く `nodes` と `edges`）がバイト単位で一致すること。
-- 基準値（どこまでを合格とするか）はフェーズ0 の残りの項目（HANDOFF の表の 5）で決める。
+- 基準値（どこまでを合格とするか）は [CRITERIA.md](../../../aws-iac-diagram-workspace/evals/CRITERIA.md)（2026-10-16 に確定）にある。
 
 ## 6. 出力の規則（C5）
 

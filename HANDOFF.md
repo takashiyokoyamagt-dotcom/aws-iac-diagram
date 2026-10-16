@@ -1,8 +1,10 @@
 # HANDOFF（再開用）
 
 ## ユーザーの判断待ち（2026-10-16 時点）
-- **表の 5（評価基準値）**: 案を作って提示し、了承を得る。案のもとは `fixtures/public/SELECTION.md` の 3 の 5。
+- **L4（T17、T19、T20）の辺の貫通の上限値**（CRITERIA.md の 7 の 4）。フェーズ4 の配置の実装を始める前に、案を出して了承を得る（結果を見てから決めない）。
 - **手元の Windows で作った PNG と CI で作った PNG のどちらをコミットするか**（PLAN 1.2 の 3）。フェーズ5 までに決める。
+- **WSL の Ubuntu と CI に入れるもの**（uv、draw.io の `.deb`、xvfb、Chromium）のインストールの許可。フェーズ5 の手前で確認する。
+- （フェーズ3 の実測の後）実行時間の基準値（CRITERIA.md の 4）を見直すなら、案を出して了承を得る。見直してよいのは一度だけ。
 
 ## 作業の進め方
 - 実装はサブエージェントが1つずつ行い、テストと動作確認のあと、別のサブエージェントが第三者レビューをする。指摘を直して再レビューで「コミット可」になったら main にコミットして push する。
@@ -35,13 +37,18 @@
 | 3 | アイコン素材の取得と辞書の生成 | **済**: 版と SHA-256 は [assets/SOURCES.md](skills/aws-iac-diagram/assets/SOURCES.md)。`scripts/build_icon_catalog.py` で `references/icons/`（1045件、31カテゴリ）を生成。検索は `scripts/find_aws_icon.py`。再実行してもバイト単位で同じ出力になることを確認済み |
 | 3b | C2（壊れたアイコンの自動検出 `check_icons.py`） | **済**: draw.io 32.4.1 で 1032 件（shape・resource_icon・group）を判定し、**壊れたものは 0 件**。対照 9 件（壊れ 6 種・正常 3 種）はすべて期待どおり。結果は `references/icons/broken.json` → 辞書の `broken`。テストはルートの `tests/`（当時 31件） |
 | 4 | 自作テスト構成5種（TF 版と CFN 版）と正解 IR、公開サンプルからの選定、第三者レビュー | **済（`46ae7c3`）**: 第三者レビュー2回（1回目「修正後コミット」、正解 IR の誤りは無し。指摘反映後の2回目「コミット可」）。構成5種（three-tier、serverless-api、vpc-endpoints、three-tier-modules、rag）を `fixtures/tf/`・`fixtures/cfn/`（YAML・SAM・JSON・ネストスタック）に、正解 IR を `expected/*.ir.json` に作成。IR スキーマ草案 v0.1（`references/ir-schema.md`・`ir.schema.json`）と規則表の草案（`resource-catalog.md`・`relation-resources.md`・`edge-rules.md`）。検証: `scripts/validate_ir.py`（全正解 IR が通過）、`workspace/tools/check_coverage.py --lint`（網羅分類と入力が一致、cfn-lint 警告0、hcl2 で全 .tf を読める）。公開サンプルの選定は `fixtures/public/SELECTION.md`（主セット12、補助セット） |
-| 5 | フェーズ6の評価基準値を決めてユーザーの了承を得る | 未着手 |
+| 5 | フェーズ6の評価基準値を決めてユーザーの了承を得る | **済（2026-10-16、`606ffb4`）**: [aws-iac-diagram-workspace/evals/CRITERIA.md](aws-iac-diagram-workspace/evals/CRITERIA.md)。第三者レビュー2回のあと、ユーザーが了承して確定。8章の申し送りのうち、`unknown` の扱い（ir-schema.md・resource-catalog.md）、id の対応づけと名前の一致率（ir-schema.md の 5）、PLAN の LLM の役割と 1.3 の 9 は反映済み |
+
+**フェーズ0 は完了。**
 
 ## 次にやること
-0. push 後に GitHub で `ci` が両 OS で通るか確かめる（まだ一度も動かしていない）。setup-uv が uv 0.13.1 のチェックサムを持っているかもログで見る。
+0. （済）GitHub の `ci` は `4af11c3` で両 OS とも成功した（Windows 約45秒、Ubuntu 約20秒）。Node 20 の廃止の警告が出ている（0b）。
 0b. 2026-10-16 のレビューで見送った推奨: R2（doctor に Windows のパス長の診断: `LongPathsEnabled`、SKILL のパスの長さ、uv のキャッシュの場所）、R4（PEP 723 の間接依存の固定: `[tool.uv] exclude-newer` か `uv lock --script`。PEP 723 と `pyproject.toml` の版が揃っているかのテスト）、CI の `actions/checkout`・`setup-uv` を Node 20 廃止に合わせて更新し SHA で固定。再レビューの R1: SKILL.md の「gh-aw では `RUNNER_TEMP` に出す」は、同じファイルの `$VAR` の禁止とぶつかる（エージェントが値を知るにはシェルで展開するしかない）→ `diagram.py` を作るときに、`--out`／`--out-dir` を省略したらスクリプトが既定値（`RUNNER_TEMP`、無ければ作業中のフォルダの `aws-iac-diagram-out`）を決め、書いた先を ASCII で標準出力に出すようにし、doctor も合わせる。あわせて doctor で `--out` に書けなかったときも、集めた診断の結果を捨てずに出す。
-1. 表の 5（評価基準値）。案は `fixtures/public/SELECTION.md` の 3 の 5。
-2. フェーズ1 で IR スキーマを確定させる（`ir-schema.md` の「未決事項」）。公開サンプルで見つかった問題（SELECTION.md の 4: hcl2 が heredoc の終端の空白で落ちる、S3 URL のネストスタック、ルートの外のローカルモジュール、AWS 以外の型、大量の data）をアダプタの設計に入れる。
+1. （済）表の 5（評価基準値）。
+2. フェーズ1 で IR スキーマを確定させる（`ir-schema.md` の「未決事項」）。評価基準（CRITERIA.md の 8章）から次も持ち越した:
+   - 黒箱のモジュール（A5 の要約表に無いレジストリモジュール）の IR での表し方。型（例: `module`）、category、網羅分類での載せ方。主セットの T16（iam サブモジュール）の正解 IR を書く前に決める。
+   - CRITERIA.md の 1.6（C1）で使う「辺にしない規則」の一覧を edge-rules.md に置く。
+   - 主セットの正解 IR は、ツールの出力を見る前に別のサブエージェントが書き、さらに別のサブエージェントがレビューする（CRITERIA.md の 1.2）。公開サンプルで見つかった問題（SELECTION.md の 4: hcl2 が heredoc の終端の空白で落ちる、S3 URL のネストスタック、ルートの外のローカルモジュール、AWS 以外の型、大量の data）をアダプタの設計に入れる。
 3. フェーズ5 の `export_png.py` は `scripts/lib/drawio_cli.py`（draw.io の探索と `-x -f png --disable-gpu` の呼び出し、0 バイトの失敗扱い、Linux の `--no-sandbox` と `xvfb-run`）を使って作る。draw.io が使えなければ（`DRAWIO` のパスが無いときも）PNG だけスキップして `result.json` に書き、終了コードは 0 のまま。
 4. **実行環境の方針は PLAN.md の 1.2、共通 Agent Skill の方針は 1.3（こちらが優先）。** 中心部分は Python だけ、起動は `uv run` の1行、結果は JSON、PNG は環境で切り替え、GitHub の画面からは Actions で PNG を作る、配布はタグ、WSL は Linux の確認用。
 5. **フェーズ5 の手前でスパイク（PLAN のフェーズ表の 5a）を行う**: クラウド（Claude Code on the web、Actions の `@claude`、gh-aw）で draw.io＋xvfb と mmdc が動くか、gh-aw で `uv run` を許可する書き方とタグ指定での SKILL の読み込み、VS Code + Copilot と Claude Code on the web で SKILL が読まれるか、Actions の PNG がバイト単位で再現するか。結果は WORKLOG に記録し、PLAN の 1.2・1.3 とフェーズ5・6 を直す。

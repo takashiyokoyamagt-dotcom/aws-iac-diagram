@@ -2,7 +2,7 @@
 
 - 状態: **草案**。フェーズ0 の自作 fixture 5種に出てくる型だけを載せている。フェーズ3 で公開サンプル（C3）の型まで広げる
 - 用途: 正規化（PLAN 3 の ②）で、入力の型ごとに「描く／統合する／辺にする／非表示」を決める。正解 IR の網羅分類（A6）の `rule` はこの表と [relation-resources.md](relation-resources.md)・[edge-rules.md](edge-rules.md) の規則ID を指す
-- ここに無い型は `unknown`（フェーズ3 では検証エラー）
+- ここに無い型は `unknown`（検証エラーにはしない。件数と型を `result.json` と `coverage.md` に出す。ir-schema.md の 4）
 
 ## 1. 描く型（ノードになる）
 
