@@ -94,6 +94,23 @@ uv run skills\aws-iac-diagram\scripts\check_icons.py
 - 作業ファイル（`.drawio`、ページごとの PNG、全件の指標 `report.json`）は `aws-iac-diagram-workspace/icon-check/` に出ます（git 管理外）。
 - draw.io の場所は自動で探します。見つからないときは環境変数 `DRAWIO` に実行ファイルのパスを設定してください。Linux で画面が無いときは `xvfb-run -a` と `--no-sandbox` を付けて起動します。画面があっても xvfb を使うには `AWS_IAC_DIAGRAM_XVFB=1` を設定します。
 
+### CloudFormation アダプタと C1
+
+CloudFormation のテンプレート（ネストスタック、SAM、cdk.out を含む）から、アダプタの出力（raw IR。[ir-schema.md](skills/aws-iac-diagram/references/ir-schema.md) の 7章）を作ります。
+
+```powershell
+uv run skills\aws-iac-diagram\scripts\adapters\cfn.py --input aws-iac-diagram-workspace\fixtures\cfn\three-tier\template.yaml --out out\three-tier.raw.json --param EnvType=prod
+uv run python skills\aws-iac-diagram\scripts\validate_ir.py out\three-tier.raw.json
+```
+
+パラメータの値は `--param KEY=VALUE` か `--param-file`（`aws cloudformation` の CLI の `parameters.json` の形など）で渡します。`AWS::Region` などの擬似パラメータに渡した値は、条件の評価にだけ使います。
+
+C1（[CRITERIA.md](aws-iac-diagram-workspace/evals/CRITERIA.md) の 1.6）は、cfn-lint のグラフの辺のすべてに raw IR の参照が対応するかを調べます。入力を省くと、fixture と公開サンプルの CFN をすべて調べます。
+
+```powershell
+uv run python aws-iac-diagram-workspace\tools\c1_check.py
+```
+
 ### 正解 IR と fixture の検証
 
 ```powershell

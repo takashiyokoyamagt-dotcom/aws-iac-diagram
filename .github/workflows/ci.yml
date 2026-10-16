@@ -37,6 +37,8 @@ jobs:
         run: |
           uv run python skills/aws-iac-diagram/scripts/validate_ir.py aws-iac-diagram-workspace/expected/*.ir.json
           uv run python aws-iac-diagram-workspace/tools/check_coverage.py --lint
+          # C1（CRITERIA の 1.6）: cfn-lint のグラフの辺のすべてに、CFN アダプタの raw IR の参照が対応する
+          uv run python aws-iac-diagram-workspace/tools/c1_check.py
 
       # 以下は SKILL を使う側と同じ起動のしかた（リポジトリの外に置き、PEP 723 の宣言だけで uv run する）
       - name: SKILL の起動（Windows PowerShell 5.1、日本語とスペースを含むパス）

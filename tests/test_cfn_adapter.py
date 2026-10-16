@@ -292,74 +292,32 @@ Resources:
 
 
 class CfnLintGraphTest(unittest.TestCase):
-    """CRITERIA の 1.6（C1）の回帰テスト。cfn-lint のグラフの辺のすべてに、raw IR の参照が対応する。
+    """CRITERIA の 1.6（C1）の回帰テスト。照合は aws-iac-diagram-workspace/tools/c1_check.py（フェーズ1 の手順5）。"""
 
-    照合: (from, to) が一致し、cfn-lint の属性の場所を最初の Ref／Fn::* で止めたものと raw の path が、
-    要素の区切りで前方一致する（どちら向きでも）。to がネストスタックのリソースなら、参照の through の先頭が
-    `<to>.Outputs.` で始まるものとも照合する。子テンプレートの辺は、親の raw IR の中で `<親の論理ID>/` を付けて照合する。
-    """
-
-    @staticmethod
-    def lint_edges(path: Path):
-        from cfnlint.decode import decode
-        from cfnlint.template import Template
-        tpl, _ = decode(str(path))
-        g = Template(str(path), tpl, ["us-east-1"]).graph.graph
-        res = {n for n, d in g.nodes.items() if d["type"] == "Resource"}
-        for a, b, d in g.edges(data=True):
-            if a in res and b in res:
-                p = ""
-                for el in d["source_paths"]:
-                    if isinstance(el, str) and (el == "Ref" or el.startswith("Fn::")):
-                        break
-                    p = ir_raw.join_path(p, el)
-                yield a, b, p
-
-    @staticmethod
-    def prefix(a: str, b: str) -> bool:
-        s, l = sorted((a, b), key=len)  # noqa: E741
-        return l == s or l.startswith(s + ".") or l.startswith(s + "[")
-
-    def matched(self, raw: dict, a: str, b: str, p: str) -> bool:
-        for r in raw["references"]:
-            if r["from"] != a or not self.prefix(p, r["path"]):
-                continue
-            if r["to"] == b or (r.get("through") and r["through"][0].startswith(b + ".Outputs.")):
-                return True
-        return False
-
-    def check(self, raw: dict, template: Path, prefix: str = "") -> int:
-        n = 0
-        for a, b, p in self.lint_edges(template):
-            n += 1
-            with self.subTest(f"{prefix}{template.name}: {a} -> {b} {p}"):
-                self.assertTrue(self.matched(raw, prefix + a, prefix + b, p))
-        return n
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, str(ROOT / "aws-iac-diagram-workspace" / "tools"))
+        import c1_check
+        cls.c1 = c1_check
 
     def test_fixture_templates(self):
-        templates = sorted(p for p in FIXTURES.rglob("*") if p.suffix in (".yaml", ".json")
-                           and p.name != "parameters.json")
-        total = sum(self.check(cfn.build_raw(t, ROOT / "aws-iac-diagram-workspace"), t) for t in templates)
-        self.assertGreaterEqual(total, 200)
+        # 自作 fixture の5構成（three-tier-modules は root から子5つを展開して照合する）
+        tops = ["three-tier/template.yaml", "serverless-api/template.yaml", "vpc-endpoints/template.json",
+                "rag/template.yaml", "three-tier-modules/root.yaml"]
+        edges = {}
+        for t in tops:
+            r = self.c1.check_input(FIXTURES / t)
+            with self.subTest(t):
+                self.assertEqual(r["unmatched"], [])
+            edges[t] = r["edges"]
+        self.assertEqual(edges["three-tier-modules/root.yaml"], 53)  # 第三者レビューで数えた辺（root と子5つ）
+        self.assertEqual(sum(edges.values()), 214)
 
-    def test_nested_children_in_parent(self):
-        root = FIXTURES / "three-tier-modules" / "root.yaml"
-        raw = cfn.build_raw(root, ROOT / "aws-iac-diagram-workspace")
-        total = self.check(raw, root)
-        for logical_id, body in cfn.load_template(root)["Resources"].items():
-            if body["Type"] == "AWS::CloudFormation::Stack":
-                total += self.check(raw, root.parent / body["Properties"]["TemplateURL"], logical_id + "/")
-        self.assertEqual(total, 53)  # 第三者レビューで数えた three-tier-modules の辺（root と子5つ）
-
-    def check_expanded(self, top: Path) -> int:
-        """ネストスタックを展開した raw IR で、展開した各ファイルの辺を、そのファイルの address の接頭辞を付けて照合する。"""
-        raw = cfn.build_raw(top, ROOT / "aws-iac-diagram-workspace")
-        assert_valid(self, raw)
-        prefixes: dict[str, str] = {}
-        for r in raw["resources"]:
-            if not r.get("implicit"):
-                prefixes.setdefault(r["file"], r["address"].rsplit("/", 1)[0] + "/" if "/" in r["address"] else "")
-        return sum(self.check(raw, top.parent / f, p) for f, p in sorted(prefixes.items()))
+    def test_each_child_template_alone(self):
+        # 子テンプレートを単独で読んでも、対応の無い辺は無い
+        for t in sorted((FIXTURES / "three-tier-modules").glob("*.yaml")):
+            with self.subTest(t.name):
+                self.assertEqual(self.c1.check_input(t)["unmatched"], [])
 
     def test_public_nested_stacks(self):
         public = ROOT / "aws-iac-diagram-workspace" / "fixtures" / "public"
@@ -371,9 +329,73 @@ class CfnLintGraphTest(unittest.TestCase):
             vpcp / "VPCPeering-Requester.main.cfn.json": 1,
             vpcp / "VPCPeering-Accepter.main.cfn.yaml": 5,
         }
-        for top, edges in cases.items():
+        for top, n in cases.items():
             with self.subTest(top.name):
-                self.assertEqual(self.check_expanded(top), edges)
+                r = self.c1.check_input(top)
+                self.assertEqual(r["unmatched"], [])
+                self.assertEqual(r["edges"], n)
+
+    def test_after_transform_globals_and_foreach(self):
+        # cfn-lint --build-graph と同じく、変換（SAM の Globals、Fn::ForEach）の後のグラフで照合する（レビューの M1）
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            write_files(tmp, {
+                "sam.yaml": """
+                    Transform: AWS::Serverless-2016-10-31
+                    Globals:
+                      Function:
+                        Environment:
+                          Variables: {T: !Ref Topic}
+                    Resources:
+                      Topic: {Type: AWS::SNS::Topic}
+                      F:
+                        Type: AWS::Serverless::Function
+                        Properties: {Runtime: python3.13, Handler: app.handler, InlineCode: x}
+                    """,
+                "foreach.yaml": """
+                    Transform: AWS::LanguageExtensions
+                    Resources:
+                      T: {Type: AWS::SNS::Topic}
+                      "Fn::ForEach::Q":
+                        - N
+                        - [a, b]
+                        - "Q${N}":
+                            Type: AWS::SQS::Queue
+                            Properties: {Tags: [{Key: t, Value: !Ref T}]}
+                    """,
+            })
+            sam = self.c1.check_input(tmp / "sam.yaml")
+            fe = self.c1.check_input(tmp / "foreach.yaml")
+        self.assertEqual((sam["edges"], sam["unmatched"]), (1, []))
+        self.assertEqual((fe["edges"], fe["unmatched"]), (2, []))
+
+    def test_discover_includes_all_required_inputs(self):
+        # CRITERIA の 1.6 の対象（C01〜C05、SAM 版、自作 fixture）が、探した入力にすべて含まれる（レビューの R1）
+        self.assertEqual(self.c1.missing_required(self.c1.discover()), [])
+
+    def test_fixture_edge_counts(self):
+        # cfn-lint の挙動が変わったら気づけるように、辺の数を固定する
+        counts = {"three-tier/template.yaml": 60, "serverless-api/template.yaml": 14,
+                  "vpc-endpoints/template.json": 56, "rag/template.yaml": 31}
+        for t, n in counts.items():
+            with self.subTest(t):
+                self.assertEqual(self.c1.check_input(FIXTURES / t)["edges"], n)
+
+    def test_address_prefix(self):
+        ap = self.c1.address_prefix
+        self.assertEqual(ap("Vpc"), "")
+        self.assertEqual(ap("NetworkStack/Vpc"), "NetworkStack/")
+        self.assertEqual(ap("A/B/Vpc"), "A/B/")
+        self.assertEqual(ap("App::Vpc"), "App::")
+        self.assertEqual(ap("App::Child/Queue"), "App::Child/")
+        self.assertEqual(ap("Queue*"), "")
+
+    def test_prefix_match(self):
+        pm = self.c1.prefix_match
+        self.assertTrue(pm("Properties.Policy", "Properties.Policy.Statement[0]"))
+        self.assertTrue(pm("Properties.A[0]", "Properties.A"))
+        self.assertFalse(pm("Properties.Ab", "Properties.A"))
+
 
 
 def write_files(tmp: Path, files: dict[str, str]) -> None:

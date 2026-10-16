@@ -52,7 +52,18 @@
       - （解消）手順4 までの既知の差（vpc-endpoints の parameters.json、Fn::ForEach）
    4. （済）A4（CFN 側の評価）: Conditions を3つの値で、リソースの Condition（子のスタックにも伝える）、`Fn::If`・`FindInMap`・`Fn::ForEach`、`--param`／`--param-file`。three-tier の dev／prod、vpc-endpoints の parameters.json で確認
       - 注意: YAML 1.1 では `On`／`Off`／`Yes`／`No` が真偽値として読まれる（cfn-lint も同じ）。条件やリソースの名前に使われていると名前を失うので、`str()` で済ませず、元の名前を引けるようにする。ネストスタックの子の `enabled` は親から引き継ぐので、親の Condition を評価したら子にも伝わるようにする
-   5. C1（cfn-lint のグラフとの突き合わせ。CRITERIA の 1.6）と、フェーズ1 の完了基準の確認
+   5. （済）C1 の道具 `aws-iac-diagram-workspace/tools/c1_check.py`（入力を省くと fixture と公開サンプルの CFN をすべて調べる。CI でも流す）。入力 25・cfn-lint の辺 513 本で対応の無い辺 0。ir-schema.md の 7章（raw）を確定
+   - **フェーズ1 は完了**（2026-10-17）。完了基準（テストが通る、cfn-lint の辺のすべてに raw IR の参照が対応する）を満たした
+   - 既知の制約（フェーズ1 から持ち越し）:
+     - cdk.out は、テストの中で作った manifest でしか確かめていない。実際の `cdk synth` の出力は公開サンプルに無く、C1 の対象（`c1_check.py` の discover はフォルダを見ない）にも入っていない。フェーズ6 の評価の前に、実物の cdk.out を1つ fixture に足して確かめる
+     - C1 の `raw_only`（raw IR にあって cfn-lint に無い参照）は、ネストスタックの出力をたどった参照の数え方の違い（WORKLOG の「フェーズ1 の手順5」）。参考値で基準ではない
+3a. **フェーズ2（Terraform アダプタ）**。同じ raw IR（ir-schema.md の 7章）を .tf と plan JSON から出す。決まっていること・気をつけること:
+   - plan JSON があれば `configuration` の参照を優先し、無ければ .tf（python-hcl2）。count／for_each の値が決まらないものは ×N（address は `[*]`）
+   - A4（TF 側の評価）: tfvars・`*.auto.tfvars`・default・単純な locals。A5: terraform-aws-modules の vpc／eks／rds／alb の要約表（`via: module_summary`）。要約表に無いレジストリモジュールは黒箱（`module`）、IAM だけのものは H-IAM
+   - `data.aws_region`・`aws_caller_identity`・`aws_partition` は `$pseudo`（CFN と同じ名前）。`jsonencode(...)` は `$json`。スプラットはインスタンスごとの `$res` のリスト
+   - python-hcl2 は heredoc の終端の空白で読めない（T06。前処理して `diagnostics` に info）。`terraform_remote_state` の扱いはフェーズ2 で決める（ir-schema.md の 8章）
+   - フェーズ1 の終わりのレビューで挙がった、TF で raw IR（7章）に足しそうなもの: `terraform.workspace`（`$pseudo` の一覧に無い。評価した値の `default` にするか、Schema に足す）、provider の alias・リージョン（CloudFront の証明書の us-east-1 など。要るなら `resources[].region` のような任意のフィールド）、plan JSON の `configuration` の `references` が `aws_subnet.private[0].id`・`aws_subnet.private[0]`・`aws_subnet.private` を重ねて出すこと（最も細かいインスタンスの address にまとめる規則を 7.3 に書く）、`templatefile()`／`file()` の中の参照（`$unknown` と `unevaluated`）、`path.module`（評価した相対パス）
+   - 完了基準: 同じ構成の TF 版と CFN 版が同じ IR になる（正規化の後。フェーズ2 ではアダプタの出力を、正解 IR の TF 側の網羅分類と突き合わせるテスト（CFN の `ExpectedIrTest` と同じ形）を先に作る）
    - 主セットの正解 IR は、ツールの出力を見る前に別のサブエージェントが書き、さらに別のサブエージェントがレビューする（CRITERIA.md の 1.2）。
 3. フェーズ5 の `export_png.py` は `scripts/lib/drawio_cli.py`（draw.io の探索と `-x -f png --disable-gpu` の呼び出し、0 バイトの失敗扱い、Linux の `--no-sandbox` と `xvfb-run`）を使って作る。draw.io が使えなければ（`DRAWIO` のパスが無いときも）PNG だけスキップして `result.json` に書き、終了コードは 0 のまま。
 4. **実行環境の方針は PLAN.md の 1.2、共通 Agent Skill の方針は 1.3（こちらが優先）。** 中心部分は Python だけ、起動は `uv run` の1行、結果は JSON、PNG は環境で切り替え、GitHub の画面からは Actions で PNG を作る、配布はタグ、WSL は Linux の確認用。
