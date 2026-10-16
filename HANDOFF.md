@@ -47,8 +47,9 @@
 1. （済）表の 5（評価基準値）。
 2. **フェーズ1**（CloudFormation のアダプタ）。5つの手順に分けて1つずつ進める（2026-10-17 にユーザーと合意）。
    1. （済）IR スキーマの確定（ir-schema.md v1.0。raw の形は手順5 で確定）。評価基準の 1.6（C1）を raw の段階の照合に変え、1.8 を足した（ユーザーの了承）。正規化後の形の確定（`attrs` のキーの表、黒箱のモジュール `module`、×N、AZ が静的に決まらないときの key）、アダプタの出力（`stage: "raw"`、7章と `ir-raw.schema.json`）、公開サンプルの問題の扱い（7.4）、「辺にしない参照」（edge-rules.md の `E-NOEDGE-*`）
-   2. CFN アダプタの土台: YAML の短縮タグの正規化（失敗知見 13）、Ref・GetAtt・Sub・ImportValue・DependsOn から raw IR の `props` の印と `references` を作る
+   2. （済）CFN アダプタの土台（`scripts/adapters/cfn.py`）。短縮タグの正規化と、組み込み関数から raw IR の印と参照を作る。fixture の CFN 10 本で cfn-lint の辺 214 本がすべて対応した（仮の照合）。`Fn::If`・`FindInMap`・`Condition` は手順4 まで `$unknown`
    3. SAM の Events、ネストスタック（S3 URL の読み替えを含む。7.4）、cdk.out
+      - 既知の差（手順4 まで）: vpc-endpoints の CFN 版は `parameters.json` の上書き（Project=net）を読まないので、名前が正解 IR と合わない。Fn::ForEach は飛ばしている（`CFN-DEFERRED`）
    4. A4（CFN 側の評価）: Parameters の default、Conditions、`Fn::If`、`Fn::FindInMap`
    5. C1（cfn-lint のグラフとの突き合わせ。CRITERIA の 1.6）と、フェーズ1 の完了基準の確認
    - 主セットの正解 IR は、ツールの出力を見る前に別のサブエージェントが書き、さらに別のサブエージェントがレビューする（CRITERIA.md の 1.2）。

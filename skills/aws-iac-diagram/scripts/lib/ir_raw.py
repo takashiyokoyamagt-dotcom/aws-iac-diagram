@@ -83,6 +83,8 @@ def normalize_concat(parts: list):
                 out.append(it)
     if all(isinstance(p, str) for p in out):
         return "".join(out)
+    if len(out) == 1:  # 印が1つだけなら、その印そのもの
+        return out[0]
     return {"$concat": out}
 
 

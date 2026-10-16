@@ -307,3 +307,39 @@ HANDOFF の表の 4 は、2回目の第三者レビューで「コミット可�
 - **R1** 1.8 の「根拠に出てくる」を機械で照合できない → ツールが出す根拠は `<from>.<path>` で始める（ir-schema.md の 4章）と決め、1.8 は前方一致で照合する（ユーザーの了承）。「使わなかった参照」の件数と内訳を、フェーズ3 の完了の確認で必ず見る。
 - **R2** CDK のスタック名のハイフンを `through` で認めた。軽微: `E-REF-NONODE` の重複、`$concat` の中の `$json` を禁止、`$az: "*"` は AZ のノードを作らない、`["k"]` を除いたときの属性名の注。
 - テストは計 85 件。
+
+---
+
+## 2026-10-17（続き）フェーズ1 の手順2: CloudFormation アダプタの土台
+
+### やったこと
+1. `skills/aws-iac-diagram/scripts/adapters/cfn.py` を作った（PEP 723 で PyYAML）。`uv run scripts/adapters/cfn.py --input <テンプレート> --out <raw.json> [--root-base <フォルダ>]`。終了コードは 0（書けた）／2（読めない）。
+   - **短縮タグ:** YAML の `!Ref` などを、awscli の yamlhelper と同じ考え方で `Fn::*` の長い形にする（失敗知見 13）。`!GetAtt A.B.C` は最初の `.` で分ける。YAML の日付の暗黙の型変換を外した（`'2010-09-09'` を文字列のまま読む）。JSON のテンプレートも読む。
+   - **評価する関数:** `Ref`（リソース・パラメータの Default・擬似パラメータ・`AWS::NoValue`）、`Fn::GetAtt`、`Fn::Sub`（文字列と変数の表の2形式、`${!Literal}`、`${X.Attr}`）、`Fn::Join`、`Fn::Select`（`!GetAZs` からは `$az`、選ばれなかった要素の参照は `pruned`）、`Fn::Split`（`$concat` の分割）、`Fn::GetAZs`、`Fn::ImportValue`（`$import`）、`{{resolve:…}}`・SSM の型のパラメータ（`$unknown`）。
+   - **手順4 に回したもの:** `Fn::If`・`Fn::FindInMap`・`Fn::Equals` などと、リソースの `Condition`。それまでは `$unknown`（診断 `CFN-DEFERRED`）にし、中の参照は `unevaluated` で残す。`Condition` のあるリソースは `enabled: null`。
+   - `Fn::Sub` で組み立てた JSON の文字列は、`${…}` を目印に置き換えて JSON として読めれば `$json` にする。
+   - 参照は、評価中は印に一時的な `__fn` を付けて運び、最後に props から集めて active の参照にする（`path` の作り方を ir_raw.py の `join_path` に一本化）。`Metadata`・`CreationPolicy`・`UpdatePolicy` の中の参照と `DependsOn` も出す。入力の `$` で始まるキーは `$$` で逃がす。
+2. `lib/ir_raw.py` の `normalize_concat` を直した（印が1つだけ残ったときは印そのものにする）。Schema の `$concat` の要素は2つ以上にした。
+3. テスト `tests/test_cfn_adapter.py`（9件。短縮タグと長い形が同じ結果になる、各関数の値、`$json`、`$$`、`pruned`・`unevaluated`、IAM の `Condition` をふつうのプロパティとして読む、`DependsOn` と `Metadata`、出力が毎回同じ、fixture の全テンプレートで raw IR が検査を通る）。計 94 件が通過。
+
+### 確かめたこと
+- 自作 fixture の CFN テンプレート 10 本（three-tier、serverless-api、vpc-endpoints、rag、three-tier-modules の root と子5本）で raw IR を作り、`validate_ir.py` が通った。
+- cfn-lint 1.57.2 のグラフの辺 214 本と、raw IR の参照を、CRITERIA の 1.6 の照合（関数の位置で止めて前方一致）の仮の版で突き合わせ、**対応の無い辺は 0 件**だった（テンプレートごと。ネストスタックをまたぐ辺は手順3）。仮の照合のスクリプトは手順5 で正式な道具にする。
+- PowerShell 5.1 から `uv run` で起動でき、日本語とスペースを含むパスに書けた。
+
+### つまずいたこと
+- cfn-lint のグラフの `source_paths` は「パスの一覧」ではなく、1本のパス（要素のリスト）だった。
+- 仮の照合で、`aws:SourceArn` のような識別子として書けないキーのつなぎ方が raw IR と違い、1本だけ外れた。照合の側も `join_path` を使うことにした（手順5 の道具でも同じにする）。
+- `Fn::Sub` の JSON を読むときの目印に `\u0000` を使ったら、JSON の文字列の中では許されず読めなかった。`json.loads(..., strict=False)` で読む。
+
+### 第三者レビュー（判定「修正後コミット」）と対応
+- レビュアーの確認: 自作 fixture の CFN 10 本（cfn-lint の辺 214 本）と、公開サンプルの CFN 33 本（辺 295 本。C01〜C05、serverless-patterns の SAM）で、CRITERIA の 1.6 の照合で**対応の無い辺は 0 件**。公開サンプルで落ちたテンプレートは無し（読めなかったのはテンプレートではない `event.json`・`parameters.json` だけ）。
+- **M1** 長い形の文字列 `Fn::GetAtt: A.B` を読めず、参照を取りこぼしていた → 文字列なら最初の `.` で分ける（`getatt` と、評価しない値の中の参照を探す `_static_refs` の両方）。
+- **M2** `Fn::ForEach::*`、本体がオブジェクトでないリソース、`!Sub` の変数に `AWS::NoValue` で例外のまま落ちていた → `Fn::ForEach` は `CFN-DEFERRED`（手順4）、形の崩れたリソースと `Type` の無いリソースは `CFN-MALFORMED-RESOURCE`（error）にして飛ばす。文字列の中の `AWS::NoValue` は `$unknown`。想定外の例外も終了コード 2 で返す。
+- **R1** `$concat` に真偽値・null が残っていた → 真偽値は `true`／`false`、null は `$unknown`。
+- **R2** タブで字下げした JSON（拡張子 `.template`）を読めなかった → `{` で始まれば先に JSON として読む。
+- **R3** JSON の文字列が、印があれば `$json`、無ければ文字列になり、同じプロパティで形が揺れた → 印の無い JSON の文字列も `$json` にする（ir-schema.md の 7.2）。文字列の途中の JSON は `$unknown`。
+- **R4** cfn-lint のグラフとの照合を回帰テスト（`CfnLintGraphTest`）にした。境界の入力のテストも足した。
+- **R5** 文字列の途中の `{{resolve:…}}` を見つける、名前が計算になる `Fn::ImportValue` の診断に名前のひな形を残す、同じ診断を1つにまとめる、ドライブが違うときは root を絶対パスにして診断を出す。
+- 軽微: `split_concat` の不要な条件を外した。
+- テストは計 100 件。
