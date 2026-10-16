@@ -1,3 +1,7 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["Pillow==12.3.0"]
+# ///
 """辞書の全アイコンを draw.io で実際に描画し、壊れたアイコンを検出する（PLAN 4 の C2）。
 
 流れ:
@@ -30,9 +34,12 @@
 期待どおりに判定されなければ異常終了して辞書を更新しない。
 
 使い方:
-  python scripts/check_icons.py                # 描画・判定して broken.json と辞書を更新
-  python scripts/check_icons.py --no-write     # 判定だけ（辞書は更新しない）
-  python scripts/check_icons.py --work-dir DIR # .drawio・PNG・report.json の置き場所
+  uv run scripts/check_icons.py                # 描画・判定して broken.json と辞書を更新
+  uv run scripts/check_icons.py --no-write     # 判定だけ（辞書は更新しない）
+  uv run scripts/check_icons.py --work-dir DIR # .drawio・PNG・report.json の置き場所
+
+辞書の保守用。開発リポジトリの中でだけ使う（既定の作業ディレクトリは SKILL のフォルダの2つ上を
+リポジトリのルートとみなして決める。配布先では SKILL.md から呼ばない）。
 """
 from __future__ import annotations
 
@@ -54,10 +61,10 @@ from lib.drawio_cli import DrawioError, drawio_version, export_png, find_drawio 
 try:
     from PIL import Image
 except ImportError:  # pragma: no cover
-    sys.exit("Pillow がありません: .venv の pip で requirements.txt を入れ直してください。")
+    sys.exit("Pillow がありません: uv run で起動してください（依存はスクリプト先頭の PEP 723 の宣言にあります）。")
 
 SKILL_DIR = SCRIPTS_DIR.parent
-REPO_DIR = SKILL_DIR.parent
+REPO_DIR = SKILL_DIR.parent.parent  # skills/aws-iac-diagram の2つ上
 ICONS_DIR = SKILL_DIR / "references" / "icons"
 CATALOG = ICONS_DIR / "catalog.json"
 BROKEN_JSON = ICONS_DIR / "broken.json"

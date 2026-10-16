@@ -1,3 +1,7 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["python-hcl2==8.1.4", "PyYAML==6.0.3"]
+# ///
 """テスト用構成（fixtures）の入力リソースを列挙する小さなライブラリ。
 
 本番のアダプタ（PLAN 3 の ① adapters/）ではない。正解 IR の網羅分類（A6）と入力の突き合わせ、

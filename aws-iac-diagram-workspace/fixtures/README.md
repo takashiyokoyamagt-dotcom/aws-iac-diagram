@@ -5,7 +5,7 @@
 | `public/` | 公開サンプル（T01〜T20、P01〜P04、C01〜C05）。出典は [public/SOURCES.md](public/SOURCES.md)、C3 で使うものの選定は [public/SELECTION.md](public/SELECTION.md) |
 | `tf/<名前>/`、`cfn/<名前>/` | 自作の構成5種。同じ構成の Terraform 版と CloudFormation 版 |
 
-正解 IR は `../expected/<名前>.ir.json`（TF 版・CFN 版で共通の1ファイル。形式ごとの違いは `sources.tf`／`sources.cfn` に書く）。IR の形は [references/ir-schema.md](../../aws-iac-diagram/references/ir-schema.md)。
+正解 IR は `../expected/<名前>.ir.json`（TF 版・CFN 版で共通の1ファイル。形式ごとの違いは `sources.tf`／`sources.cfn` に書く）。IR の形は [references/ir-schema.md](../../skills/aws-iac-diagram/references/ir-schema.md)。
 
 ## 自作の構成5種
 
@@ -25,19 +25,19 @@
 - 描くリソースにはすべて名前（`Name` タグか名前属性）を付けている。ノード ID は名前から作る（K-NAME）ので、TF 版と CFN 版で名前が同じなら ID も同じになる。
 - **デプロイはしない前提。** S3 バケット名（`shop-orders-archive`、`rag-docs`）は全世界で一意なので、そのままでは取れない可能性が高い。実際にデプロイするときは、名前に変数で接尾辞（アカウントID など）を足すこと。ただし名前を変えるとノード ID も変わる（K-NAME）ので、正解 IR とは別に評価する。
 - デプロイはしない。構文と型・属性の正しさは次で確かめた。terraform は入れていない（`terraform validate` はしていない）。
-  - CFN: `cfn-lint`（1.57.2、`requirements-dev.txt`）で全テンプレートがエラー・警告 0。ネストスタックの `TemplateURL` はローカルパス（`aws cloudformation package` 前提）で、その警告 W3002 だけはテンプレート内で無効にしている。
+  - CFN: `cfn-lint`（1.57.2、`pyproject.toml`）で全テンプレートがエラー・警告 0。ネストスタックの `TemplateURL` はローカルパス（`aws cloudformation package` 前提）で、その警告 W3002 だけはテンプレート内で無効にしている。
   - TF: 全 `.tf`／`.tfvars` を python-hcl2 で読めること。
 
 ## 検証のしかた
 
 ```powershell
 # 正解 IR がスキーマと参照の整合・出力の形（C5）に合うか。three-tier と three-tier-modules の canonical 部が同じか
-.\.venv\Scripts\python.exe aws-iac-diagram\scripts\validate_ir.py aws-iac-diagram-workspace\expected\*.ir.json `
+uv run python skills\aws-iac-diagram\scripts\validate_ir.py aws-iac-diagram-workspace\expected\*.ir.json `
   --same-canonical aws-iac-diagram-workspace\expected\three-tier.ir.json aws-iac-diagram-workspace\expected\three-tier-modules.ir.json
 # 入力の全ブロックが網羅分類にあり、網羅分類に入力に無いものが無いか。count／for_each は単純な式
 # （length(var.X)、toset(var.X)、var.X）だけ評価してインスタンス数も照合する（locals・条件式・モジュールの中は (注) と表示して照合しない）。
 # --lint で cfn-lint と python-hcl2 も
-.\.venv\Scripts\python.exe aws-iac-diagram-workspace\tools\check_coverage.py --lint
+uv run python aws-iac-diagram-workspace\tools\check_coverage.py --lint
 ```
 
 `tools/iac_inventory.py` は入力リソースを列挙するだけの小さなライブラリで、本番のアダプタではない（評価できるのは上の単純な count／for_each の式と変数の値だけ）。

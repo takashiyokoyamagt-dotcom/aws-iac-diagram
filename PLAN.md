@@ -1,8 +1,8 @@
 # aws-iac-diagram 計画書
 
 - 作成日: 2026-10-14
-- 状態: **フェーズ0 実施中**（2026-10-15）。HANDOFF の表の 4（自作テスト構成・正解 IR・第三者レビュー）まで完了し、次は表の 5（評価基準値）。実行環境の方針は 1.2 に追加した。再開時は [HANDOFF.md](HANDOFF.md) から読むこと
-- 目的: Terraform と CloudFormation のコードを読み込み、AWS 構成図を draw.io・Mermaid・PNG の3形式で出力する Claude Code 用の SKILL を作る
+- 状態: **フェーズ0 実施中**（2026-10-16）。HANDOFF の表の 4（自作テスト構成・正解 IR・第三者レビュー）まで完了し、次は表の 5（評価基準値）。実行環境の方針は 1.2、**共通 Agent Skill の方針は 1.3**（1.1・1.2 より優先する）。再開時は [HANDOFF.md](HANDOFF.md) から読むこと
+- 目的: Terraform と CloudFormation のコードを読み込み、AWS 構成図を draw.io・Mermaid・PNG の3形式で出力する Agent Skill を作る。1つの SKILL を Claude Code、VS Code + GitHub Copilot、GitHub Agentic Workflows（gh-aw）で共通に使う（1.3）
 
 ---
 
@@ -13,8 +13,8 @@
 | 入力（Terraform） | `.tf` を python-hcl2 で静的に解析するのが基本。`terraform show -json` の plan JSON があれば、そちらを優先して使う |
 | 入力（CloudFormation） | YAML と JSON の両方。SAM と CDK の出力（`cdk.out` 配下のテンプレート）も対象 |
 | 出力 | `.drawio`（これを正本とする）、`.mmd`（Mermaid）、`.png` の3形式 |
-| 置き場所 | 独立した private リポジトリ `takashiyokoyamagt-dotcom/aws-iac-diagram`。`~/.claude/skills/aws-iac-diagram` から symlink で参照する（手元用）。ほかのリポジトリやクラウドへの配り方は 1.2 の 4（プラグイン） |
-| インストール（許可済み） | draw.io Desktop（brew cask）、`@mermaid-js/mermaid-cli`（npm）、`python-hcl2`・`defusedxml`（venv に入れる）。WSL と CI に入れる物（draw.io の deb、xvfb、Chromium）は未許可で、入れる前にユーザーの許可を得る |
+| 置き場所 | 独立した private リポジトリ `takashiyokoyamagt-dotcom/aws-iac-diagram` の `skills/aws-iac-diagram/`。手元では `~/.claude/skills/aws-iac-diagram` と `~/.copilot/skills/aws-iac-diagram` からジャンクションで参照する。ほかのリポジトリやクラウドへはタグを付けて配る（1.3 の 5） |
+| インストール（許可済み） | draw.io Desktop（brew cask／winget）、`@mermaid-js/mermaid-cli`（npm）、uv（winget、2026-10-16）。Python のパッケージは uv が入れる。WSL と CI に入れる物（draw.io の deb、xvfb、Chromium）は未許可で、入れる前にユーザーの許可を得る |
 | ダウンロード（許可済み） | draw.io の `Sidebar-AWS4.js`（Apache-2.0）、awslabs/aws-icons-for-plantuml の Mermaid 用アイコン JSON（AWS アイコンの利用規約に従う） |
 | ライセンス上の注意 | TerraVision は AGPL-3.0 なので、考え方だけを参考にしてコードは流用しない。awslabs のスキル（Apache-2.0）や vidanov のスキル（MIT）から取り入れた知見は、NOTICE に出典を明記する |
 
@@ -30,7 +30,7 @@
 |---|---|---|
 | draw.io Desktop | `brew install --cask drawio` | `winget install JGraph.Draw`（v32.4.1、`%LOCALAPPDATA%\Programs\draw.io\draw.io.exe`） |
 | SKILL の登録 | symlink（`ln -s`） | ジャンクション（`mklink /J`。管理者権限も開発者モードも不要） |
-| venv の Python | `.venv/bin/python` | `.venv\Scripts\python.exe`（3.12.10） |
+| venv の Python | `.venv/bin/python` | `.venv\Scripts\python.exe`（3.12.10）。**1.3 で `uv run` に置き換えた** |
 | PNG 書き出し | `export_png.sh` の予定だった | **`export_png.py` に変更**し、両 OS で同じスクリプトを使う。draw.io の実行ファイルの場所は OS ごとに探す |
 
 - スクリプトは Python で書き、シェルスクリプトは作らない。パスは `pathlib` で扱う。
@@ -55,14 +55,10 @@ Windows（手元）と GitHub の Web UI（Claude Code on the web、GitHub Actio
    - CI では draw.io の版、ランナーのイメージ（例 `ubuntu-24.04`）、フォントを固定する（C5 を守る。どれかが違うと PNG の差分が出る）。これでバイト単位で同じ PNG になるかは 5a で試し、駄目なら PNG の基準（バイト一致）を見直す。
    - 同じ GitHub Actions で（ワークフローは別）、Windows と Ubuntu の両方でテストを流す。
    - 手元の Windows で作った PNG と CI で作った PNG のどちらをコミットするかは未決（ユーザーが決める）。
-4. **SKILL はプラグインとして配る。** いまの `~/.claude/skills` のジャンクションは手元でしか効かない。このリポジトリをプラグインのマーケットプレイスにして、図を作りたいリポジトリの `.claude/settings.json` で有効化する案。プラグインの置き方は次の2案を候補にし、5a の結果を見てフェーズ6 で決める。
-   - マーケットプレイスの下に `plugins/aws-iac-diagram/` を作り、そこから SKILL 本体を参照する。
-   - リポジトリのルート自体をプラグインにする。
-
-   プラグインはキャッシュにコピーされる可能性があり、そのときはプラグインのディレクトリの外のファイルを参照できない。非公開リポジトリをクラウドから読めるかも未確認。
+4. ~~SKILL はプラグインとして配る。~~ **1.3 の 5 でタグ付きの Skill リポジトリから配ることにし、プラグイン案はやめた**（2026-10-16）。
 5. **WSL（Ubuntu）は Linux での動作確認用に使う。**
    - 普段の開発と SKILL の利用は Windows ネイティブのまま。
-   - WSL には Linux 用の `.venv`、draw.io の deb、xvfb、mmdc を入れ、push の前に Linux での動きを試す。
+   - WSL には uv、draw.io の deb、xvfb、mmdc を入れ、push の前に Linux での動きを試す。
    - 確認用のリポジトリは WSL 側へ clone する（`/mnt/c` 越しはファイル I/O が遅い）。
    - WSL は通常 WSLg で `DISPLAY`／`WAYLAND_DISPLAY` があるので、そのままでは画面ありの経路になり、クラウドや CI と同じ xvfb の経路を通らない。WSL では `DISPLAY`／`WAYLAND_DISPLAY` を外すか、xvfb を使う指定をして画面なしの経路を試す。
 
@@ -72,8 +68,9 @@ Windows（手元）と GitHub の Web UI（Claude Code on the web、GitHub Actio
 |---|---|---|---|
 | Windows 11（手元） | 普段の開発、SKILL の利用 | Python だけで生成 | draw.io Desktop（`--disable-gpu`）。mmdc は `.mmd` の描画確認 |
 | Mac | 予備の開発環境 | Python だけで生成 | draw.io Desktop。mmdc は `.mmd` の描画確認 |
-| WSL（Ubuntu） | push 前の Linux での動作確認 | Python だけで生成（Linux 用の `.venv`。リポジトリは WSL 側へ clone） | draw.io の deb を `DISPLAY`／`WAYLAND_DISPLAY` を外して（または xvfb を使う指定で）`xvfb-run`＋`--no-sandbox` で。`--disable-gpu` も付ける（Windows と引数をそろえる。xvfb には GPU が無い）。mmdc は Chromium＋`--no-sandbox` |
-| Claude Code on the web／Actions の `@claude` | GitHub の画面からの SKILL の利用 | Python だけで生成 | 動けば `xvfb-run`＋`--no-sandbox`＋`--disable-gpu`。動かなければ PNG をスキップして報告し、下の CI に任せる |
+| WSL（Ubuntu） | push 前の Linux での動作確認 | Python だけで生成（`uv run`。リポジトリは WSL 側へ clone） | draw.io の deb を `DISPLAY`／`WAYLAND_DISPLAY` を外して（または xvfb を使う指定で）`xvfb-run`＋`--no-sandbox` で。`--disable-gpu` も付ける（Windows と引数をそろえる。xvfb には GPU が無い）。mmdc は Chromium＋`--no-sandbox` |
+| VS Code + Copilot（Windows） | SKILL の利用（WSL を使わない人も含む）。コマンドは PowerShell 5.1 で実行される | Python だけで生成（`uv run`） | draw.io Desktop（`--disable-gpu`）。無ければ PNG をスキップ |
+| Claude Code on the web／Actions の `@claude`／gh-aw | GitHub の画面からの SKILL の利用。コマンドは bash で実行される | Python だけで生成（`uv run`） | 動けば `xvfb-run`＋`--no-sandbox`＋`--disable-gpu`。動かなければ PNG をスキップして報告し、下の CI に任せる |
 | GitHub Actions（CI） | PNG の生成、両 OS のテスト | テストで生成して検証 | 版・ランナーのイメージ・フォントを固定した draw.io（Ubuntu は `xvfb-run`）。結果をコミットか artifact に |
 
 **採らない案**
@@ -86,9 +83,34 @@ Windows（手元）と GitHub の Web UI（Claude Code on the web、GitHub Actio
 **未確認事項**（フェーズ5 の手前のスパイク 5a で小さく試す）
 - クラウドの環境（Claude Code on the web、Actions の `@claude`）で draw.io＋xvfb が動くか。apt で入れられるか、ネットワークの制限で deb を取れるか。
 - 同じ環境で mmdc（Chromium＋`--no-sandbox`）が動くか。
-- 非公開リポジトリのプラグイン（マーケットプレイス）をクラウドのセッションから読み込めるか。
-- プラグインのディレクトリの外のファイルを参照できるか（プラグインがキャッシュにコピーされる場合は参照できない）。
+- gh-aw で、ワークフローの frontmatter に `uv` の実行とネットワーク（`pypi.org`、`files.pythonhosted.org`、`github.com`）の許可を書けば `uv run` が動くか。書き方を README に載せる。
+- gh-aw で、非公開のこのリポジトリの SKILL をタグを指定して読み込めるか（APM の `packages:`、`gh skill install`）。
+- VS Code + Copilot で、`~/.copilot/skills/` と `.github/skills/` に置いた SKILL が読まれ、PowerShell 5.1 から SKILL.md の1行のコマンドが動くか。`<SKILL>` を絶対パスに置き換えて実行するか。
+- Claude Code on the web で、図を作りたいリポジトリの `.claude/skills/` に置いた SKILL が読まれるか。
 - Actions で draw.io の版・ランナーのイメージ・フォントを固定したとき、PNG がバイト単位で同じになるか。
+
+### 1.3 共通 Agent Skill の方針（2026-10-16）
+
+[docs/skill-cross-platform-guide.md](docs/skill-cross-platform-guide.md)（以下ガイド）に従う。1.1・1.2 と食い違うところは、この節を優先する。
+
+1. **SKILL は1つだけ作る。** `skills/aws-iac-diagram/SKILL.md`（Agent Skills 標準。frontmatter は `name` と `description` だけ）を、Claude Code、VS Code + Copilot（Windows）、gh-aw で共通に使う。
+2. **エージェントに実行させるのは、OS とシェルに依存しない1行のコマンドだけにする。** 形は `uv run "<SKILL>/scripts/<名前>.py" --<引数> ... --out <ファイル>`。`&&`、パイプ、リダイレクト、`grep`、`$VAR` などは SKILL.md に書かない。処理はすべて Python のスクリプトの中で行う。
+3. **起動は `uv run` に統一する。** 依存は各スクリプトの先頭に PEP 723 で書く（版は `==` で固定し、C5 のために揃える）。`.venv`＋`requirements.txt` はやめ、開発用の環境（単体テスト・fixture の検証）は `pyproject.toml` と `uv.lock` にする。
+4. **結果はファイル（JSON、UTF-8・LF）で受け渡し、終了コードの意味を決める。** 0 = 成功（PNG や描画確認のスキップは結果の JSON に書き、0 のまま。1.2 の 2）、1 = 検証で問題が見つかった、2 = 実行エラー（`error` を JSON に書く）。PowerShell 5.1 で標準出力を受けると文字コードが変わるため、標準出力に頼らない。
+5. **配布はこのリポジトリからタグ付きで行う。** 使う側は `skills/aws-iac-diagram/` を丸ごと置く（Copilot: `.github/skills/` か `~/.copilot/skills/`、Claude Code: `.claude/skills/` か `~/.claude/skills/`、gh-aw: APM か `gh skill install` でタグを指定）。プラグイン（マーケットプレイス）は使わない。
+6. **SKILL のフォルダには実行に要るものだけを置く。** 単体テストはルートの `tests/`、fixture・正解 IR・開発用のツールは `aws-iac-diagram-workspace/` に置く。辞書の保守用のスクリプト（`build_icon_catalog.py`、`check_icons.py`）は当面 `scripts/` に置いたままにし、SKILL.md からは呼ばない。
+7. **環境チェックの `scripts/doctor.py` を置く。** OS、Python・uv の版、文字コード、draw.io と mmdc の有無、Linux の画面と `xvfb-run`、`GITHUB_ACTIONS` を JSON で出す。SKILL.md に「失敗したらまず doctor を実行して報告する」と書く。doctor の終了コードは 0 = そろっている、1 = 任意のツール（draw.io、mmdc）が無い、2 = SKILL のファイルが足りないか doctor 自体の失敗（4 の `diagram.py` とは 1 の意味が違う）。
+8. **環境ごとの違いは SKILL.md の中で分ける。** `GITHUB_ACTIONS=true`（gh-aw、`@claude`）なら対話的な確認をしない。それ以外は結果を見せ、変更の前に確認を取る。
+9. **Claude Code にしかない機能は必須の手順にしない。** C6 の別のサブエージェントによる目視採点や PostToolUse フックは、使える環境でだけ使う。正式な判定は validate.py の数値の検証（重なり・貫通・網羅など）とする。
+10. **CI は最初から Windows と Ubuntu の両方で流す**（`.github/workflows/ci.yml`）。Windows では利用者と同じ PowerShell 5.1 から、日本語とスペースを含むパスに置いた SKILL を起動して確かめる。
+
+図を作る入口のコマンド（フェーズ5・6 で作る。名前は仮）:
+
+```
+uv run "<SKILL>/scripts/diagram.py" --input <IaC のフォルダかファイル> --out-dir <出力先> [--env <dev など>]
+```
+
+出力先に `.drawio`・`.mmd`・`.png`・説明の `.md`・`coverage.md` と、結果の `result.json`（出したファイル、スキップしたもの、検証の結果、ユーザーに確かめたい点）を書く。あいまいな点（環境が複数あるなど）は `result.json` に書いて終了コード 0 で返し、エージェントがユーザーに確かめてから引数を足して再実行する（スクリプトは対話入力を使わない）。
 
 ---
 
@@ -198,19 +220,18 @@ Windows（手元）と GitHub の Web UI（Claude Code on the web、GitHub Actio
 
 ### リポジトリ構成（予定）
 
-`.github/workflows/` と `.claude-plugin/`、`plugins/` のファイル名と配置は仮（フェーズ5・6 で決める）。
+`render-png.yml` の名前は仮（フェーズ5 で決める）。
 
 ```
-aws-iac-diagram/
-├── PLAN.md  HANDOFF.md  README.md  NOTICE
-├── .github/workflows/               # （仮）1.2 の 3
-│   ├── render-png.yml               # .drawio のコミットで PNG を生成（.mmd は描画確認のみ）（draw.io の版を固定）
-│   └── test-matrix.yml              # Windows と Ubuntu で単体テストと3形式の生成・検証
-├── .claude-plugin/
-│   └── marketplace.json             # （仮）このリポジトリをプラグインのマーケットプレイスにする（1.2 の 4）
-├── plugins/aws-iac-diagram/         # （仮）プラグイン本体（.claude-plugin/plugin.json と skills/）。
-│                                    #   ルート自体をプラグインにする案もある。どちらにするかは 1.2 の 4 と 5a の結果を見てフェーズ6 で決める
-├── aws-iac-diagram/                 ← ~/.claude/skills/aws-iac-diagram からの symlink（Windows はジャンクション）先
+aws-iac-diagram/                     ← Skill 専用リポジトリ（正本）。タグを付けて配る（1.3 の 5）
+├── PLAN.md  HANDOFF.md  WORKLOG.md  README.md  NOTICE
+├── pyproject.toml  uv.lock  .python-version   # 開発用の環境（1.3 の 3）
+├── docs/skill-cross-platform-guide.md         # 共通 Agent Skill のガイド（1.3）
+├── .github/workflows/
+│   ├── ci.yml                       # Windows（PowerShell 5.1）と Ubuntu で単体テスト・検証・SKILL の起動（済。3形式の生成・検証はフェーズ6 で足す）
+│   └── render-png.yml               # （仮）.drawio のコミットで PNG を生成（.mmd は描画確認のみ）（draw.io の版を固定）
+├── tests/                           # 単体テスト（SKILL のフォルダの外）
+├── skills/aws-iac-diagram/          ← 配布する SKILL。手元では ~/.claude/skills と ~/.copilot/skills からジャンクション
 │   ├── SKILL.md
 │   ├── references/
 │   │   ├── resource-catalog.md      # aws_* ⇔ AWS::* ⇔ アイコン ⇔ 扱い（描く/統合/非表示/移動）
@@ -224,8 +245,10 @@ aws-iac-diagram/
 │       ├── adapters/{tf_plan,tf_hcl,cfn}.py
 │       ├── evaluate.py              # 変数・条件の評価（A4）
 │       ├── normalize.py  layout.py  emit_drawio.py  emit_mermaid.py
+│       ├── diagram.py               # 入口の1行のコマンド（1.3）。result.json と終了コードを返す
+│       ├── doctor.py                # 環境チェック（1.3 の 7。済）
 │       ├── export_png.py  validate.py  find_aws_icon.py
-│       ├── lib/drawio_cli.py        # draw.io の探索と呼び出し。Linux の画面判定と xvfb-run の付与を足す（1.2 の 2）
+│       ├── lib/drawio_cli.py        # draw.io の探索と呼び出し。Linux の画面判定と xvfb-run・--no-sandbox の付与（1.2 の 2。済）
 │       ├── build_icon_catalog.py    # Sidebar-AWS4.js から辞書を再生成
 │       └── check_icons.py           # 全アイコンを描画して壊れたものを検出（C2）
 └── aws-iac-diagram-workspace/
@@ -299,9 +322,9 @@ aws-iac-diagram/
 | 2 | ・Terraform アダプタ: plan JSON の `configuration` にある参照を優先し、なければ .tf<br>・count／for_each のうち値が決まらないものは「×N」として扱う<br>・A4（Terraform 側の評価）<br>・A5（4モジュール） | 同じ構成の Terraform 版と CloudFormation 版が同じ IR になる |
 | 3 | 正規化: 型別の表、A1、A2、A3、A6、AZ の挿入、SG を辺に変換、B3 | 未分類が0件。正解 IR に対する再現率と適合率が基準を満たす |
 | 4 | draw.io の出力と配置<br>・相対座標、辺と図形の2レイヤ、背景矩形<br>・B1、B2、C5<br>・ELK が入れ子のコンテナを保てるか試し、採否を決める | 重なりと貫通が0件。同じ入力を再実行してもバイト単位で同じになる |
-| 5a | スパイク（1.2 の未確認事項。フェーズ5 の手前で小さく試す）<br>・Claude Code on the web と Actions の `@claude` で、draw.io の deb＋xvfb を入れて `xvfb-run drawio --no-sandbox -x` が動くか<br>・同じ環境で mmdc（Chromium＋`--no-sandbox`）が動くか<br>・非公開リポジトリのプラグインをクラウドのセッションから読み込めるか<br>・プラグインのディレクトリの外のファイルを参照できるか（キャッシュにコピーされるか）。結果でプラグインの置き方（1.2 の 4 の2案）を絞る<br>・Actions で draw.io の版・ランナーのイメージ（例 `ubuntu-24.04`）・フォントを固定して、PNG がバイト単位で同じになるか | 各項目の可否と手順（または動かない理由）が WORKLOG に記録され、1.2 の表とフェーズ5・6 の作業が結果に合わせて直っている |
+| 5a | スパイク（1.2 の未確認事項。フェーズ5 の手前で小さく試す）<br>・Claude Code on the web と Actions の `@claude` で、draw.io の deb＋xvfb を入れて `xvfb-run drawio --no-sandbox -x` が動くか<br>・同じ環境で mmdc（Chromium＋`--no-sandbox`）が動くか<br>・gh-aw で `uv run` を許可する frontmatter の書き方と、非公開のこのリポジトリの SKILL をタグ指定で読み込めるか（APM、`gh skill install`）<br>・VS Code + Copilot（`~/.copilot/skills/`・`.github/skills/`）と Claude Code on the web（`.claude/skills/`）で SKILL が読まれ、1行のコマンドが動くか<br>・Actions で draw.io の版・ランナーのイメージ（例 `ubuntu-24.04`）・フォントを固定して、PNG がバイト単位で同じになるか | 各項目の可否と手順（または動かない理由）が WORKLOG に記録され、1.2 の表とフェーズ5・6 の作業が結果に合わせて直っている |
 | 5 | ・Mermaid の出力（アイコン付き版と GitHub 表示用版。ノードが多いときは flowchart に切り替える）<br>・PNG の書き出し（`export_png.py`）と環境による切り替え（1.2 の 2）: draw.io が使えない（見つからない・起動できない・タイムアウト・無出力か 0 バイト）ときは PNG だけスキップして報告し、`.drawio`／`.mmd` は出す。`DRAWIO` のパスが無いときもエラーではなくスキップにする。mmdc が使えないときは `.mmd` の描画確認だけスキップして報告<br>・Linux 対応: `drawio_cli.py` に画面の有無の判定と `xvfb-run`・`--no-sandbox` の付与、xvfb を使う指定（名前は仮）、Linux の既定の場所（`_candidates()` に既にある）の確認と追加。mmdc の puppeteer 設定（`--no-sandbox`）<br>・WSL（Ubuntu）での動作確認（`DISPLAY`／`WAYLAND_DISPLAY` を外すか xvfb を使う指定で、画面なしの経路を通す）<br>・GitHub Actions のワークフロー `render-png`（仮）: `.drawio` のコミットで PNG を生成（`.mmd` は描画確認だけ）してコミットか artifact に。draw.io の版・ランナーのイメージ・フォントを固定<br>・validate.py（必要なら PostToolUse フックも） | ・Windows で3形式とも生成でき、検証が通る<br>・WSL（Ubuntu）で画面なし（xvfb）の経路で3形式とも生成でき、検証が通る<br>・draw.io が無い環境（`DRAWIO` を存在しないパスにする、または PATH と既定の場所から外して試す）で `.drawio` と `.mmd` は出て検証が通り、PNG のスキップが報告され、終了コードは失敗にならない<br>・`render-png` が固定した版・イメージ・フォントで PNG を作り、同じ入力で再実行してもバイト単位で同じになる（5a で再現しないと分かれば基準を見直す） |
-| 6 | ・SKILL.md の作成<br>・プラグイン化: このリポジトリをマーケットプレイスにし（`.claude-plugin/` など、名前は仮。置き方は 1.2 の 4 の2案から選ぶ）、図を作りたいリポジトリの `.claude/settings.json` で有効化する手順を README に書く<br>・両 OS の CI `test-matrix`（仮。`render-png` とは別のワークフロー）: Windows と Ubuntu で単体テストと3形式の生成・検証<br>・評価: C3、C4、C6、3回実行したときのばらつき<br>・第三者レビューのサイクル | ・評価基準を満たす（基準値はフェーズ0で決める）<br>・Windows と Ubuntu の CI で3形式が生成でき、検証が通る<br>・別のリポジトリでプラグインを有効化して SKILL を使える（手元と、5a で可能と分かればクラウドのセッションでも）<br>・README と NOTICE を整える |
+| 6 | ・SKILL.md の仕上げ（骨組みは 2026-10-16 に作成済み。`diagram.py` の手順、`result.json` の読み方、あいまいな点の確認のしかた）<br>・配布: タグ（例 `v0.1.0`）を付け、Copilot・Claude Code・gh-aw での取り込み方を README に書く（1.3 の 5）<br>・CI `ci.yml`（`render-png` とは別のワークフロー）に3形式の生成・検証を足す<br>・評価: C3、C4、C6（使える環境で。1.3 の 9）、3回実行したときのばらつき<br>・第三者レビューのサイクル | ・評価基準を満たす（基準値はフェーズ0で決める）<br>・Windows と Ubuntu の CI で3形式が生成でき、検証が通る<br>・別のリポジトリにタグを指定して取り込み、VS Code + Copilot（Windows）・Claude Code・gh-aw で SKILL を使える（クラウドは 5a で可能と分かったもの）<br>・README と NOTICE を整える |
 
 ### 進め方
 - 実装はサブエージェントが行い、そのレビューは別のサブエージェントが第三者として行う（ほかのスキルと同じやり方）

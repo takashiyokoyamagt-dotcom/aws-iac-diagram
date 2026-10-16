@@ -1,3 +1,7 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
 """Sidebar-AWS4.js から AWS アイコン辞書を再生成する。
 
 アイコン名は推測せず、draw.io のサイドバー定義に実在するエントリだけを辞書に載せる（PLAN 2.2 の 1）。
@@ -10,7 +14,7 @@ JS の解析は正規表現ではなく、Node 上で Sidebar をスタブ化し
 壊れたアイコンの情報は references/icons/broken.json（check_icons.py の出力、C2）から読み、
 各エントリの `broken`（と `broken_reason`）としてマージする。辞書を再生成しても消えない。
 
-使い方: python scripts/build_icon_catalog.py [--sidebar PATH]
+使い方: uv run scripts/build_icon_catalog.py [--sidebar PATH]
 """
 from __future__ import annotations
 

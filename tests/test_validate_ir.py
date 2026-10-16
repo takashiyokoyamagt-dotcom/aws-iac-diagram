@@ -5,11 +5,12 @@ import sys
 import unittest
 from pathlib import Path
 
-SCRIPTS = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent
+SCRIPTS = ROOT / "skills" / "aws-iac-diagram" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 import validate_ir as v  # noqa: E402
 
-EXPECTED = SCRIPTS.parent.parent / "aws-iac-diagram-workspace" / "expected"
+EXPECTED = ROOT / "aws-iac-diagram-workspace" / "expected"
 
 
 def load(name="three-tier"):

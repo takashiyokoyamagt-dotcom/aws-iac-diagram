@@ -17,6 +17,43 @@ class DrawioError(RuntimeError):
     pass
 
 
+# 1 にすると、Linux で画面があっても xvfb-run を使う（WSLg 上で CI と同じ経路を試すため。PLAN 1.2 の 2）
+XVFB_ENV = "AWS_IAC_DIAGRAM_XVFB"
+XVFB_SCREEN = "-screen 0 1920x1080x24"
+
+
+def needs_xvfb(platform: str | None = None, environ: dict[str, str] | None = None) -> bool:
+    """Linux で画面が無い（DISPLAY も WAYLAND_DISPLAY も無い）か、XVFB_ENV=1 なら True。"""
+    platform = platform or sys.platform
+    env = os.environ if environ is None else environ
+    if not platform.startswith("linux"):
+        return False
+    if env.get(XVFB_ENV) == "1":
+        return True
+    return not (env.get("DISPLAY") or env.get("WAYLAND_DISPLAY"))
+
+
+def drawio_command(exe: Path, platform: str | None = None,
+                   environ: dict[str, str] | None = None) -> list[str]:
+    """draw.io を起動するコマンドの先頭部分。
+
+    Linux では Electron のサンドボックスがコンテナで落ちるので `--no-sandbox` を付け、
+    画面が無ければ `xvfb-run -a` の上で動かす。Windows／macOS は実行ファイルだけ。
+    """
+    platform = platform or sys.platform
+    if not platform.startswith("linux"):
+        return [str(exe)]
+    cmd = [str(exe), "--no-sandbox"]
+    if needs_xvfb(platform, environ):
+        xvfb = shutil.which("xvfb-run")
+        if not xvfb:
+            raise DrawioError("画面が無い Linux ですが、xvfb-run が見つかりません。"
+                              "Ubuntu では apt install xvfb で入れてください。")
+        # 既定の画面は 8bit なので、Electron が前提にする 24bit にする（PNG の再現性のため）
+        cmd = [xvfb, "-a", "-s", XVFB_SCREEN, *cmd]
+    return cmd
+
+
 def _candidates() -> list[Path]:
     """OS ごとの既定のインストール先（存在するかは問わない）。"""
     out: list[Path] = []
@@ -58,7 +95,7 @@ def find_drawio() -> Path:
 def drawio_version(exe: Path | None = None) -> str:
     exe = exe or find_drawio()
     try:
-        res = subprocess.run([str(exe), "--version"], capture_output=True, text=True,
+        res = subprocess.run([*drawio_command(exe), "--version"], capture_output=True, text=True,
                              encoding="utf-8", errors="replace", timeout=120, check=False)
     except (OSError, subprocess.TimeoutExpired) as e:
         raise DrawioError(f"draw.io --version を実行できませんでした: {e}") from e
@@ -80,7 +117,7 @@ def export_png(src: Path, dst: Path, *, page_index: int | None = None, border: i
     dst.parent.mkdir(parents=True, exist_ok=True)
     if dst.exists():
         dst.unlink()
-    cmd = [str(exe), "-x", "-f", "png", "--disable-gpu", "--theme", "light",
+    cmd = [*drawio_command(exe), "-x", "-f", "png", "--disable-gpu", "--theme", "light",
            "--timeout", str(timeout), "-b", str(border), "-o", str(dst)]
     if page_index is not None:
         cmd += ["-p", str(page_index)]

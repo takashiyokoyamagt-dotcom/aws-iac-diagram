@@ -1,3 +1,7 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["python-hcl2==8.1.4", "PyYAML==6.0.3", "cfn-lint==1.57.2"]
+# ///
 """正解 IR（expected/*.ir.json）の網羅分類（A6）と、fixture の入力リソースを突き合わせる。
 
 各正解 IR の sources.tf／sources.cfn について:
@@ -15,7 +19,9 @@
 さらに --lint で fixture の全 CFN テンプレートを cfn-lint にかけ、全 .tf／.tfvars を python-hcl2 で読む。
 
 使い方:
-  .venv\\Scripts\\python.exe aws-iac-diagram-workspace\\tools\\check_coverage.py [--lint]
+  uv run python aws-iac-diagram-workspace\\tools\\check_coverage.py [--lint]
+  （`uv run check_coverage.py` でも動くが、Windows では uv のキャッシュの中の cfn-lint のパスが
+  260 文字を超えて --lint が落ちることがあるので、リポジトリの開発用の環境で動かす）
 終了コード: 0 = 問題なし、1 = 不一致あり
 """
 from __future__ import annotations

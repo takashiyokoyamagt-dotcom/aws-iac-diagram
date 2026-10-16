@@ -1,0 +1,18 @@
+# 開発用の環境（単体テスト・fixture の検証）。`uv run python -m unittest discover -s tests -v` で使う。
+# SKILL のスクリプトはこの環境を使わず、各スクリプト先頭の PEP 723 の宣言だけで `uv run` から動く。
+# 版はスクリプト側の宣言と揃えること。
+[project]
+name = "aws-iac-diagram-dev"
+version = "0"
+requires-python = ">=3.12"
+dependencies = [
+    "python-hcl2==8.1.4",
+    "defusedxml==0.7.1",  # まだどのスクリプトも使っていない（.drawio の読み込みに使う予定）
+    "PyYAML==6.0.3",
+    "Pillow==12.3.0",
+    "jsonschema==4.26.0",
+    "cfn-lint==1.57.2",
+]
+
+[tool.uv]
+package = false

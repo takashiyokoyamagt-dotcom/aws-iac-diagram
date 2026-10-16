@@ -1,39 +1,80 @@
 # aws-iac-diagram
 
-Terraform（`.tf` と plan JSON）や CloudFormation（YAML／JSON、SAM、CDK の出力）を読み込み、AWS 構成図を作る Claude Code 用の SKILL です。構成図は draw.io・Mermaid・PNG の3つの形式で出力します。
+Terraform（`.tf` と plan JSON）や CloudFormation（YAML／JSON、SAM、CDK の出力）を読み込み、AWS 構成図を作る Agent Skill です。構成図は draw.io・Mermaid・PNG の3つの形式で出力します。
 
-現在は実装の初期段階（フェーズ0）です。計画は [PLAN.md](PLAN.md)、作業を再開するときの手順は [HANDOFF.md](HANDOFF.md) にまとめています。
+1つの SKILL（[skills/aws-iac-diagram/](skills/aws-iac-diagram/)）を、次の環境で共通に使います。作り方の方針は [docs/skill-cross-platform-guide.md](docs/skill-cross-platform-guide.md) にあります。
 
-## セットアップ
+- VS Code + GitHub Copilot（Windows。WSL は使わない）
+- Claude Code（手元、Claude Code on the web、GitHub Actions の `@claude`）
+- GitHub Agentic Workflows（gh-aw。GitHub Actions の Ubuntu ランナー）
 
-必要なもの: Python 3.12 以上、Node.js、draw.io Desktop、`@mermaid-js/mermaid-cli`
+現在は実装の初期段階（フェーズ0）です。図を作る処理はまだありません。計画は [PLAN.md](PLAN.md)、作業を再開するときの手順は [HANDOFF.md](HANDOFF.md) にまとめています。
 
-### Windows
+## SKILL を使う
 
-```powershell
-winget install -e --id JGraph.Draw
-npm install -g @mermaid-js/mermaid-cli
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-# SKILL の登録（ジャンクション。管理者権限は不要）
-cmd /c mklink /J "$HOME\.claude\skills\aws-iac-diagram" "$PWD\aws-iac-diagram"
-```
+### 必要なもの
 
-### macOS
+| もの | 必須か | Windows | Linux／GitHub Actions |
+|---|---|---|---|
+| uv | 必須 | `winget install --id=astral-sh.uv -e` | 公式のインストールスクリプト、または `astral-sh/setup-uv` |
+| draw.io Desktop | 任意（無ければ PNG だけスキップ） | `winget install -e --id JGraph.Draw` | draw.io の `.deb` と `xvfb` |
+| mmdc（`@mermaid-js/mermaid-cli`） | 任意（無ければ `.mmd` の描画確認だけスキップ） | `npm install -g @mermaid-js/mermaid-cli` | 同左（Chromium が要る） |
+
+Python は uv が自動で用意します。スクリプトの依存は各スクリプトの先頭（PEP 723）に書いてあり、`uv run` が自動で入れます。
+
+### 取り込み方
+
+SKILL は、このリポジトリにタグ（例: `v0.1.0`）を付けて配ります。`skills/aws-iac-diagram/` のフォルダを丸ごと、次のどれかに置きます。
+
+| 環境 | 置き場所 |
+|---|---|
+| VS Code + Copilot | 図を作りたいリポジトリの `.github/skills/aws-iac-diagram/`、または個人用の `~/.copilot/skills/aws-iac-diagram/` |
+| Claude Code | 図を作りたいリポジトリの `.claude/skills/aws-iac-diagram/`、または個人用の `~/.claude/skills/aws-iac-diagram/` |
+| gh-aw | APM（`shared/apm.md` の `packages:`）か `gh skill install` で、タグを指定して読み込む |
+
+gh-aw では、ワークフローの frontmatter で `uv` の実行と、uv が Python とパッケージを取りに行くネットワーク（`pypi.org`、`files.pythonhosted.org`、`github.com`）を許可してください。これは SKILL ではなくワークフロー側の設定です。書き方はまだ確かめていません（PLAN のスパイク 5a）。
+
+### 環境の確認
+
+うまく動かないときは、次の1行で環境を調べられます（どのシェルからでも同じです）。
 
 ```bash
-brew install --cask drawio
-npm install -g @mermaid-js/mermaid-cli
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-ln -s "$PWD/aws-iac-diagram" ~/.claude/skills/aws-iac-diagram
+uv run "<SKILL のフォルダ>/scripts/doctor.py" --out "out/doctor.json"
 ```
+
+終了コードは、0 ならすべてそろっている、1 なら draw.io か mmdc が無い（PNG か描画確認がスキップされる）、2 なら SKILL のファイルが足りないか doctor 自体が失敗した、です。
+
+## 開発
+
+### セットアップ（Windows）
+
+```powershell
+winget install --id=astral-sh.uv -e
+winget install -e --id JGraph.Draw
+npm install -g @mermaid-js/mermaid-cli
+uv sync
+# 手元の Claude Code と Copilot に開発中の SKILL を登録する（ジャンクション。管理者権限は不要）
+cmd /c mklink /J "$HOME\.claude\skills\aws-iac-diagram" "$PWD\skills\aws-iac-diagram"
+cmd /c mklink /J "$HOME\.copilot\skills\aws-iac-diagram" "$PWD\skills\aws-iac-diagram"
+```
+
+`uv sync` で、単体テストと fixture の検証に使う開発用の環境（`.venv`、依存は [pyproject.toml](pyproject.toml) と `uv.lock`）ができます。SKILL のスクリプトはこの環境を使わず、PEP 723 の宣言だけで動きます。版は両方で揃えてください。
+
+macOS では draw.io を `brew install --cask drawio` で入れ、登録は `ln -s` で行います。WSL（Ubuntu）を使う場合は、リポジトリを WSL 側（`~/work/...`）に clone してください。
+
+### テスト
+
+```powershell
+uv run python -m unittest discover -s tests -v
+```
+
+CI（[.github/workflows/ci.yml](.github/workflows/ci.yml)）は Ubuntu と Windows で、単体テスト、正解 IR と fixture の検証、日本語とスペースを含むパスに置いた SKILL の起動（Windows は PowerShell 5.1 から）を行います。
 
 ### アイコン辞書の再生成
 
 ```powershell
-.\.venv\Scripts\python.exe aws-iac-diagram\scripts\build_icon_catalog.py
-.\.venv\Scripts\python.exe aws-iac-diagram\scripts\find_aws_icon.py lambda
+uv run skills\aws-iac-diagram\scripts\build_icon_catalog.py
+uv run skills\aws-iac-diagram\scripts\find_aws_icon.py lambda
 ```
 
 ### 壊れたアイコンの検出（C2）
@@ -41,7 +82,7 @@ ln -s "$PWD/aws-iac-diagram" ~/.claude/skills/aws-iac-diagram
 draw.io Desktop を更新したとき、または `Sidebar-AWS4.js` を取り直したときに実行します。
 
 ```powershell
-.\.venv\Scripts\python.exe aws-iac-diagram\scripts\check_icons.py
+uv run skills\aws-iac-diagram\scripts\check_icons.py
 ```
 
 - 辞書の全アイコン（shape・resource_icon・group）を draw.io で PNG にし、セルごとに「空箱」「黒塗り」「単色」を判定します。さらに、ステンシル名（`resIcon`／`grIcon`／`shape`）だけを存在しない名前にした参照を隣に描いて比べ、画素がほぼ同じもの（グラデーションの正方形だけになる resourceIcon、アイコンの無い group 枠など）を「ステンシル欠落」とします。
@@ -51,22 +92,15 @@ draw.io Desktop を更新したとき、または `Sidebar-AWS4.js` を取り直
 - `find_aws_icon.py` は既定で broken を除外します。表示するには `--include-broken` を付けます。
 - 壊れ方が分かっている対照（存在しないシェイプ名 `dynamodb_table` など）と正常な対照を同じ図に描き、期待どおりに判定されなければ異常終了します（辞書は更新しません）。
 - 作業ファイル（`.drawio`、ページごとの PNG、全件の指標 `report.json`）は `aws-iac-diagram-workspace/icon-check/` に出ます（git 管理外）。
-- draw.io の場所は自動で探します。見つからないときは環境変数 `DRAWIO` に実行ファイルのパスを設定してください。
+- draw.io の場所は自動で探します。見つからないときは環境変数 `DRAWIO` に実行ファイルのパスを設定してください。Linux で画面が無いときは `xvfb-run -a` と `--no-sandbox` を付けて起動します。画面があっても xvfb を使うには `AWS_IAC_DIAGRAM_XVFB=1` を設定します。
 
 ### 正解 IR と fixture の検証
 
-開発用の依存（cfn-lint、jsonschema）は `requirements-dev.txt` にあります。
-
 ```powershell
-.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
-.\.venv\Scripts\python.exe aws-iac-diagram\scripts\validate_ir.py aws-iac-diagram-workspace\expected\*.ir.json
-.\.venv\Scripts\python.exe aws-iac-diagram-workspace\tools\check_coverage.py --lint
+uv run python skills\aws-iac-diagram\scripts\validate_ir.py aws-iac-diagram-workspace\expected\*.ir.json
+uv run python aws-iac-diagram-workspace\tools\check_coverage.py --lint
 ```
 
-fixture の説明は [aws-iac-diagram-workspace/fixtures/README.md](aws-iac-diagram-workspace/fixtures/README.md)、IR の形は [references/ir-schema.md](aws-iac-diagram/references/ir-schema.md) にあります。
+`check_coverage.py` は開発用の環境（`uv run python ...`）で動かしてください。`uv run check_coverage.py` だと、Windows では uv のキャッシュの中の cfn-lint のパスが 260 文字を超えて `--lint` が落ちることがあります。
 
-### テスト
-
-```powershell
-.\.venv\Scripts\python.exe -m unittest discover -s aws-iac-diagram\scripts\tests -v
-```
+fixture の説明は [aws-iac-diagram-workspace/fixtures/README.md](aws-iac-diagram-workspace/fixtures/README.md)、IR の形は [references/ir-schema.md](skills/aws-iac-diagram/references/ir-schema.md) にあります。

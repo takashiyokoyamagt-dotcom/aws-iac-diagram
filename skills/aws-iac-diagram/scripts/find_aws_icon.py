@@ -1,3 +1,7 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
 """AWS アイコン辞書（references/icons/catalog.json）を検索する。
 
 辞書全体を LLM に読ませる代わりに、このスクリプトで必要なエントリだけを引く。
@@ -5,10 +9,10 @@
 退役アイコン（retired）と、check_icons.py が壊れていると判定したアイコン（broken、C2）は既定で除外する。
 
 使い方:
-  python scripts/find_aws_icon.py lambda
-  python scripts/find_aws_icon.py "application load balancer" --kind shape --limit 3
-  python scripts/find_aws_icon.py --id resource_icon:lambda --json
-  python scripts/find_aws_icon.py dynamodb --include-broken
+  uv run scripts/find_aws_icon.py lambda
+  uv run scripts/find_aws_icon.py "application load balancer" --kind shape --limit 3
+  uv run scripts/find_aws_icon.py --id resource_icon:lambda --json
+  uv run scripts/find_aws_icon.py dynamodb --include-broken
 """
 from __future__ import annotations
 

@@ -1,6 +1,6 @@
 """check_icons.py の判定ロジックの単体テスト（合成画像を使う。draw.io は不要）。
 
-実行: python -m unittest discover -s aws-iac-diagram/scripts/tests -v
+実行: uv run python -m unittest discover -s tests -v
 """
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import sys
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "skills" / "aws-iac-diagram" / "scripts"))
 
 from PIL import Image, ImageDraw  # noqa: E402
 

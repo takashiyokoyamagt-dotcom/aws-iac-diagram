@@ -1,3 +1,7 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["jsonschema==4.26.0"]
+# ///
 """IR（references/ir-schema.md、v0.1 草案）を検証する。
 
 検証すること:
@@ -11,9 +15,9 @@
   3. 出力の形（C5）: キーの順・配列の順・インデント・末尾の改行がずれていないか（--write で整形する）
 
 使い方:
-  python scripts/validate_ir.py <ir.json>...            # 検証
-  python scripts/validate_ir.py --write <ir.json>...    # 整形して書き戻してから検証
-  python scripts/validate_ir.py --same-canonical A.json B.json   # 2つの canonical 部が一致するか
+  uv run scripts/validate_ir.py <ir.json>...            # 検証
+  uv run scripts/validate_ir.py --write <ir.json>...    # 整形して書き戻してから検証
+  uv run scripts/validate_ir.py --same-canonical A.json B.json   # 2つの canonical 部が一致するか
 
 終了コード: 0 = すべて通過、1 = エラーあり、2 = 使い方の誤り・jsonschema が無い
 """
@@ -103,7 +107,7 @@ def schema_errors(ir: dict) -> list[str]:
     try:
         import jsonschema
     except ImportError:
-        print("jsonschema がありません。requirements-dev.txt を venv に入れてください。", file=sys.stderr)
+        print("jsonschema がありません。uv run で起動してください（依存はスクリプト先頭の PEP 723 の宣言にあります）。", file=sys.stderr)
         sys.exit(2)
     schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
     v = jsonschema.Draft202012Validator(schema)
@@ -262,6 +266,18 @@ def validate_file(path: Path, write: bool, rules: set[str]) -> list[str]:
     return errs
 
 
+def expand_globs(paths: list[Path]) -> list[Path]:
+    """PowerShell はネイティブコマンドの引数の `*` を展開しないので、存在しないパスに `*`／`?` があればここで展開する。"""
+    out: list[Path] = []
+    for p in paths:
+        if not p.exists() and any(c in p.name for c in "*?"):
+            hits = sorted(p.parent.glob(p.name))
+            out += hits or [p]  # 一致しなければそのまま渡し、読めないエラーとして報告させる
+        else:
+            out.append(p)
+    return out
+
+
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
@@ -279,7 +295,7 @@ def main() -> int:
     rules = defined_rules()
     DRAWABLE = drawable_types()
     failed = False
-    for p in a.paths:
+    for p in expand_globs(a.paths):
         errs = validate_file(p, a.write, rules)
         if errs:
             failed = True

@@ -177,3 +177,51 @@ HANDOFF の表の 4 は、2回目の第三者レビューで「コミット可�
 | 5. WSL（Ubuntu）は Linux での動作確認用。普段の開発と SKILL の利用は Windows ネイティブのまま。確認用のリポジトリは WSL 側へ clone する。WSLg の `DISPLAY`／`WAYLAND_DISPLAY` を外すか xvfb を使う指定をして、画面なしの経路を試す | push の前に Linux の動きを試せるように。`/mnt/c` 越しのファイル I/O は遅い。WSLg のままでは xvfb の経路を通らない |
 | 採らない: IR → SVG → resvg の自前描画（最後の予備として残す）、Docker イメージ（drawio-export など） | 自前描画は正本の `.drawio` と見た目がずれ、C6 の採点対象が二重になる。Docker はクラウドのセッションで使えるとは限らない |
 | WSL と CI に入れる物（draw.io の deb、xvfb、Chromium）は、入れる前にユーザーの許可を得る | 1 の要件表の「インストール（許可済み）」に入っていないため |
+
+---
+
+## 2026-10-16 共通 Agent Skill への移行（ガイドの方針の反映と土台づくり）
+
+### 概要
+ユーザーが示したガイド（`docs/skill-cross-platform-guide.md`）に合わせ、1つの SKILL を Claude Code・VS Code + Copilot（Windows）・gh-aw で共通に使う方針にした。PLAN.md に 1.3 を追加し、フォルダ構成・実行基盤・CI を整えた。図を作る処理はまだ無い。
+
+### やったこと
+1. `aws-iac-diagram/` を `skills/aws-iac-diagram/` に、`scripts/tests/` をルートの `tests/` に `git mv` した。ジャンクションを張り直し、`~/.copilot/skills/aws-iac-diagram` も作った。
+2. uv 0.13.1 を winget で入れた。各スクリプトの先頭に PEP 723 の依存（`==` で固定）を書き、`requirements*.txt` をやめて `pyproject.toml`・`uv.lock`・`.python-version` にした。既存の `.venv` は `uv sync` がそのまま使った。
+3. `SKILL.md` の骨組み（frontmatter は name と description だけ、1行のコマンドの書き方、doctor の手順、`GITHUB_ACTIONS` による分岐。図はまだ作れないと明記）。
+4. `scripts/doctor.py`: OS、Python・uv、文字コード、SKILL の同梱ファイル、draw.io（版と起動コマンド）、Linux の画面と `xvfb-run`、node・mmdc、`GITHUB_ACTIONS`・`CLAUDECODE` を JSON にする。終了コードは 0 ok／1 warn（draw.io か mmdc が無い）／2 error。`--out` が無いときは ASCII だけの JSON を標準出力に書く。
+5. `lib/drawio_cli.py`: `needs_xvfb()` と `drawio_command()` を追加。Linux では `--no-sandbox`、画面が無いか `AWS_IAC_DIAGRAM_XVFB=1` なら `xvfb-run -a` を前に付ける。`xvfb-run` が無ければ `DrawioError`。
+6. `.github/workflows/ci.yml`: ubuntu-24.04 と windows-2025、uv 0.13.1。単体テスト、正解 IR と fixture の検証、SKILL をリポジトリの外の日本語とスペースを含むパスにコピーして doctor を `uv run` で起動（Windows は `shell: powershell` で 5.1）。
+7. テスト追加: `test_drawio_cli.py`（8件）、`test_cli_paths.py`（3件。日本語とスペースを含むパスで doctor と validate_ir を別プロセスで動かす）。計 61 件が通過。
+8. README を利用者向け（必要なもの、取り込み方、doctor）と開発者向けに書き直した。HANDOFF・fixtures の README・ツールの説明文のコマンドを `uv run` に直した。
+
+### 結果
+- 単体テスト 61 件 OK。`validate_ir.py`（`uv run` で PEP 723 の環境）で正解 IR 5 件 OK。`check_coverage.py --lint`（開発用の環境）OK。
+- `build_icon_catalog.py` と `check_icons.py` を `uv run` で再実行し、`references/` に差分なし（C5 を維持）。壊れたもの 0 件、対照 9 件は期待どおり。
+- CI の PowerShell 5.1 の手順を手元で再現し（`RUNNER_TEMP` を `%TEMP%` 下にして）、doctor が `ok` で日本語のパスに JSON を書けた。GitHub 上ではまだ動かしていない。
+
+### 決めたこと
+| 決定 | 理由 |
+|---|---|
+| 配布はタグ付きの Skill リポジトリ。プラグイン案はやめる | Copilot と gh-aw はプラグインを読めない。ユーザーが選んだ |
+| 単体テストは SKILL のフォルダの外（ルートの `tests/`）に出す | 配布するフォルダに実行に要るものだけを置く（ガイド 3） |
+| 辞書の保守用スクリプト（build_icon_catalog・check_icons）は当面 `scripts/` に残す | 生成先が SKILL のフォルダの中で、`lib/drawio_cli.py` を共有しているため。SKILL.md からは呼ばない |
+| 開発用の環境は `pyproject.toml`＋`uv.lock`、SKILL のスクリプトは PEP 723 | 使う側にはリポジトリが無いので、スクリプト単体で `uv run` できる必要がある。テストは複数のスクリプトの依存をまとめて使う |
+| doctor の標準出力は ASCII だけの JSON（`--out` があればファイルに UTF-8） | PowerShell 5.1 で標準出力を受けると文字コードが変わることがある |
+| `diagram.py` の終了コードは 0 成功（PNG のスキップは 0 のまま）／1 検証で問題／2 実行エラー | 1.2 の 2（PNG が出せなくても全体は失敗にしない）とガイド 4 を両立させる |
+
+### つまずいたこと（次回のための知見）
+- **`uv run check_coverage.py --lint` が Windows で落ちた。** uv のキャッシュ（このアプリでは `AppData\Local\Packages\Claude_...\LocalCache\Local\uv\cache` に置き換えられる）の中の cfn-lint のデータのパスが 260 文字を超えた。開発用の環境（`uv run python ...`）なら通る。SKILL のスクリプトの依存は、パスの深いパッケージを避けるか、使う側でも同じ問題が起きうることを覚えておく。
+- シェルの作業ディレクトリが `aws-iac-diagram/scripts` のままだと、`git mv aws-iac-diagram ...` が Permission denied になった。
+- `check_icons.py` がリポジトリのルートを「SKILL のフォルダの1つ上」としていたため、移動後に `skills/aws-iac-diagram-workspace/` を作ってしまった。2つ上に直した。
+- `python -m unittest discover -s tests -t <ルート>` は、`tests/` がパッケージでないため使えない。`-t` を付けない。
+
+### レビューで直したこと（第三者レビュー: 判定「修正後コミット」）
+- **M1** doctor が壊れた取り込み（`lib/` 抜き）や `--out` にフォルダを渡したときに、未処理の例外で終了コード 1（warn と同じ）になり JSON も出さなかった → `lib/drawio_cli.py` の読み込みを `diagnose()` の中に移して error にし、`REQUIRED_FILES` にも加えた。失敗時の JSON にも `issues` を入れ、`--out` に書けなければ ASCII の JSON を標準出力に出して 2 で終える。テスト 2 件を追加（計 63 件）。
+- **M2** ci.yml の PowerShell 5.1 の手順に日本語の文字列があった。BOM の無いスクリプトは ANSI（cp1252）として読まれ、「ん」の 3 バイト目 0x93 が `“`（引用符扱い）になって構文エラーになる → コードの文字列を ASCII だけにした（コメントは日本語のまま）。
+- **R1** doctor の `encoding.stdout` が reconfigure 後の値（常に utf-8）だった → 切り替え前の値と、`locale.getencoding()`、`PYTHONUTF8`／`PYTHONIOENCODING`、Windows のコンソールのコードページを出す。
+- **R3** fixtures の README の `requirements-dev.txt` の残り。PowerShell はネイティブコマンドの引数の `*` を展開しないので、`validate_ir.py` の中で展開するようにした。
+- **R5** CI でリポジトリの外から PEP 723 の依存を入れる経路を通していなかった → 日本語のパスにコピーした SKILL で `validate_ir.py` も `uv run` する。
+- **R6** `xvfb-run` の既定の画面は 8bit → `-s "-screen 0 1920x1080x24"` を付ける。
+- 軽微: スクリプトの使い方を `uv run` に、doctor の終了コードの意味を PLAN 1.3 の 7 に、SKILL.md の出力先（gh-aw では `RUNNER_TEMP`）と uv のインストールはユーザーの了承を得てから、CI に `timeout-minutes` と `workflow_dispatch`、check_icons は開発リポジトリの中でだけ使うと明記。
+- 見送り（HANDOFF の次にやること 0b）: R2（パス長の診断）、R4（間接依存の固定）、CI の action の版の更新と SHA での固定。

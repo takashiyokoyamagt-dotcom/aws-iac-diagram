@@ -1,10 +1,14 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["python-hcl2==8.1.4", "PyYAML==6.0.3"]
+# ///
 """公開サンプル（fixtures/public）の規模と使っている機能を数える。SELECTION.md の表の元データ。
 
 式は評価しないので、数はブロック単位（count／for_each で増える分は数えない）。
 ローカルモジュールは再帰的に数え、レジストリ／git のモジュールは呼び出しの数だけ数える。
 
 使い方:
-  .venv\\Scripts\\python.exe aws-iac-diagram-workspace\\tools\\survey_public.py [--json]
+  uv run python aws-iac-diagram-workspace\\tools\\survey_public.py [--json]
 """
 from __future__ import annotations
 

@@ -1,6 +1,6 @@
 """broken.json の辞書へのマージ（build_icon_catalog）と、find_aws_icon の既定の除外のテスト。
 
-実行: python -m unittest discover -s aws-iac-diagram/scripts/tests -v
+実行: uv run python -m unittest discover -s tests -v
 """
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "skills" / "aws-iac-diagram" / "scripts"))
 
 import build_icon_catalog as bic  # noqa: E402
 import find_aws_icon as fai  # noqa: E402

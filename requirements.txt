@@ -1,4 +1,0 @@
-python-hcl2==8.1.4
-defusedxml==0.7.1
-PyYAML==6.0.3
-Pillow==12.3.0
