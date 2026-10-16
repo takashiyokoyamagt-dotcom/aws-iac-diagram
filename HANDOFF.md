@@ -1,25 +1,78 @@
 # HANDOFF（再開用）
 
-## ユーザーの判断待ち（2026-10-16 時点）
+## 作業状況のまとめ（2026-10-17 時点）
+
+再開するときは、まずこの節を読み、細かい経緯は下の節と [WORKLOG.md](WORKLOG.md)、計画は [PLAN.md](PLAN.md) を見る。
+
+### フェーズの状態
+
+| フェーズ | 内容 | 状態 |
+|---|---|---|
+| 0 | 準備（ツール、アイコン辞書と C2、自作 fixture 5構成と正解 IR、公開サンプルの選定、評価基準値） | **完了**（2026-10-16、`4b5787f`） |
+| — | 共通 Agent Skill の方針への移行（[docs/skill-cross-platform-guide.md](docs/skill-cross-platform-guide.md)、PLAN の 1.3） | **完了**（2026-10-16、`4af11c3`） |
+| 1 | IR スキーマの確定と CloudFormation アダプタ（A4、C1） | **完了**（2026-10-17、`7e14639`） |
+| 2 | Terraform アダプタ（.tf と plan JSON、A4、A5） | **次にやる**（下の「次にやること」の 3a） |
+| 3〜6 | 正規化、配置と .drawio、Mermaid と PNG、SKILL.md の仕上げと評価 | 未着手 |
+
+### できているもの
+
+| もの | 場所 | 内容 |
+|---|---|---|
+| SKILL の本体 | `skills/aws-iac-diagram/` | SKILL.md は骨組み（図はまだ作れないと書いてある）。`scripts/doctor.py`（環境の確認） |
+| IR スキーマ v1.0 | `references/ir-schema.md`、`ir.schema.json`、`ir-raw.schema.json` | 正規化後の形（1〜6章）と、アダプタの出力 raw IR（7章）。どちらも確定 |
+| 規則表（草案） | `references/resource-catalog.md`、`relation-resources.md`、`edge-rules.md` | 型ごとの扱い、関係リソース、辺の規則、辺にしない参照（`E-NOEDGE-*`）。フェーズ3 で広げる |
+| CloudFormation アダプタ | `scripts/adapters/cfn.py` | テンプレート・ネストスタック・SAM・cdk.out から raw IR を作る。条件の評価、`--param`／`--param-file` |
+| 検査 | `scripts/validate_ir.py`、`scripts/lib/ir_raw.py` | 正規化後と raw IR の両方を検査（`stage` で切り替え） |
+| アイコン辞書と C2 | `references/icons/`、`scripts/build_icon_catalog.py`・`check_icons.py`・`find_aws_icon.py` | 1045 件、壊れたもの 0 件 |
+| 評価基準 | `aws-iac-diagram-workspace/evals/CRITERIA.md` | 確定（ユーザーの了承済み） |
+| fixture と正解 IR | `aws-iac-diagram-workspace/fixtures/`、`expected/` | 自作5構成（TF／CFN）、公開サンプル（T01〜T20、C01〜C05 など） |
+| 開発用の道具 | `aws-iac-diagram-workspace/tools/` | `c1_check.py`（C1）、`check_coverage.py`（網羅）、`iac_inventory.py`、`survey_public.py` |
+| テストと CI | `tests/`（135 件）、`.github/workflows/ci.yml` | Ubuntu 24.04 と Windows 2025（PowerShell 5.1 から SKILL を起動）で、テスト・検証・C1 |
+
+### 数字で見た現状
+- 単体テスト 135 件がすべて通過。
+- C1: 自作 fixture と公開サンプルの CFN（入力 25）で、cfn-lint のグラフの辺 513 本のすべてに raw IR の参照が対応（対応の無い辺 0）。
+- 正解 IR の CFN 側の網羅分類と、CFN アダプタの出力の address・型・ファイル・作られるか（enabled）が、5構成すべてで一致。
+- GitHub の CI は、`4af11c3` から `7e14639`（C1 の照合を足したもの）まで、両 OS で成功。
+
+### 再開の手順（Windows）
+
+```powershell
+$env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')
+uv sync
+uv run python -m unittest discover -s tests
+uv run python aws-iac-diagram-workspace\tools\c1_check.py
+```
+
+### 判断待ち・許可待ち
+下の「ユーザーの判断待ち」の節にある4つ（L4 の辺の貫通の上限値、PNG をどちらで作るか、WSL と CI に入れるもののインストールの許可、実行時間の基準値の見直し）。どれも急ぎではなく、フェーズ3〜5 の手前で確認する。
+
+### 次にやること（要点）
+1. **フェーズ2（Terraform アダプタ）。** 決まっていること・気をつけることは「次にやること」の 3a。フェーズ1 と同じく手順に分け、1つずつ進めて第三者レビューを受ける。
+2. 見送った小さな直し（「次にやること」の 0b）: CI の action の版の更新、doctor のパス長の診断、PEP 723 の間接依存の固定など。
+3. 既知の制約: cdk.out は実物の `cdk synth` の出力では未確認（フェーズ6 の前に fixture を1つ足す）。
+
+## ユーザーの判断待ち（2026-10-17 時点）
 - **L4（T17、T19、T20）の辺の貫通の上限値**（CRITERIA.md の 7 の 4）。フェーズ4 の配置の実装を始める前に、案を出して了承を得る（結果を見てから決めない）。
 - **手元の Windows で作った PNG と CI で作った PNG のどちらをコミットするか**（PLAN 1.2 の 3）。フェーズ5 までに決める。
 - **WSL の Ubuntu と CI に入れるもの**（uv、draw.io の `.deb`、xvfb、Chromium）のインストールの許可。フェーズ5 の手前で確認する。
 - （フェーズ3 の実測の後）実行時間の基準値（CRITERIA.md の 4）を見直すなら、案を出して了承を得る。見直してよいのは一度だけ。
 
 ## 作業の進め方
-- 実装はサブエージェントが1つずつ行い、テストと動作確認のあと、別のサブエージェントが第三者レビューをする。指摘を直して再レビューで「コミット可」になったら main にコミットして push する。
+- 作業はユーザーと合意した手順に分けて1つずつ進める。実装とテスト・動作確認のあと、別のサブエージェントが第三者レビューをする（2026-10-17 までは、raw IR の設計を知っている同じレビュアーに続けて頼んだ）。判定が「コミット可」か、「修正後コミット」で指摘を直したら main にコミットして push する。「要再レビュー」なら直して再レビューを受ける。確定した基準（CRITERIA.md）や計画を変えるときは、先にユーザーの了承を得る。
 - Claude の Bash ツールに渡すコマンド文字列では、`\a` などのバックスラッシュが制御文字に化けることがある（HANDOFF に BEL 文字が混入した）。ファイルの編集は Edit／Write ツールで行い、シェルでは Windows のパスをスラッシュで書く。コミット前に `tr -cd '\000-\010\r' < file | wc -c` などで制御文字と CR が 0 件か確かめる。
 - PATH 上の `python` は Windows ストアのスタブなので使わない。SKILL のスクリプトは `uv run <スクリプト>`、テストと開発用のツールは `uv run python ...`（リポジトリの開発用の環境）で動かす。winget で入れた直後のシェルでは PATH が古いので、`$env:Path` をレジストリから読み直す。
 - シェルの作業ディレクトリをリポジトリの中のフォルダにしたままだと、そのフォルダを `git mv` できない（Permission denied）。絶対パスで指定し、`cd` は使わない。
+- Bash のヒアドキュメントに、日本語と `'` を多く含む長い文書やコードを渡すと解析に失敗することがある（「unexpected EOF」）。またコードの文字列の `\n` が本物の改行に化けることがある。長い書き換えは、Write ツールで `.git/` の下に修正用の Python を書き、`.venv\Scripts\python.exe` で当ててから消す。
 
 ## 共通 Agent Skill への移行（2026-10-16）
 - [docs/skill-cross-platform-guide.md](docs/skill-cross-platform-guide.md) の方針を採用した。内容は PLAN.md の **1.3**（1.1・1.2 より優先）。利用環境は Claude Code と VS Code + Copilot（Windows）と gh-aw の3つで、SKILL は1つだけ。配布はタグ付きの Skill リポジトリから行い、プラグイン案はやめた。
 - SKILL は `skills/aws-iac-diagram/` に移した。手元の登録は `~/.claude/skills/aws-iac-diagram` と `~/.copilot/skills/aws-iac-diagram` のジャンクション。単体テストはルートの `tests/` に移した。
 - `.venv`＋`requirements*.txt` をやめ、`uv`（0.13.1、winget）にした。依存は各スクリプト先頭の PEP 723、開発用の環境は `pyproject.toml`・`uv.lock`（`uv sync`）。
 - 作ったもの: `SKILL.md`（骨組み。図はまだ作れないと書いてある）、`scripts/doctor.py`、`lib/drawio_cli.py` の Linux 対応（`--no-sandbox`、画面が無いときの `xvfb-run -a`、`AWS_IAC_DIAGRAM_XVFB=1`）、`.github/workflows/ci.yml`（Ubuntu 24.04 と Windows 2025。Windows は PowerShell 5.1 から日本語とスペースを含むパスの SKILL を起動）、テスト 11 件（計 61 件）。
-- CI はまだ GitHub で一度も動かしていない（push 後に結果を確かめる）。
+- CI は `4af11c3` から GitHub で両 OS とも成功している。
 
-## 現状（2026-10-15）
+## 背景（2026-10-15）
 - 計画は確定しています。詳細は [PLAN.md](PLAN.md) にあります。
 - 日ごとの作業の経緯とつまずいた点は [WORKLOG.md](WORKLOG.md) にあります。
 - **開発環境を Mac から Windows 11 に移しました。** 違いは PLAN.md の「1.1 Windows への移行」を参照してください。
