@@ -29,6 +29,7 @@
 | `opensearchserverless_collection` | resource | `aws_opensearchserverless_collection` | `AWS::OpenSearchServerless::Collection` | `name`／`Name` | `resource_icon:elasticsearch_service` |
 | `bedrock_model` | resource | （合成: N-BEDROCK-MODEL） | （合成: N-BEDROCK-MODEL） | モデルID | `resource_icon:bedrock` |
 | `external` | external | （合成: N-EXT-INTERNET） | （合成: N-EXT-INTERNET） | `Internet` | `shape:internet_alt2` |
+| `module` | resource | 黒箱のモジュールの呼び出し（A5 の要約表に無いレジストリモジュール、`git::` などのリモートのソース）。IAM だけのモジュールは H-IAM | 読めないネストスタック（`AWS::CloudFormation::Stack`）、`AWS::Serverless::Application` | モジュール呼び出しの名前 | `group:group_aws_cloud_alt`（仮。フェーズ4 で決める） |
 
 `subnet` の `attrs.access`: 関連付いたルートテーブルに `0.0.0.0/0 → インターネットゲートウェイ` のルートがあれば `public`、無ければ `private`。
 
@@ -53,13 +54,14 @@
 | `H-IAM` | `aws_iam_role`、`aws_iam_role_policy`、`aws_iam_role_policy_attachment`、`aws_iam_instance_profile`、`data.aws_iam_policy_document`、`AWS::IAM::Role`、`AWS::IAM::Policy`、`AWS::IAM::InstanceProfile`、`AWS::IAM::ManagedPolicy` | 権限は図に描かない。ただし非表示にする前に E-IAM（推定の辺）の材料として使う |
 | `H-LOGS` | `aws_cloudwatch_log_group`、`AWS::Logs::LogGroup` | 運用の付属品。全体図には出さない（B2 の詳細図で出す余地はある） |
 | `H-OBSERVABILITY` | `aws_flow_log`、`AWS::EC2::FlowLog` | 同上。フローログの送り先のロググループも H-LOGS で非表示になる |
-| `H-DATA` | IAM 以外の TF の `data` ブロック（`aws_ssm_parameter`、`aws_caller_identity`、`archive_file` など） | 値を引くためのもの。既存のインフラを指す data（`data.aws_vpc` など）を外部ノードとして描くかはフェーズ3 で決める（fixture には無い） |
+| `H-DATA` | IAM 以外の TF の `data` ブロック（`aws_ssm_parameter`、`aws_caller_identity`、`archive_file` など） | 値を引くためのもの。既存のインフラを指す、描く型の data（`data.aws_vpc`、`data.aws_subnet` など）が、描くリソースから参照されていれば既存のノードとして描く方針（ir-schema.md の 7.4。規則 ID と描き方はフェーズ3 で決める。fixture には無い） |
 | `H-COND-FALSE` | count／for_each が 0 件、または CFN の `Condition` が偽に評価されたリソース | 作られないもの。TF はインデックスなしのアドレスで1件として数える |
 | `H-RT-NOROUTE` | `local` 以外のルートを持たず、**Gateway 型の VPC エンドポイントも関連付いていない** ルートテーブルと、その関連付け | 辺が1本もできない。サブネットが隔離されていることは辺が無いことで分かる |
 | `H-SG-NOEDGE` | 辺を1本も生まないセキュリティグループ | 辺を生む SG は R-SG で `merged_into` になる |
 | `H-SG-EGRESS` | 別リソースの egress ルール（`aws_vpc_security_group_egress_rule`、`aws_security_group_rule`（`type = "egress"`）、`AWS::EC2::SecurityGroupEgress`） | v0.1 は egress から辺を作らない（relation-resources.md の補足）。インラインの egress は SG 本体の一部なので個別には数えない |
 | `H-UTILITY` | `time_sleep`、`random_*`、`null_resource`、`terraform_data` | クラウド上の実体が無い |
-| `H-NESTED-STACK` | `AWS::CloudFormation::Stack`（子テンプレートを展開できたもの） | 中身を展開して描く。展開できないときの扱いはフェーズ1 で決める |
+| `H-NESTED-STACK` | `AWS::CloudFormation::Stack`（子テンプレートを展開できたもの） | 中身を展開して描く。展開できないもの（`TemplateURL` を手元のファイルに読み替えられない。ir-schema.md の 7.4）は、黒箱のモジュール（型 `module`、`via: "module_blackbox"`）として描く |
+| `H-NONAWS` | AWS 以外のプロバイダの型のうち、H-UTILITY・M-AOSS-INDEX に当たらないもの（kubernetes、helm、tls、local など）。awscc の型は同じ名前の CFN の型として扱うので、ここには入らない | AWS の構成図の対象外（ir-schema.md の 7.4） |
 | `H-VPC-DEFAULTS` | `aws_default_security_group`、`aws_default_network_acl`、`aws_default_route_table` | 既定のリソースを管理下に置くためのもので、構成上の役割が無い（terraform-aws-modules/vpc が既定で作る） |
 
 ## 4. 関係リソース（辺に変換する型）

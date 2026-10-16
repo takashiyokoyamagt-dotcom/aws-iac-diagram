@@ -94,7 +94,7 @@
       "vars": {}
     }
   },
-  "ir_version": "0.1",
+  "ir_version": "1.0",
   "name": "rag",
   "nodes": [
     {

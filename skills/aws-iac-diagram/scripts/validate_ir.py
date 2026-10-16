@@ -2,7 +2,7 @@
 # requires-python = ">=3.12"
 # dependencies = ["jsonschema==4.26.0"]
 # ///
-"""IR（references/ir-schema.md、v0.1 草案）を検証する。
+"""IR（references/ir-schema.md、v1.0。正規化後の形）を検証する。
 
 検証すること:
   1. JSON Schema（references/ir.schema.json）に合っているか（jsonschema を使う）
@@ -31,12 +31,18 @@ from pathlib import Path
 
 SKILL = Path(__file__).resolve().parent.parent
 SCHEMA_PATH = SKILL / "references" / "ir.schema.json"
+RAW_SCHEMA_PATH = SKILL / "references" / "ir-raw.schema.json"
+sys.path.insert(0, str(SKILL / "scripts"))
+
+from lib import ir_raw  # noqa: E402
 RULE_DOCS = [SKILL / "references" / n for n in ("resource-catalog.md", "relation-resources.md", "edge-rules.md")]
 RULE_ROW = re.compile(r"^\|\s*`([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+)`\s*\|", re.M)
 SYNTHETIC_TYPES = {"availability_zone", "external", "bedrock_model"}
 CATALOG = SKILL / "references" / "resource-catalog.md"
 INPUT_TYPE = re.compile(r"`((?:aws|awscc|opensearch)_[a-z0-9_]+|AWS::[A-Za-z0-9]+::[A-Za-z0-9]+)`")
 CLASS_PREFIX = {"hidden": ("H-",), "merged_into": ("M-", "R-")}
+# 黒箱のモジュールになれる入力の型（ir-schema.md の 2章）
+BLACKBOX_TYPES = {"module", "AWS::CloudFormation::Stack", "AWS::Serverless::Application"}
 
 
 # ------------------------------------------------------------------ 形式（C5）
@@ -104,12 +110,14 @@ def slug(name: str) -> str:
 
 
 def schema_errors(ir: dict) -> list[str]:
+    """stage が raw なら ir-raw.schema.json、それ以外は ir.schema.json で調べる。"""
     try:
         import jsonschema
     except ImportError:
         print("jsonschema がありません。uv run で起動してください（依存はスクリプト先頭の PEP 723 の宣言にあります）。", file=sys.stderr)
         sys.exit(2)
-    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    schema_path = RAW_SCHEMA_PATH if ir.get("stage") == "raw" else SCHEMA_PATH
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
     v = jsonschema.Draft202012Validator(schema)
     out = []
     for e in sorted(v.iter_errors(ir), key=lambda e: list(map(str, e.absolute_path))):
@@ -210,7 +218,16 @@ def semantic_errors(ir: dict, rules: set[str], drawable: dict[str, set[str]] | N
                         if t in edges and r["rule"] not in evr:
                             errs.append(f"sources.{fmt} {a}: 辺 {t} の根拠の rules に {r['rule']} が無い")
             if r["class"] == "drawn":
-                allowed = drawable.get(r["type"])
+                # 黒箱のモジュール（ir-schema.md の 2章）は入力の型によらず module のノードになり、
+                # module のノードになれるのは黒箱のモジュールだけ（両方向）
+                if r.get("via") == "module_blackbox":
+                    allowed = {"module"}
+                    if r["type"] not in BLACKBOX_TYPES:
+                        errs.append(f"sources.{fmt} {a}: 入力の型 {r['type']} は黒箱のモジュールにできない（{sorted(BLACKBOX_TYPES)} だけ）")
+                else:
+                    allowed = drawable.get(r["type"])
+                    if allowed is not None:
+                        allowed = allowed - {"module"}
                 if allowed is None:
                     errs.append(f"sources.{fmt} {a}: 入力の型 {r['type']} が resource-catalog.md の「描く型」に無い")
                 elif r["node"] in nodes and nodes[r["node"]]["type"] not in allowed:
@@ -256,8 +273,14 @@ def validate_file(path: Path, write: bool, rules: set[str]) -> list[str]:
     errs = schema_errors(ir)
     if errs:
         return errs  # 形が違うと以降の検査が意味を持たない
-    errs = semantic_errors(ir, rules, DRAWABLE)
-    want = canonical_dump(ir)
+    if ir.get("stage") == "raw":
+        if write:  # 書き戻すなら、並び順の誤りは直るので先に並べ替えてから調べる
+            ir = ir_raw.canonical_raw(ir)
+        errs = ir_raw.semantic_errors(ir)
+        want = json.dumps(ir_raw.canonical_raw(ir), ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    else:
+        errs = semantic_errors(ir, rules, DRAWABLE)
+        want = canonical_dump(ir)
     if write and text != want:
         path.write_bytes(want.encode("utf-8"))
         text = want
@@ -304,6 +327,9 @@ def main() -> int:
                 print(f"  - {e}")
         else:
             ir = json.loads(p.read_text(encoding="utf-8"))
+            if ir.get("stage") == "raw":
+                print(f"OK {p}  raw {ir['format']} resources={len(ir['resources'])} references={len(ir['references'])}")
+                continue
             print(f"OK {p}  nodes={len(ir['nodes'])} edges={len(ir['edges'])} "
                   + " ".join(f"{k}.resources={len(v['resources'])}" for k, v in sorted(ir["sources"].items())))
     if a.same_canonical:

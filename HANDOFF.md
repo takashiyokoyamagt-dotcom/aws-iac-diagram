@@ -45,10 +45,13 @@
 0. （済）GitHub の `ci` は `4af11c3` で両 OS とも成功した（Windows 約45秒、Ubuntu 約20秒）。Node 20 の廃止の警告が出ている（0b）。
 0b. 2026-10-16 のレビューで見送った推奨: R2（doctor に Windows のパス長の診断: `LongPathsEnabled`、SKILL のパスの長さ、uv のキャッシュの場所）、R4（PEP 723 の間接依存の固定: `[tool.uv] exclude-newer` か `uv lock --script`。PEP 723 と `pyproject.toml` の版が揃っているかのテスト）、CI の `actions/checkout`・`setup-uv` を Node 20 廃止に合わせて更新し SHA で固定。再レビューの R1: SKILL.md の「gh-aw では `RUNNER_TEMP` に出す」は、同じファイルの `$VAR` の禁止とぶつかる（エージェントが値を知るにはシェルで展開するしかない）→ `diagram.py` を作るときに、`--out`／`--out-dir` を省略したらスクリプトが既定値（`RUNNER_TEMP`、無ければ作業中のフォルダの `aws-iac-diagram-out`）を決め、書いた先を ASCII で標準出力に出すようにし、doctor も合わせる。あわせて doctor で `--out` に書けなかったときも、集めた診断の結果を捨てずに出す。
 1. （済）表の 5（評価基準値）。
-2. フェーズ1 で IR スキーマを確定させる（`ir-schema.md` の「未決事項」）。評価基準（CRITERIA.md の 8章）から次も持ち越した:
-   - 黒箱のモジュール（A5 の要約表に無いレジストリモジュール）の IR での表し方。型（例: `module`）、category、網羅分類での載せ方。主セットの T16（iam サブモジュール）の正解 IR を書く前に決める。
-   - CRITERIA.md の 1.6（C1）で使う「辺にしない規則」の一覧を edge-rules.md に置く。
-   - 主セットの正解 IR は、ツールの出力を見る前に別のサブエージェントが書き、さらに別のサブエージェントがレビューする（CRITERIA.md の 1.2）。公開サンプルで見つかった問題（SELECTION.md の 4: hcl2 が heredoc の終端の空白で落ちる、S3 URL のネストスタック、ルートの外のローカルモジュール、AWS 以外の型、大量の data）をアダプタの設計に入れる。
+2. **フェーズ1**（CloudFormation のアダプタ）。5つの手順に分けて1つずつ進める（2026-10-17 にユーザーと合意）。
+   1. （済）IR スキーマの確定（ir-schema.md v1.0。raw の形は手順5 で確定）。評価基準の 1.6（C1）を raw の段階の照合に変え、1.8 を足した（ユーザーの了承）。正規化後の形の確定（`attrs` のキーの表、黒箱のモジュール `module`、×N、AZ が静的に決まらないときの key）、アダプタの出力（`stage: "raw"`、7章と `ir-raw.schema.json`）、公開サンプルの問題の扱い（7.4）、「辺にしない参照」（edge-rules.md の `E-NOEDGE-*`）
+   2. CFN アダプタの土台: YAML の短縮タグの正規化（失敗知見 13）、Ref・GetAtt・Sub・ImportValue・DependsOn から raw IR の `props` の印と `references` を作る
+   3. SAM の Events、ネストスタック（S3 URL の読み替えを含む。7.4）、cdk.out
+   4. A4（CFN 側の評価）: Parameters の default、Conditions、`Fn::If`、`Fn::FindInMap`
+   5. C1（cfn-lint のグラフとの突き合わせ。CRITERIA の 1.6）と、フェーズ1 の完了基準の確認
+   - 主セットの正解 IR は、ツールの出力を見る前に別のサブエージェントが書き、さらに別のサブエージェントがレビューする（CRITERIA.md の 1.2）。
 3. フェーズ5 の `export_png.py` は `scripts/lib/drawio_cli.py`（draw.io の探索と `-x -f png --disable-gpu` の呼び出し、0 バイトの失敗扱い、Linux の `--no-sandbox` と `xvfb-run`）を使って作る。draw.io が使えなければ（`DRAWIO` のパスが無いときも）PNG だけスキップして `result.json` に書き、終了コードは 0 のまま。
 4. **実行環境の方針は PLAN.md の 1.2、共通 Agent Skill の方針は 1.3（こちらが優先）。** 中心部分は Python だけ、起動は `uv run` の1行、結果は JSON、PNG は環境で切り替え、GitHub の画面からは Actions で PNG を作る、配布はタグ、WSL は Linux の確認用。
 5. **フェーズ5 の手前でスパイク（PLAN のフェーズ表の 5a）を行う**: クラウド（Claude Code on the web、Actions の `@claude`、gh-aw）で draw.io＋xvfb と mmdc が動くか、gh-aw で `uv run` を許可する書き方とタグ指定での SKILL の読み込み、VS Code + Copilot と Claude Code on the web で SKILL が読まれるか、Actions の PNG がバイト単位で再現するか。結果は WORKLOG に記録し、PLAN の 1.2・1.3 とフェーズ5・6 を直す。

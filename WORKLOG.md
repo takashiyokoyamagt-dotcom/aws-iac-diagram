@@ -251,3 +251,59 @@ HANDOFF の表の 4 は、2回目の第三者レビューで「コミット可�
 | ラベルと名前はスクリプトが B3 の規則で決める。エージェントが変えてよいのは、説明の文章と確認の質問だけ | 3回実行と TF／CFN で IR が一致することと矛盾しないように |
 | `unknown` は分類として正しいので、終了コードは 0 のまま。主セットで 0 件にするのは評価の基準にする | 補助セット（T15 の awscc など）では多く出るのが正常 |
 | L4 の辺の貫通は緩める。上限の値はフェーズ4 の前にユーザーの了承を得て決める | 数百のリソースで 0 件は厳しすぎる見込み。結果を見てから決めない |
+
+---
+
+## 2026-10-17 フェーズ1 の手順1: IR スキーマの確定（v1.0）
+
+### 概要
+フェーズ1 を5つの手順（スキーマの確定 → CFN アダプタの土台 → SAM・ネストスタック・cdk.out → A4 → C1）に分けて進めることにした。手順1 として、ir-schema.md の未決事項と、評価基準から持ち越した2件を決めて v1.0 にした。
+
+### やったこと
+1. **ir-schema.md を v1.0 にした。**
+   - 正規化後の形は v0.1 と互換。`attrs` のキーを表で固定した（`cidr`、`access`、`endpoint_type`、`service`、`module_source`、`module_version`）
+   - 黒箱のモジュール（型 `module`、`via: "module_blackbox"`）を足した
+   - ×N の出し方と、AZ が静的に決まらないときの key（`<vpc>.az1`）を決めた
+   - アダプタの出力（`stage: "raw"`）を7章に定義した: リソース（`enabled`、評価後の `props`）、`$ref`・`$pseudo`・`$concat`・`$az`・`$import`・`$unknown` の印、参照（`path`・`fn`・`through`）、診断
+   - 公開サンプルで見つかった問題の扱いを 7.4 に決めた
+2. **`ir-raw.schema.json` を新しく作った。** `ir.schema.json` は 1.0 にし、`attrs` のキーと `via` を制限した。正解 IR 5件の `ir_version` を 1.0 にした。
+3. **edge-rules.md:** 「参照でも辺にしないもの」を、規則 ID 付きの表（`E-NOEDGE-PLACEMENT`・`-SG`・`-ROLE`・`-LOG`・`-MERGE`・`-ROUTE`・`-DEPENDS`、`E-REF-NONODE`）にした。CRITERIA の 1.6（C1）で使う。
+4. **resource-catalog.md:** `module` の行、`H-NONAWS` を足した。`H-NESTED-STACK`（読めないときは黒箱）と `H-DATA`（既存のインフラの方針）の補足を更新した。
+5. **validate_ir.py:** `via: "module_blackbox"` の網羅分類は、型によらず `module` のノードにしてよいようにした。
+6. **テスト:** `tests/test_ir_schema_v1.py`（12件。raw の例が通ること、未知の印・余分なキー・負の `$az` などを弾くこと、`attrs` の制限、黒箱のモジュール）。計 75 件が通過。正解 IR 5件の検証と、three-tier・three-tier-modules の canonical 部の一致も通った。
+
+### 決めたこと
+| 決定 | 理由 |
+|---|---|
+| アダプタは図の形にしない。評価した後のプロパティと参照の一覧（raw）だけを出し、規則表を使うのは正規化だけにする | CFN と TF で正規化を1つにするため。規則の誤りを1か所で直せる |
+| 評価できた値はふつうの JSON にし、できなかった部分だけ `$` で始まるキーの印にする | 正規化が値をそのまま読める。印の種類を Schema で固定し、未知の印を弾ける |
+| 参照は `props` の中の `$ref` と、`references` の一覧の両方に持つ（`path` で対応させる）。`DependsOn` は `references` にだけ | 正規化はプロパティの意味（環境変数か、サブネットか）で参照を扱い、C1 は参照の一覧と cfn-lint のグラフを突き合わせる |
+| 黒箱のモジュールは型 `module` の1ノード。IAM だけのモジュールは H-IAM | 中身を推測しない（CRITERIA の 2.3）。T16 の iam サブモジュールのように、IAM を描かない方針と揃える |
+| 複数ビューの詳細度は IR に持たせず、型ごとに catalog の列で決める（フェーズ4） | 表示の都合で IR（canonical 部）を変えないため |
+| AZ が決まらないときは、`Select` の位置の番号（1始まり）で `az1` | AZ 名を推測しない。TF の `names[0]` と CFN の `!Select [0, !GetAZs '']` が同じ key になる |
+
+### 第三者レビュー1回目（判定「要再レビュー」）と対応
+レビュアーが cfn-lint 1.57.2 のグラフを実際に取り出し、自作 fixture と突き合わせて指摘した。
+
+- **M1** 評価基準の 1.6（C1）が、正規化ができる前のフェーズ1 では測れず、正解 IR の根拠の書き方とも合わない（試算で説明できない辺が 4 構成で 39 本）→ **ユーザーの了承を得て** 1.6 を「cfn-lint の辺のすべてに raw IR の参照が対応する」に変え、正規化が参照を捨てていないかを見る 1.8 を足した。PLAN のフェーズ1・3 の完了基準も合わせた。
+- **M2** 評価で消える参照（`Fn::If` の選ばれなかった側、条件が偽のリソース、評価できない関数の中）の置き場所が無い → 参照に `state`（`active`／`pruned`／`unevaluated`）を足し、`enabled: false` のリソースも props と参照を出すことにした。
+- **M3** 参照の一意性・`$concat` の正規形が決まらない → キーを `(from, path, to, attr, fn)` にし、`path` は評価後の props の上の位置（`$concat` の中は数えず、`$json` は透過）、`$concat` は隣の文字列をつなぐ・空文字を消す・入れ子にしない、と決めた。
+- **M4** `!Join` でつないだサブネットの一覧を List 型のパラメータで受ける形を表せない → `$concat` を区切り文字で分けて印のリストにする規則を足した。
+- **M5** `jsonencode(...)` などの中の参照を表せない → `$json` の印を足した。
+- **M6** 入力の `$schema`・`$or` などとぶつかる → `$$` で逃がす決まりにし、印の名前を `$ref` から `$res` に変えた（R1 の JSON Schema の `$ref` との取り違えも避ける）。
+- **M7** cdk.out の複数スタック、解決できた ImportValue → address を `<スタック名>::…`、`fn: ImportValue` と `through: ["Export:…"]` にした。
+- 推奨: Schema の穴（`$concat` の中身、形式ごとの `fn`・`evaluation`、`Ref` の `attr`、`through` の形）を塞いだ。raw IR の決まり（props の `$res` と参照の1対1、先のリソースの有無、並び順、`$concat` の正規形）を調べる `scripts/lib/ir_raw.py` を作り、`validate_ir.py` は `stage` で正規化後と raw を切り替えるようにした。`E-NOEDGE` の表を直し（関係リソースの中の参照の行を外して `E-NOEDGE-FROM-RULE` にまとめた。タスク定義は除く。SAM の `Policies` は E-IAM）、TF の `$pseudo`・スプラット・`through`、SAM の Globals・暗黙のリソース、ネストスタックの条件の名前、S3 URL の読み替え（末尾からの最長一致）、黒箱のモジュールの辺（`inferred`、枠・SG・IAM には作らない）、×N の置き場所を決めた。正規化後の IR に `diagnostics`（`NORM-…`）を足した。`module` のノードと `via: module_blackbox` の対応を両方向で調べ、黒箱になれる入力の型を絞った。
+- ir-schema.md の状態を「正規化後の形は確定、raw の形はアダプタの実装で確かめて手順5 で確定」にした（ユーザーの了承）。
+- テストは計 82 件（test_ir_schema_v1.py を書き直して 22 件）。
+
+### つまずいたこと
+- Bash のヒアドキュメントで日本語と `'` を多く含む長い文書を渡すと、解析に失敗した（「unexpected EOF」）。長い文書は Write ツールで `.git/` の下に書き、Python で差し替えた。
+- Python のコードを Bash 経由で書き込むと、文字列の `\n` が本物の改行に化けた（HANDOFF の注意と同じ）。コードの書き換えは Edit ツールで行う。
+
+### 第三者レビュー2回目（判定「修正後コミット」）と対応
+- レビュアーが、新しい 1.6 の照合を自作 fixture の CFN（cfn-lint の辺 214 本）に机上で当てた。対応の無い辺は rag の1本（`DataAccessPolicy -> KnowledgeBaseRole`）だけで、原因は path の完全一致（cfn-lint は `Fn::Sub` の位置で止まり、raw は `$json` の中まで続ける）。
+- **M1** → ユーザーの了承を得て、1.6 の照合を前方一致にした。Stack リソースの `Parameters` は分割しない、`pruned` を `Fn::Select` などの選ばれなかった値にも広げた（ir-schema.md の 7.2）。
+- **M2** cfn-lint は `Metadata` などの中の参照も辺にする（公開サンプルの ecs-refarch-cloudformation）→ raw に `Metadata.…` の参照も出す。ir_raw.py の1対1の検査はこれを除く。
+- **R1** 1.8 の「根拠に出てくる」を機械で照合できない → ツールが出す根拠は `<from>.<path>` で始める（ir-schema.md の 4章）と決め、1.8 は前方一致で照合する（ユーザーの了承）。「使わなかった参照」の件数と内訳を、フェーズ3 の完了の確認で必ず見る。
+- **R2** CDK のスタック名のハイフンを `through` で認めた。軽微: `E-REF-NONODE` の重複、`$concat` の中の `$json` を禁止、`$az: "*"` は AZ のノードを作らない、`["k"]` を除いたときの属性名の注。
+- テストは計 85 件。

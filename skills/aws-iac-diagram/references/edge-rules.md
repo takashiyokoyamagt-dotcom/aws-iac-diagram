@@ -1,6 +1,6 @@
 # 辺の規則（A2・A3、草案）
 
-- 状態: **草案**。自作 fixture 5種の正解 IR を書くのに必要な分だけ
+- 状態: **草案**。自作 fixture 5種の正解 IR を書くのに必要な分だけ。2026-10-17 に「辺にしない参照」（`E-NOEDGE-*`）を規則 ID 付きの表にした（フェーズ1 の手順1）
 - 関係リソースから作る辺は [relation-resources.md](relation-resources.md)（R-*）。ここは **直接の参照・環境変数・IAM・合成ノード** から作る辺と、辺どうしをまとめる規則
 
 ## 1. 確信度（A3）
@@ -46,7 +46,24 @@
 |---|---|---|
 | `E-REF-NONODE` | R-* で辺に変換された関係リソース（例: rag の `DATA_SOURCE_ID = aws_bedrockagent_data_source.docs.data_source_id`）、または H-* で非表示のリソース（ロググループ、IAM など） | 辺を作らない。根拠（`sources.*.edges[].evidence`）には、同じ計算リソースから出るほかの辺があればそこに「辺にしなかった参照」として書く。M-* で統合されたリソースへの参照は、**統合先のノードへの参照** として扱う（例: タスク定義 → サービス、DB サブネットグループ → DB） |
 
-**参照でも辺にしないもの**（入れ子・統合・権限のための参照）: `vpc_id`、`subnet_id(s)`、`security_group_ids`（R-SG で別に扱う）、`role`／`execution_role_arn`（E-IAM で別に扱う）、ロググループ、`cluster`、`task_definition`、`db_subnet_group_name`、`allocation_id`、`depends_on`／`DependsOn`。
+**辺にしない参照**（入れ子・統合・権限のための参照。`E-NOEDGE-*`）
+
+参照（raw IR の `references`。ir-schema.md の 7.3）のうち、次の表に当たるものからは辺を作らない。ほかの規則で使うものは、その規則で扱う。参照の属性名は、raw IR の `path` の最後の要素（リストの位置 `[n]` とマップのキー `["k"]` を除いたもの）で、TF と CFN の書き方の両方で照合する。上から順に当てはめ、最初に当たった規則を使う。
+
+| 規則ID | 当たる参照 | 代わりに使うところ |
+|---|---|---|
+| `E-NOEDGE-FROM-RULE` | **参照する側**のリソースが、関係リソース（R-*）、統合（M-*）、非表示（H-*）に分類されたもの（例: `AWS::EC2::VPCGatewayAttachment` の `InternetGatewayId`、`AWS::ApiGateway::Stage` の `DeploymentId`、`AWS::EC2::FlowLog` の `ResourceId`、`AWS::IAM::InstanceProfile` の `Roles`、`AWS::OpenSearchServerless::Index` の `CollectionEndpoint`、`aws_s3_bucket_versioning` の `bucket`、ルート・リスナー・SG のルールの中の参照）。**ただし** `M-ECS-TASKDEF` で統合したタスク定義の中の参照は、統合先のサービスの参照として扱うので、ここには当てない（下の行と E-ENV-REF で扱う） | その R-*・M-*・H-* の規則（辺を作るかどうかはその規則が決める） |
+| `E-NOEDGE-PLACEMENT` | `vpc_id`／`VpcId`、`subnet_id`・`subnet_ids`・`subnets`／`SubnetId`・`SubnetIds`・`Subnets`、`availability_zone`／`AvailabilityZone`、`db_subnet_group_name`／`DBSubnetGroupName`、`vpc_config`／`VpcConfig` の中のサブネット | 入れ子（resource-catalog.md の 5。P-*） |
+| `E-NOEDGE-SG` | 計算リソースなどに SG を付ける属性: `security_groups`・`security_group_ids`・`vpc_security_group_ids`／`SecurityGroups`・`SecurityGroupIds`・`VPCSecurityGroups` | R-SG |
+| `E-NOEDGE-ROLE` | `role`・`role_arn`・`execution_role_arn`・`task_role_arn`・`iam_instance_profile`／`Role`・`RoleArn`・`ExecutionRoleArn`・`TaskRoleArn`・`IamInstanceProfile`、SAM の `Policies`（ポリシーテンプレートの中の参照も含む） | E-IAM |
+| `E-NOEDGE-LOG` | ロググループへの参照（`log_group_name`、`awslogs-group`／`LogGroupName`） | （描かない） |
+| `E-NOEDGE-MERGE` | 参照する側を統合先にする参照: `cluster`／`Cluster`、`task_definition`／`TaskDefinition`、`allocation_id`／`AllocationId` | 統合先のノード（M-*） |
+| `E-NOEDGE-DEPENDS` | `depends_on`／`DependsOn` | （描かない。作る順序だけの依存） |
+
+- この表に無い属性からの参照で、ほかの規則（E-ENV-REF、E-KB-STORAGE、R-* など）にも当たらないものは、正規化で `diagnostics`（code `NORM-UNUSED-REF`、level `info`）に残す。黙って捨てない（CRITERIA の 1.8）。
+- 参照先が R-* で辺に変換されたか、H-* で非表示のリソースなら、この表より先に、上の「参照先にノードが無いときの参照」の `E-REF-NONODE` を当てる。
+- `path` の最後の要素から除く `["k"]` は、識別子として書けないキー（`aws:SourceArn` など）だけなので、そのときは1つ手前の要素（`ArnEquals` など）が属性名になる。いまの表には、これで判定が変わる行は無い。
+- 黒箱のモジュール（`module`）の入力からの辺は、属性名ではなく参照先の型で決める（ir-schema.md の 2章）。
 
 ## 3. 合成ノード
 

@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:aws-iac-diagram:ir-raw:1.0",
+  "title": "aws-iac-diagram IR v1.0 (raw)",
+  "description": "アダプタの出力（正規化前）。説明は references/ir-schema.md の 7章。CFN と TF で同じ形。形の検査だけで、参照と props の対応・並び順などは validate_ir.py が調べる",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["ir_version", "stage", "format", "root", "evaluation", "resources", "references", "diagnostics"],
+  "properties": {
+    "ir_version": {"const": "1.0"},
+    "stage": {"const": "raw"},
+    "format": {"enum": ["cfn", "tf"]},
+    "root": {"type": "string", "minLength": 1, "pattern": "^[^\\\\]+$", "description": "/ 区切りの相対パス"},
+    "evaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "parameters": {"type": "object", "additionalProperties": {"$ref": "#/$defs/value"}},
+        "conditions": {"type": "object", "additionalProperties": {"type": ["boolean", "null"]}},
+        "var_files": {"type": "array", "items": {"type": "string"}},
+        "vars": {"type": "object", "additionalProperties": {"$ref": "#/$defs/value"}},
+        "assumptions": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "resources": {"type": "array", "items": {"$ref": "#/$defs/resource"}},
+    "references": {"type": "array", "items": {"$ref": "#/$defs/reference"}},
+    "diagnostics": {"type": "array", "items": {"$ref": "#/$defs/diagnostic"}}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"format": {"const": "cfn"}}},
+      "then": {
+        "properties": {
+          "evaluation": {"not": {"anyOf": [{"required": ["var_files"]}, {"required": ["vars"]}]}},
+          "resources": {"items": {"not": {"anyOf": [{"required": ["module"]}, {"required": ["source"]}, {"required": ["version"]}]}}},
+          "references": {"items": {"properties": {"fn": {"enum": ["Ref", "GetAtt", "Sub", "ImportValue", "DependsOn"]},
+                                                  "through": {"items": {"pattern": "^(([A-Za-z][-A-Za-z0-9]*::)?[A-Za-z0-9/]+\\.(Outputs|Parameters)\\.[A-Za-z0-9]+|Export:.+)$"}}}}},
+          "diagnostics": {"items": {"properties": {"code": {"pattern": "^CFN-"}}}}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"format": {"const": "tf"}}},
+      "then": {
+        "properties": {
+          "evaluation": {"not": {"anyOf": [{"required": ["parameters"]}, {"required": ["conditions"]}]}},
+          "resources": {"items": {"not": {"required": ["implicit"]}}},
+          "references": {"items": {"properties": {"fn": {"enum": ["ref", "depends_on"]},
+                                                  "through": {"items": {"pattern": "^module\\..+\\.(output|var)\\.[A-Za-z0-9_-]+$"}}}}},
+          "diagnostics": {"items": {"properties": {"code": {"pattern": "^TF-"}}}}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["address", "type", "file", "enabled", "props"],
+      "properties": {
+        "address": {"type": "string", "minLength": 1},
+        "type": {"type": "string", "minLength": 1},
+        "file": {"type": "string", "minLength": 1, "pattern": "^[^\\\\]+$"},
+        "enabled": {"type": ["boolean", "null"]},
+        "props": {"$ref": "#/$defs/object"},
+        "multiplicity": {"const": "N"},
+        "via": {"enum": ["nested_stack", "module_summary", "module_blackbox"]},
+        "implicit": {"const": true},
+        "module": {"type": "string", "pattern": "^module\\."},
+        "source": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1}
+      },
+      "dependentRequired": {"version": ["source"]}
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "path", "to", "attr", "fn", "state"],
+      "properties": {
+        "from": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "minLength": 1},
+        "to": {"type": "string", "minLength": 1},
+        "attr": {"type": ["string", "null"], "minLength": 1},
+        "fn": {"enum": ["Ref", "GetAtt", "Sub", "ImportValue", "DependsOn", "ref", "depends_on"]},
+        "state": {"enum": ["active", "pruned", "unevaluated"]},
+        "through": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+      },
+      "allOf": [
+        {"if": {"properties": {"fn": {"enum": ["Ref", "DependsOn", "depends_on"]}}}, "then": {"properties": {"attr": {"type": "null"}}}},
+        {"if": {"properties": {"fn": {"const": "GetAtt"}}}, "then": {"properties": {"attr": {"type": "string"}}}},
+        {"if": {"properties": {"fn": {"enum": ["DependsOn", "depends_on"]}}}, "then": {"properties": {"state": {"const": "active"}}}}
+      ]
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["level", "code", "message"],
+      "properties": {
+        "level": {"enum": ["info", "warn", "error"]},
+        "code": {"type": "string", "pattern": "^(CFN|TF)-[A-Z0-9]+(-[A-Z0-9]+)*$"},
+        "address": {"type": "string"},
+        "path": {"type": "string"},
+        "message": {"type": "string", "minLength": 1}
+      }
+    },
+    "value": {
+      "description": "評価した後の値。評価できなかった部分だけ印（$ で始まるキーのオブジェクト）にする（ir-schema.md の 7.2）",
+      "anyOf": [
+        {"type": ["string", "number", "boolean", "null"]},
+        {"type": "array", "items": {"$ref": "#/$defs/value"}},
+        {"$ref": "#/$defs/marker"},
+        {"$ref": "#/$defs/object"}
+      ]
+    },
+    "object": {
+      "description": "ふつうのオブジェクト。$ で始まるキーは、入力のキーを $$ で逃がしたものだけ",
+      "type": "object",
+      "propertyNames": {"not": {"pattern": "^\\$(?!\\$)"}},
+      "additionalProperties": {"$ref": "#/$defs/value"}
+    },
+    "res": {"type": "object", "additionalProperties": false, "required": ["$res", "attr"],
+            "properties": {"$res": {"type": "string", "minLength": 1}, "attr": {"type": ["string", "null"], "minLength": 1}}},
+    "pseudo": {"type": "object", "additionalProperties": false, "required": ["$pseudo"],
+               "properties": {"$pseudo": {"enum": ["AWS::Region", "AWS::AccountId", "AWS::Partition", "AWS::StackName", "AWS::StackId", "AWS::URLSuffix", "AWS::NotificationARNs"]}}},
+    "az": {"type": "object", "additionalProperties": false, "required": ["$az"],
+           "properties": {"$az": {"anyOf": [{"type": "integer", "minimum": 0}, {"const": "*"}]}}},
+    "import": {"type": "object", "additionalProperties": false, "required": ["$import"],
+               "properties": {"$import": {"type": "string", "minLength": 1}}},
+    "unknown": {"type": "object", "additionalProperties": false, "required": ["$unknown"],
+                "properties": {"$unknown": {"type": "string", "minLength": 1}}},
+    "json": {"type": "object", "additionalProperties": false, "required": ["$json"],
+             "properties": {"$json": {"$ref": "#/$defs/value"}}},
+    "concat": {"type": "object", "additionalProperties": false, "required": ["$concat"],
+               "properties": {"$concat": {
+                 "type": "array",
+                 "minItems": 1,
+                 "items": {"anyOf": [{"type": "string", "minLength": 1}, {"$ref": "#/$defs/res"}, {"$ref": "#/$defs/pseudo"},
+                                     {"$ref": "#/$defs/az"}, {"$ref": "#/$defs/import"}, {"$ref": "#/$defs/unknown"}]},
+                 "contains": {"type": "object"}
+               }}},
+    "marker": {
+      "oneOf": [
+        {"$ref": "#/$defs/res"}, {"$ref": "#/$defs/pseudo"}, {"$ref": "#/$defs/concat"}, {"$ref": "#/$defs/json"},
+        {"$ref": "#/$defs/az"}, {"$ref": "#/$defs/import"}, {"$ref": "#/$defs/unknown"}
+      ]
+    }
+  }
+}
