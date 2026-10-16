@@ -117,6 +117,7 @@ class RawSchemaTest(unittest.TestCase):
             "$concat の中の配列": lambda d: props(d).update(X={"$concat": [["a"], res("Cluster")]}),
             "enabled が無い": lambda d: d["resources"][0].pop("enabled"),
             "CFN に module": lambda d: d["resources"][0].update(module="module.x"),
+            "CFN に provider": lambda d: d["resources"][0].update(provider="aws.x", region="us-east-1"),
             "CFN に vars": lambda d: d["evaluation"].update(vars={}),
             "診断の code": lambda d: d["diagnostics"][0].update(code="unresolved"),
             "CFN の診断に TF-": lambda d: d["diagnostics"][0].update(code="TF-X"),
@@ -160,7 +161,8 @@ class RawSchemaTest(unittest.TestCase):
                "resources": [
                    {"address": "aws_subnet.private[*]", "type": "aws_subnet", "file": "network.tf", "enabled": None,
                     "multiplicity": "N", "props": {"vpc_id": res("aws_vpc.main", "id")}},
-                   {"address": "aws_vpc.main", "type": "aws_vpc", "file": "network.tf", "enabled": True, "props": {}},
+                   {"address": "aws_vpc.main", "type": "aws_vpc", "file": "network.tf", "enabled": True, "props": {},
+                    "provider": "aws.us_east_1", "region": "us-east-1"},
                    {"address": "module.iam", "type": "module", "file": "main.tf", "enabled": True, "props": {},
                     "via": "module_blackbox", "source": "aws-ia/x/aws", "version": "1.0.0"}],
                "references": [ref("aws_subnet.private[*]", "vpc_id", "aws_vpc.main", "id", fn="ref",
@@ -172,6 +174,13 @@ class RawSchemaTest(unittest.TestCase):
         self.assertTrue(raw_errors(bad))
         bad = copy.deepcopy(doc)
         bad["resources"][0]["implicit"] = True
+        self.assertTrue(raw_errors(bad))
+        # region はリソースの引数 region からも決まるので、provider が無くてもよい。provider は alias のあるものだけ（7.2）
+        ok = copy.deepcopy(doc)
+        ok["resources"][1].pop("provider")
+        self.assertEqual(raw_errors(ok), [])
+        bad = copy.deepcopy(doc)
+        bad["resources"][1]["provider"] = "aws"
         self.assertTrue(raw_errors(bad))
 
 

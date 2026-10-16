@@ -111,6 +111,15 @@ C1（[CRITERIA.md](aws-iac-diagram-workspace/evals/CRITERIA.md) の 1.6）は、
 uv run python aws-iac-diagram-workspace\tools\c1_check.py
 ```
 
+### Terraform アダプタ（フェーズ2 で作成中）
+
+Terraform のルートモジュール（.tf のフォルダ）から、同じ raw IR を作ります。いまは土台（手順1）だけで、変数・locals・count・for_each の評価とモジュールの中身はまだ読みません（ir-schema.md の 7.6）。
+
+```powershell
+uv run skills\aws-iac-diagram\scripts\adapters\tf.py --input aws-iac-diagram-workspace\fixtures\tf\three-tier --out out\three-tier.tf.raw.json
+uv run python skills\aws-iac-diagram\scripts\validate_ir.py out\three-tier.tf.raw.json
+```
+
 ### 正解 IR と fixture の検証
 
 ```powershell

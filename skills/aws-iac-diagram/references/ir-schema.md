@@ -1,6 +1,6 @@
 # IR スキーマ（v1.0）
 
-- 状態: **v1.0 確定**（2026-10-17）。正規化後の形（1〜6章）はフェーズ1 の手順1 で、アダプタの出力（7章）は CFN アダプタの実装（手順2〜4）で確かめて手順5 で確定した。TF アダプタ（フェーズ2）で足りないものが見つかれば、7章に追記する。v0.1 草案（フェーズ0）からの変更点は 9章
+- 状態: **v1.0 確定**（2026-10-17）。正規化後の形（1〜6章）はフェーズ1 の手順1 で、アダプタの出力（7章）は CFN アダプタの実装（手順2〜4）で確かめて手順5 で確定した。TF アダプタ（フェーズ2）で足りないものが見つかれば、7章に追記する（手順1 で、リソースの `provider`・`region` と、TF の props・参照・値の書き方を 7.2 に足した。進み具合は 7.6）。v0.1 草案（フェーズ0）からの変更点は 9章
 - 機械可読な定義: 正規化後は [ir.schema.json](ir.schema.json)、アダプタの出力は [ir-raw.schema.json](ir-raw.schema.json)（どちらも JSON Schema 2020-12）
 - 検証: `scripts/validate_ir.py`（スキーマ＋参照の整合＋出力形式）
 - 関連する規則表: [resource-catalog.md](resource-catalog.md)（型ごとの扱い・入れ子）、[relation-resources.md](relation-resources.md)（A1）、[edge-rules.md](edge-rules.md)（A2・A3・SG・IAM・合成ノード・辺にしない参照）
@@ -255,6 +255,8 @@ canonical 部の **すべての辺** について、形式ごとに1件ずつ、
 | `implicit` | | SAM が暗黙に作るリソース（`Events` に `RestApiId`／`ApiId` が無いときの `ServerlessRestApi`／`ServerlessHttpApi` など）なら `true`。address は SAM が付ける論理ID。網羅分類にも載せる |
 | `module` | | TF だけ。モジュールの中のリソースなら、モジュールのパス（`module.vpc`） |
 | `source`, `version` | | TF の黒箱のモジュールの呼び出しだけ。モジュールの source と version（`props` はモジュールの入力） |
+| `provider` | | TF だけ。メタ引数 `provider = aws.<alias>` を指定したリソース・data の provider（`aws.us_east_1`）。既定の provider（alias の無いもの）では書かない |
+| `region` | | TF だけ。リソースが置かれるリージョンが文字列で決まるとき、その値（CloudFront の証明書の `us-east-1` など）。AWS provider v6 のリソースの引数 `region` があればそれを、無ければ `provider` の provider の設定の `region` を使う（Terraform と同じ優先順）。決まらなければ書かない。どちらも無いリソースは、ルートの既定の provider のリージョン（どのリージョンかは IR に持たない。CFN のスタックと同じ。モジュールの中は手順3 で決める）。正規化は `region` の値で別のリージョンかを見分け、`provider` の alias の名前（`aws.primary` など、同じリージョンを指す alias もある）だけで別のリージョンとして扱わない |
 
 **`props` の値の書き方**
 
@@ -274,7 +276,11 @@ canonical 部の **すべての辺** について、形式ごとに1件ずつ、
 - `Fn::If`、`Fn::FindInMap`、`Fn::Select`、`Fn::Split`、`Fn::Equals` などは、値が決まれば評価して結果だけを残す。条件が決まらない `Fn::If` は `$unknown`。評価で選ばれなかった値（`Fn::If` の選ばれなかった側、`Fn::Select` で選ばれなかった要素、`Fn::FindInMap` で引かなかったキーなど）の中にあった参照は、`references` に `state: "pruned"` で残す（cfn-lint は条件を評価せず、これらも辺にするため）。
 - **リストの分割:** `Fn::Split` と、`List<…>`／`CommaDelimitedList` 型のパラメータに文字列を渡したとき（ネストスタックの出力 `!Join [",", [!Ref A, !Ref B]]` を受けるなど）は、`$concat` の文字列の部分を区切り文字の位置で分け、印は分けずにリストにする（`{"$concat": [A の印, ",", B の印]}` → `[A の印, B の印]`）。
 - ネストスタックの出力（`!GetAtt NetworkStack.Outputs.VpcId`）と、子テンプレートの `Parameters` に渡した値は、たどって元のリソースへの `$res` にする（TF のモジュールの出力・変数も同じ）。たどった経路は 7.3 の `through` に書く。`AWS::CloudFormation::Stack` のリソース自身の `props` の `Parameters` は、リストの分割をしない（分割は子テンプレートの側で、パラメータの型を見て行う）。
-- TF のスプラット（`aws_subnet.private[*].id`）は、インスタンスの数が決まればインスタンスごとの `$res` のリストにし、決まらなければ `{"$res": "aws_subnet.private[*]", "attr": "id"}` の1つにする。
+- TF のスプラット（`aws_subnet.private[*].id`）は、インスタンスの数が決まればインスタンスごとの `$res` のリストにし、決まらなければ `{"$res": "aws_subnet.private[*]", "attr": "id"}` の1つにする。count・for_each の無いリソースのスプラットは、要素1つのリストにする（Terraform と同じ）。
+- **TF の props:** 属性とブロック。ブロックは同じ名前のものをリストにする（plan JSON と同じ形。`load_balancer[0].target_group_arn`）。メタ引数（`count`、`for_each`、`provider`、`depends_on`、`lifecycle`、`provisioner`、`connection`。module は `source`、`version`、`providers` も）は props に入れない。値が `null` の属性は書かない（Terraform では書かないのと同じ）。count・for_each の値が決まらないブロック（×N）は `enabled: null`（0 個かもしれないため）。
+- **TF の `$res` の `attr`:** address の後ろの最初の属性名（`aws_eks_cluster.x.certificate_authority[0].data` → `certificate_authority`、`module.alb.target_groups["app"].arn` → `target_groups`）。属性の無い参照（`aws_lb_listener.http`）は `null`。インスタンスのキー（`[0]`、`["ssm"]`）は address の側に入れる（決まらなければ `[*]`）。モジュールの出力への参照は、中身をたどれなければ `{"$res": "module.x", "attr": "<出力の名前>"}`（黒箱のモジュール。2章）。
+- **TF の擬似パラメータと AZ:** 引数の無い（`provider` も無い）`data.aws_region`（`name`・`region`・`id`）、`data.aws_caller_identity`（`account_id`）、`data.aws_partition`（`partition`・`id` → `AWS::Partition`、`dns_suffix` → `AWS::URLSuffix`）は `$pseudo`。ほかの属性（`data.aws_caller_identity.x.arn` など）と、引数のある data（別のリージョンを指す `data.aws_region` など）は `$res`。引数が `provider` 以外だけの `data.aws_availability_zones` の `names[<番号>]` は `$az`（番号）、`names` 全体は `{"$az": "*"}`。`$pseudo`・`$az` にした参照は、CFN の擬似パラメータ・`Fn::GetAZs` と同じく `references` に出さない。
+- **TF のそのほかの値:** `path.module`・`path.root`・`path.cwd` は `root` からの相対パス（ルートモジュールは `"."`。モジュールの中の `path.module` はそのモジュールのフォルダ）。`terraform.workspace` は `"default"` とし、`evaluation.assumptions` に書く（ワークスペースを選ぶ引数は、要るときに足す）。`jsonencode(...)` は `$json`（中身が `$unknown` になったときは、その `$unknown`。`jsonencode("x")` のように中身が文字列・数などのスカラーの `$json` もある）。`"${…}"` と heredoc はテンプレートとして `$concat` にし（`${…}` が1つだけの文字列は、その値のまま。HCL と同じ）、JSON として読めれば `$json` にする（CFN と同じ規則）。`file()`・`templatefile()`・`filemd5()` などファイルを読む関数は、ファイルを読まずに `$unknown`（診断 `TF-UNEVALUATED`）にし、引数の中の参照（`templatefile` の変数に渡したリソースなど）は `unevaluated` で残す。
 - **SAM:** `Globals` は各リソースに混ぜてから `props` にする（cfn-lint と同じ。マップは中まで、リストは Globals の後ろにつなぐ、値はリソースの方。組み込み関数は1つの値として扱い、中に混ぜない）。暗黙の API（`implicit`）にも `Globals.Api`／`Globals.HttpApi` を混ぜる。暗黙の API は、`AWS::Serverless::Function` と `AWS::Serverless::StateMachine` の `Events` から作る。`Events`、`Policies`（ポリシーテンプレート）はプロパティのまま `props` に残し、SAM の変換（Transform）はしない（変換に当たることは、正規化の規則で扱う。relation-resources.md）。
 
 ### 7.3 参照
@@ -307,7 +313,7 @@ canonical 部の **すべての辺** について、形式ごとに1件ずつ、
 | TF のローカルモジュールがルートの外（T04、T14、T15 の `../../`） | そのまま読む。`file` は `../` 付きの相対パス（4章） |
 | AWS 以外のプロバイダの型（T15 の awscc、T18 の kubernetes、T09 の opensearch など） | アダプタはそのまま `resources` に載せる。扱いは正規化の規則表（resource-catalog.md）で決める。方針: awscc の型は同じ名前の CFN の型（`awscc_ec2_vpc` → `AWS::EC2::VPC`）として扱う。random、null、time などクラウド上の実体が無いものは既存の `H-UTILITY`。それ以外のプロバイダ（kubernetes、helm、tls、local など）は非表示（規則 `H-NONAWS`）。opensearch の index のように AWS のリソースの中身を作る型は、そのリソースに統合する（既存の `M-AOSS-INDEX`）。個々の型の行は、フェーズ3 で公開サンプルの型を足すときに書く |
 | 既存のインフラを指す TF の `data`（T20 は 413 件） | `data` も `resources` に載せる（address は `data.` 付き）。描くか非表示にするかは正規化で決める。方針: 描く型の `data`（`data.aws_vpc`、`data.aws_subnet` など）が、描くリソースから参照されていれば、既存のノードとして描く。それ以外は `H-DATA`。`terraform_remote_state` はフェーズ2 で決める |
-| python-hcl2 が heredoc の終端の空白で読めない（T06） | TF アダプタ（フェーズ2）で、heredoc の終端の行の末尾の空白を取ってから読む。取ったことを `diagnostics`（level `info`）に書く |
+| python-hcl2 が heredoc の終端の空白で読めない（T06） | TF アダプタで、heredoc の開始（`<<EOF`）と終端の行の末尾の空白を取ってから読む（開始の行の後ろの空白でも読めないため）。取ったことを `diagnostics`（level `info`、`TF-HEREDOC-TRAILING-SPACE`）に書く |
 
 ### 7.5 診断
 
@@ -319,10 +325,23 @@ canonical 部の **すべての辺** について、形式ごとに1件ずつ、
 - `code` は大文字で、raw では `CFN-…`／`TF-…`。正規化後の IR にも同じ形の `diagnostics` を持たせ、そこでは `NORM-…`（「使わなかった参照」、「条件が決まらない」など。edge-rules.md）。一覧は各段階の実装と一緒に決める。
 - `diagnostics` は `result.json` にそのまま載せる。`error` があっても、読めた分の IR は出す（終了コードは PLAN 1.3 の 4 に従う）。
 
+### 7.6 TF アダプタの進み具合（フェーズ2 の間だけの注記）
+
+TF アダプタ（`scripts/adapters/tf.py`）は、フェーズ2 を手順に分けて作っている。まだ評価していないものは、この章の印で「評価していない」と分かる形で出す（後の手順で置き換える）。フェーズ2 が終わったらこの節を消す。
+
+| 手順 | 内容 | それまでの出し方 |
+|---|---|---|
+| 1（済） | .tf の resource・data・module、参照、`$pseudo`・`$az`・`$json`、heredoc の前処理、`provider`・`region` | — |
+| 2 | A4: tfvars・`*.auto.tfvars`・default・locals、count・for_each の展開、関数・条件式・演算・for 式・`dynamic` | `var.*`・`local.*`・`count.index`・`each.*`・関数・式は `$unknown`（診断 `TF-DEFERRED`、中の参照は `unevaluated`。local は中の式をたどる）。count・for_each のあるブロックは ×N（`[*]`、`enabled: null`、診断 `TF-COUNT-DEFERRED`） |
+| 3 | モジュールの再帰（ローカル）、A5 の要約表、黒箱、H-IAM、`terraform_remote_state` | すべての module 呼び出しを黒箱（`type: module`、`via: module_blackbox`、診断 `TF-MODULE-DEFERRED`） |
+| 4 | plan JSON（`configuration` の参照を優先） | 読まない |
+
 ## 8. 決めなかったこと（後のフェーズで決める）
 
 - **複数ビュー（B2）の詳細度:** IR には持たせない。どのノードをどのビューに出すかは、型ごとに resource-catalog.md の列で決める（フェーズ4。IR を表示の都合で変えないため）。
-- **`terraform_remote_state`** の扱い（フェーズ2）。
+- **`terraform_remote_state`** の扱い（フェーズ2 の手順3）。
+- **plan JSON の `configuration` の `references` の重なり**（`aws_subnet.private[0].id`・`aws_subnet.private[0]`・`aws_subnet.private` を重ねて出す）を、最も細かいインスタンスの address にまとめる規則（フェーズ2 の手順4 で 7.3 に書く）。
+- **TF のモジュールの `providers` で渡した provider の `region`**（フェーズ2 の手順3）。
 - **診断の `code` の一覧**（各アダプタの実装と一緒に）。
 - **ノード ID の重なり**（2章）を解いたときの、TF／CFN の対応表の形（フェーズ2）。
 

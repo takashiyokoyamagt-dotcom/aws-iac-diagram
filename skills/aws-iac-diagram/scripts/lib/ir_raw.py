@@ -88,6 +88,71 @@ def normalize_concat(parts: list):
     return {"$concat": out}
 
 
+def escape_keys(v):
+    """JSON の中の $ で始まるキーを $$ で逃がす（7.2）。"""
+    if isinstance(v, list):
+        return [escape_keys(x) for x in v]
+    if isinstance(v, dict):
+        return {("$" + k if k.startswith("$") else k): escape_keys(x) for k, x in v.items()}
+    return v
+
+
+_PLACEHOLDER = "\u0000AWSIACDIAGRAM{}\u0000"
+_PLACEHOLDER_RE = re.compile("\u0000AWSIACDIAGRAM(\\d+)\u0000")
+
+
+def maybe_json(value):
+    """JSON の文字列（印をつないだ $concat と、印の無いふつうの文字列）を、読めれば $json にする（7.2）。
+
+    $concat は、印を目印に置き換えてから JSON として読み、読めたら目印を印に戻す。読めなければ元の値のまま。
+    CFN の Fn::Sub と、TF の文字列・heredoc の両方で使う。
+    """
+    if isinstance(value, str):
+        if not value.lstrip().startswith(("{", "[")):
+            return value
+        try:
+            doc = json.loads(value)
+        except ValueError:
+            return value
+        return {"$json": escape_keys(doc)} if isinstance(doc, (dict, list)) else value
+    if not (isinstance(value, dict) and "$concat" in value):
+        return value
+    parts = value["$concat"]
+    markers = [p for p in parts if not isinstance(p, str)]
+    text = "".join(p if isinstance(p, str) else _PLACEHOLDER.format(markers.index(p)) for p in parts)
+    if not text.lstrip().startswith(("{", "[")):
+        return value
+    try:
+        doc = json.loads(text, strict=False)  # 目印の \u0000 を文字列の中で許す
+    except ValueError:
+        return value
+
+    def restore(v):
+        if isinstance(v, str):
+            if not _PLACEHOLDER_RE.search(v):
+                return v
+            pieces: list = []
+            pos = 0
+            for m in _PLACEHOLDER_RE.finditer(v):
+                pieces.append(v[pos:m.start()])
+                pieces.append(markers[int(m.group(1))])
+                pos = m.end()
+            pieces.append(v[pos:])
+            return normalize_concat(pieces)
+        if isinstance(v, list):
+            return [restore(x) for x in v]
+        if isinstance(v, dict):
+            if any(_PLACEHOLDER_RE.search(k) for k in v):
+                raise ValueError("placeholder in a key")
+            return {("$" + k if k.startswith("$") else k): restore(x) for k, x in v.items()}
+        return v
+
+    try:
+        return {"$json": restore(doc)}
+    except ValueError:
+        return value
+
+
 def canonical_raw(ir: dict) -> dict:
     """配列を 6章の順に並べ替えたコピーを返す。"""
     ir = json.loads(json.dumps(ir))

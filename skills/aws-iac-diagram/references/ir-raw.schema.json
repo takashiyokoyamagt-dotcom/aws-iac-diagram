@@ -32,7 +32,8 @@
       "then": {
         "properties": {
           "evaluation": {"not": {"anyOf": [{"required": ["var_files"]}, {"required": ["vars"]}]}},
-          "resources": {"items": {"not": {"anyOf": [{"required": ["module"]}, {"required": ["source"]}, {"required": ["version"]}]}}},
+          "resources": {"items": {"not": {"anyOf": [{"required": ["module"]}, {"required": ["source"]}, {"required": ["version"]},
+                                                    {"required": ["provider"]}, {"required": ["region"]}]}}},
           "references": {"items": {"properties": {"fn": {"enum": ["Ref", "GetAtt", "Sub", "ImportValue", "DependsOn"]},
                                                   "through": {"items": {"pattern": "^(([A-Za-z][-A-Za-z0-9]*::)?[A-Za-z0-9/]+\\.(Outputs|Parameters)\\.[A-Za-z0-9]+|Export:.+)$"}}}}},
           "diagnostics": {"items": {"properties": {"code": {"pattern": "^CFN-"}}}}
@@ -68,7 +69,9 @@
         "implicit": {"const": true},
         "module": {"type": "string", "pattern": "^module\\."},
         "source": {"type": "string", "minLength": 1},
-        "version": {"type": "string", "minLength": 1}
+        "version": {"type": "string", "minLength": 1},
+        "provider": {"type": "string", "pattern": "^[a-z0-9_-]+\\.[A-Za-z0-9_-]+$", "description": "TF だけ。provider = <名前>.<alias> を指定したリソースの provider"},
+        "region": {"type": "string", "minLength": 1, "description": "TF だけ。リソースの引数 region か、provider の region が文字列で決まるとき"}
       },
       "dependentRequired": {"version": ["source"]}
     },

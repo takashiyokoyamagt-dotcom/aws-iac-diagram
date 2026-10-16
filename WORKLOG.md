@@ -430,3 +430,57 @@ HANDOFF の表の 4 は、2回目の第三者レビューで「コミット可�
 - **R3・R4** 既知の制約（cdk.out は実物で未確認、raw_only の理由）と、TF アダプタで raw IR に足しそうなものを HANDOFF に書いた。
 - 軽微: 自作 fixture の辺の数を構成ごとに固定した（cfn-lint の挙動の変化に気づけるように）。`root_dir()` を簡単にした。
 - テストは計 135 件。
+
+---
+
+## 2026-10-17（続き）フェーズ2 の手順1: Terraform アダプタの土台
+
+### 概要
+フェーズ2 を5つの手順に分けて進めることにした: 1=土台、2=A4（変数・locals・count／for_each・×N）、3=モジュールの再帰・A5・黒箱・H-IAM・`terraform_remote_state`、4=plan JSON、5=公開サンプルでの確認と完了。手順1 として、.tf を読んで raw IR（ir-schema.md の 7章）を出す土台を作った。
+
+### やったこと
+1. `skills/aws-iac-diagram/scripts/adapters/tf.py` を作った（PEP 723 で python-hcl2 8.1.4）。`uv run scripts/adapters/tf.py --input <ルートモジュールのフォルダ> --out <raw.json> [--root-base <フォルダ>]`。終了コードは 0（書けた）／2（読めない。フォルダでない、.tf が無いなど）。
+   - フォルダ直下の `*.tf` を python-hcl2 の構文木（`parses_to_tree`）で読み、resource・data・module・locals・provider のブロックを集める。属性とブロックを props にし（ブロックは同じ名前のものをリスト）、メタ引数は props に入れない。`null` の属性は書かない。
+   - 参照: resource・data・module への参照は `$res`（`attr` は最初の属性名）、`depends_on` は references にだけ。引数の無い `data.aws_region`・`aws_caller_identity`・`aws_partition` は `$pseudo`、`data.aws_availability_zones` の `names[n]`／`names` は `$az`。`jsonencode(...)` は `$json`。`"${…}"` と heredoc は `$concat`（JSON として読めれば `$json`。CFN と同じ規則）。入力の `$` で始まるキーは `$$` で逃がす。
+   - `path.module`・`path.root`・`path.cwd` はルートからの相対パス（`"."`）、`terraform.workspace` は `"default"`（`evaluation.assumptions` に書く）。`file()`・`templatefile()` などはファイルを読まずに `$unknown`（`TF-UNEVALUATED`）で、引数の中の参照は `unevaluated`。
+   - `provider = aws.<alias>` のリソースは `provider` と、その provider の `region`（文字列で決まるときだけ）を書く。
+   - heredoc の開始と終端の行の末尾の空白を取ってから読む（T06。診断 `TF-HEREDOC-TRAILING-SPACE`、info）。読めないファイルは `TF-PARSE-ERROR`（error）にして、ほかのファイルは読む。`.tf.json` と override のファイルは、まだ読まない（warn）。
+   - **後の手順に回したもの（評価していないと分かる形で出す）:** `var.*`・`local.*`・`count.index`・`each.*`・関数（`jsonencode` 以外）・条件式・演算・for 式・`%{…}`・`dynamic` は `$unknown`（`TF-DEFERRED`。中の参照は `unevaluated`。local は中の式をたどって参照を探す）。count・for_each のあるブロックは ×N（address は `[*]`、`multiplicity: "N"`、`enabled: null`、`TF-COUNT-DEFERRED`）で、インスタンスへの参照とスプラットも `[*]` への1つの `$res`。module はすべて黒箱の呼び出し1件（`type: module`、`via: module_blackbox`、source・version、props は入力。`TF-MODULE-DEFERRED`）で、`module.x.out` は `{"$res": "module.x", "attr": "out"}`。
+2. CFN アダプタの、JSON の文字列を `$json` にする処理（`_maybe_json`）と `$` のキーの逃がし方を `lib/ir_raw.py`（`maybe_json`・`escape_keys`）に移し、2つのアダプタで共通にした。CFN の動きは変えていない（CFN のテストと C1 はそのまま通る）。
+3. スキーマ: `ir-raw.schema.json` のリソースに、TF だけの任意のフィールド `provider`（`<名前>.<alias>`）と `region`（`provider` があるときだけ）を足した。ir-schema.md の 7.2 に TF の props・参照の `attr`・擬似パラメータと AZ・そのほかの値の書き方を、7.4 に heredoc の開始の行を、7.6 にフェーズ2 の進み具合の表（フェーズ2 の間だけ）を、8章に手順3・4 で決めること（`terraform_remote_state`、plan JSON の参照の重なり、モジュールに渡した provider の region）を書いた。
+4. テスト `tests/test_tf_adapter.py`（20件。参照と props の位置、インスタンスとスプラット、モジュールの出力、擬似パラメータと AZ、テンプレートと逃がし方、`jsonencode` と heredoc の JSON、`path`・`terraform.workspace`・ファイルの関数、評価しない値の中の参照、×N、module の呼び出し、provider と region、heredoc の空白、CRLF、読めないファイル、CLI、正解 IR との突き合わせ（`ExpectedIrTest`）、fixture と公開サンプル）。`test_ir_schema_v1.py` に `provider`・`region` の検査を足した。計 155 件が通過（レビューの対応の後は 159 件）。
+5. CI（`ci.yml`）の検証の手順に、自作 fixture の5構成を `uv run`（PEP 723 の依存だけ）で TF アダプタにかけ、`validate_ir.py` で調べる手順を足した。README に使い方を書いた。
+
+### 決めたこと
+| 決定 | 理由 |
+|---|---|
+| python-hcl2 の `load()` の辞書ではなく、構文木（`parses_to_tree`）を直接読む | 8.x の `load()` は式を `"${…}"` の文字列に戻し、`jsonencode` の中も HCL の文字列のまま返すので、参照の位置と `$json` の中身を取れない |
+| ×N（count・for_each が決まらない）は `enabled: null` | 0 個かもしれない（`count = var.x ? 1 : 0` が多い）。正規化は `null` を描いて診断を残す（7.2） |
+| `$res` の `attr` は最初の属性名 | `!GetAtt` の `B.C` と違い、TF の後ろの位置はリストの中や出力の中まで続くので、辺の判定に要る最初の名前だけにする |
+| 擬似パラメータ・AZ にした参照は references に出さない | CFN の擬似パラメータ・`Fn::GetAZs` と同じ。provider の付いた data（別のリージョン・アカウント）は `$res` のまま |
+| `path.module` は相対パス、`terraform.workspace` は `"default"`（前提に書く） | どちらも値が決まり、名前（K-NAME）に使われうる。`$pseudo` を増やさない |
+| `file()`・`templatefile()` はファイルを読まない | 図に要るのは引数の中の参照（`unevaluated` で残る）で、ファイルの中身ではない |
+| `provider`・`region` を任意のフィールドにする（既定の provider には書かない） | CloudFront の証明書（us-east-1）など、別のリージョンのリソースを正規化で見分けるため。既定のリージョンは CFN のスタックと同じく IR に持たない |
+| 手順1 ではすべての module を黒箱の呼び出しにする | 黒箱は最終の形でもあるので、手順3 でローカル・要約表のものだけを中身に置き換えればよい |
+
+### 確かめたこと
+- 自作 fixture の5構成（TF）で raw IR を作り、`validate_ir.py` が通った。診断は warn・info だけ（error 0）。リソース・参照・診断の数: three-tier 33・49・58、serverless-api 29・38・15、vpc-endpoints 28・39・40、three-tier-modules 5・13・23、rag 41・65・25。
+- 正解 IR の TF 側の網羅分類と、address・type・file・enabled が、手順1 の形に読み替えて5構成すべてで一致した（`ExpectedIrTest`。読み替えは count・for_each のインスタンスと count が 0 のブロック → `[*]`、モジュールの中身 → 呼び出し1件。それぞれ手順2・3 で正解 IR と同じ形になる）。three-tier の辺の根拠のうちモジュールと count をまたがないもの（リスナー → TG、サービス → TG、タスク定義の環境変数 → DB、ルート → NAT など）が active の参照として出ることも確かめた。
+- 公開サンプルの TF のルート（T01〜T20、P01〜P04。survey_public.py の一覧で 52 フォルダ、815 リソース）で例外なく動き、すべて raw IR の検査を通った（約2秒）。error の診断は 0、T06 は heredoc の前処理の info が1件出て読めた。モジュールのフォルダも含めて `.tf` のあるフォルダをすべて読む確認（172 フォルダ、1969 リソース）でも失敗 0。
+- 読めないファイル（構文の誤り）は `TF-PARSE-ERROR`（error）になり、同じフォルダのほかのファイルは読めることをテストで確かめた。
+- `uv run`（PEP 723）で起動でき、CI に足した手順を、バックスラッシュを含む `RUNNER_TEMP` を与えて手元の bash で流して通った。
+
+### つまずいたこと
+- python-hcl2 8.1.4 の `load()` は式を文字列に戻すので使えなかった（上の「決めたこと」）。heredoc は1つの字句で、中の `${…}` は解析されないので、自分で分けてから式を読む。
+- heredoc の終端の後ろだけでなく、開始の `<<EOF` の後ろに空白があっても読めない（文法の正規表現が直後の改行を求める）。両方を取るようにした。
+- Bash のヒアドキュメントに `\n` を含む HCL を渡すと化けた（既知）。サンプルは Write ツールで書いた。
+- `main()` の `sys.stdout.reconfigure` が、テストで標準エラーを `StringIO` に差し替えると落ちた。`reconfigure` があるときだけ呼ぶ。
+- モジュールのフォルダを単独で読むと、呼び出し側から渡される provider の alias が「設定が無い」ように見える。warn ではなく info（`TF-PROVIDER-UNCONFIGURED`）にした。
+
+### 第三者レビュー（判定「修正後コミット」）と対応
+- **M1** heredoc の前処理（`fix_heredocs`）で、終端が見つからない開始の行があると、そこからファイルの末尾まで飛ばして後ろの heredoc を調べなかった。コメントにした heredoc（`#   policy = <<EOF` … `#   EOF`）の後ろに、終端に空白のある heredoc があると直らず、ファイル全体が `TF-PARSE-ERROR` になった → 終端が無ければ次の行から調べ直す。`<<` より前に `#` か `//` がある行は開始として扱わない。この入力をテストにした。
+- **R1** AWS provider v6 のリソースの引数 `region`（文字列）を、provider の設定の region より優先してリソースの `region` に書く（Terraform と同じ。AWS の型だけ）。Schema の「`region` には `provider` が要る」を外した。ir-schema.md の 7.2 に、モジュールの中の既定のリージョンは手順3 で決めること、同じリージョンを指す alias（`aws.primary` など）を alias の名前だけで別のリージョンとして扱わないことを書いた。
+- **R2** 出力を書けない（`--out` の親がファイルなど）ときに例外のまま落ちていた → 終了コード 2 と日本語のメッセージにした。
+- 任意: CFN アダプタの使っていない `_escape_keys` を消した。古い書き方の `provider = "aws.w"`（文字列）も読む（読めない形は `TF-MALFORMED-BLOCK` の warn）。7.2 にスカラーの `$json`（`jsonencode("x")`）もあると書いた。Terraform が読まないファイル（`.` で始まる、`~` で終わる、`#…#`）を読まないようにした。`test_known_references` に serverless-api（ESM → DynamoDB のストリーム、サブスクリプション → SQS）・vpc-endpoints（SG のルール → SG、Gateway エンドポイント → ルートテーブル）・rag（データソース → S3、S3 通知 → Lambda、REST の統合 → Lambda）を足した。CI の Windows PowerShell 5.1 の手順で、日本語のパスに置いた SKILL の `tf.py` を1回 `uv run` する（手元の PowerShell 5.1 で同じ手順を流して通った）。
+- 見送り（HANDOFF の 3a に書いた）: `ephemeral` ブロック（`ephemeral.*` への参照はいまは `TF-UNDEFINED-REF`）と `check` ブロックの中の `data` は手順2、`.tf.json` と override のファイルは手順2・3 で扱う。
+- 確かめたこと: テスト 159 件が通過。自作 fixture の5構成の raw IR が `validate_ir.py` を通る（数は変わらず）。`c1_check.py` は入力 25・辺 513 本・対応の無い辺 0。公開サンプルの TF のルート 52 フォルダと、`.tf` のあるフォルダすべて（172）で失敗 0、error の診断 0。

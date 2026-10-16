@@ -39,6 +39,13 @@ jobs:
           uv run python aws-iac-diagram-workspace/tools/check_coverage.py --lint
           # C1（CRITERIA の 1.6）: cfn-lint のグラフの辺のすべてに、CFN アダプタの raw IR の参照が対応する
           uv run python aws-iac-diagram-workspace/tools/c1_check.py
+          # TF アダプタ（フェーズ2）: 自作 fixture の5構成を PEP 723 の依存だけで読み、raw IR の検査を通す
+          # （glob は validate_ir.py が展開する。Windows の RUNNER_TEMP のバックスラッシュを bash の glob に渡さないため）
+          for d in aws-iac-diagram-workspace/fixtures/tf/*/; do
+            uv run skills/aws-iac-diagram/scripts/adapters/tf.py --input "$d" \
+              --out "$RUNNER_TEMP/tf-raw/$(basename "$d").json" --root-base aws-iac-diagram-workspace
+          done
+          uv run skills/aws-iac-diagram/scripts/validate_ir.py "$RUNNER_TEMP/tf-raw/*.json"
 
       # 以下は SKILL を使う側と同じ起動のしかた（リポジトリの外に置き、PEP 723 の宣言だけで uv run する）
       - name: SKILL の起動（Windows PowerShell 5.1、日本語とスペースを含むパス）
@@ -66,6 +73,13 @@ jobs:
           # PEP 723 の依存（jsonschema）を uv が入れる経路も、日本語のパスで通す
           uv run "$skill\scripts\validate_ir.py" "$base\three-tier.ir.json"
           if ($LASTEXITCODE -ne 0) { throw "validate_ir exit code was $LASTEXITCODE" }
+          # TF アダプタも、PEP 723 の依存（python-hcl2）を uv が入れる経路で、日本語のパスに出力する
+          $tfin = Join-Path $env:GITHUB_WORKSPACE 'aws-iac-diagram-workspace\fixtures\tf\three-tier'
+          $tfout = Join-Path $base 'out\three-tier.tf.raw.json'
+          uv run "$skill\scripts\adapters\tf.py" --input "$tfin" --out "$tfout"
+          if ($LASTEXITCODE -ne 0) { throw "tf.py exit code was $LASTEXITCODE" }
+          uv run "$skill\scripts\validate_ir.py" "$tfout"
+          if ($LASTEXITCODE -ne 0) { throw "validate_ir (tf raw) exit code was $LASTEXITCODE" }
           exit 0
 
       - name: SKILL の起動（bash、日本語とスペースを含むパス）
