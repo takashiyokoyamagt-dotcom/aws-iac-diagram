@@ -245,10 +245,10 @@ canonical 部の **すべての辺** について、形式ごとに1件ずつ、
 
 | フィールド | 必須 | 内容 |
 |---|---|---|
-| `address` | ○ | 網羅分類と同じ形（4章）。CFN のネストスタックの中は `<親の論理ID>/<論理ID>`。cdk.out など**複数のスタック**を読むときは、先頭に `<スタック名>::` を付ける（`App::Vpc`、`My-App::NetworkStack/Vpc`。スタック名は英字で始まり、英数字とハイフンだけ）。TF はインスタンスアドレス（値が決まらない count は `[*]`） |
+| `address` | ○ | 網羅分類と同じ形（4章）。CFN のネストスタックの中は `<親の論理ID>/<論理ID>`。cdk.out など**複数のスタック**を読むときは、先頭に `<スタック名>::` を付ける（`App::Vpc`、`My-App::NetworkStack/Vpc`。スタック名は英字で始まり、英数字とハイフンだけ）。スタック名は manifest の `stackName`（無ければ artifact の ID）で、同じ `stackName` が2つ以上あるときは artifact の ID を使う。CDK の Stage（入れ子のアセンブリ）の中のスタックも読む。TF はインスタンスアドレス（値が決まらない count は `[*]`） |
 | `type` | ○ | 入力のままの型。TF の黒箱のモジュールの呼び出しは `module` |
 | `file` | ○ | ファイルのパス。`root` がディレクトリならそこからの相対、ファイルならそのファイルのあるディレクトリからの相対（`/` 区切り。ルートの外は `../` 付き。4章） |
-| `enabled` | ○ | 作られるか。`true`／`false`（CFN の `Condition` が偽、TF の count が 0）／`null`（決まらない）。`false` のリソースも一覧に残し、`props` と参照も同じように出す（網羅分類で `H-COND-FALSE` にし、C1 で参照を照合するため）。正規化は `null` のリソースを描き、`diagnostics` に「条件が決まらない」と残す |
+| `enabled` | ○ | 作られるか。`true`／`false`（CFN の `Condition` が偽、TF の count が 0）／`null`（決まらない）。`false` のリソースも一覧に残し、`props` と参照も同じように出す（網羅分類で `H-COND-FALSE` にし、C1 で参照を照合するため）。正規化は `null` のリソースを描き、`diagnostics` に「条件が決まらない」と残す。ネストスタックの子のリソースは、親のスタックのリソースの値を引き継ぎ、自分の値との弱い方（`false` > `null` > `true`）にする |
 | `props` | ○ | 評価した後のプロパティ（CFN は `Properties`、TF は属性とブロック）。値の書き方は下の表 |
 | `multiplicity` | | count／for_each の値が決まらないときだけ `"N"` |
 | `via` | | `nested_stack`（ネストスタックの子テンプレートから読んだ）、`module_summary`、`module_blackbox`（4章） |
@@ -274,7 +274,7 @@ canonical 部の **すべての辺** について、形式ごとに1件ずつ、
 - **リストの分割:** `Fn::Split` と、`List<…>`／`CommaDelimitedList` 型のパラメータに文字列を渡したとき（ネストスタックの出力 `!Join [",", [!Ref A, !Ref B]]` を受けるなど）は、`$concat` の文字列の部分を区切り文字の位置で分け、印は分けずにリストにする（`{"$concat": [A の印, ",", B の印]}` → `[A の印, B の印]`）。
 - ネストスタックの出力（`!GetAtt NetworkStack.Outputs.VpcId`）と、子テンプレートの `Parameters` に渡した値は、たどって元のリソースへの `$res` にする（TF のモジュールの出力・変数も同じ）。たどった経路は 7.3 の `through` に書く。`AWS::CloudFormation::Stack` のリソース自身の `props` の `Parameters` は、リストの分割をしない（分割は子テンプレートの側で、パラメータの型を見て行う）。
 - TF のスプラット（`aws_subnet.private[*].id`）は、インスタンスの数が決まればインスタンスごとの `$res` のリストにし、決まらなければ `{"$res": "aws_subnet.private[*]", "attr": "id"}` の1つにする。
-- **SAM:** `Globals` は各リソースに混ぜてから `props` にする（cfn-lint と同じ）。`Events`、`Policies`（ポリシーテンプレート）はプロパティのまま `props` に残し、SAM の変換（Transform）はしない（変換に当たることは、正規化の規則で扱う。relation-resources.md）。
+- **SAM:** `Globals` は各リソースに混ぜてから `props` にする（cfn-lint と同じ。マップは中まで、リストは Globals の後ろにつなぐ、値はリソースの方。組み込み関数は1つの値として扱い、中に混ぜない）。暗黙の API（`implicit`）にも `Globals.Api`／`Globals.HttpApi` を混ぜる。暗黙の API は、`AWS::Serverless::Function` と `AWS::Serverless::StateMachine` の `Events` から作る。`Events`、`Policies`（ポリシーテンプレート）はプロパティのまま `props` に残し、SAM の変換（Transform）はしない（変換に当たることは、正規化の規則で扱う。relation-resources.md）。
 
 ### 7.3 参照
 
@@ -294,6 +294,7 @@ canonical 部の **すべての辺** について、形式ごとに1件ずつ、
 - **一意のキーと並び順:** `(from, path, to, attr, fn)` で1件に決まり、この順で並べる（`!Sub "${Bucket}/${Bucket.Arn}"` のように、同じ位置から同じリソースへ別の属性で参照するものは別の件になる）。
 - **`props` との対応:** `props` の中のすべての `$res` は、`state: "active"` の参照に1件ずつ対応する（`from`、`path`、`to`、`attr` が同じ）。逆に、`references` にあって `props` に無いのは、`DependsOn`／`depends_on`、CFN の `Properties` の外（`Metadata` など）の参照、`state` が `pruned`・`unevaluated` のものだけ。
 - `AWS::CloudFormation::Stack` のリソース自身も、`Parameters` に渡した値の参照を出す（`from` はスタックの論理ID）。子テンプレートの中の参照は、子のリソースを `from` にして別に出す。
+- ネストスタックの出力をたどった値に参照が残らないとき（出力が文字列だった、評価できなかった）は、スタックのリソースへの参照（`to` はスタック、`attr` は `Outputs.<名前>`、`state: "unevaluated"`）を残す。出力の中にあった `pruned`／`unevaluated` の参照も、使った側の参照として、`through` に出力を足して残す（cfn-lint は使った側 → スタックを辺にするため）。
 - 同じ子テンプレートを2つのスタックから使うときは、スタックごとに別々に読み、address の先頭（親の論理ID）で区別する。
 - `AWS::NoValue` でリストの要素が消えると、後ろの要素の位置（`[n]`）がずれる。C1 の照合では、この位置のずれを考えて対応づける（CRITERIA の 1.6）。
 

@@ -295,7 +295,8 @@ class CfnLintGraphTest(unittest.TestCase):
     """CRITERIA の 1.6（C1）の回帰テスト。cfn-lint のグラフの辺のすべてに、raw IR の参照が対応する。
 
     照合: (from, to) が一致し、cfn-lint の属性の場所を最初の Ref／Fn::* で止めたものと raw の path が、
-    要素の区切りで前方一致する（どちら向きでも）。ネストスタックをまたぐ辺は手順3 で足す。
+    要素の区切りで前方一致する（どちら向きでも）。to がネストスタックのリソースなら、参照の through の先頭が
+    `<to>.Outputs.` で始まるものとも照合する。子テンプレートの辺は、親の raw IR の中で `<親の論理ID>/` を付けて照合する。
     """
 
     @staticmethod
@@ -319,20 +320,409 @@ class CfnLintGraphTest(unittest.TestCase):
         s, l = sorted((a, b), key=len)  # noqa: E741
         return l == s or l.startswith(s + ".") or l.startswith(s + "[")
 
+    def matched(self, raw: dict, a: str, b: str, p: str) -> bool:
+        for r in raw["references"]:
+            if r["from"] != a or not self.prefix(p, r["path"]):
+                continue
+            if r["to"] == b or (r.get("through") and r["through"][0].startswith(b + ".Outputs.")):
+                return True
+        return False
+
+    def check(self, raw: dict, template: Path, prefix: str = "") -> int:
+        n = 0
+        for a, b, p in self.lint_edges(template):
+            n += 1
+            with self.subTest(f"{prefix}{template.name}: {a} -> {b} {p}"):
+                self.assertTrue(self.matched(raw, prefix + a, prefix + b, p))
+        return n
+
     def test_fixture_templates(self):
         templates = sorted(p for p in FIXTURES.rglob("*") if p.suffix in (".yaml", ".json")
                            and p.name != "parameters.json")
-        total = 0
-        for t in templates:
-            raw = cfn.build_raw(t, ROOT / "aws-iac-diagram-workspace")
-            pairs = {}
-            for r in raw["references"]:
-                pairs.setdefault((r["from"], r["to"]), []).append(r["path"])
-            for a, b, p in self.lint_edges(t):
-                total += 1
-                with self.subTest(f"{t.name}: {a} -> {b} {p}"):
-                    self.assertTrue(any(self.prefix(p, q) for q in pairs.get((a, b), [])))
+        total = sum(self.check(cfn.build_raw(t, ROOT / "aws-iac-diagram-workspace"), t) for t in templates)
         self.assertGreaterEqual(total, 200)
+
+    def test_nested_children_in_parent(self):
+        root = FIXTURES / "three-tier-modules" / "root.yaml"
+        raw = cfn.build_raw(root, ROOT / "aws-iac-diagram-workspace")
+        total = self.check(raw, root)
+        for logical_id, body in cfn.load_template(root)["Resources"].items():
+            if body["Type"] == "AWS::CloudFormation::Stack":
+                total += self.check(raw, root.parent / body["Properties"]["TemplateURL"], logical_id + "/")
+        self.assertEqual(total, 53)  # 第三者レビューで数えた three-tier-modules の辺（root と子5つ）
+
+    def check_expanded(self, top: Path) -> int:
+        """ネストスタックを展開した raw IR で、展開した各ファイルの辺を、そのファイルの address の接頭辞を付けて照合する。"""
+        raw = cfn.build_raw(top, ROOT / "aws-iac-diagram-workspace")
+        assert_valid(self, raw)
+        prefixes: dict[str, str] = {}
+        for r in raw["resources"]:
+            if not r.get("implicit"):
+                prefixes.setdefault(r["file"], r["address"].rsplit("/", 1)[0] + "/" if "/" in r["address"] else "")
+        return sum(self.check(raw, top.parent / f, p) for f, p in sorted(prefixes.items()))
+
+    def test_public_nested_stacks(self):
+        public = ROOT / "aws-iac-diagram-workspace" / "fixtures" / "public"
+        vpcp = public / "aws-cloudformation-templates" / "Solutions" / "VPCPeering" / "templates"
+        cases = {  # 第三者レビュー（2026-10-17）で数えた辺の数
+            public / "ecs-refarch-cloudformation" / "master.yaml": 90,
+            public / "amazon-cloudfront-secure-static-site" / "templates" / "main.yaml": 18,
+            vpcp / "VPCPeering-Requester.main.cfn.yaml": 1,
+            vpcp / "VPCPeering-Requester.main.cfn.json": 1,
+            vpcp / "VPCPeering-Accepter.main.cfn.yaml": 5,
+        }
+        for top, edges in cases.items():
+            with self.subTest(top.name):
+                self.assertEqual(self.check_expanded(top), edges)
+
+
+def write_files(tmp: Path, files: dict[str, str]) -> None:
+    for name, text in files.items():
+        p = tmp / name
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(textwrap.dedent(text), encoding="utf-8")
+
+
+def ref_by(raw: dict, frm: str, path: str) -> list[dict]:
+    return [r for r in raw["references"] if r["from"] == frm and r["path"] == path]
+
+
+class NestedStackTest(unittest.TestCase):
+    """フェーズ1 の手順3: ネストスタック（ir-schema.md の 7.2〜7.4）。"""
+
+    def test_three_tier_modules(self):
+        raw = cfn.build_raw(FIXTURES / "three-tier-modules" / "root.yaml", ROOT / "aws-iac-diagram-workspace")
+        assert_valid(self, raw)
+        self.assertEqual(raw["diagnostics"], [])
+        lb = next(r for r in raw["resources"] if r["address"] == "AlbStack/LoadBalancer")
+        self.assertEqual(lb["via"], "nested_stack")
+        self.assertEqual(lb["file"], "alb.yaml")
+        # 親の !Join で渡したサブネットの一覧を、子の List 型のパラメータで分ける
+        self.assertEqual(lb["props"]["Subnets"], [{"$res": "NetworkStack/PublicSubnet1", "attr": None},
+                                                  {"$res": "NetworkStack/PublicSubnet2", "attr": None}])
+        r = ref_by(raw, "AlbStack/LoadBalancer", "Properties.Subnets[0]")[0]
+        self.assertEqual(r["through"], ["AlbStack.Parameters.PublicSubnetIds", "NetworkStack.Outputs.PublicSubnetIds"])
+        # スタックのリソース自身は、Parameters を分けずに持つ
+        stack = next(x for x in raw["resources"] if x["address"] == "AlbStack")
+        self.assertIn("$concat", stack["props"]["Parameters"]["PublicSubnetIds"])
+        self.assertNotIn("via", stack)
+        self.assertEqual(raw["evaluation"]["parameters"]["AlbStack/AppPort"], 8080)
+
+    def test_unreadable_child_is_blackbox_and_url_is_remapped(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            write_files(tmp, {
+                "main.yaml": """
+                    Resources:
+                      Net:
+                        Type: AWS::CloudFormation::Stack
+                        Properties:
+                          TemplateURL: https://s3.amazonaws.com/bucket/infra/vpc.yaml
+                      Gone:
+                        Type: AWS::CloudFormation::Stack
+                        Properties:
+                          TemplateURL: https://s3.amazonaws.com/bucket/missing.yaml
+                      Twice:
+                        Type: AWS::CloudFormation::Stack
+                        Properties:
+                          TemplateURL: https://s3.amazonaws.com/bucket/x/sg.yaml
+                      Fn:
+                        Type: AWS::Lambda::Function
+                        Properties:
+                          Vpc: !GetAtt Net.Outputs.VpcId
+                          Other: !GetAtt Gone.Outputs.Id
+                    """,
+                "infra/vpc.yaml": """
+                    Resources:
+                      Vpc: {Type: AWS::EC2::VPC}
+                    Outputs:
+                      VpcId: {Value: !Ref Vpc}
+                    """,
+                "vpc.yaml": "Resources: {Other: {Type: AWS::EC2::VPC}}\n",
+                "a/sg.yaml": "Resources: {A: {Type: AWS::EC2::SecurityGroup}}\n",
+                "b/sg.yaml": "Resources: {B: {Type: AWS::EC2::SecurityGroup}}\n",
+            })
+            raw = cfn.build_raw(tmp / "main.yaml", tmp)
+        assert_valid(self, raw)
+        res = {r["address"]: r for r in raw["resources"]}
+        # 末尾から最も多く一致する infra/vpc.yaml を読む（vpc.yaml ではない）
+        self.assertIn("Net/Vpc", res)
+        self.assertNotIn("Net/Other", res)
+        self.assertTrue(any("infra/vpc.yaml" in a for a in raw["evaluation"]["assumptions"]))
+        # 見つからない・2つ以上一致する子は黒箱
+        self.assertEqual(res["Gone"]["via"], "module_blackbox")
+        self.assertEqual(res["Twice"]["via"], "module_blackbox")
+        self.assertEqual(res["Fn"]["props"]["Vpc"], {"$res": "Net/Vpc", "attr": None})
+        self.assertEqual(res["Fn"]["props"]["Other"], {"$res": "Gone", "attr": "Outputs.Id"})
+        codes = [(d["address"], d["code"]) for d in raw["diagnostics"]]
+        self.assertIn(("Gone", "CFN-NESTED-UNREADABLE"), codes)
+        self.assertIn(("Twice", "CFN-NESTED-UNREADABLE"), codes)
+
+    def nested(self, files: dict[str, str]) -> dict:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            write_files(tmp, files)
+            raw = cfn.build_raw(tmp / "main.yaml", tmp)
+        assert_valid(self, raw)
+        return raw
+
+    def test_output_that_cannot_be_evaluated_keeps_references(self):
+        # 第三者レビューの M1: 出力が Fn::If（手順4 まで評価しない）や文字列でも、参照を失わない
+        raw = self.nested({
+            "main.yaml": """
+                Resources:
+                  Kid:
+                    Type: AWS::CloudFormation::Stack
+                    Properties: {TemplateURL: kid.yaml}
+                  Fn:
+                    Type: AWS::Lambda::Function
+                    Properties:
+                      A: !GetAtt Kid.Outputs.Arn
+                      B: !GetAtt Kid.Outputs.Literal
+                """,
+            "kid.yaml": """
+                Conditions:
+                  C: !Equals [a, b]
+                Resources:
+                  Q: {Type: AWS::SQS::Queue}
+                  T: {Type: AWS::SNS::Topic}
+                Outputs:
+                  Arn: {Value: !If [C, !GetAtt Q.Arn, !Ref T]}
+                  Literal: {Value: fixed}
+                """})
+        r = refs(raw, "Fn")
+        self.assertIn(("Fn", "Properties.A", "Kid/Q", "Arn", "GetAtt", "unevaluated"), r)
+        self.assertIn(("Fn", "Properties.A", "Kid/T", None, "Ref", "unevaluated"), r)
+        self.assertIn(("Fn", "Properties.A", "Kid", "Outputs.Arn", "GetAtt", "unevaluated"), r)
+        self.assertIn(("Fn", "Properties.B", "Kid", "Outputs.Literal", "GetAtt", "unevaluated"), r)
+        moved = [x for x in raw["references"] if x["from"] == "Fn" and x["to"] == "Kid/Q"][0]
+        self.assertEqual(moved["through"], ["Kid.Outputs.Arn"])
+        self.assertTrue(any(d["address"] == "Kid" and d["path"] == "Outputs.Arn" for d in raw["diagnostics"]))
+
+    def test_condition_on_parent_stack_is_inherited(self):
+        raw = self.nested({
+            "main.yaml": """
+                Conditions:
+                  On: !Equals [a, a]
+                Resources:
+                  Kid:
+                    Type: AWS::CloudFormation::Stack
+                    Condition: On
+                    Properties: {TemplateURL: kid.yaml}
+                """,
+            "kid.yaml": "Resources: {Q: {Type: AWS::SQS::Queue}}\n"})
+        res = {r["address"]: r for r in raw["resources"]}
+        self.assertIsNone(res["Kid"]["enabled"])
+        self.assertIsNone(res["Kid/Q"]["enabled"])
+
+    def test_single_item_join_into_list_parameter(self):
+        raw = self.nested({
+            "main.yaml": """
+                Resources:
+                  Sub1: {Type: AWS::EC2::Subnet}
+                  Kid:
+                    Type: AWS::CloudFormation::Stack
+                    Properties:
+                      TemplateURL: kid.yaml
+                      Parameters:
+                        S: !Join [",", [!Ref Sub1]]
+                """,
+            "kid.yaml": """
+                Parameters:
+                  S: {Type: "List<AWS::EC2::Subnet::Id>"}
+                Resources:
+                  I:
+                    Type: AWS::EC2::Instance
+                    Properties: {SubnetId: !Select [0, !Ref S]}
+                """})
+        self.assertEqual(props(raw, "Kid/I")["SubnetId"], {"$res": "Sub1", "attr": None})
+
+    def test_cycle(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            write_files(tmp, {"loop.yaml": """
+                Resources:
+                  Self:
+                    Type: AWS::CloudFormation::Stack
+                    Properties: {TemplateURL: loop.yaml}
+                """})
+            raw = cfn.build_raw(tmp / "loop.yaml", tmp)
+        self.assertIn("CFN-NESTED-CYCLE", [d["code"] for d in raw["diagnostics"]])
+        assert_valid(self, raw)
+
+
+class SamTest(unittest.TestCase):
+    def test_globals_and_implicit_apis(self):
+        raw = build("""
+Transform: AWS::Serverless-2016-10-31
+Globals:
+  Function:
+    Runtime: python3.13
+    Environment:
+      Variables: {STAGE: dev}
+    Layers: [arn:aws:lambda:::layer:a]
+Resources:
+  Table:
+    Type: AWS::Serverless::SimpleTable
+  Fn:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.12
+      Environment:
+        Variables: {TABLE: !Ref Table}
+      Layers: [arn:aws:lambda:::layer:b]
+      Events:
+        Rest: {Type: Api, Properties: {Path: /x, Method: get}}
+        Http: {Type: HttpApi}
+""")
+        p = props(raw, "Fn")
+        self.assertEqual(p["Runtime"], "python3.12")  # 値はリソースの方
+        self.assertEqual(p["Environment"]["Variables"], {"STAGE": "dev", "TABLE": {"$res": "Table", "attr": None}})
+        self.assertEqual(p["Layers"], ["arn:aws:lambda:::layer:a", "arn:aws:lambda:::layer:b"])
+        implicit = {r["address"]: r for r in raw["resources"] if r.get("implicit")}
+        self.assertEqual(implicit["ServerlessRestApi"]["type"], "AWS::Serverless::Api")
+        self.assertEqual(implicit["ServerlessHttpApi"]["type"], "AWS::Serverless::HttpApi")
+        assert_valid(self, raw)
+
+    def test_globals_do_not_merge_into_intrinsics_and_apply_to_implicit_api(self):
+        # 第三者レビューの M4
+        raw = build("""
+Transform: AWS::Serverless-2016-10-31
+Conditions:
+  C: !Equals [a, b]
+Globals:
+  Function:
+    Environment:
+      Variables: {STAGE: dev}
+  Api:
+    EndpointConfiguration: PRIVATE
+Resources:
+  Q: {Type: AWS::SQS::Queue}
+  Fn:
+    Type: AWS::Serverless::Function
+    Properties:
+      Environment: !If [C, {Variables: {X: !Ref Q}}, !Ref AWS::NoValue]
+      Events:
+        Rest: {Type: Api, Properties: {Path: /x, Method: get}}
+  Sm:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Events:
+        Rest: {Type: Api, Properties: {Path: /y, Method: post}}
+""")
+        p = props(raw, "Fn")
+        self.assertIn("$unknown", p["Environment"])  # !If のまま（Globals を混ぜない）
+        self.assertIn(("Fn", "Properties.Environment", "Q", None, "Ref", "unevaluated"), refs(raw, "Fn"))
+        api = next(r for r in raw["resources"] if r["address"] == "ServerlessRestApi")
+        self.assertEqual(api["props"], {"EndpointConfiguration": "PRIVATE"})
+        self.assertEqual(len([r for r in raw["resources"] if r.get("implicit")]), 1)
+        assert_valid(self, raw)
+
+    def test_explicit_api_has_no_implicit(self):
+        raw = cfn.build_raw(FIXTURES / "serverless-api" / "template.yaml", ROOT / "aws-iac-diagram-workspace")
+        self.assertFalse([r for r in raw["resources"] if r.get("implicit")])
+
+
+class CdkOutTest(unittest.TestCase):
+    def test_multiple_stacks_exports_and_nested(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp) / "cdk.out"
+            files = {
+                "manifest.json": json.dumps({"version": "36.0.0", "artifacts": {
+                    "Tree": {"type": "cdk:tree"},
+                    "NetStack": {"type": "aws:cloudformation:stack",
+                                 "properties": {"templateFile": "NetStack.template.json", "stackName": "Net-Stack"}},
+                    "AppStack": {"type": "aws:cloudformation:stack",
+                                 "properties": {"templateFile": "AppStack.template.json"}}}}),
+                "NetStack.template.json": json.dumps({
+                    "Resources": {"Vpc": {"Type": "AWS::EC2::VPC"}},
+                    "Outputs": {"VpcId": {"Value": {"Ref": "Vpc"}, "Export": {"Name": "net-vpc-id"}}}}),
+                "AppStack.template.json": json.dumps({"Resources": {
+                    "Sg": {"Type": "AWS::EC2::SecurityGroup",
+                           "Properties": {"VpcId": {"Fn::ImportValue": "net-vpc-id"},
+                                          "Other": {"Fn::ImportValue": "not-exported"}}},
+                    "Child": {"Type": "AWS::CloudFormation::Stack",
+                              "Metadata": {"aws:asset:path": "AppStackChild1234.nested.template.json"},
+                              "Properties": {"TemplateURL": {"Fn::Join": ["", ["https://s3.", {"Ref": "AWS::URLSuffix"}, "/x/abc.json"]]}}},
+                    "Fn": {"Type": "AWS::Lambda::Function",
+                           "Properties": {"Q": {"Fn::GetAtt": ["Child", "Outputs.QueueUrl"]}}}}}),
+                "AppStackChild1234.nested.template.json": json.dumps({
+                    "Resources": {"Queue": {"Type": "AWS::SQS::Queue"}},
+                    "Outputs": {"QueueUrl": {"Value": {"Ref": "Queue"}}}}),
+            }
+            write_files(tmp, files)
+            raw = cfn.build_raw(tmp, tmp.parent)
+        assert_valid(self, raw)
+        self.assertEqual(raw["root"], "cdk.out")
+        res = {r["address"]: r for r in raw["resources"]}
+        self.assertEqual(set(res), {"Net-Stack::Vpc", "AppStack::Sg", "AppStack::Child", "AppStack::Child/Queue",
+                                    "AppStack::Fn"})
+        self.assertEqual(res["AppStack::Sg"]["file"], "AppStack.template.json")
+        self.assertEqual(res["AppStack::Child/Queue"]["via"], "nested_stack")
+        # 入力の中で解決できた ImportValue（7.2・7.3）
+        self.assertEqual(res["AppStack::Sg"]["props"]["VpcId"], {"$res": "Net-Stack::Vpc", "attr": None})
+        self.assertEqual(res["AppStack::Sg"]["props"]["Other"], {"$import": "not-exported"})
+        r = ref_by(raw, "AppStack::Sg", "Properties.VpcId")[0]
+        self.assertEqual((r["fn"], r["through"]), ("ImportValue", ["Export:net-vpc-id"]))
+        r = ref_by(raw, "AppStack::Fn", "Properties.Q")[0]
+        self.assertEqual((r["to"], r["through"]), ("AppStack::Child/Queue", ["AppStack::Child.Outputs.QueueUrl"]))
+
+    def test_stage_duplicate_names_and_exports(self):
+        # 第三者レビューの R1: Stage（入れ子のアセンブリ）、同じ stackName、Export の衝突と AWS::StackName
+        def stack(resources, outputs=None):
+            return json.dumps({"Resources": resources, "Outputs": outputs or {}})
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp) / "cdk.out"
+            write_files(tmp, {
+                "manifest.json": json.dumps({"artifacts": {
+                    "assembly-Prod": {"type": "cdk:cloud-assembly", "properties": {"directoryName": "assembly-Prod"}},
+                    "Top": {"type": "aws:cloudformation:stack", "properties": {"templateFile": "Top.template.json"}}}}),
+                "Top.template.json": stack(
+                    {"Fn": {"Type": "AWS::Lambda::Function",
+                            "Properties": {"A": {"Fn::ImportValue": "Prod-Net-VpcId"},
+                                           "B": {"Fn::ImportValue": "dup"}}}},
+                    {"X": {"Value": "x", "Export": {"Name": "dup"}}}),
+                "assembly-Prod/manifest.json": json.dumps({"artifacts": {
+                    "ProdNet": {"type": "aws:cloudformation:stack",
+                                "properties": {"templateFile": "ProdNet.template.json", "stackName": "Net"}},
+                    "ProdNet2": {"type": "aws:cloudformation:stack",
+                                 "properties": {"templateFile": "ProdNet2.template.json", "stackName": "Net"}}}}),
+                "assembly-Prod/ProdNet.template.json": stack(
+                    {"Vpc": {"Type": "AWS::EC2::VPC"}},
+                    {"VpcId": {"Value": {"Ref": "Vpc"}, "Export": {"Name": {"Fn::Sub": "Prod-${AWS::StackName}-VpcId"}}}}),
+                "assembly-Prod/ProdNet2.template.json": stack(
+                    {"Vpc": {"Type": "AWS::EC2::VPC"}}, {"Y": {"Value": "y", "Export": {"Name": "dup"}}}),
+            })
+            raw = cfn.build_raw(tmp, tmp.parent)
+        assert_valid(self, raw)
+        res = {r["address"]: r for r in raw["resources"]}
+        # 同じ stackName（Net）が2つあるので artifact の ID を使う
+        self.assertEqual(set(res), {"Top::Fn", "ProdNet::Vpc", "ProdNet2::Vpc"})
+        self.assertEqual(res["ProdNet::Vpc"]["file"], "assembly-Prod/ProdNet.template.json")
+        # Export の名前の AWS::StackName は、address の名前（ProdNet）ではなく本当の stackName（Net）で解く
+        self.assertEqual(res["Top::Fn"]["props"]["A"], {"$res": "ProdNet::Vpc", "attr": None})
+        # 衝突した Export（dup）は最初に登録したもの（スタックを名前の順に登録するので ProdNet2 の y）を使い、診断を出す
+        self.assertEqual(res["Top::Fn"]["props"]["B"], "y")
+        codes = {d["code"] for d in raw["diagnostics"]}
+        self.assertIn("CFN-CDK-STACKNAME-DUPLICATE", codes)
+        self.assertIn("CFN-EXPORT-CONFLICT", codes)
+
+    def test_export_name_with_stack_name(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp) / "cdk.out"
+            write_files(tmp, {
+                "manifest.json": json.dumps({"artifacts": {
+                    "Net": {"type": "aws:cloudformation:stack", "properties": {"templateFile": "Net.json"}},
+                    "App": {"type": "aws:cloudformation:stack", "properties": {"templateFile": "App.json"}}}}),
+                "Net.json": json.dumps({"Resources": {"Vpc": {"Type": "AWS::EC2::VPC"}}, "Outputs": {
+                    "VpcId": {"Value": {"Ref": "Vpc"}, "Export": {"Name": {"Fn::Sub": "${AWS::StackName}-VpcId"}}}}}),
+                "App.json": json.dumps({"Resources": {"Sg": {"Type": "AWS::EC2::SecurityGroup",
+                                                             "Properties": {"VpcId": {"Fn::ImportValue": "Net-VpcId"}}}}}),
+            })
+            raw = cfn.build_raw(tmp, tmp.parent)
+        sg = next(r for r in raw["resources"] if r["address"] == "App::Sg")
+        self.assertEqual(sg["props"]["VpcId"], {"$res": "Net::Vpc", "attr": None})
+        assert_valid(self, raw)
 
 
 class SplitConcatTest(unittest.TestCase):
@@ -340,6 +730,17 @@ class SplitConcatTest(unittest.TestCase):
         A, B = {"$res": "A", "attr": None}, {"$res": "B", "attr": None}
         self.assertEqual(cfn.split_concat([A, ",", B], ","), [A, B])
         self.assertEqual(cfn.split_concat(["x-", A, ",y"], ","), [{"$concat": ["x-", A]}, "y"])
+
+
+def count_resources(template: Path) -> int:
+    """テンプレートのリソースの数。手元のファイルを指すネストスタックは中身も数える。"""
+    n = 0
+    for body in (cfn.load_template(template).get("Resources") or {}).values():
+        n += 1
+        url = (body.get("Properties") or {}).get("TemplateURL")
+        if body.get("Type") == "AWS::CloudFormation::Stack" and isinstance(url, str) and "://" not in url:
+            n += count_resources(template.parent / url)
+    return n
 
 
 class FixtureTest(unittest.TestCase):
@@ -353,8 +754,7 @@ class FixtureTest(unittest.TestCase):
                 raw = cfn.build_raw(t, ROOT / "aws-iac-diagram-workspace")
                 assert_valid(self, raw)
                 self.assertFalse([d for d in raw["diagnostics"] if d["level"] == "error"])
-                self.assertEqual(len(raw["resources"]),
-                                 len(cfn.load_template(t).get("Resources") or {}))
+                self.assertEqual(len(raw["resources"]), count_resources(t))
 
 
 if __name__ == "__main__":

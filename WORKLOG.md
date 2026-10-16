@@ -343,3 +343,35 @@ HANDOFF の表の 4 は、2回目の第三者レビューで「コミット可�
 - **R5** 文字列の途中の `{{resolve:…}}` を見つける、名前が計算になる `Fn::ImportValue` の診断に名前のひな形を残す、同じ診断を1つにまとめる、ドライブが違うときは root を絶対パスにして診断を出す。
 - 軽微: `split_concat` の不要な条件を外した。
 - テストは計 100 件。
+
+---
+
+## 2026-10-17（続き）フェーズ1 の手順3: SAM・ネストスタック・cdk.out
+
+### やったこと
+1. `adapters/cfn.py` を、スタックごとに評価する形（`Context` と `StackEval`）に組み直した。`Evaluator` に、address の前に付ける接頭辞、親から渡されたパラメータの値、子スタックの出力と Export の解決の入口を足した。
+2. **ネストスタック:** 子テンプレートは、出力を使うときか、スタックのリソースを読むときに展開する（同じ子は1回だけ）。
+   - 親の `Parameters` の値を評価して子に渡す。子の `List<…>`／`CommaDelimitedList` 型のパラメータでは `$concat` を区切り文字で分ける。
+   - `!GetAtt Stack.Outputs.X` と `${Stack.Outputs.X}` は、子の出力を評価して元のリソースへの `$res` にする。たどった経路は `through` に、`from` の側から順に入れる（`AlbStack.Parameters.PublicSubnetIds` → `NetworkStack.Outputs.PublicSubnetIds`）。経路は印に一時的な `__through` を付けて運ぶ。
+   - 子のリソースは address が `<親の論理ID>/<論理ID>`、`via: "nested_stack"`。evaluation のパラメータの名前にも同じ接頭辞を付ける。
+   - `TemplateURL` は、手元のパスならそのまま読む。URL（`$concat` で組み立てたものは最後の文字列）なら、末尾から一致する要素が最も多い手元のファイルに読み替え、`evaluation.assumptions` に書く。CDK のネストスタックは `Metadata` の `aws:asset:path` で読む。読めない・2つ以上一致する子は黒箱（`via: "module_blackbox"`、診断 `CFN-NESTED-UNREADABLE`）。自分自身を読む子は `CFN-NESTED-CYCLE`。
+3. **SAM:** `Globals` を、対応する型（Function、Api、HttpApi、SimpleTable、StateMachine、LayerVersion）のリソースに混ぜる（マップは中まで、リストは Globals の後ろにつなぐ、値はリソースの方）。`Events` の `Api`／`HttpApi` に API の指定が無ければ、暗黙の `ServerlessRestApi`／`ServerlessHttpApi`（`implicit: true`）を足す。
+4. **cdk.out:** フォルダか `manifest.json` を受け取り、`aws:cloudformation:stack` のスタックをすべて読む。address は `<スタック名>::<論理ID>`（スタック名は `stackName`、無ければ artifact の ID）。各スタックの Export を先に登録し、`Fn::ImportValue` は Export した出力の値に置き換える（参照の `fn: "ImportValue"`、`through: ["Export:<名前>"]`）。
+5. テスト: ネストスタック（three-tier-modules、URL の読み替えと黒箱、循環）、SAM（Globals、暗黙の API）、cdk.out（複数スタック、Export、ネストスタック）、cfn-lint のグラフとの照合を子テンプレートまで広げた（three-tier-modules の 53 本）。計 107 件が通過。
+
+### 確かめたこと
+- three-tier-modules（CFN）を root から読むと 41 リソース（正解 IR の CFN 側と同じ数）で、診断は 0 件（手順2 では、子のパラメータに値が無いという診断が 27 件出ていた）。ALB のサブネットは `NetworkStack/PublicSubnet1`・`2` への参照になり、サービスのタスク定義の環境変数の DB の接続先は、2つのスタックの出力をまたいで `DatabaseStack/DbInstance` の `Endpoint.Address` になった。
+- 公開サンプル: ecs-refarch は S3 URL の子 7 つを読み替えて 63 リソース、VPCPeering は `!Sub` で組み立てた URL を読み替え、amazon-cloudfront-secure-static-site はローカルパスの子を展開。どれも raw IR の決まりを満たした。
+- serverless-api の関数に、`Globals` の Runtime・Handler が混ざった。
+
+### 第三者レビュー（判定「修正後コミット」）と対応
+- レビュアーの確認: 親子をまたいだ C1 の照合で、three-tier-modules（辺 53）、ecs-refarch の master.yaml（C05。辺 90、S3 URL の子 7 つを読み替え）、amazon-cloudfront-secure-static-site（C01。辺 18）、VPCPeering の Requester（yaml・json。辺 1）と Accepter（C04。辺 5）の**すべてで対応の無い辺が 0 件**。同じ子を2回使う場合と2段のネストスタックの address・through も 7章どおり。
+- **M1** 子の出力を評価できない（`Fn::If` など）と参照が消えていた → 出力の中の `pruned`／`unevaluated` の参照を、使った側の参照として `through` 付きで残す。出力の値に参照が残らないときは、スタックへの参照を `unevaluated` で残す。出力の診断の address をスタックにした。
+- **M2** 親のスタックに `Condition` があっても子が `enabled: true` だった → 子は親の `enabled` を引き継ぎ、弱い方にする。
+- **M3** 要素1つの `!Join` を List 型のパラメータに渡すとリストにならなかった → リストに包む。
+- **M4** `Globals` を組み込み関数の中に混ぜて壊れた値を作っていた → 組み込み関数は1つの値として扱う。暗黙の API に `Globals.Api`／`Globals.HttpApi` を混ぜる（`EndpointConfiguration: PRIVATE` が消えて、プライベートな API を公開と誤るのを防ぐ）。`AWS::Serverless::StateMachine` の `Events` からも暗黙の API を作る。
+- **R1（cdk.out）** Stage（入れ子のアセンブリ、`cdk:cloud-assembly`）を再帰で読む（asset のパスはそのアセンブリのフォルダから）。同じ `stackName` が2つ以上あるときは address に artifact の ID を使う（診断 `CFN-CDK-STACKNAME-DUPLICATE`）。Export の衝突は診断 `CFN-EXPORT-CONFLICT`（名前の順で最初のものを使う）。最上位を読む前に子のスタックをすべて展開し、子の Export も使えるようにした。Export の名前の中の `AWS::StackName` は、本当の `stackName` で解く（address の名前ではない。直すときに自分で見つけた誤り）。
+- **R2** レビューの再現ケースと、公開サンプルのネストスタック5種の親子をまたいだ cfn-lint の照合を回帰テストにした。
+- **R3** URL を読み替える候補から `node_modules`・`.git`・`cdk.out` などの下を除いた。
+- 軽微: 循環の診断の address をスタックにした。YAML 1.1 の `On`／`Yes` などが真偽値になる件は、手順4 で条件の名前を引くときに気をつける（HANDOFF）。
+- テストは計 114 件。

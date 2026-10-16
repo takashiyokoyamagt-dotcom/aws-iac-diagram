@@ -48,9 +48,10 @@
 2. **フェーズ1**（CloudFormation のアダプタ）。5つの手順に分けて1つずつ進める（2026-10-17 にユーザーと合意）。
    1. （済）IR スキーマの確定（ir-schema.md v1.0。raw の形は手順5 で確定）。評価基準の 1.6（C1）を raw の段階の照合に変え、1.8 を足した（ユーザーの了承）。正規化後の形の確定（`attrs` のキーの表、黒箱のモジュール `module`、×N、AZ が静的に決まらないときの key）、アダプタの出力（`stage: "raw"`、7章と `ir-raw.schema.json`）、公開サンプルの問題の扱い（7.4）、「辺にしない参照」（edge-rules.md の `E-NOEDGE-*`）
    2. （済）CFN アダプタの土台（`scripts/adapters/cfn.py`）。短縮タグの正規化と、組み込み関数から raw IR の印と参照を作る。fixture の CFN 10 本で cfn-lint の辺 214 本がすべて対応した（仮の照合）。`Fn::If`・`FindInMap`・`Condition` は手順4 まで `$unknown`
-   3. SAM の Events、ネストスタック（S3 URL の読み替えを含む。7.4）、cdk.out
+   3. （済）SAM（Globals、暗黙の API）、ネストスタック（子の展開と through、S3 URL の読み替え、黒箱）、cdk.out（複数スタック、Export の解決）。three-tier-modules を root から読んで 41 リソース・診断 0
       - 既知の差（手順4 まで）: vpc-endpoints の CFN 版は `parameters.json` の上書き（Project=net）を読まないので、名前が正解 IR と合わない。Fn::ForEach は飛ばしている（`CFN-DEFERRED`）
    4. A4（CFN 側の評価）: Parameters の default、Conditions、`Fn::If`、`Fn::FindInMap`
+      - 注意: YAML 1.1 では `On`／`Off`／`Yes`／`No` が真偽値として読まれる（cfn-lint も同じ）。条件やリソースの名前に使われていると名前を失うので、`str()` で済ませず、元の名前を引けるようにする。ネストスタックの子の `enabled` は親から引き継ぐので、親の Condition を評価したら子にも伝わるようにする
    5. C1（cfn-lint のグラフとの突き合わせ。CRITERIA の 1.6）と、フェーズ1 の完了基準の確認
    - 主セットの正解 IR は、ツールの出力を見る前に別のサブエージェントが書き、さらに別のサブエージェントがレビューする（CRITERIA.md の 1.2）。
 3. フェーズ5 の `export_png.py` は `scripts/lib/drawio_cli.py`（draw.io の探索と `-x -f png --disable-gpu` の呼び出し、0 バイトの失敗扱い、Linux の `--no-sandbox` と `xvfb-run`）を使って作る。draw.io が使えなければ（`DRAWIO` のパスが無いときも）PNG だけスキップして `result.json` に書き、終了コードは 0 のまま。
