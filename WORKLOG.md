@@ -554,3 +554,72 @@ TF アダプタ（`scripts/adapters/tf.py`）で、変数・locals・式を評�
   6. 変数のファイルを読めないときの誤りの文に lark の字句（値の一部）が入っていた → パスと行・列だけにする。
 - テストを7件足した（`ReviewFixTest`。M1・R1 の `--redact-var`・R2・R3・数と range・urlencode・can・変数のファイルの誤りの文・別のドライブ）。既存のテストの期待を直した（element の pruned、`TF-COUNT-INDEX`、`evaluation.vars` の形）。
 - 確かめたこと: テスト 185 件が通過。5構成（three-tier は変数なし・dev・prod）の raw IR を `uv run` で作り、`validate_ir.py` が通った（dev・prod は診断 0）。`c1_check.py` は入力 25・辺 513 本・対応の無い辺 0。公開サンプルの TF のルート 52 で例外 0・error 0・検査を通る（warn 130、info 164 は変わらず。info の内訳で `TF-COUNT-UNRESOLVED` の一部が `TF-COUNT-INDEX` 6 に移った）。172 フォルダすべても失敗 0（warn 821）。
+
+---
+
+## 2026-10-17（続き）フェーズ2 の手順3: モジュール
+
+### 概要
+TF アダプタで、モジュールの呼び出しを展開するようにした。ローカルモジュールは中身を再帰的に読み、terraform-aws-modules の vpc・alb・rds・eks は A5 の要約表（`references/module-summaries.md`）で展開し、それ以外は黒箱の呼び出しにする。手順2 まで `TF-MODULE-DEFERRED` で黒箱にしていたものを置き換えた。第三者レビューの前（未コミット）。
+
+### やったこと
+1. **ローカルモジュールの再帰**（`scripts/adapters/tf.py`）: `ModuleEval` を呼び出しのインスタンスごとに作る（親・呼び出しの引数・`count.index`／`each` の環境・`enabled`・×N・経路・深さ・provider の対応を持つ）。子の address は呼び出しの address を前に付け（`module.app.…`、`module.m[0].…`、`module.db.module.db_instance.…`）、`module` フィールドに書く。子の変数は、呼び出しの引数を親の中で遅延評価し、type の変換・default・`nullable = false`・sensitive／ephemeral はルートと同じ。親から見た `module.x.y` は子の出力 `y` の値（`ModObj`）。どちらもたどった経路を `through`（`module.x.var.y`・`module.x.output.y`、`from` の側から順）に足す。評価の中の参照は `(to, attr, through)` の3つ組にし（`Res` に `through` を足した）、書き出すときに一時的な `__through` で運んで references に移す（CFN の `__through` と同じ考え方）。count が 0 の呼び出しの中は添字なしで `enabled: false`、決まらない呼び出しの中は `module.n[*].…` で ×N。呼び出しの `depends_on` は中のすべてのリソースに付け、`depends_on = [module.x]` は中のすべてのリソースへ。循環（経路にあるフォルダ）・深さ（16 段）・読めないフォルダは黒箱（`TF-MODULE-CYCLE`・`TF-MODULE-DEPTH`・`TF-MODULE-UNREADABLE`）。手順1 の懸念だった `module.alb.target_groups["app"].arn` は、出力 `target_groups`（`aws_lb_target_group.this`）をたどって `module.alb.aws_lb_target_group.this["app"]` の `arn` になった。
+2. **A5 の要約表**（`references/module-summaries.md`、読み込みは `scripts/lib/tf_modules.py`）: 本物のモジュールの主要なリソース・出力を、count・for_each の式と名前・参照の属性ごと HCL で写し、ローカルモジュールと同じ評価器で展開する（`via: module_summary`、`file` は呼び出しのあるファイル）。対象は vpc 6.x、alb 10.x、rds 7.x（サブモジュール `db_instance`・`db_subnet_group`・`db_parameter_group`・`db_option_group`）、eks 21.x（サブモジュール `eks-managed-node-group`・`fargate-profile`・`self-managed-node-group`）。表の中の `data` と count が 0 のリソースは載せない（`try(aws_x.y[0].id, null)` は `null`）。版は `version` の制約が許す major の表を使う（無い・上限が無いときは前提に書く）。写していないリソースを作る入力は `TF-MODULE-SUMMARY-INPUT`、表に無い出力は `TF-MODULE-SUMMARY-OUTPUT`。
+3. **黒箱と H-IAM:** 要約表に無い・版が合わないレジストリモジュール、`git::` などは黒箱（`TF-MODULE-BLACKBOX`、理由を message に）。IAM だけのモジュールは source の一覧（module-summaries.md の 4章、`tf_modules.iam_only()`）で判定し、raw IR では黒箱のまま（正規化が `H-IAM`）。
+4. **provider と region:** リソースの provider の名前を、呼び出しの `providers` 引数と既定の provider の引き継ぎでたどり、設定のあるモジュールの名前にする（alias なら `provider` と、その設定の `region`）。黒箱の呼び出しも `providers` の `aws` から書く。リソースの引数 `region`（vpc モジュールの `region = var.region`）が優先。
+5. **`terraform_remote_state`:** state を読まず data のまま載せ、`outputs.vpc_id` への参照は `attr: "outputs.vpc_id"`。
+6. **評価器の小さな直し**（公開サンプルのモジュールを展開して見つけたもの）: `try()`・`can()` の中では、count が 0 のブロックの添字を誤りにして次の式に進む（vpc モジュールの `try(aws_vpc_ipv4_cidr_block_association.this[0].vpc_id, aws_vpc.this[0].id, "")` が、作られない関連付けを指していた）。`regexall()` の文字列が `$az` のときはマッチの数だけを決める（vpc モジュールの AZ 名・AZ ID の判定で、サブネットの `availability_zone` が `$unknown` になっていた）。`lookup()` の空のマップは既定値を返す（`*_tags_per_az` で `Name` タグが消えていた）。
+7. **テスト**（`tests/test_tf_adapter.py`、50 → 64 件。計 199 件）: `ExpectedIrTest` の `step3_expected()` の読み替えを外し、5構成でモジュールの中身（`via`・`module` を含む）まで正解 IR の TF 側の網羅分類と一致させた。three-tier-modules の境界をまたぐ参照（リスナー → TG、サービス → TG、SG ルール → ALB の SG、タスク定義の `DB_HOST` → DB、DB の SG → app の SG、ルート → NAT など 10 件）を `test_known_references` に足した。`ModuleTest`（再帰と through、count／for_each／0／×N の呼び出し、出力のオブジェクトの属性、境界をまたぐ参照と depends_on、秘密の値、循環・深さ・読めない・宣言の無い引数、provider と region、`terraform_remote_state`）と `SummaryTest`（表のファイル、版の選び方、source の見分けと H-IAM、展開の診断、**vpc・eks の要約表と手元の本物のソースの展開の突き合わせ**）を足した。
+8. **文書:** ir-schema.md の 2章（黒箱の対象・H-IAM の判定）、4章（`module_summary`・ローカルモジュールの `file`）、7.1（モジュールの変数の `evaluation.vars`）、7.2（「TF のモジュール」を新設。region・`$res` の `attr`・`.tf.json` の行を直した）、7.4（`terraform_remote_state`）、7.5（code）、7.6（手順3 を済に）、8章（決めた2項目を7章へ移し、`.tf.json` を足した）。README の使い方。ir-raw.schema.json は変えていない（`module`・`via`・`through` は手順1 から Schema にある。`evaluation.vars` の `source` の `"argument"` も今の形で通る）。
+
+### 決めたこと
+| 決定 | 理由 |
+|---|---|
+| 要約表は Markdown の表ではなく、本物と同じ書き方の HCL（主要なリソース・出力だけ）にし、ローカルモジュールと同じ評価器で展開する | NAT の数（`single_nat_gateway`・`one_nat_gateway_per_az`）、ルートテーブルの数と関連付け、for_each のキーなど、入力で変わる中身を本物と同じ式で決めるため。表の形を別に作ると、条件の書き方を独自に決めることになり、本物との突き合わせもできない |
+| 要約表の置き場は PLAN のとおり `references/module-summaries.md`。`<!-- module-summary source="…" majors="…" -->` の直後のコードブロック | 1ファイルで人も読め、版ごとの表を並べられる。サブモジュールは `//modules/x` を付けた source の表にし、表の中の `./modules/x` も同じ版の表で展開する |
+| 対象の版: vpc 6.x、alb 10.x、rds 7.x、eks 21.x。ほかの major は黒箱 | 手元にソースがあるのは vpc v6.7.3 と eks v21.29.0（P01・P03）。alb・rds は fixture を作ったときに読んだ v10.5.1・v7.2.2 の記録に合わせた。版が違うと変数名やリソースが変わる（eks の 20.x と 21.x など）ので、推測しない（CRITERIA の 2.3 の A5） |
+| rds-aurora は要約表にしない | 公開サンプルにレジストリから呼ぶものが無く、P04 は `source = "../../"` で手元のソースを読む（ローカルモジュールとして展開される） |
+| 要約表の中の `data` と count が 0 のリソースは載せない。表の中では count が 0 のブロックの添字は誤り | 正解 IR の `module_summary` の決まり（4章）。載せないブロックへの参照が残らないように、Terraform と同じく `try` で `null` にする |
+| 写していないリソースを作る入力は info の診断（`TF-MODULE-SUMMARY-INPUT`）にし、表に無い出力の参照は warn（`TF-MODULE-SUMMARY-OUTPUT`） | 図に出ないリソースがあることを結果に残す（推測して描かない）。出力の参照が消えると辺の根拠が欠けるので warn |
+| IAM だけのモジュールは、source の一覧（`terraform-aws-modules/iam/aws` とそのサブモジュール）で判定する。raw IR では黒箱のまま | 中身を読まないので、IAM だけかは source でしか分からない。分類（H-IAM）は正規化の仕事（7章）。ローカルモジュールは中身を読むので型ごとの H-IAM で足りる |
+| `terraform_remote_state` は state を読まず、出力への参照を `attr: "outputs.<名前>"` にする | 別の構成の state は手元に無く、秘密の値も入りうる。CFN のネストスタックの `Outputs.<名前>` と同じ形にし、正規化が「別の構成の値」と見分けられるようにする |
+| モジュールの中の provider は、`providers` 引数と既定の provider の引き継ぎでたどり、設定のあるモジュールの alias の名前と region を書く | 手順1 で決めた「region の値で別のリージョンを見分ける」をモジュールの中にも当てる。子の中の alias の名前（`aws.east`）は呼び出しごとに違う設定を指すので、設定の側の名前にする |
+| `.tf.json` は手順4・5 に回す | 入れ子のブロックと属性の区別に provider のスキーマが要る事情は変わらない。plan JSON の `configuration` で同じ区別ができるかを見てから決める。公開サンプルにも無い |
+| 手元のローカルモジュールの変数は `evaluation.vars` に `module.x.<名前>` で書く（値は書かない、出どころは `"argument"`・`"default"`・`null`） | どの変数が呼び出しで渡され、どれが既定値・値なしかを確かめるため。要約表の変数は既定値ばかりで量が多いので書かない |
+
+### 確かめたこと
+- 自作 fixture の5構成: 正解 IR の TF 側の網羅分類と、address・type・file・enabled・`via` がすべて一致（three-tier-modules は 5 → 42 リソース。vpc 25・alb 6・rds 1 が `module_summary`、app 9 がローカルモジュールの中）。three-tier-modules の診断は info の `TF-MODULE-SUMMARY` 3件だけ（warn 0）。タスク定義の `DB_HOST` は `module.db.module.db_instance.aws_db_instance.this[0]` の `address` への active の参照になり、`through` は `module.app.var.environment` → `module.db.output.db_instance_address` → `module.db.module.db_instance.output.db_instance_address`。サービスの TG は `module.alb.aws_lb_target_group.this["app"]` の `arn`（through `module.app.var.target_group_arn` → `module.alb.output.target_groups`）。
+- **要約表と本物のソースの突き合わせ**（`SummaryTest`）: vpc（`fixtures/public/terraform-aws-vpc`、v6.7.3）を3通りの入力で、手元のソースをローカルモジュールとして読んだ結果と要約表の結果を比べ、作られるリソースの address（25・39・17）、表のリソースの間の active の参照、名前とタグが一致した。eks（v21.29.0）は、ノードグループ3種・アドオン・アクセスエントリを渡した入力で、意図した違い（KMS の呼び出しの形と、ユーザーデータの `null_resource`）を除いて 48 件が一致した。最初の突き合わせで見つかった違い（type の無い変数で `"1"` と `1` がずれる、起動テンプレートの `version` と `depends_on`、`time_sleep` の `service_cidr`、アクセスエントリの `tags`）は要約表を直した。
+- 診断とリソースの数（手順2 → 手順3。変数のファイルを渡さない）:
+
+  | 対象 | リソース | warn | info | 主な変化 |
+  |---|---|---|---|---|
+  | 自作 fixture 5構成 | 153 → 190 | 8 → 8 | 5 → 4 | `TF-MODULE-DEFERRED` 4 → 0、`TF-MODULE-SUMMARY` 3 |
+  | 公開サンプルの TF のルート 52 | 854 → 2474 | 130 → 391 | 164 → 1058 | `TF-MODULE-DEFERRED` 148 → 0（黒箱は `TF-MODULE-BLACKBOX` 43、`module_summary` のリソース 201）。warn の増分は展開したモジュールの中の値（ルートで値の無い変数 `TF-UNRESOLVED-VAR` 61 → 127、リソースの属性に依る条件など `TF-UNEVALUATED` 60 → 191、×N 7 → 64）。info の増分は本物のモジュールのソースの count が 0 のブロックの `TF-COUNT-INDEX`（6 → 895） |
+  | `.tf` のあるフォルダすべて 172 | 2076 → 10255 | 821 → 2231 | 2293 → 12945 | 同上（`TF-MODULE-DEFERRED` 365 → 0、黒箱 103） |
+
+  リソースの増え方の大きいもの: terraform-aws-vpc/examples/complete 9 → 220、examples/simple 3 → 175（`source = "../../"` で本物を読み、count が 0 のブロックも `enabled: false` で載る）、terraform-aws-ecs/examples/fargate 8 → 143、aws-network-hub 16 → 198、eks-managed-node-group の例 4 → 97。T16（learn-terraform-provision-eks-cluster）は vpc 5.8.1・eks 20.8.5 が版の合わない黒箱、iam 5.39.0 が IAM だけの黒箱のまま（6 リソース）。例外 0、error 0、すべて raw IR の検査を通った。時間はルート 52 で 2.6 → 約 7 秒（最も遅い ecs の fargate で 0.9 秒）、172 フォルダで約 50 秒（検査を含む）。
+- テスト 199 件が通過。`c1_check.py` は入力 25・辺 513 本・対応の無い辺 0（CFN は変えていない）。5構成を `uv run`（PEP 723）で PowerShell 5.1 から `tf.py` にかけ、`validate_ir.py` が通った（要約表は SKILL のフォルダの `references/` から読む）。
+
+### つまずいたこと
+- 最初は子の変数を呼び出しの時点で評価しようとしたが、モジュールの間で出力と変数が行き来する（`module.app` の引数が `module.db` の出力を、`module.db` の引数がルートの SG を、その SG が `module.app` の出力を使う）ので、locals と同じく使うときに評価してキャッシュする形にした（本当の循環は `TF-CYCLE`）。
+- `try()` の中の作られないブロックの扱い: 手順2 の決まり（添字で引くと作られないブロックへの参照）のままだと、本物の vpc モジュールのサブネットの `vpc_id` が、作られない `aws_vpc_ipv4_cidr_block_association` を指した。要約表との突き合わせで見つかった。
+- 要約表の中で count が 0 のサブモジュール（eks の `fargate_profile` を渡さないとき）を飛ばしたのに、`depends_on` と参照がその中のリソースを指して、raw IR の検査（参照の先が無い）に落ちた。表の中の作られない呼び出しは、リソースと同じく空のまとまりにした。
+- 要約表の変数の宣言から `type` を省いたら、`public_subnet_tags = { "kubernetes.io/role/elb" = 1 }` が `map(string)` に変換されず `1` のままになり、本物（`"1"`）とずれた。変数は本物の `type`・`default`・`nullable` を写す。
+- Bash のヒアドキュメントで日本語を含む Python を渡すと文字化けして置き換えに失敗した（既知）。長い書き換えは `%TEMP%` の下に Write で書いた Python で当てた。
+
+### 第三者レビュー（判定「修正後コミット」）と対応
+- **M1** alb の要約表で、写していない入力が `listeners` の中のキー（`weighted_forward`・`rules`・認証のアクションなど）だと、診断なしに落ちていた（`# not-covered:` に変数名しか書けず、`setup_child` は最上位の引数名しか見ていなかった）→ `# not-covered:` に入れ子の経路（`listeners.*.authenticate_cognito`、`listeners.*.rules.*.actions.*.authenticate_oidc` など。`*` はどのキー・要素でも）を書けるようにし、渡した値のその位置に `null` 以外の値があれば `TF-MODULE-SUMMARY-INPUT` に書く（`path_present()`。子の変数の値を見るので、展開する直前（`run()`）に調べる）。辺に効く `weighted_forward`（リスナーの `default_action[0].forward[0].target_group[*].arn`）と `aws_lb_listener_rule`（forward・weighted_forward・redirect・fixed-response と条件）は表に写した。terraform-aws-ecs の fargate の例の `TF-MODULE-SUMMARY-OUTPUT`（`listener_rules`）4件は 0 件になった。
+- **R1** eks の KMS を `count` にしたので address が本物と違った → 黒箱の呼び出しで `create` 引数が false と決まるものは `enabled: false` にする一般規則を ir-schema.md の 7.2 に書いて実装し、要約表は本物どおり `create` 引数の `module "kms"` に戻した（address は `module.eks.module.kms`。表の中の黒箱の呼び出しは、参照の先を残すため、作られなくても載せる）。
+- **R2** `regexall()` を `$az` に当てる方法が代表の名前1つだけだった → 形の違う8つの代表（`us-east-1a`・`ap-northeast-1c`・`eu-central-1b`・`cn-north-1a`・`us-gov-west-1a`・`il-central-1a`・`ap-southeast-3b`・`me-central-1a`）でマッチの数を数え、すべて同じときだけ決める（違えば `$unknown`）。
+- **R3** alb・rds の要約表が本物と未照合だった → ユーザーの許可を得て、terraform-aws-alb v10.5.1（6c6e48c）と terraform-aws-rds v7.2.2（175da04）を GitHub から取り、`fixtures/public/terraform-aws-alb`・`terraform-aws-rds` に置いた（vpc・eks と同じ置き方。`.git` を削除、rds の `examples/s3-import-mysql/backup.zip` を削除。SOURCES.md の M01・M02）。要約表を本物から写し直し（変数は本物の宣言をそのまま、リソースのブロックは図に要る属性だけ）、`SummaryTest` に突き合わせのテストを足した。module-summaries.md の 3章の「確かめたソース」を更新した。
+  - 写し直す前の表と本物の違い（見つかったもの）: alb は、`aws_lb` のタグに `terraform-aws-modules = "alb"` を足していた（v10 には無い）、`security_groups` の並びが逆（本物は作った SG が先）、SG ルールのタグ（`Name`）と `to_port` の既定（`from_port`）が無かった、リスナーの `port`・`protocol` を `try()` で決めていた（本物は型付きの変数と `coalesce`）、リスナーのルール・`weighted_forward`・追加の証明書・Lambda の `aws_lambda_permission`・`additional` の登録・Route 53・WAF が無かった。rds は、ロググループ（`enabled_cloudwatch_logs_exports`）・ローテーション・IAM ロールの関連付けを写していなかった、拡張モニタリングのロールの名前（`monitoring_role_use_name_prefix`）と `Name` タグ、`random_id` の `keepers` の `snapshot_identifier`、ルートの `option_group_name`（postgres なら `null`）が本物と違った。three-tier-modules の展開の結果（address 42 件）は変わらない。
+  - 突き合わせの結果: alb は2通りの入力（6・14 件）、rds は2通りの入力（1・8 件）で、作られるリソースの address・表のリソースの間の参照・名前とタグが一致した。props の違いは alb の weighted_forward の空の `stickiness` と、表で `data.aws_partition` を擬似パラメータにした `principal` だけ。eks は KMS を戻したので、違いは `null_resource` 2件だけになった（48 件）。
+  - 表の変数を本物から写すとき、`description` を消す処理がオブジェクトの型の中の `description = optional(string)` まで消して、SG ルールの `each.value.description` が誤りになった（`TF-EVAL-ERROR`）。トップレベルの `description`（heredoc を含む）だけを消すようにした。
+  - 型付きの変数（`map(object(...))`、既定 `null`）で、`for_each = var.rules != null ? var.rules : {}` が、リソースの属性を含むマップを渡すと決まらなかった → `null` との比較は、もう片方が `null` になりえない値（マップ・リスト・`$concat` など）なら決める（`$res`・`$unknown` は決めない。7.2）。
+- 任意1 `>= 5.0, < 7.0` の前提の文を「allows majors 5 to 6」に分けた。任意2 `try(local.x, "")` の中の作られないブロック: locals・子の変数・出力は `try` の外として1回だけ評価するので直さず、制約として 7.2 に書いた（Terraform ではその local 自体が誤りになる設定のときだけ起きる）。任意3 module-summaries.md の 1章に、要約表では count 0 を載せず、手元のソースを読むと `enabled: false` で載ることを並べて書いた。
+- vpc 5.x・eks 20.x の要約表は作らない（ユーザーの決定。フェーズ6 の前に改めて決める。HANDOFF の判断待ち）。
+- 確かめたこと: テスト 205 件が通過（TF アダプタは 70 件）。5構成を `uv run` で作り `validate_ir.py` が通った（数は変わらず）。`c1_check.py` は入力 25・辺 513 本・対応の無い辺 0。公開サンプルの TF のルート 52 で例外 0・error 0・検査を通る（リソース 2474 → 2480、warn 391 → 381、`TF-MODULE-SUMMARY-OUTPUT` 4 → 0、×N 64 → 59）。`.tf` のあるフォルダは、取り込んだ alb・rds の 33 フォルダが増えて 205（もとの 172 フォルダはリソース 10620、warn 2161）。どれも失敗 0。
+
+### 再確認（判定「コミット可」）と対応
+- R1' `create = false` を `enabled: false` にする規則を、source が `terraform-aws-modules/` の黒箱の呼び出し（と要約表の中の呼び出し）に限り、当てたときは `TF-MODULE-NOT-CREATED`（info）を書く（ほかの source の `create` は読まない）。任意: `create` が決まらなければ `enabled: null`（count が決まらないときと同じ）、`path_present()` は空の `{}`・`[]` を当てず、途中の値が決まらず調べられなかった経路は `TF-MODULE-SUMMARY-INPUT` の info（`path: "unknown"`）に書く、`null` との比較で属性の無いリソース・モジュールの呼び出しそのもの（`aws_x.y`・`module.x`）も null にならない値とした。7.2・module-summaries.md の 1章を合わせ、テストを直した。テスト 205 件・`c1_check.py`（対応の無い辺 0）・公開サンプルのルート 52（例外 0・error 0、リソース 2480・warn 381 は変わらず）が通った。

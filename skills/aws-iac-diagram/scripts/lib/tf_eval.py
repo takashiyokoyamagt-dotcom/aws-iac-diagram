@@ -2,7 +2,8 @@
 
 評価の中では、値を次の形で持つ（raw IR の印に直すのは tf.py の materialize）:
   - ふつうの値: str・int・float・bool・None・list・dict（キーは入力のまま。$$ の逃がしは書き出すときに行う）
-  - Res: リソース・data・module への参照（$res）。multi=True は count・for_each が決まらない ×N のまとまり（[*]）
+  - Res: リソース・data・module への参照（$res）。multi=True は count・for_each が決まらない ×N のまとまり（[*]）。
+    through はモジュールの出力・変数をたどった経路（references の through。from の側から順に）
   - Pseudo・Az: 擬似パラメータと AZ（$pseudo・$az）。Az("*") は data.aws_availability_zones の names 全体
   - Concat・Json: 文字列のテンプレートと jsonencode（$concat・$json）
   - Unknown: 評価できなかった値（$unknown）。中にあった参照（refs）を持ち歩き、書き出すときに unevaluated で残す
@@ -33,6 +34,7 @@ class Res:
     to: str
     attr: str | None = None
     multi: bool = False  # count・for_each が決まらない ×N のまとまり（to は [*] で終わる）
+    through: tuple = ()  # モジュールの出力・変数をたどった経路（module.x.output.y・module.x.var.y。7.3）
 
 
 @dataclass(frozen=True)
@@ -56,7 +58,7 @@ class Json:
 
 
 class Unknown:
-    """評価できなかった値。reason は $unknown の文、code・level は診断、refs は中にあった参照 (to, attr)。"""
+    """評価できなかった値。reason は $unknown の文、code・level は診断、refs は中にあった参照 (to, attr, through)。"""
 
     __slots__ = ("reason", "code", "level", "refs")
 
@@ -84,12 +86,12 @@ MARKER_TYPES = (Res, Pseudo, Az, Concat, Json, Unknown)
 # ------------------------------------------------------------------ 値の道具
 
 def refs_in(v) -> set:
-    """値の中の参照 (to, attr)。Unknown は持ち歩いている参照。"""
+    """値の中の参照 (to, attr, through)。Unknown は持ち歩いている参照。"""
     out: set = set()
 
     def walk(x):
         if isinstance(x, Res):
-            out.add((x.to, x.attr))
+            out.add((x.to, x.attr, x.through))
         elif isinstance(x, Unknown):
             out.update(x.refs)
         elif isinstance(x, Concat):
@@ -569,8 +571,25 @@ def _regex(pattern, s):
     return _match_value(m)
 
 
-@fn("regexall")
+# AZ 名の代表（リージョンの形の違うもの）。$az に正規表現を当てるとき、すべてでマッチの数が同じなら、その数に決める
+AZ_NAME_SAMPLES = ("us-east-1a", "ap-northeast-1c", "eu-central-1b", "cn-north-1a", "us-gov-west-1a", "il-central-1a",
+                   "ap-southeast-3b", "me-central-1a")
+
+
+@fn("regexall", structural=True)
 def _regexall(pattern, s):
+    if isinstance(s, Az) and isinstance(s.index, int) and isinstance(pattern, str):
+        # data.aws_availability_zones の names の要素（AZ 名）。AZ 名の形で決まるパターン（vpc モジュールの
+        # "^[a-z]+-"。AZ 名か AZ ID かの判定）のマッチの数だけを、代表の名前で決める（マッチした文字列は決まらない）。
+        # 代表によって数が違えば決めない
+        rx = _re(pattern)
+        counts = {len(list(rx.finditer(name))) for name in AZ_NAME_SAMPLES}
+        if len(counts) != 1:
+            return unknown_from([s], "regexall() on an AZ name whose result depends on the region")
+        return [Unknown("regexall() on an AZ name: only the number of matches is known", "TF-UNEVALUATED",
+                        "info", refs_in(s))] * counts.pop()
+    if not (is_concrete(pattern) and is_concrete(s)):
+        return unknown_from([pattern, s], "regexall() of a value that is not known before apply")
     return [_match_value(m) for m in _re(to_string(pattern)).finditer(to_string(s))]
 
 
@@ -720,6 +739,8 @@ def _merge(*maps):
 def _lookup(m, key, *default):
     if len(default) > 1:
         raise EvalError("lookup(): too many arguments")
+    if isinstance(m, dict) and not m and default:  # 空のマップは、キーが決まらなくても既定値（vpc モジュールの *_tags_per_az）
+        return default[0]
     if _need_map(m, "lookup") is None or not isinstance(key, (str, int, float)) or isinstance(key, bool):
         return unknown_from([m, key, *default], "lookup() of a value that is not known before apply")
     key = to_string(key)

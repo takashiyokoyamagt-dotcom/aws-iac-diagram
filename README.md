@@ -113,7 +113,7 @@ uv run python aws-iac-diagram-workspace\tools\c1_check.py
 
 ### Terraform アダプタ（フェーズ2 で作成中）
 
-Terraform のルートモジュール（.tf のフォルダ）から、同じ raw IR を作ります。変数・locals・式を評価し、count・for_each をインスタンスごとに展開します（手順2）。モジュールの中身はまだ読みません（手順3。ir-schema.md の 7.6）。
+Terraform のルートモジュール（.tf のフォルダ）から、同じ raw IR を作ります。変数・locals・式を評価し、count・for_each をインスタンスごとに展開します（手順2）。ローカルモジュール（`./`・`../`）は中身を再帰的に読み、terraform-aws-modules の vpc・alb・rds・eks は要約表（`references/module-summaries.md`）で展開します。それ以外のレジストリ・git のモジュールは黒箱の呼び出し1件にします（手順3。ネットワークからモジュールを取りに行きません）。plan JSON は手順4 です（ir-schema.md の 7.6）。
 
 ```powershell
 uv run skills\aws-iac-diagram\scripts\adapters\tf.py --input aws-iac-diagram-workspace\fixtures\tf\three-tier --out out\three-tier.tf.raw.json --var-file env\dev.tfvars

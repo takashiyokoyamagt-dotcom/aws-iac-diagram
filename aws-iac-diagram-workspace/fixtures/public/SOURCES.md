@@ -57,6 +57,16 @@
 
 P01〜P04 は、公開モジュールの「中身の要約表」（PLAN.md の A5）を作るときに参照元としても使う。
 
+## A5 の要約表の照合用（2026-10-17 に追加。ユーザーの許可を得て取得）
+
+| ID | 内容 | ディレクトリ | 取得元 | タグ | コミット | タグのコミット日 | ライセンス |
+|---|---|---|---|---|---|---|---|
+| M01 | terraform-aws-modules/alb の 10.x の最新（要約表 `terraform-aws-modules/alb/aws` の照合） | `terraform-aws-alb/` | https://github.com/terraform-aws-modules/terraform-aws-alb | v10.5.1 | 6c6e48c10d450d01cf6715346e926df0b858efc2 | 2026-08-26 | Apache-2.0 |
+| M02 | terraform-aws-modules/rds の 7.x の最新（要約表 `terraform-aws-modules/rds/aws` とサブモジュールの照合） | `terraform-aws-rds/` | https://github.com/terraform-aws-modules/terraform-aws-rds | v7.2.2 | 175da043429cbbe41c512f976105719f6d0e538c | 2026-09-18 | Apache-2.0 |
+
+- 取得日: 2026-10-17。取得方法: `git ls-remote --tags` で major の最新のタグを選び、`git clone --depth 1 --branch <タグ>` で一時フォルダに取り、`.git` を削除してこのフォルダに置いた（terraform-aws-vpc・terraform-aws-eks と同じく、リポジトリの中身をそのまま。LICENSE は取得元のものを保持）。削除したファイル: `terraform-aws-rds/examples/s3-import-mysql/backup.zip`（zip は除外の決まり）。
+- 読むだけ（`tests/test_tf_adapter.py` の `SummaryTest` が、TF アダプタで手元のモジュールとして読む）。`terraform init`・plan・apply は行わない。
+
 ## CloudFormation のみの参考
 
 | ID | 内容 | ディレクトリ | 取得元 | コミット | ライセンス |

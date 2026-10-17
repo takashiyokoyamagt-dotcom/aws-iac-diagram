@@ -4,7 +4,7 @@
 # ///
 """Terraform のルートモジュール（.tf のフォルダ）を読み、アダプタの出力（raw IR。references/ir-schema.md の 7章）を作る。
 
-いまの範囲（フェーズ2 の手順1〜2）:
+いまの範囲（フェーズ2 の手順1〜3）:
   - フォルダ直下の *.tf を python-hcl2 で読み（構文木をそのまま使う）、resource・data・module のブロックを集める。
     check ブロックの中の data も読む。*_override.tf・override.tf は Terraform と同じ規則で元のブロックに重ねる
   - 属性とブロックを props にする（ブロックはリスト。count・for_each・provider・depends_on・lifecycle・
@@ -24,11 +24,15 @@
   - provider = aws.<alias> のリソースは provider を書く。region は、リソースの引数 region（AWS provider v6）→
     その provider の region の順で、文字列で決まるときだけ書く
   - heredoc の開始・終端の行の末尾の空白を取ってから読む（python-hcl2 が読めないため。7.4。診断 info）
+  - モジュール（手順3。ir-schema.md の 7.2 の「TF のモジュール」）: ローカルモジュール（./・../）は再帰的に
+    展開する（address は module.x.…、count・for_each の呼び出しはインスタンスごと）。子の変数は呼び出しの引数を
+    親の中で評価した値、module.x.y は子の出力 y の値で、たどった経路を参照の through に書く。terraform-aws-modules
+    の vpc・alb・rds・eks は A5 の要約表（references/module-summaries.md、lib/tf_modules.py）で展開する
+    （via: module_summary）。それ以外のレジストリ・git などのソースと、読めない・循環する・深すぎるものは黒箱の
+    呼び出し1件（type: module、via: module_blackbox）。providers 引数で渡した provider をたどって provider・region
+    を書く。terraform_remote_state の出力への参照は attr: "outputs.<名前>"（state は読まない）
 後の手順に回したもの:
-  - 手順3: module の中身は読まない。呼び出し（インスタンスごと）を type: module・via: module_blackbox の1件に
-    する（source・version、props は入力。診断 TF-MODULE-DEFERRED）。module.x.out への参照は
-    {"$res": "module.x", "attr": "out"}。.tf.json は読まない（TF-TFJSON-UNSUPPORTED）
-  - 手順4: plan JSON
+  - 手順4: plan JSON。.tf.json は読まない（TF-TFJSON-UNSUPPORTED。手順4・5 で決める）
 file()・templatefile() などのファイルを読む関数は、ファイルを読まずに $unknown（診断 TF-UNEVALUATED）。
 引数の中の参照は unevaluated で残す。sensitive = true・ephemeral = true の変数と sensitive() の値は使わない
 （$unknown。evaluation.vars にも書かない）。
@@ -52,7 +56,7 @@ import json
 import os
 import re
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 import hcl2
@@ -62,6 +66,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from lib import ir_raw  # noqa: E402
 from lib import tf_eval as E  # noqa: E402
+from lib import tf_modules as M  # noqa: E402
 from lib.tf_eval import Az, Concat, EvalError, Json, Pseudo, Res, Unknown, ZeroColl  # noqa: E402
 
 # 読み飛ばす記号の字句（構文木の中で意味を持たないもの）
@@ -90,6 +95,56 @@ UNDECIDED = {"TF-UNRESOLVED-VAR", "TF-EVAL-ERROR", "TF-UNEVALUATED", "TF-UNSUPPO
 # 引数や要素から選ぶ関数（選ばなかったものの中の参照を pruned にする。CFN の Fn::Select と同じ）
 SELECTING = {"coalesce", "coalescelist", "element", "slice", "one"}
 COMPLEX_TYPES = {"list", "set", "map", "object", "tuple"}
+# モジュールの入れ子の深さの上限（これより深い呼び出しは黒箱。TF-MODULE-DEPTH）
+MAX_MODULE_DEPTH = 16
+# count が 0・決まらないモジュールの呼び出しのインスタンスのキー（ModuleEval.child）
+ZERO, STAR = "\u0000zero", "\u0000star"
+
+
+def weakest(a, b):
+    """enabled の弱い方（false > null > true）。モジュールの中のリソースは、呼び出しの値を引き継ぐ。"""
+    if a is False or b is False:
+        return False
+    if a is None or b is None:
+        return None
+    return True
+
+
+def ref_order(r: tuple) -> tuple:
+    """参照 (to, attr, through) の並べ方。"""
+    return (r[0], r[1] or "", r[2])
+
+
+def through_refs(refs, hop: str) -> set:
+    return {(to, attr, (hop,) + th) for to, attr, th in refs}
+
+
+class ModObj:
+    """展開したモジュールの呼び出しのインスタンス1つ（module.x、module.x[0]）。属性で引くと、子の出力の値。"""
+
+    __slots__ = ("child",)
+
+    def __init__(self, child: "ModuleEval"):
+        self.child = child
+
+
+def prepend_through(v, hop: str):
+    """値の中の参照に、モジュールの出力・変数をたどった経路（hop）を先頭に足す（7.3 の through）。"""
+    if isinstance(v, Res):
+        return replace(v, through=(hop,) + v.through)
+    if isinstance(v, Unknown):
+        return Unknown(v.reason, v.code, v.level, through_refs(v.refs, hop))
+    if isinstance(v, Concat):
+        return Concat(tuple(prepend_through(p, hop) for p in v.parts))
+    if isinstance(v, Json):
+        return Json(prepend_through(v.value, hop))
+    if isinstance(v, ZeroColl):
+        return ZeroColl(prepend_through(v.res, hop))
+    if isinstance(v, list):
+        return type(v)(prepend_through(e, hop) for e in v)
+    if isinstance(v, dict):
+        return type(v)((k, prepend_through(e, hop)) for k, e in v.items())
+    return v
 
 
 # ------------------------------------------------------------------ 構文木の小さな道具
@@ -516,6 +571,7 @@ class Context:
         self.resources: list[dict] = []
         self.refs: list[dict] = []
         self.assumptions: list[str] = []
+        self.modules: list["ModuleEval"] = []  # 展開したモジュール（evaluation.vars を書くため）
 
     def rel(self, path: Path) -> str:
         try:
@@ -529,12 +585,39 @@ class Context:
 
 
 class ModuleEval:
-    """1つのモジュール（手順2 まではルートモジュールだけ）のブロックを集めて評価する。"""
+    """1つのモジュール（ルートモジュールか、モジュールの呼び出しのインスタンス1つ）のブロックを集めて評価する。
 
-    def __init__(self, ctx: Context, directory: Path, prefix: str = ""):
+    子のモジュール（ローカルのモジュールと、A5 の要約表から作るもの）は、呼び出しのインスタンスごとに1つ作る。
+    子の変数は呼び出しの引数を親の中で評価した値、親から見た module.x.y は子の出力 y の値（どちらも through に
+    経路を足す。7.3）。
+    """
+
+    def __init__(self, ctx: Context, directory: Path | None, prefix: str = ""):
         self.ctx = ctx
-        self.dir = directory
-        self.prefix = prefix  # address の前に付けるもの（手順3 のモジュールの "module.x."）
+        self.dir = directory  # 要約表から作るモジュールは None
+        self.prefix = prefix  # address の前に付けるもの（モジュールの中は "module.x."）
+        # 子のモジュールのとき（ルートは parent が None）
+        self.parent: ModuleEval | None = None
+        self.call_address = ""  # 呼び出しのインスタンスの address（module.x、module.x[0]）
+        self.call_args: dict[str, Tree] = {}  # 引数の名前 → 親の中の式
+        self.call_env: dict = {}  # 引数を評価するときの count.index・each（親の側）
+        self.via: str | None = None  # 要約表から作るときは "module_summary"
+        self.summary: M.Summary | None = None
+        self.file_override: str | None = None  # 要約表のブロックの file（呼び出しのあるファイル）
+        self.enabled_base = True  # 呼び出しの enabled（count が 0 なら false、決まらなければ null）
+        self.multi = False  # 呼び出しが ×N（count・for_each が決まらない）
+        self.chain: tuple = ()  # 呼び出しの経路のフォルダ・要約表（循環の検出）
+        self.depth = 0
+        self.provider_map: dict[str, str] = {}  # 子の provider の名前 → 親の provider の名前（providers 引数）
+        self.explicit_providers = False  # providers 引数があるか（無ければ既定の provider を引き継ぐ）
+        self.depends_from: list = []  # 呼び出しの depends_on（(書かれたモジュール, 式) の並び）
+        self.outputs: dict[str, Tree] = {}  # output ブロックの本体
+        self._children: dict = {}
+        self._plans: dict = {}
+        self._var_cache: dict = {}
+        self._out_cache: dict = {}
+        self._dep_cache: list | None = None
+        self._uncovered: list = []  # 要約表に写していない、渡された最上位の入力
         self.blocks: dict[str, Block] = {}  # base（prefix を除いたもの）→ ブロック
         self.ephemerals: dict[str, Block] = {}
         self.locals: dict[str, Tree] = {}
@@ -549,6 +632,7 @@ class ModuleEval:
         self.extra_refs: list[dict] = []  # unevaluated・pruned の参照
         self.sink: set = set()  # いま評価している属性で、値に残らなかった参照（pruned）
         self.const_mode = False  # tfvars・--var の値を読むとき（参照を使えない）
+        self.try_depth = 0  # try()・can() の中を評価しているとき 1 以上
         self._local_cache: dict[str, tuple] = {}
         self._inst_cache: dict[str, Instances] = {}
         self._busy: set = set()
@@ -559,12 +643,17 @@ class ModuleEval:
                                      "address": self.current if address is None else address,
                                      "path": path, "message": message})
 
-    def add_ref(self, path: str, to: str, attr, state: str) -> None:
-        self.extra_refs.append({"from": self.current, "path": path, "to": to, "attr": attr, "fn": "ref",
-                                "state": state})
+    def add_ref(self, path: str, to: str, attr, state: str, through=()) -> None:
+        ref = {"from": self.current, "path": path, "to": to, "attr": attr, "fn": "ref", "state": state}
+        if through:
+            ref["through"] = list(through)
+        self.extra_refs.append(ref)
 
     # --- 読み込み
     def load(self) -> None:
+        if self.summary is not None:  # 要約表（references/module-summaries.md）の HCL
+            self.collect(summary_tree(self.summary), self.file_override)
+            return
         if not self.dir.is_dir():
             raise ValueError(f"フォルダではありません: {self.dir}")
         for f in sorted(self.dir.glob("*.tf.json")):
@@ -651,7 +740,15 @@ class ModuleEval:
                     self.providers[key] = merge_body(self.providers[key], b)
                 else:
                     self.providers[key] = b
-            # output・terraform・moved・import・removed などは使わない
+            elif btype == "output" and len(labels) == 1:
+                name = labels[0]
+                if override and name in self.outputs:
+                    self.outputs[name] = merge_body(self.outputs[name], b)
+                elif name in self.outputs:
+                    self.diag("warn", "TF-DUPLICATE-BLOCK", "", f"{rel}: output {name} is defined twice", "")
+                else:
+                    self.outputs[name] = b
+            # terraform・moved・import・removed などは使わない
 
     def add_block(self, blk: Block, rel: str, override: bool) -> None:
         table = self.ephemerals if blk.kind == "ephemeral" else self.blocks
@@ -844,7 +941,136 @@ class ModuleEval:
     def var_value(self, name):
         if name not in self.variables:
             return Unknown(f"reference to undefined var.{name}", "TF-UNDEFINED-REF")
+        if self.parent is not None:
+            return self.child_var(name)
         return self.var_values.get(name, Unknown(f"variable {name} has no value", "TF-UNRESOLVED-VAR"))
+
+    # --- 子のモジュールの変数と出力
+    def setup_child(self) -> None:
+        """子のモジュールの、呼び出しの引数と変数の突き合わせ（値は使うときに評価する）。"""
+        undeclared = sorted(set(self.call_args) - set(self.variables))
+        if self.via == "module_summary":
+            plain = {u for u in self.summary.uncovered if "." not in u}
+            self._uncovered = sorted(set(undeclared) | (set(self.call_args) & plain))
+            if self.parent is not None and self.parent.via is None:
+                s = self.summary
+                self.diag("info", "TF-MODULE-SUMMARY", "",
+                          f"expanded from the summary table ({s.source}, {'/'.join(f'{m}.x' for m in s.majors)}; "
+                          "references/module-summaries.md); only the main resources are written",
+                          self.call_address)
+            return
+        for name in undeclared:
+            self.diag("warn", "TF-VAR-UNDECLARED", name,
+                      f"variable {name} is not declared in the module {self.call_address}", self.call_address)
+        for name, body in sorted(self.variables.items()):
+            attrs = self.body_attrs(body)
+            entry: dict = {"source": "argument" if name in self.call_args else "default" if "default" in attrs
+                           else None}
+            secret = next((k for k in ("sensitive", "ephemeral") if k in attrs and const(attrs[k]) is True), None)
+            if secret:
+                entry["hidden"] = secret
+            self.var_sources[name] = entry
+
+    def child_var(self, name):
+        """子のモジュールの変数の値。呼び出しの引数を親の中で評価し、type に合わせて変換する（through に var を足す）。"""
+        if name in self._var_cache:
+            v, pruned = self._var_cache[name]
+            self.sink |= pruned
+            return v
+        key = ("var", name)
+        if key in self._busy:
+            return Unknown(f"var.{name} of {self.call_address} refers to itself", "TF-CYCLE")
+        self._busy.add(key)
+        try:
+            attrs = self.body_attrs(self.variables[name])
+            spec = self.parse_type(attrs["type"]) if "type" in attrs else None
+            secret = next((k for k in ("sensitive", "ephemeral") if k in attrs and const(attrs[k]) is True), None)
+            nullable = const(attrs["nullable"]) if "nullable" in attrs else True
+            pruned: set = set()
+            v = NOTCONST
+            if name in self.call_args:
+                p = self.parent
+                saved, p.sink = p.sink, set()
+                saved_try, p.try_depth = p.try_depth, 0
+                try:
+                    v = p.eval_safe(self.call_args[name], self.call_env)
+                finally:
+                    pruned, p.sink = p.sink, saved
+                    p.try_depth = saved_try
+                if v is None and nullable is False:
+                    v = NOTCONST
+            if v is NOTCONST and "default" in attrs:
+                v = self.eval_const(attrs["default"])
+                if v is NOTCONST:
+                    v = Unknown(f"variable {name} of {self.call_address}: default is not a constant value",
+                                "TF-VAR-INVALID")
+            if v is NOTCONST:
+                v = Unknown(f"variable {name} of {self.call_address} has no value (not set by the module call)",
+                            "TF-UNRESOLVED-VAR")
+            if secret:  # 秘密の値として扱うと書かれた変数の値は使わない（中の参照は残す）
+                v = Unknown(f"variable {name} of {self.call_address} is {secret}; its value is not used",
+                            "TF-SENSITIVE-VAR", "info", E.refs_in(v))
+            elif not isinstance(v, Unknown):
+                v = E.convert(v, spec)
+            hop = f"{self.prefix}var.{name}"
+            v, pruned = prepend_through(v, hop), frozenset(through_refs(pruned, hop))
+        finally:
+            self._busy.discard(key)
+        self._var_cache[name] = (v, pruned)
+        self.sink |= pruned
+        return v
+
+    def output_value(self, name: str):
+        """子のモジュールの出力の値と、値に残らなかった参照（pruned）。through に output を足す。"""
+        if name in self._out_cache:
+            return self._out_cache[name]
+        hop = f"{self.prefix}output.{name}"
+        body = self.outputs.get(name)
+        if body is None:
+            if self.via == "module_summary":
+                u = Unknown(f"output {name} of {self.call_address} is not in the summary table",
+                            "TF-MODULE-SUMMARY-OUTPUT")
+            else:
+                u = Unknown(f"reference to undefined output {name} of {self.call_address}", "TF-UNDEFINED-REF")
+            return u, frozenset()
+        key = ("output", name)
+        if key in self._busy:
+            return Unknown(f"output {name} of {self.call_address} refers to itself", "TF-CYCLE"), frozenset()
+        attrs = self.body_attrs(body)
+        self._busy.add(key)
+        saved, self.sink = self.sink, set()
+        saved_try, self.try_depth = self.try_depth, 0
+        try:
+            v = self.eval_safe(attrs["value"], {}) if "value" in attrs else \
+                Unknown(f"output {name} of {self.call_address} has no value", "TF-MALFORMED-BLOCK")
+        finally:
+            pruned, self.sink = self.sink, saved
+            self.try_depth = saved_try
+            self._busy.discard(key)
+        secret = next((k for k in ("sensitive", "ephemeral") if k in attrs and const(attrs[k]) is True), None)
+        if secret:  # sensitive の出力の値は使わない（中の参照は unevaluated で残す）
+            v = Unknown(f"output {name} of {self.call_address} is {secret}; its value is not used",
+                        "TF-SENSITIVE-VAR", "info", E.refs_in(v))
+        out = (prepend_through(v, hop), frozenset(through_refs(pruned, hop)))
+        self._out_cache[name] = out
+        return out
+
+    def module_output(self, obj: ModObj, name: str):
+        v, pruned = obj.child.output_value(name)
+        self.sink |= pruned
+        return v
+
+    def resolve_mods(self, v):
+        """値の中に残ったモジュールの呼び出し（module.x そのもの）を、出力の値のオブジェクトにする。"""
+        if isinstance(v, ModObj):
+            return {n: self.resolve_mods(self.module_output(v, n)) for n in sorted(v.child.outputs)}
+        if isinstance(v, ZeroColl):
+            return v
+        if isinstance(v, list) and any(isinstance(e, (ModObj, list, dict)) for e in v):
+            return type(v)(self.resolve_mods(e) for e in v)
+        if isinstance(v, dict) and any(isinstance(e, (ModObj, list, dict)) for e in v.values()):
+            return type(v)((k, self.resolve_mods(e)) for k, e in v.items())
+        return v
 
     # --- locals と count・for_each
     def local_value(self, name):
@@ -859,10 +1085,12 @@ class ModuleEval:
             return Unknown(f"local.{name} refers to itself", "TF-CYCLE")
         self._busy.add(key)
         saved, self.sink = self.sink, set()
+        saved_try, self.try_depth = self.try_depth, 0
         try:
             v = self.eval_safe(self.locals[name], {})
         finally:
             pruned, self.sink = self.sink, saved
+            self.try_depth = saved_try
             self._busy.discard(key)
         self._local_cache[name] = (v, frozenset(pruned))
         self.sink |= pruned
@@ -933,6 +1161,8 @@ class ModuleEval:
         """ブロックのすべてのインスタンスの address（0 個なら作られないブロック、決まらなければ [*]）。"""
         base = self.prefix + blk.base
         inst = self.instances(blk)
+        if self.via == "module_summary" and (blk.kind == "data" or inst.mode == "zero"):
+            return []  # 要約表の中の data と、作られないリソースは載せない
         if inst.mode in ("count", "each"):
             return [inst_address(base, k) for k in inst.keys]
         if inst.mode == "unknown":
@@ -940,9 +1170,19 @@ class ModuleEval:
         return [base]
 
     def block_value(self, blk: Block):
-        """リソース・data・module の参照の値（インスタンスごとの Res のまとまり）。"""
+        """リソース・data・module の参照の値（インスタンスごとの Res のまとまり）。展開するモジュールは ModObj。"""
         base = self.prefix + blk.base
         inst = self.instances(blk)
+        if blk.kind == "module" and self.expanded(blk):
+            if inst.mode == "single":
+                return ModObj(self.child(blk, None))
+            if inst.mode == "count":
+                return ResList(ModObj(self.child(blk, k)) for k in inst.keys)
+            if inst.mode == "each":
+                return ResMap((k, ModObj(self.child(blk, k))) for k in inst.keys)
+            if inst.mode == "zero":  # 要約表の中の作られない呼び出しは載せない（リソースと同じ）
+                return ResList() if self.via == "module_summary" else ZeroColl(ModObj(self.child(blk, ZERO)))
+            return ModObj(self.child(blk, STAR))
         if inst.mode == "single":
             return Res(base)
         if inst.mode == "count":
@@ -950,8 +1190,153 @@ class ModuleEval:
         if inst.mode == "each":
             return ResMap((k, Res(inst_address(base, k))) for k in inst.keys)
         if inst.mode == "zero":
-            return ZeroColl(Res(base))
+            # 要約表の中の作られないリソースは載せないので、Terraform と同じく空のまとまり（[0] は誤り。try で null）
+            return ResList() if self.via == "module_summary" else ZeroColl(Res(base))
         return Res(base + "[*]", None, True)
+
+    # --- モジュールの呼び出し
+    def module_plan(self, blk: Block) -> tuple:
+        """モジュールの呼び出しの読み方。("local", フォルダ)・("summary", Summary, 前提)・
+        ("blackbox", level, code, 理由)。"""
+        if blk.base in self._plans:
+            return self._plans[blk.base]
+        source = const(blk.attrs["source"]) if "source" in blk.attrs else NOTCONST
+        version = const(blk.attrs["version"]) if "version" in blk.attrs else NOTCONST
+        version = version if isinstance(version, str) and version else None
+        plan: tuple
+        if not (isinstance(source, str) and source):
+            plan = ("blackbox", "warn", "TF-MALFORMED-BLOCK", "module has no constant source")
+        elif self.via == "module_summary" and M.is_local(source):
+            # 要約表の中のサブモジュール（"./modules/x"）は、同じ版の要約表の "<source>//modules/x"
+            key = M.join_summary_source(self.summary.source, source)
+            cands = [s for s in M.load()[0].get(key or "", []) if set(s.majors) & set(self.summary.majors)]
+            plan = ("summary", cands[0], None) if cands else \
+                ("blackbox", "info", "TF-MODULE-BLACKBOX", f"submodule {key} is not in the summary table")
+        elif M.is_local(source):
+            d = (self.dir / source).resolve() if self.dir is not None else None
+            if d is None or not d.is_dir() or not any(p.suffix == ".tf" for p in d.iterdir() if p.is_file()):
+                where = self.ctx.rel(d) if d is not None else source
+                plan = ("blackbox", "warn", "TF-MODULE-UNREADABLE",
+                        f"local module {source} cannot be read (no .tf files in {where})")
+            else:
+                plan = ("local", d)
+        else:
+            summary, why, note = M.choose(source, version)
+            if summary is None:
+                iam = " (it makes IAM resources only: H-IAM)" if M.iam_only(source) else ""
+                plan = ("blackbox", "info", "TF-MODULE-BLACKBOX", f"module {source} is not read: {why}{iam}")
+            else:
+                plan = ("summary", summary, note)
+        if plan[0] != "blackbox":
+            key = plan[1] if plan[0] == "local" else f"summary:{plan[1].source}"
+            if key in self.chain:
+                plan = ("blackbox", "warn", "TF-MODULE-CYCLE", f"module {source} calls itself")
+            elif self.depth + 1 > MAX_MODULE_DEPTH:
+                plan = ("blackbox", "warn", "TF-MODULE-DEPTH",
+                        f"module {source} is nested deeper than {MAX_MODULE_DEPTH} levels")
+        self._plans[blk.base] = plan
+        return plan
+
+    def expanded(self, blk: Block) -> bool:
+        return blk.kind == "module" and self.module_plan(blk)[0] != "blackbox"
+
+    def child(self, blk: Block, key) -> "ModuleEval":
+        """展開するモジュールの呼び出しのインスタンス（key は count の番号・for_each のキー・None・ZERO・STAR）。"""
+        ck = (blk.base, key)
+        if ck in self._children:
+            return self._children[ck]
+        base = self.prefix + blk.base
+        plan = self.module_plan(blk)
+        enabled = True
+        meta = "count" if "count" in blk.attrs else "for_each"
+        if key is None:
+            addr, env = base, {}
+        elif key in (ZERO, STAR):
+            why = ("count is 0" if meta == "count" else "for_each is empty") if key == ZERO else f"{meta} is not known"
+            u = Unknown(f"{'count.index' if meta == 'count' else 'each'} is not known ({why})", "TF-COUNT-INDEX", "info")
+            env = {"count": {"index": u}} if meta == "count" else {"each": {"key": u, "value": u}}
+            addr = base if key == ZERO else base + "[*]"
+            enabled = False if key == ZERO else None
+        else:
+            addr = inst_address(base, key)
+            inst = self.instances(blk)
+            env = {"count": {"index": key}} if inst.mode == "count" else \
+                {"each": {"key": key, "value": inst.values[key]}}
+        c = ModuleEval(self.ctx, plan[1] if plan[0] == "local" else None, addr + ".")
+        c.parent = self
+        c.call_address = addr
+        c.call_args = {k: v for k, v in blk.attrs.items() if k not in MODULE_META}
+        c.call_env = env
+        if plan[0] == "summary":
+            c.via, c.summary = "module_summary", plan[1]
+            c.file_override = blk.file
+            if plan[2]:
+                self.ctx.assume(f"{addr}: {plan[2]}")
+        c.enabled_base = weakest(self.enabled_base, enabled)
+        c.multi = self.multi or key == STAR
+        c.chain = self.chain + ((plan[1] if plan[0] == "local" else f"summary:{plan[1].source}"),)
+        c.depth = self.depth + 1
+        if "providers" in blk.attrs:
+            c.explicit_providers = True
+            c.provider_map = self.providers_arg(blk.attrs["providers"], addr)
+        c.depends_from = self.depends_from + ([(self, blk.attrs["depends_on"])] if "depends_on" in blk.attrs else [])
+        self._children[ck] = c
+        c.load()
+        c.setup_child()
+        self.ctx.modules.append(c)
+        return c
+
+    def child_keys(self, blk: Block) -> list:
+        inst = self.instances(blk)
+        if inst.mode == "single":
+            return [None]
+        if inst.mode in ("count", "each"):
+            return list(inst.keys)
+        if inst.mode == "zero":
+            return [] if self.via == "module_summary" else [ZERO]
+        return [STAR]
+
+    def providers_arg(self, expr, addr: str) -> dict:
+        """モジュールの providers 引数（{ aws = aws.use1, aws.east = aws }）を、子の名前 → 親の名前にする。"""
+        out: dict = {}
+        t = unwrap(expr)
+        if not (isinstance(t, Tree) and t.data == "object"):
+            self.diag("warn", "TF-MALFORMED-BLOCK", "providers", "providers is not an object", addr)
+            return out
+        for el in sig(t):
+            cs = sig(el)
+            k, v = self.provider_name(sig(cs[0])[0]), self.provider_name(cs[-1])
+            if k is None or v is None:
+                self.diag("warn", "TF-MALFORMED-BLOCK", "providers", "providers has an entry that is not a provider",
+                          addr)
+                continue
+            out[k] = v
+        return out
+
+    def resolve_provider(self, name: str):
+        """provider の名前（aws・aws.east）を、設定のあるモジュールとその中の名前にする。無ければ None。"""
+        if name in self.providers:
+            return self, name
+        if self.parent is None:
+            return None
+        if name in self.provider_map:
+            return self.parent.resolve_provider(self.provider_map[name])
+        if "." not in name and not self.explicit_providers:  # 既定の provider は呼び出し側から引き継ぐ
+            return self.parent.resolve_provider(name)
+        return None
+
+    def resource_addresses(self) -> list[str]:
+        """このモジュールの中（入れ子のモジュールを含む）のすべてのリソース・data の address（depends_on に使う）。"""
+        out: list[str] = []
+        for base, blk in sorted(self.blocks.items()):
+            if blk.kind == "data" and self.via == "module_summary":
+                continue
+            if self.expanded(blk):
+                for k in self.child_keys(blk):
+                    out += self.child(blk, k).resource_addresses()
+            elif blk.kind == "module" or blk.kind in ("resource", "data"):
+                out += self.all_addresses(blk)
+        return out
 
     # --- 評価
     def eval_safe(self, t, env: dict):
@@ -987,7 +1372,7 @@ class ModuleEval:
 
     def prune(self, refs: set, after) -> None:
         """refs のうち、after に同じリソースへの参照が無いものを pruned にする（属性が違うだけなら捨てていない）。"""
-        kept = {block_address(to) for to, _ in E.refs_in(after)}
+        kept = {block_address(r[0]) for r in E.refs_in(after)}
         self.sink |= {r for r in refs if block_address(r[0]) not in kept}
 
     def eval(self, t, env: dict):
@@ -1125,6 +1510,13 @@ class ModuleEval:
             for x in (a, b):  # 片方で決まるときは決める（false && …、true || …）
                 if isinstance(x, bool) and x == (op == "||"):
                     return x
+        if op in ("==", "!=") and (a is None) != (b is None):
+            # null との比較は、もう一方が null になりえない値（マップ・リスト・文字列のテンプレート・擬似パラメータ・AZ）
+            # なら、中に決まらない値があっても決まる（リソースの属性 $res と $unknown は null かもしれない）
+            other = b if a is None else a
+            whole = isinstance(other, Res) and other.attr is None  # リソース・モジュールの呼び出しそのもの
+            if isinstance(other, (dict, list, Concat, Json, Pseudo, Az, ModObj)) or whole or E.is_concrete(other):
+                return op == "!="
         if not (E.is_concrete(a) and E.is_concrete(b)):
             return E.unknown_from([a, b], f"operator {op} on a value that is not known before apply")
         if op == "==":
@@ -1277,12 +1669,15 @@ class ModuleEval:
         failed: set = set()  # 誤りになった式の中の参照（値に残らないので pruned）
         for i, a in enumerate(arg_trees):
             saved, self.sink = self.sink, set()
+            self.try_depth += 1
             try:
                 v = self.eval(a, env)
             except EvalError:
                 self.sink = saved
                 failed |= self.static_refs(a)
                 continue
+            finally:
+                self.try_depth -= 1
             sub, self.sink = self.sink, saved
             self.sink |= sub
             rest = self.spec_refs(arg_trees[i + 1:], env) if i + 1 < len(arg_trees) else set()
@@ -1295,10 +1690,13 @@ class ModuleEval:
     def call_can(self, arg_trees: list, env: dict):
         if len(arg_trees) != 1:
             raise EvalError("can() takes one argument")
+        self.try_depth += 1
         try:
             v = self.eval(arg_trees[0], env)
         except EvalError:
             return False
+        finally:
+            self.try_depth -= 1
         if not E.is_concrete(v):  # 値の全体が決まらなければ、誤りになるかも決まらない（Terraform と同じ）
             return E.unknown_from(v, "can() of a value that is not known before apply")
         return True
@@ -1324,6 +1722,8 @@ class ModuleEval:
         if name == "self":
             return Unknown("self is only known in provisioners and connections", "TF-UNEVALUATED", "info")
         if name == "path":
+            if first == "module" and self.dir is None:
+                return Unknown("path.module of a module expanded from the summary table", "TF-UNEVALUATED", "info")
             if first in ("module", "root", "cwd"):
                 return self.ctx.rel(self.dir) if first == "module" else "."
             return Unknown(f"path.{first} is not supported", "TF-UNEVALUATED")
@@ -1355,6 +1755,17 @@ class ModuleEval:
             # AZ は state などの引数があってもよい（別のリージョンを指す provider だけ除く）
             if blk.type == "aws_availability_zones" and a == "names":
                 return self.traverse(Az("*"), rest[1:], env)
+            # 別の state の出力（terraform_remote_state）は読まない。attr は outputs.<出力の名前>（7.2）
+            if blk.type == "terraform_remote_state" and a == "outputs" and len(rest) > 1:
+                st = rest[1]
+                out = st[1] if st[0] == "attr" else const(st[1]) if st[0] == "index" and isinstance(st[1], Tree) \
+                    else None
+                if isinstance(out, str):
+                    return self.traverse(Res(self.prefix + blk.base, f"outputs.{out}"), rest[2:], env)
+        if blk.kind == "module" and self.expanded(blk):
+            return self.resolve_mods(self.traverse(self.block_value(blk), rest, env))
+        if blk.kind == "data" and self.via == "module_summary":
+            return Unknown(f"{base} in the summary table is not read", "TF-UNEVALUATED", "info")
         return self.traverse(self.block_value(blk), rest, env)
 
     def traverse(self, v, steps: list, env: dict):
@@ -1366,10 +1777,23 @@ class ModuleEval:
         kind = st[0]
         if isinstance(v, Unknown):
             return v
+        if isinstance(v, ModObj):  # 展開したモジュールの呼び出し: 属性は出力
+            if kind == "attr":
+                return self.module_output(v, st[1])
+            if kind == "index":
+                if v.child.multi:  # ×N のモジュールは、どの添字でも同じ1つ（Res の [*] と同じ）
+                    return v
+                key = st[1] if isinstance(st[1], int) else self.eval(st[1], env)
+                if isinstance(key, str):
+                    return self.module_output(v, key)
+                if not E.is_concrete(key):
+                    return E.unknown_from(key, "an index that is not known before apply")
+                raise EvalError("a module call is not a list")
+            return self.traverse(v, st[1], env) if v.child.multi else [self.traverse(v, st[1], env)]
         if kind == "attr":
             name = st[1]
             if isinstance(v, Res):
-                return v if v.attr is not None else Res(v.to, name)
+                return v if v.attr is not None else replace(v, attr=name)
             if isinstance(v, dict):
                 if name not in v:
                     raise EvalError(f"unsupported attribute {name!r}")
@@ -1382,8 +1806,10 @@ class ModuleEval:
         if kind == "index":
             key = st[1] if isinstance(st[1], int) else self.eval(st[1], env)
             if isinstance(v, Res):
-                return Res(v.to, None) if v.multi else v
+                return replace(v, attr=None, multi=False) if v.multi else v
             if isinstance(v, ZeroColl):
+                if self.try_depth:  # try()・can() の中では Terraform と同じく誤り（次の式に進む）
+                    raise EvalError("index into a block whose count is 0")
                 return v.res
             if isinstance(v, Az) and v.index == "*" and E.is_number(key):
                 i = E.to_int(key)
@@ -1418,7 +1844,7 @@ class ModuleEval:
             return []
         if isinstance(v, Res):
             if v.multi:  # ×N のまとまりのスプラットは、[*] への1つの $res（7.2）
-                return self.traverse(Res(v.to, None), sub, env)
+                return self.traverse(replace(v, attr=None, multi=False), sub, env)
             if v.attr is not None:
                 return self.traverse(v, sub, env)
             return [self.traverse(v, sub, env)]
@@ -1489,6 +1915,18 @@ class ModuleEval:
             a = rest[0][1] if rest and rest[0][0] == "attr" else None
             if (blk.plain and (blk.type, a) in PSEUDO_DATA) or (blk.type == "aws_availability_zones" and a == "names"):
                 return
+        if self.expanded(blk):  # 展開するモジュール: 出力の式の中の参照（through に output を足す）
+            keys = self.child_keys(blk)
+            if rest and rest[0][0] == "index":
+                key = rest[0][1] if isinstance(rest[0][1], int) else const(rest[0][1])
+                keys = [key] if key in keys else keys
+                rest = rest[1:]
+            elif rest and rest[0][0] == "splat":
+                rest = rest[0][1] + rest[1:]
+            name = rest[0][1] if rest and rest[0][0] == "attr" else None
+            for k in keys:
+                out |= self.child(blk, k).static_output_refs(name)
+            return
         addrs = self.all_addresses(blk)
         if rest and rest[0][0] == "index":
             key = rest[0][1] if isinstance(rest[0][1], int) else const(rest[0][1])
@@ -1500,21 +1938,40 @@ class ModuleEval:
             rest = rest[0][1] + rest[1:]
         attr = rest[0][1] if rest and rest[0][0] == "attr" else None
         for a in addrs:
-            out.add((a, attr))
+            out.add((a, attr, ()))
+
+    def static_output_refs(self, name: str | None) -> set:
+        """出力（name が None ならすべての出力）の式の中の参照。式を評価せずに探す。"""
+        names = [name] if name is not None else sorted(self.outputs)
+        out: set = set()
+        for n in names:
+            body = self.outputs.get(n)
+            key = ("static-output", n)
+            if body is None or key in self._busy:
+                continue
+            attrs = self.body_attrs(body)
+            if "value" not in attrs:
+                continue
+            self._busy.add(key)
+            try:
+                out |= through_refs(self.static_refs(attrs["value"]), f"{self.prefix}output.{n}")
+            finally:
+                self._busy.discard(key)
+        return out
 
     # --- 書き出し（印への変換）
     def materialize(self, v, path: str):
         """評価した値を raw IR の値にする。Unknown は $unknown にし、中の参照を unevaluated で残して診断を書く。"""
         if isinstance(v, Unknown):
-            for to, attr in sorted(v.refs, key=lambda x: (x[0], x[1] or "")):
-                self.add_ref(path, to, attr, "unevaluated")
+            for to, attr, through in sorted(v.refs, key=ref_order):
+                self.add_ref(path, to, attr, "unevaluated", through)
             reason = v.reason or "the value is not known"
             # 作られないリソース（count が 0 など）は Terraform も評価しないので、図に影響しない（info にする）
             level = "info" if self.current_enabled is False and v.level == "warn" and v.code in UNDECIDED else v.level
             self.diag(level, v.code, path, reason)
             return {"$unknown": reason}
-        if isinstance(v, Res):
-            return {"$res": v.to, "attr": v.attr}
+        if isinstance(v, Res):  # through は一時的な __through で運び、emit で references に移す
+            return {"$res": v.to, "attr": v.attr, **({"__through": list(v.through)} if v.through else {})}
         if isinstance(v, Pseudo):
             return {"$pseudo": v.name}
         if isinstance(v, Az):
@@ -1544,8 +2001,8 @@ class ModuleEval:
             out = self.materialize(v, path)
         finally:
             pruned, self.sink = self.sink, saved
-        for to, attr in sorted(pruned, key=lambda x: (x[0], x[1] or "")):
-            self.add_ref(path, to, attr, "pruned")
+        for to, attr, through in sorted(pruned, key=ref_order):
+            self.add_ref(path, to, attr, "pruned", through)
         return v, out
 
     def body_props(self, body: Tree, path: str, env: dict, meta: set = frozenset()) -> dict:
@@ -1607,18 +2064,61 @@ class ModuleEval:
                                extra_refs=self.static_refs(content))
             lst.append(self.materialize(u, p))
             return
-        for to, attr in sorted(pruned, key=lambda x: (x[0], x[1] or "")):
-            self.add_ref(block_path, to, attr, "pruned")
+        for to, attr, through in sorted(pruned, key=ref_order):
+            self.add_ref(block_path, to, attr, "pruned", through)
         for k, v in items:
             env2 = dict(env)
             env2[iterator or label] = {"key": k, "value": v}
             lst.append(self.body_props(content, ir_raw.join_path(block_path, len(lst)), env2))
 
     # --- 本体
+    def report_uncovered(self) -> None:
+        """要約表に写していない入力（最上位の名前と、# not-covered: の入れ子の経路 listeners.*.rules など）を、
+        渡された値に当たれば TF-MODULE-SUMMARY-INPUT に書く。"""
+        hits = list(self._uncovered)
+        unknown: list = []
+        for path in self.summary.uncovered:
+            parts = path.split(".")
+            if len(parts) < 2 or parts[0] not in self.call_args or parts[0] not in self.variables:
+                continue
+            saved, self.sink = self.sink, set()
+            try:
+                value = self.child_var(parts[0])
+            finally:
+                self.sink = saved
+            got = path_present(value, parts[1:])
+            if got:
+                hits.append(path)
+            elif got is None:
+                unknown.append(path)
+        if unknown:
+            self.diag("info", "TF-MODULE-SUMMARY-INPUT", "unknown",
+                      f"inputs that the summary table does not cover could not be checked (the value is not known): "
+                      f"{', '.join(sorted(unknown))}", self.call_address)
+        if hits:
+            self.diag("info", "TF-MODULE-SUMMARY-INPUT", "",
+                      f"inputs that the summary table does not cover (resources they make are not written): "
+                      f"{', '.join(sorted(set(hits)))}", self.call_address)
+
     def run(self) -> None:
+        if self.via == "module_summary":
+            self.report_uncovered()
         for base, blk in sorted(self.blocks.items()):
+            if blk.kind == "data" and self.via == "module_summary":
+                continue  # 要約表の中の data は載せない（4章の module_summary）
             inst = self.instances(blk)
             addr = self.prefix + base
+            if inst.mode == "zero" and self.via == "module_summary":
+                continue  # 要約表から展開するのは、作られるリソースだけ（4章の module_summary）
+            if self.expanded(blk):
+                if inst.mode == "unknown":
+                    u = inst.unknown
+                    self.diag("warn", "TF-COUNT-UNRESOLVED", inst.meta,
+                              f"{inst.meta} is not known ({u.reason}); the module is written once with "
+                              "multiplicity N", addr + "[*]")
+                for k in self.child_keys(blk):
+                    self.child(blk, k).run()
+                continue
             if inst.mode == "single":
                 self.emit(blk, inst, addr, True, {})
             elif inst.mode == "count":
@@ -1639,20 +2139,40 @@ class ModuleEval:
                 else:
                     self.emit(blk, inst, addr + "[*]", None, env)
         self.ctx.refs += self.extra_refs
+        self.extra_refs = []
 
     def emit(self, blk: Block, inst: Instances, address: str, enabled, env: dict) -> None:
         ctx = self.ctx
+        enabled = weakest(enabled, self.enabled_base)
+        if blk.kind == "module" and "create" in blk.attrs and self.create_convention(blk):
+            # 黒箱の呼び出しで、create 引数（terraform-aws-modules の慣習。false なら何も作らない）が false と決まる
+            # ものは作られない。決まらなければ、count が決まらないときと同じく null（7.2）
+            c = self.quiet_eval(blk.attrs["create"], env)
+            if c is False or c == "false":
+                enabled = weakest(enabled, False)
+                self.diag("info", "TF-MODULE-NOT-CREATED", "create",
+                          "create is false; the module call makes nothing (terraform-aws-modules convention)", address)
+            elif not (c is True or c == "true"):
+                enabled = weakest(enabled, None)
+                self.diag("info", "TF-MODULE-NOT-CREATED", "create",
+                          "create is not known; whether the module makes anything is not known", address)
         self.current = address
         self.current_enabled = enabled
         entry: dict = {"address": address, "type": blk.type, "file": blk.file, "enabled": enabled}
-        if inst.mode == "unknown":
+        if self.via:
+            entry["via"] = self.via
+        if self.prefix:
+            entry["module"] = self.prefix[:-1]
+        if inst.mode == "unknown" or self.multi:
             entry["multiplicity"] = "N"
+        if inst.mode == "unknown":
             u = inst.unknown
-            for to, attr in sorted(u.refs, key=lambda x: (x[0], x[1] or "")):
-                self.add_ref(inst.meta, to, attr, "unevaluated")
+            for to, attr, through in sorted(u.refs, key=ref_order):
+                self.add_ref(inst.meta, to, attr, "unevaluated", through)
             self.diag("warn", "TF-COUNT-UNRESOLVED", inst.meta,
                       f"{inst.meta} is not known ({u.reason}); written as one block with multiplicity N")
-        if blk.kind == "module":
+        region = None
+        if blk.kind == "module":  # 黒箱のモジュールの呼び出し（2章）
             meta = MODULE_META
             entry["via"] = "module_blackbox"
             source = const(blk.attrs["source"]) if "source" in blk.attrs else NOTCONST
@@ -1661,43 +2181,77 @@ class ModuleEval:
                 entry["source"] = source
                 if isinstance(version, str) and version:
                     entry["version"] = version
-            else:
-                self.diag("warn", "TF-MALFORMED-BLOCK", "source", "module has no constant source")
-            self.diag("info", "TF-MODULE-DEFERRED", "",
-                      "module contents are not read yet (phase 2 step 3); recorded as one module call")
+            plan = self.module_plan(blk)
+            self.diag(plan[1], plan[2], "source" if plan[2] == "TF-MALFORMED-BLOCK" else "", plan[3])
+            if "providers" in blk.attrs:  # 中身の既定の provider（aws）を別の provider にした呼び出し
+                target = self.providers_arg(blk.attrs["providers"], address).get("aws")
+                if target and "." in target:
+                    entry["provider"] = target
+                    region = self.provider_region(self.resolve_provider(target))
         else:
             meta = RESOURCE_META if blk.kind == "resource" else DATA_META
-            region = None
-            if "provider" in blk.attrs:
-                provider = self.provider_name(blk.attrs["provider"])
-                # provider = aws は既定の provider と同じなので書かない（alias のあるものだけ）
-                if provider and "." in provider:
-                    entry["provider"] = provider
-                    conf = self.providers.get(provider)
-                    if conf is not None:
-                        conf_attrs = self.body_attrs(conf)
-                        if "region" in conf_attrs:
-                            region = self.quiet_eval(conf_attrs["region"], {})
-                    else:  # モジュールでは呼び出し側から渡される（configuration_aliases。手順3）
-                        self.diag("info", "TF-PROVIDER-UNCONFIGURED", "provider",
-                                  f"provider {provider} has no configuration in this module; region is not known")
-                elif provider is None:
-                    self.diag("warn", "TF-MALFORMED-BLOCK", "provider", "provider is not a provider reference")
+            explicit = self.provider_name(blk.attrs["provider"]) if "provider" in blk.attrs else None
+            if "provider" in blk.attrs and explicit is None:
+                self.diag("warn", "TF-MALFORMED-BLOCK", "provider", "provider is not a provider reference")
+            name = explicit or blk.type.split("_", 1)[0]
+            found = self.resolve_provider(name)
+            if found is not None:
+                pmod, pname = found
+                # 既定の provider（alias の無いもの）は書かない。リージョンはルートの既定の provider 以外なら書く
+                if "." in pname:
+                    entry["provider"] = pname
+                if "." in pname or pmod.parent is not None:
+                    region = self.provider_region(found)
+            elif explicit and "." in explicit:
+                entry["provider"] = explicit
+                self.diag("info", "TF-PROVIDER-UNCONFIGURED", "provider",
+                          f"provider {explicit} has no configuration in this module or its callers; "
+                          "region is not known")
             # AWS provider v6 のリソースの引数 region は、provider の region より優先する（Terraform と同じ）
             if blk.type.startswith("aws_") and "region" in blk.attrs:
                 r = self.quiet_eval(blk.attrs["region"], env)
                 if isinstance(r, str):
                     region = r
-            if isinstance(region, str) and region:
-                entry["region"] = region
+        if isinstance(region, str) and region:
+            entry["region"] = region
         props = self.body_props(blk.body, "", env, meta)
-        entry["props"] = props
-        for p, to, attr in ir_raw.iter_res(props, ""):
-            ctx.refs.append({"from": address, "path": p, "to": to, "attr": attr, "fn": "ref", "state": "active"})
+        entry["props"] = collect_active(props, address, ctx.refs)
         if "depends_on" in blk.attrs:
-            self.depends_on(blk.attrs["depends_on"])
+            for a in self.depends_targets(blk.attrs["depends_on"], self):
+                ctx.refs.append({"from": address, "path": "depends_on", "to": a, "attr": None,
+                                 "fn": "depends_on", "state": "active"})
+        for a in self.inherited_depends():
+            ctx.refs.append({"from": address, "path": "depends_on", "to": a, "attr": None,
+                             "fn": "depends_on", "state": "active"})
         ctx.resources.append(entry)
 
+    def create_convention(self, blk: Block) -> bool:
+        """create 引数を「false なら何も作らない」と読んでよい呼び出しか（terraform-aws-modules と、要約表の中）。"""
+        if self.via == "module_summary":
+            return True
+        source = const(blk.attrs["source"]) if "source" in blk.attrs else NOTCONST
+        key = M.registry_key(source) if isinstance(source, str) else None
+        return bool(key and key.startswith("terraform-aws-modules/"))
+
+    def provider_region(self, found) -> str | None:
+        """provider の設定（resolve_provider の結果）の region。文字列で決まらなければ None。"""
+        if found is None:
+            return None
+        pmod, pname = found
+        conf_attrs = pmod.body_attrs(pmod.providers[pname])
+        if "region" not in conf_attrs:
+            return None
+        r = pmod.quiet_eval(conf_attrs["region"], {})
+        return r if isinstance(r, str) else None
+
+    def inherited_depends(self) -> list[str]:
+        """モジュールの呼び出しの depends_on（入れ子の呼び出しのものも）の先の address。中のすべてのリソースに付ける。"""
+        if self._dep_cache is None:
+            out: list[str] = []
+            for mod, expr in self.depends_from:
+                out += mod.depends_targets(expr, self)
+            self._dep_cache = sorted(set(out))
+        return self._dep_cache
     def quiet_eval(self, expr, env: dict):
         """参照や診断を残さずに値だけを見る（provider・region）。"""
         saved, self.sink = self.sink, set()
@@ -1718,8 +2272,10 @@ class ModuleEval:
             return v
         return None
 
-    def depends_on(self, expr) -> None:
+    def depends_targets(self, expr, where: "ModuleEval") -> list[str]:
+        """depends_on の先の address。展開するモジュールなら、その中のすべてのリソース。where は診断を書くモジュール。"""
         items = sig(unwrap(expr)) if isinstance(unwrap(expr), Tree) and unwrap(expr).data == "tuple" else []
+        out: list[str] = []
         for el in items:
             root, steps = flatten(el)
             name = name_of(root) if isinstance(root, Tree) and root.data == "identifier" else None
@@ -1732,17 +2288,42 @@ class ModuleEval:
                 base = f"{name}.{first}"
             blk = self.blocks.get(base) if name and first else None
             if blk is not None:
-                for a in self.all_addresses(blk):
-                    self.ctx.refs.append({"from": self.current, "path": "depends_on", "to": a, "attr": None,
-                                          "fn": "depends_on", "state": "active"})
+                if self.expanded(blk):
+                    for k in self.child_keys(blk):
+                        out += self.child(blk, k).resource_addresses()
+                else:
+                    out += self.all_addresses(blk)
             elif name == "ephemeral":
                 continue
             else:
                 text = name or "an expression"
                 if first:
                     text += f".{first}"
-                self.diag("warn", "TF-UNDEFINED-REF", "depends_on",
-                          f"depends_on to {text} is not a resource, a data source or a module in this module")
+                where.diag("warn", "TF-UNDEFINED-REF", "depends_on",
+                           f"depends_on to {text} is not a resource, a data source or a module in this module")
+        return out
+
+
+def path_present(value, parts: list):
+    """value の中に、経路 parts（"*" はどのキー・要素でもよい）の値（null・空の {}・[] 以外）があるか。
+    True／False と、途中や葉の値が決まらず調べられなかったときは None（ほかに当たるものが無いとき）。"""
+    if isinstance(value, Unknown):
+        return None
+    if not parts:
+        return value is not None and value != {} and value != []
+    head, rest = parts[0], parts[1:]
+    if head == "*":
+        if isinstance(value, dict):
+            items = list(value.values())
+        elif isinstance(value, list):
+            items = value
+        else:
+            return None if not (value is None or E.is_concrete(value)) else False
+        got = [path_present(v, rest) for v in items]
+        return True if True in got else None if None in got else False
+    if isinstance(value, dict):
+        return path_present(value[head], rest) if head in value else False
+    return None if not (value is None or E.is_concrete(value)) else False
 
 
 def merge_body(base: Tree, over: Tree) -> Tree:
@@ -1765,6 +2346,41 @@ def merge_body(base: Tree, over: Tree) -> Tree:
 
 
 # ------------------------------------------------------------------ raw IR の組み立て
+
+_SUMMARY_TREES: dict = {}
+
+
+def summary_tree(summary: M.Summary) -> Tree:
+    """要約表の HCL の構文木（1回だけ読む）。"""
+    key = (summary.source, summary.majors, summary.line)
+    if key not in _SUMMARY_TREES:
+        _SUMMARY_TREES[key] = hcl2.parses_to_tree(summary.text)
+    return _SUMMARY_TREES[key]
+
+
+def collect_active(props, frm: str, out: list[dict]):
+    """props の中の $res を active の参照にし、一時的な __through を references の through に移した props を返す。"""
+    def strip(v, path):
+        if isinstance(v, list):
+            return [strip(x, ir_raw.join_path(path, i)) for i, x in enumerate(v)]
+        if isinstance(v, dict):
+            if "$res" in v:
+                ref = {"from": frm, "path": path, "to": v["$res"], "attr": v.get("attr"), "fn": "ref",
+                       "state": "active"}
+                if v.get("__through"):
+                    ref["through"] = list(v["__through"])
+                out.append(ref)
+                return {"$res": v["$res"], "attr": v.get("attr")}
+            if "$concat" in v:
+                return {"$concat": [strip(x, path) if isinstance(x, dict) else x for x in v["$concat"]]}
+            if "$json" in v:
+                return {"$json": strip(v["$json"], path)}
+            if ir_raw.is_marker(v):
+                return v
+            return {k: strip(x, ir_raw.join_path(path, ir_raw.unescape_key(k))) for k, x in v.items()}
+        return v
+    return strip(props, "")
+
 
 def _dedupe(refs: list[dict]) -> list[dict]:
     rank = {"active": 2, "unevaluated": 1, "pruned": 0}
@@ -1819,6 +2435,7 @@ def build_raw(input_dir: Path, root_base: Path | None = None, var_files: list | 
     """
     ctx = Context(input_dir)
     mod = ModuleEval(ctx, input_dir)
+    mod.chain = (input_dir.resolve(),)
     mod.load()
     sources: list = [("file", p) for p in auto_var_files(input_dir)]
     sources += [("file", resolve_var_file(Path(p), input_dir)) for p in (var_files or [])]
@@ -1849,8 +2466,13 @@ def build_raw(input_dir: Path, root_base: Path | None = None, var_files: list | 
                                 "message": "root is on another drive; written as an absolute path"})
     diagnostics = list({(d.get("address", ""), d.get("path", ""), d["code"], d["message"]): d
                         for d in ctx.diagnostics}.values())
-    # 変数の値は書かない（名前と値の出どころだけ。秘密の値を IR に残さないため）
-    used = dict(sorted(mod.var_sources.items()))
+    # 変数の値は書かない（名前と値の出どころだけ。秘密の値を IR に残さないため）。手元のモジュールの変数は
+    # module.x.<名前> の形で足す（要約表の変数は書かない）
+    used = dict(mod.var_sources)
+    for child in ctx.modules:
+        if child.via is None:
+            used.update({child.prefix + n: e for n, e in child.var_sources.items()})
+    used = dict(sorted(used.items()))
     raw = {
         "ir_version": "1.0",
         "stage": "raw",
