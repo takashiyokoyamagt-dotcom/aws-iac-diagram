@@ -18,7 +18,10 @@
         "parameters": {"type": "object", "additionalProperties": {"$ref": "#/$defs/value"}},
         "conditions": {"type": "object", "additionalProperties": {"type": ["boolean", "null"]}},
         "var_files": {"type": "array", "items": {"type": "string"}},
-        "vars": {"type": "object", "additionalProperties": {"$ref": "#/$defs/value"}},
+        "vars": {"type": "object", "description": "TF の変数ごとの値の出どころ（値は書かない）",
+                 "additionalProperties": {"type": "object", "additionalProperties": false, "required": ["source"],
+                                          "properties": {"source": {"type": ["string", "null"], "minLength": 1},
+                                                         "hidden": {"enum": ["sensitive", "ephemeral", "redact-var"]}}}},
         "assumptions": {"type": "array", "items": {"type": "string"}}
       }
     },

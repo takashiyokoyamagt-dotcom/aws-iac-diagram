@@ -11,7 +11,7 @@
 | 0 | 準備（ツール、アイコン辞書と C2、自作 fixture 5構成と正解 IR、公開サンプルの選定、評価基準値） | **完了**（2026-10-16、`4b5787f`） |
 | — | 共通 Agent Skill の方針への移行（[docs/skill-cross-platform-guide.md](docs/skill-cross-platform-guide.md)、PLAN の 1.3） | **完了**（2026-10-16、`4af11c3`） |
 | 1 | IR スキーマの確定と CloudFormation アダプタ（A4、C1） | **完了**（2026-10-17、`7e14639`） |
-| 2 | Terraform アダプタ（.tf と plan JSON、A4、A5） | **進行中**。手順1（土台）を実装し、第三者レビュー（「修正後コミット」）の指摘を直してコミットした（2026-10-17）。残りは下の「次にやること」の 3a |
+| 2 | Terraform アダプタ（.tf と plan JSON、A4、A5） | **進行中**。手順1（土台）はコミット済み（`e61aa9e`）。**手順2（A4）もコミット済み**（2026-10-17。第三者レビュー「修正後コミット」の指摘を反映、秘密の値の扱いはユーザーの決定で `evaluation.vars` に値を書かず `--redact-var` を足した）。残りは下の「次にやること」の 3a |
 | 3〜6 | 正規化、配置と .drawio、Mermaid と PNG、SKILL.md の仕上げと評価 | 未着手 |
 
 ### できているもの
@@ -22,17 +22,17 @@
 | IR スキーマ v1.0 | `references/ir-schema.md`、`ir.schema.json`、`ir-raw.schema.json` | 正規化後の形（1〜6章）と、アダプタの出力 raw IR（7章）。どちらも確定 |
 | 規則表（草案） | `references/resource-catalog.md`、`relation-resources.md`、`edge-rules.md` | 型ごとの扱い、関係リソース、辺の規則、辺にしない参照（`E-NOEDGE-*`）。フェーズ3 で広げる |
 | CloudFormation アダプタ | `scripts/adapters/cfn.py` | テンプレート・ネストスタック・SAM・cdk.out から raw IR を作る。条件の評価、`--param`／`--param-file` |
-| Terraform アダプタ（作成中） | `scripts/adapters/tf.py` | ルートモジュールの .tf から raw IR を作る（フェーズ2 の手順1 の土台）。変数・count・モジュールの中身はまだ評価しない（ir-schema.md の 7.6） |
+| Terraform アダプタ（作成中） | `scripts/adapters/tf.py`、`scripts/lib/tf_eval.py` | ルートモジュールの .tf から raw IR を作る。変数（tfvars、`--var-file`・`--var`）・locals・式を評価し、count・for_each をインスタンスごとに展開する（手順2）。モジュールの中身はまだ読まない（ir-schema.md の 7.6） |
 | 検査 | `scripts/validate_ir.py`、`scripts/lib/ir_raw.py` | 正規化後と raw IR の両方を検査（`stage` で切り替え） |
 | アイコン辞書と C2 | `references/icons/`、`scripts/build_icon_catalog.py`・`check_icons.py`・`find_aws_icon.py` | 1045 件、壊れたもの 0 件 |
 | 評価基準 | `aws-iac-diagram-workspace/evals/CRITERIA.md` | 確定（ユーザーの了承済み） |
 | fixture と正解 IR | `aws-iac-diagram-workspace/fixtures/`、`expected/` | 自作5構成（TF／CFN）、公開サンプル（T01〜T20、C01〜C05 など） |
 | 開発用の道具 | `aws-iac-diagram-workspace/tools/` | `c1_check.py`（C1）、`check_coverage.py`（網羅）、`iac_inventory.py`、`survey_public.py` |
-| テストと CI | `tests/`（159 件）、`.github/workflows/ci.yml` | Ubuntu 24.04 と Windows 2025（PowerShell 5.1 から SKILL を起動）で、テスト・検証・C1・TF アダプタの起動 |
+| テストと CI | `tests/`（185 件）、`.github/workflows/ci.yml` | Ubuntu 24.04 と Windows 2025（PowerShell 5.1 から SKILL を起動）で、テスト・検証・C1・TF アダプタの起動 |
 
 ### 数字で見た現状
-- 単体テスト 159 件がすべて通過（TF アダプタの 24 件を含む）。
-- TF アダプタ（手順1）: 自作 fixture の5構成と、公開サンプルの TF のルート 52 フォルダ（T01〜T20、P01〜P04）で例外なく動き、raw IR の検査を通る（error の診断 0）。正解 IR の TF 側の網羅分類と、手順1 の形に読み替えて一致。
+- 単体テスト 185 件がすべて通過（TF アダプタと評価器の 50 件を含む）。
+- TF アダプタ（手順2 まで）: 自作 fixture の5構成と、公開サンプルの TF のルート 52 フォルダ（T01〜T20、P01〜P04）、`.tf` のあるフォルダすべて（172）で例外なく動き、raw IR の検査を通る（error の診断 0）。正解 IR の TF 側の網羅分類と、count・for_each のインスタンス単位で一致（three-tier は `env/dev.tfvars`。モジュールの中身だけ手順3 の形に読み替え）。warn の診断はルート 52 で 2054 → 130（WORKLOG の「フェーズ2 の手順2」）。
 - C1: 自作 fixture と公開サンプルの CFN（入力 25）で、cfn-lint のグラフの辺 513 本のすべてに raw IR の参照が対応（対応の無い辺 0）。
 - 正解 IR の CFN 側の網羅分類と、CFN アダプタの出力の address・型・ファイル・作られるか（enabled）が、5構成すべてで一致。
 - GitHub の CI は、`4af11c3` から `7e14639`（C1 の照合を足したもの）まで、両 OS で成功。
@@ -50,7 +50,7 @@ uv run python aws-iac-diagram-workspace\tools\c1_check.py
 下の「ユーザーの判断待ち」の節にある4つ（L4 の辺の貫通の上限値、PNG をどちらで作るか、WSL と CI に入れるもののインストールの許可、実行時間の基準値の見直し）。どれも急ぎではなく、フェーズ3〜5 の手前で確認する。
 
 ### 次にやること（要点）
-1. **フェーズ2（Terraform アダプタ）。** 5つの手順に分けた（1=土台、2=A4、3=モジュール、4=plan JSON、5=公開サンプルでの確認と完了）。手順1 は実装済みで、第三者レビューを受けてからコミットする。次は手順2。決まっていること・気をつけることは「次にやること」の 3a。
+1. **フェーズ2（Terraform アダプタ）。** 5つの手順に分けた（1=土台、2=A4、3=モジュール、4=plan JSON、5=公開サンプルでの確認と完了）。手順1 はコミット済み。手順2 は実装済みで、第三者レビューを受けてからコミットする。その次は手順3。決まっていること・気をつけることは「次にやること」の 3a。
 2. 見送った小さな直し（「次にやること」の 0b）: CI の action の版の更新、doctor のパス長の診断、PEP 723 の間接依存の固定など。
 3. 既知の制約: cdk.out は実物の `cdk synth` の出力では未確認（フェーズ6 の前に fixture を1つ足す）。
 
@@ -113,12 +113,13 @@ uv run python aws-iac-diagram-workspace\tools\c1_check.py
      - cdk.out は、テストの中で作った manifest でしか確かめていない。実際の `cdk synth` の出力は公開サンプルに無く、C1 の対象（`c1_check.py` の discover はフォルダを見ない）にも入っていない。フェーズ6 の評価の前に、実物の cdk.out を1つ fixture に足して確かめる
      - C1 の `raw_only`（raw IR にあって cfn-lint に無い参照）は、ネストスタックの出力をたどった参照の数え方の違い（WORKLOG の「フェーズ1 の手順5」）。参考値で基準ではない
 3a. **フェーズ2（Terraform アダプタ）**。同じ raw IR（ir-schema.md の 7章）を .tf と plan JSON から出す。5つの手順に分けて1つずつ進め、それぞれ第三者レビューを受ける（2026-10-17）。
-   1. （実装済み・レビューの指摘を反映済み）**土台**（`scripts/adapters/tf.py`）。ルートモジュールの .tf を python-hcl2 の構文木で読み、resource・data・module、参照（`$res`、`depends_on`）、`$pseudo`・`$az`・`$json`・`$concat`、heredoc の前処理（T06）、`path.module`・`terraform.workspace`・`file()`／`templatefile()`、`provider`・`region`（Schema に足した）。まだ評価しないものは `$unknown`（`TF-DEFERRED`、中の参照は `unevaluated`）・×N（`[*]`、`enabled: null`）・黒箱の module 呼び出し（`TF-MODULE-DEFERRED`）で出す（ir-schema.md の 7.6）。`ExpectedIrTest` は正解 IR を手順1 の形に読み替えて突き合わせている（`step1_expected()`。手順2・3 で読み替えを外していく）
-   2. **A4（TF 側の評価）**: 変数（default → `terraform.tfvars` → `*.auto.tfvars`（名前順）→ `--var-file` → `--var`）、locals、関数（`concat`・`length`・`toset`・`lookup`・`slice`・`element` など、図に要るもの）、条件式・演算・for 式、テンプレートの `%{…}`、`dynamic`。count・for_each を展開し（インスタンスの address、count が 0 は `enabled: false` でインデックスなし）、決まらないものだけ ×N。インスタンスへの参照とスプラットをインスタンスごとの `$res` にする。`evaluation.var_files`・`vars` を書く。provider の `region` が変数で決まるものも書く。`ExpectedIrTest` の count・for_each の読み替えを外す（three-tier は `env/dev.tfvars`、vpc-endpoints は `terraform.tfvars`）
+   1. （済、`e61aa9e`）**土台**（`scripts/adapters/tf.py`）。ルートモジュールの .tf を python-hcl2 の構文木で読み、resource・data・module、参照（`$res`、`depends_on`）、`$pseudo`・`$az`・`$json`・`$concat`、heredoc の前処理（T06）、`path.module`・`terraform.workspace`・`file()`／`templatefile()`、`provider`・`region`（Schema に足した）。まだ評価しないものは `$unknown`（`TF-DEFERRED`、中の参照は `unevaluated`）・×N（`[*]`、`enabled: null`）・黒箱の module 呼び出し（`TF-MODULE-DEFERRED`）で出す（ir-schema.md の 7.6）。手順1 の時点の `ExpectedIrTest` は、正解 IR を手順1 の形に読み替えていた
+   2. （済）**A4（TF 側の評価）**: 評価器 `scripts/lib/tf_eval.py`（値の型、関数 81、type の変換）。変数（default → `terraform.tfvars` → `terraform.tfvars.json` → `*.auto.tfvars(.json)`（名前順）→ `--var-file`・`--var`（指定した順）。`TF_VAR_*` は読まない。sensitive の値は使わない）、locals、テンプレートの `%{if}`・`%{for}`、条件式・演算・for 式、`try`・`can`、`dynamic`。count・for_each を展開し（`[0]`・`["key"]`、0 個は添字なしで `enabled: false`、そこへの参照も添字なし）、決まらないものだけ ×N（`TF-COUNT-UNRESOLVED`）。インスタンスへの参照とスプラットはインスタンスごとの `$res`。`evaluation.var_files`・`vars`、値の無い変数と `*.tfvars` の候補（`TF-UNRESOLVED-VARS`）。`pruned` は条件式・`try`・選ぶ関数・リストの添字・for の `if` だけ（7.2）。`ephemeral`（resources に載せない）、`check` の中の `data`、override のファイルも読む。`ExpectedIrTest` はモジュールの中身だけを読み替える（`step3_expected()`）。詳細は WORKLOG の「フェーズ2 の手順2」
+      - 第三者レビュー（判定「修正後コミット」）の指摘（M1・R1〜R3・任意 1〜6）を直した。R1 はユーザーの決定で、`evaluation.vars` に値を書かず出どころだけを書き、`--redact-var` で値を伏せられるようにした（README・SKILL.md に注意書き）。コミットはまだ（WORKLOG の「フェーズ2 の手順2」の「第三者レビュー」）
    3. **モジュール**: ローカルモジュールの再帰（address `module.x.…`、`module` フィールド、`through` の `module.x.output.y`・`module.x.var.y`、`path.module`）、A5 の要約表（terraform-aws-modules の vpc／eks／rds／alb、`via: module_summary`）、要約表に無いレジストリ・`git::` のモジュールは黒箱のまま、IAM だけのものは H-IAM（正規化の側）、`terraform_remote_state` の扱い（ir-schema.md の 8章）、モジュールの `providers` で渡した provider。`ExpectedIrTest` のモジュールの読み替えを外す
    4. **plan JSON**: `configuration` の参照を優先する。`references` が `aws_subnet.private[0].id`・`aws_subnet.private[0]`・`aws_subnet.private` を重ねて出すので、最も細かいインスタンスの address にまとめる規則を 7.3 に書く。「known after apply」は `$unknown`
    5. **公開サンプルでの確認と完了**: T01〜T20 で落ちない・検査を通ることに加え、TF／SAM の対（T06、T07、T11）の型の多重集合（SELECTION.md の 4 の 3）を確かめ、ir-schema.md の 7.6 を消して 7章を確定し、PLAN と HANDOFF を「フェーズ2 完了」にする
-   - 手順1 で見送った小さなこと: `ephemeral` ブロック（`ephemeral.*` への参照はいまは `TF-UNDEFINED-REF`）と `check` ブロックの中の `data`（手順2）、`.tf.json` と override のファイル（`TF-TFJSON-UNSUPPORTED`・`TF-OVERRIDE-UNSUPPORTED` の warn で飛ばす。公開サンプルには無い。手順2・3）、`lifecycle` の `replace_triggered_by`・`provisioner` の中の参照（出さない）、ワークスペースを選ぶ引数（`terraform.workspace` は `"default"`）
+   - 手順1・2 で見送った小さなこと: `.tf.json`（`TF-TFJSON-UNSUPPORTED` の warn で飛ばす。入れ子のブロックと属性の区別に provider のスキーマが要る。公開サンプルには無い。手順3 以降）、`lifecycle` の `replace_triggered_by`・`provisioner` の中の参照（出さない）、ワークスペースを選ぶ引数（`terraform.workspace` は `"default"`）、リソースの属性の値を設定に書いた値から決めること（`cidrsubnet(aws_vpc.main.cidr_block, …)` は `$unknown`。ir-schema.md の 8章。フェーズ3 で要るかを見る）。`ephemeral`・`check` の中の `data`・override のファイルは手順2 で扱った
    - A5: terraform-aws-modules の vpc／eks／rds／alb の要約表（`via: module_summary`）。要約表に無いレジストリモジュールは黒箱（`module`）、IAM だけのものは H-IAM
    - 完了基準: 同じ構成の TF 版と CFN 版が同じ IR になる（正規化の後）。フェーズ2 ではアダプタの出力を、正解 IR の TF 側の網羅分類と突き合わせるテスト（`tests/test_tf_adapter.py` の `ExpectedIrTest`）で確かめる
    - 主セットの正解 IR は、ツールの出力を見る前に別のサブエージェントが書き、さらに別のサブエージェントがレビューする（CRITERIA.md の 1.2）。

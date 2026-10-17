@@ -113,12 +113,16 @@ uv run python aws-iac-diagram-workspace\tools\c1_check.py
 
 ### Terraform アダプタ（フェーズ2 で作成中）
 
-Terraform のルートモジュール（.tf のフォルダ）から、同じ raw IR を作ります。いまは土台（手順1）だけで、変数・locals・count・for_each の評価とモジュールの中身はまだ読みません（ir-schema.md の 7.6）。
+Terraform のルートモジュール（.tf のフォルダ）から、同じ raw IR を作ります。変数・locals・式を評価し、count・for_each をインスタンスごとに展開します（手順2）。モジュールの中身はまだ読みません（手順3。ir-schema.md の 7.6）。
 
 ```powershell
-uv run skills\aws-iac-diagram\scripts\adapters\tf.py --input aws-iac-diagram-workspace\fixtures\tf\three-tier --out out\three-tier.tf.raw.json
+uv run skills\aws-iac-diagram\scripts\adapters\tf.py --input aws-iac-diagram-workspace\fixtures\tf\three-tier --out out\three-tier.tf.raw.json --var-file env\dev.tfvars
 uv run python skills\aws-iac-diagram\scripts\validate_ir.py out\three-tier.tf.raw.json
 ```
+
+変数の値は Terraform と同じく、`terraform.tfvars`・`*.auto.tfvars` を自動で読み、`--var-file`（相対パスは作業中のフォルダ、無ければ `--input` のフォルダから）と `--var KEY=VALUE` で渡します（指定した順に後のものが優先）。値の無い変数があると、自動では読まれない `*.tfvars` の候補を診断 `TF-UNRESOLVED-VARS` に書きます。
+
+**注意:** `sensitive` を付けていない変数の値は、raw IR の `props`（図のラベルなど）に入りえます。伏せたい変数には `sensitive = true` を付けるか、`--redact-var <名前>`（何回でも指定できる）を使ってください。`evaluation.vars` には変数の値を書かず、値の出どころ（変数のファイルの名前、`--var`、`default`）だけを書きます。
 
 ### 正解 IR と fixture の検証
 

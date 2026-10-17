@@ -157,7 +157,8 @@ class RawSchemaTest(unittest.TestCase):
 
     def test_tf_format(self):
         doc = {"ir_version": "1.0", "stage": "raw", "format": "tf", "root": "fixtures/tf/three-tier",
-               "evaluation": {"var_files": ["env/dev.tfvars"], "vars": {"env": "dev"}},
+               "evaluation": {"var_files": ["env/dev.tfvars"], "vars": {"env": {"source": "env/dev.tfvars"},
+                                                                         "pw": {"source": None, "hidden": "sensitive"}}},
                "resources": [
                    {"address": "aws_subnet.private[*]", "type": "aws_subnet", "file": "network.tf", "enabled": None,
                     "multiplicity": "N", "props": {"vpc_id": res("aws_vpc.main", "id")}},

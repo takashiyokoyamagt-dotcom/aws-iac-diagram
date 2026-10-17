@@ -76,7 +76,8 @@ jobs:
           # TF アダプタも、PEP 723 の依存（python-hcl2）を uv が入れる経路で、日本語のパスに出力する
           $tfin = Join-Path $env:GITHUB_WORKSPACE 'aws-iac-diagram-workspace\fixtures\tf\three-tier'
           $tfout = Join-Path $base 'out\three-tier.tf.raw.json'
-          uv run "$skill\scripts\adapters\tf.py" --input "$tfin" --out "$tfout"
+          # 変数のファイル（--input からの相対パス）と --var も渡す（A4。フェーズ2 の手順2）
+          uv run "$skill\scripts\adapters\tf.py" --input "$tfin" --out "$tfout" --var-file 'env\dev.tfvars' --var project=demo
           if ($LASTEXITCODE -ne 0) { throw "tf.py exit code was $LASTEXITCODE" }
           uv run "$skill\scripts\validate_ir.py" "$tfout"
           if ($LASTEXITCODE -ne 0) { throw "validate_ir (tf raw) exit code was $LASTEXITCODE" }

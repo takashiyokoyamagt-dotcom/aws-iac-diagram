@@ -28,3 +28,7 @@ description: Terraform（.tf、plan JSON）や CloudFormation（YAML／JSON、SA
 
 - 環境変数 `GITHUB_ACTIONS` が `true` のとき（GitHub Agentic Workflows、GitHub Actions）: ユーザーへの確認はしません。PNG はワークフロー側で作るので、作れなくても失敗として扱わないでください。
 - それ以外のとき（VS Code、Claude Code など）: 結果をユーザーに見せます。ファイルを変更する前に確認を取ります。
+
+# 変数の値についての注意（Terraform）
+
+- `sensitive` を付けていない変数の値は、出力（図のラベルなど）に入りえます。パスワードやトークンなど伏せたい変数があれば、`sensitive = true` を付けるか、アダプタの `--redact-var <名前>`（何回でも指定できる）で伏せます。伏せた値は使われず、図には現れません。

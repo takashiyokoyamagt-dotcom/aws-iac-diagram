@@ -484,3 +484,73 @@ HANDOFF の表の 4 は、2回目の第三者レビューで「コミット可�
 - 任意: CFN アダプタの使っていない `_escape_keys` を消した。古い書き方の `provider = "aws.w"`（文字列）も読む（読めない形は `TF-MALFORMED-BLOCK` の warn）。7.2 にスカラーの `$json`（`jsonencode("x")`）もあると書いた。Terraform が読まないファイル（`.` で始まる、`~` で終わる、`#…#`）を読まないようにした。`test_known_references` に serverless-api（ESM → DynamoDB のストリーム、サブスクリプション → SQS）・vpc-endpoints（SG のルール → SG、Gateway エンドポイント → ルートテーブル）・rag（データソース → S3、S3 通知 → Lambda、REST の統合 → Lambda）を足した。CI の Windows PowerShell 5.1 の手順で、日本語のパスに置いた SKILL の `tf.py` を1回 `uv run` する（手元の PowerShell 5.1 で同じ手順を流して通った）。
 - 見送り（HANDOFF の 3a に書いた）: `ephemeral` ブロック（`ephemeral.*` への参照はいまは `TF-UNDEFINED-REF`）と `check` ブロックの中の `data` は手順2、`.tf.json` と override のファイルは手順2・3 で扱う。
 - 確かめたこと: テスト 159 件が通過。自作 fixture の5構成の raw IR が `validate_ir.py` を通る（数は変わらず）。`c1_check.py` は入力 25・辺 513 本・対応の無い辺 0。公開サンプルの TF のルート 52 フォルダと、`.tf` のあるフォルダすべて（172）で失敗 0、error の診断 0。
+
+---
+
+## 2026-10-17（続き）フェーズ2 の手順2: Terraform 側の評価（A4）
+
+### 概要
+TF アダプタ（`scripts/adapters/tf.py`）で、変数・locals・式を評価し、count・for_each をインスタンスごとに展開するようにした。手順1 で `$unknown`（`TF-DEFERRED`）・×N（`TF-COUNT-DEFERRED`）にしていたものを置き換えた。第三者レビューの前（未コミット）。
+
+### やったこと
+1. **評価器** `scripts/lib/tf_eval.py`（標準ライブラリだけ）を作った。評価の中の値の型（`Res`・`Pseudo`・`Az`・`Concat`・`Json`・`Unknown`・`ZeroColl`）と、組み込み関数、variable の type による変換（`convert`）。`Unknown` は中にあった参照を持ち歩き、tf.py が書き出すとき（`materialize`）に `$unknown` にして、参照を `unevaluated` で残し、診断を書く（評価の途中では診断を書かないので、locals の値をキャッシュできる）。
+   - 関数（81。`try`・`can` を含む）: 数（`abs`・`ceil`・`floor`・`max`・`min`・`pow`・`signum`・`parseint`・`sum`）、文字列（`chomp`・`format`・`formatlist`・`indent`・`join`・`lower`・`upper`・`title`・`replace`（`/正規表現/`）・`split`・`strrev`・`substr`・`trim`・`trimprefix`・`trimsuffix`・`trimspace`・`startswith`・`endswith`・`strcontains`・`regex`・`regexall`）、コレクション（`alltrue`・`anytrue`・`chunklist`・`coalesce`・`coalescelist`・`compact`・`concat`・`contains`・`distinct`・`element`・`flatten`・`index`・`keys`・`length`・`lookup`・`matchkeys`・`merge`・`one`・`range`・`reverse`・`setintersection`・`setproduct`・`setsubtract`・`setunion`・`slice`・`sort`・`transpose`・`values`・`zipmap`）、変換（`tobool`・`tolist`・`tomap`・`tonumber`・`toset`・`tostring`・`nonsensitive`・`sensitive`・`ephemeralasnull`）、符号化（`jsonencode`・`jsondecode`・`base64encode`・`base64decode`・`urlencode`・`basename`・`dirname`）、ネットワーク（`cidrsubnet`・`cidrsubnets`・`cidrhost`・`cidrnetmask`）、`try`・`can`。公開サンプル（746 ファイル）で使われている関数を数えて選んだ（`try` 1413、`coalesce` 212、`merge` 190、`cidrsubnet` 173、`length` 155、`lookup` 139、`element` 120 など）。ファイル・時刻・乱数・ハッシュの関数（`file`・`templatefile`・`timestamp`・`uuid`・`md5`・`yamlencode` など）は評価しない（`TF-UNEVALUATED`）。
+2. **変数**: `variable` の default → `terraform.tfvars` → `terraform.tfvars.json` → `*.auto.tfvars(.json)`（名前順）→ `--var-file`・`--var`（指定した順。argparse の Action で1つのリストに入れる）。`build_raw(..., var_files=, vars=, var_args=)`。`--var-file` の相対パスは作業中のフォルダ、無ければ `--input` から（`--var-file env\dev.tfvars` で three-tier の dev を読める）。`--var` は type が複合の型なら HCL の式として読む。type に合わせて変換（`optional` の既定値を含む）。`sensitive = true` の変数の値は使わない。`evaluation.var_files`・`vars` を書く。値の無い変数があれば、自動では読まれない `*.tfvars` の候補を `TF-UNRESOLVED-VARS`（info）に書く（CRITERIA の 6 の「環境が複数ある入力」で、どれを渡すかを確かめるため）。
+3. **式**: locals（遅延評価とキャッシュ、循環は `TF-CYCLE`）、テンプレート（クォートした文字列と heredoc を同じ字句の並びにして、`%{if}`・`%{for}`・`~` を評価）、条件式、演算（`&&`・`||` は片方で決まれば決める）、for 式（`if`、`...`）、オブジェクトの計算したキー、関数の `...`、`try`・`can`。Terraform なら誤りになる式は `$unknown`（`TF-EVAL-ERROR`）。
+4. **count・for_each**: 値が決まればインスタンスごと（`[0]`・`["key"]`）に出し、`count.index`・`each.key`・`each.value` を評価する。0 個なら添字なしの1件を `enabled: false`（H-COND-FALSE）。決まらなければ ×N（`TF-COUNT-UNRESOLVED`）。インスタンスへの参照（`aws_subnet.private[0].id`）とスプラット（インスタンスごとの `$res` のリスト）、for_each のリソースのマップ（`aws_route.r["get"]`、`values(aws_x.y)`）、作られないブロックへの参照（添字なしの address）、決まらない添字（すべてのインスタンスへの `unevaluated`）。`depends_on` はすべてのインスタンスへ。`data.aws_availability_zones.x.names[count.index]` は `$az`（番号）、`slice(names, 0, 2)`・`element(names, i)` も `$az` のリスト・番号。`dynamic` ブロックを展開する（`iterator`、入れ子）。module の呼び出しも count・for_each で展開する（中身は手順3 まで黒箱）。provider の `region` が変数で決まるものも書く。
+5. **手順1 から回したもの**: `ephemeral` ブロック（`resources` に載せず、参照は `$unknown`（`TF-EPHEMERAL`、info）で、ブロックの中の参照を残す）、`check` ブロックの中の `data`、override のファイル（Terraform の規則で重ねる）。`.tf.json` は手順3 以降に回した（下の「決めたこと」）。
+6. **テスト**: `tests/test_tf_adapter.py` を 24 件から 43 件にした（計 178 件）。`ExpectedIrTest` の count・for_each と H-COND-FALSE の読み替えを外し（`step3_expected()` はモジュールの中身だけを読み替える）、5構成でインスタンス単位の網羅分類と一致させた（three-tier は `env/dev.tfvars`）。three-tier の dev／prod／変数なし、vpc-endpoints の `terraform.tfvars` で結果が変わること、正解 IR のノードの名前が props に出ること、変数の優先順位・CLI の順・型の変換・sensitive、式・pruned・誤り、インスタンス・dynamic・module の展開、ephemeral・check・override、評価器の関数（値が決まるもの・印を含むもの）と型の変換のテストを足した。手順1 のテストのうち、評価しないことを前提にしていたもの（`TF-DEFERRED` を期待するもの）は、値の無い変数で同じことを試す形に直した。
+7. **文書**: ir-schema.md の 7.1（`var_files`・`vars`）、7.2（A4（TF）、count・for_each、そのほかのブロック、作られないブロックの診断）、7.3（TF の `pruned`）、7.5（TF の診断の code の一覧）、7.6（手順2 を済に）、8章（リソースの属性の値を設定から決めるか）。README の使い方、CI の Windows PowerShell 5.1 の手順に `--var-file`・`--var` を足した。ir-raw.schema.json は変えていない（`var_files`・`vars` は手順1 から Schema にある）。
+
+### 決めたこと
+| 決定 | 理由 |
+|---|---|
+| 評価の中の値を、raw IR の印（dict）ではなく専用の型で持ち、書き出すときに印にする | `$unknown` の中の参照と診断を、値が使われた位置で書くため（locals は1回だけ評価して、使ったところごとに書ける）。入力の `$` のキーと印を取り違えない |
+| 環境変数 `TF_VAR_*` は読まない | 同じ入力から同じ IR を出すため（C5）。要るときは `--var` で渡す |
+| `sensitive = true` の変数の値は使わない（`$unknown`、info。`evaluation.vars` にも書かない） | パスワードなどを IR と `result.json` に書かないため。count や条件に使うことは Terraform でも禁止されている |
+| count が 0・for_each が空のブロックも props と参照を出し、そこへの参照は添字なしの address にする | CFN の `Condition` が偽のリソースと同じ扱い（網羅分類の H-COND-FALSE、参照の照合）。props の中の評価できない値の診断は info（Terraform もそのブロックを評価しない） |
+| `pruned` は、条件式の選ばれなかった側・`try` の使わなかった式・選ぶ関数（`coalesce`・`element`・`slice` など）とリストの添字・for 式の `if` で除いた要素だけ。マップ・オブジェクトのキーや属性で引かなかった値、決まった count・for_each の式の参照は残さない | 最初はすべての「値に残らなかった参照」を `pruned` にしたが、公開サンプルの flink（T20）で `each.value.x` のたびに他のキーの参照が出て、active 86 に対して pruned 224 になった。CFN の `Fn::If`・`Fn::Select` に当たるものに絞った（CFN の `Fn::FindInMap` のマップは参照を含まない。`Fn::ForEach` のコレクションの参照も残していない）。同じリソースへの参照が値に残っていれば、属性が違っても `pruned` にしない |
+| 決まらない値を含む関数は、構造だけで決まるもの（`length`・`concat`・`merge`・`lookup`・`element`・`join`・`format` など）は印を残したまま評価する | `concat(aws_subnet.a[*].id, …)`、`format("arn:%s", aws_x.arn)` のような参照を、`$unknown` にせず辺の根拠として残すため |
+| 文字列（変数の値を含む）が JSON のオブジェクト・配列として読めれば `$json` にする | 7.2 の規則（同じプロパティが値によって文字列になったり `$json` になったりしないように）を、評価した値にも当てる。`evaluation.vars` は入力のままの値（`$json` にしない） |
+| `.tf.json` は手順3 以降に回す | JSON の書き方では、入れ子のブロックと属性（オブジェクトの値）の区別に provider のスキーマが要る（props の形が plan JSON と揃わない）。公開サンプルにも無い |
+| ×N のブロックの `count.index`・`each.*` の診断は info（×N の warn は1つだけ。レビューの後、code を `TF-COUNT-INDEX` に分けた） | ×N の原因は count・for_each の位置の warn（`TF-COUNT-UNRESOLVED`）に書いてあり、使ったところごとの warn は増えるだけになるため |
+
+### 確かめたこと
+- 自作 fixture の5構成: 正解 IR の TF 側の網羅分類と、address・type・file・enabled がインスタンス単位で一致（モジュールの中身だけ手順3 の読み替え）。three-tier（dev）39・serverless-api 30・vpc-endpoints 38・rag 41・three-tier-modules 5 リソース。warn の診断は rag の `sha1()`（API のデプロイの再作成の引き金）の1件だけ。three-tier は dev／prod で踏み台（`aws_instance.bastion`・`aws_security_group.bastion`）が `enabled: false`／`[0]` に、DB の `instance_class`・`multi_az`・`final_snapshot_identifier`、サービスの `desired_count` が変わる。変数を渡さないと `environment` が決まらず、踏み台は ×N、`TF-UNRESOLVED-VARS` に `env/dev.tfvars, env/prod.tfvars` が出る。vpc-endpoints は `terraform.tfvars` の `project = "net"` で名前が正解 IR のノード（`net-private-ap-northeast-1c` など）と一致。
+- 診断の数（手順1 → 手順2）:
+
+  | 対象 | warn | info | 主な変化 |
+  |---|---|---|---|
+  | 自作 fixture 5構成（変数のファイルなし） | 139 → 8 | 22 → 5 | `TF-DEFERRED` 139 → 0、`TF-COUNT-DEFERRED` 18 → 0。残りは three-tier の `environment`（5）と踏み台の ×N（2）と rag の `sha1()`。three-tier に `env/dev.tfvars` を渡すと warn 1 |
+  | 公開サンプルの TF のルート 52 | 2054 → 130 | 179 → 164 | `TF-DEFERRED` 2045 → 0。×N のブロック 35 → 7。残りは値の無い変数（`TF-UNRESOLVED-VAR` 61。ルートにも default の無い変数がある）、data・モジュールの出力に依る値（`TF-UNEVALUATED` 60）など |
+  | `.tf` のあるフォルダすべて 172 | 7156 → 821 | 992 → 2293 | ×N のブロック 616 → 53（ほかに 357 件が count 0 で `enabled: false`）。info が増えたのは、×N の `count.index` の info（1778。モジュールのフォルダを単独で読むと変数に値が無いため） |
+
+  リソースはルート 52 で 815 → 854、すべてのフォルダで 1969 → 2076（インスタンスの展開）。例外 0、error 0、すべて raw IR の検査を通った（ルート 52 で約 2.6 秒、172 フォルダで約 8 秒）。
+- テスト 178 件が通過。`c1_check.py` は入力 25・辺 513 本・対応の無い辺 0（CFN は変えていない）。`uv run`（PEP 723）で `--var-file env\dev.tfvars --var project=demo` を PowerShell 5.1 から流し、`validate_ir.py` を通った（CI に足した手順と同じ）。
+
+### つまずいたこと
+- python-hcl2 の構文木では、オブジェクトのキーの `(k)`（式として評価する）と `k`（名前）が、括弧の字句を見ないと区別できない（`sig()` が括弧を落とす）。`identifier_name()` で括弧の有無を見る。
+- クォートした文字列の `%{if}`・`%{for}` は、python-hcl2 では入れ子にならず、開始・終了の平らな規則（`template_if_start` など）で並ぶ。heredoc は1つの字句のまま。どちらも同じ字句の並び（`string_tokens`・`text_tokens`）にしてから入れ子を組み立てた。
+- 「値に残らなかった参照をすべて pruned」にしたら、`aws_subnet.s[0]` のようなインスタンスの添字でも他のインスタンスが pruned になり、for 式の `s.arn` でも属性が変わったことで元の参照が pruned になった。リソースのまとまり（`ResList`・`ResMap`）の添字は除き、同じリソースが値に残れば pruned にしない形にした。最後は上の「決めたこと」のとおり、CFN に当たるものだけに絞った。
+- `try(local.m.c, …)` の最初の式が誤りになると、その中の参照が消えた。誤りになった式の参照を、式からたどって `pruned` にする。
+- Bash のヒアドキュメントで渡した Python の文字列の `\\` が `\` に化けた（既知）。README と CI の Windows のパスを含む書き換えは Edit ツールで行った。
+- 作られない（count が 0）ブロックの props を評価すると、モジュールのフォルダ（変数に値が無い）で `TF-EVAL-ERROR` が 61 件出た（null の属性など）。Terraform も評価しないので info にした。
+
+### 第三者レビュー（判定「修正後コミット」）と対応
+- **M1** `sensitive()` が値をそのまま返し、変数は `sensitive = true` しか見ていなかった。`password = sensitive(var.pw)`、`locals { token = sensitive("tok-123") }`、`variable "eph" { ephemeral = true }` の値が props と `evaluation.vars` に出た → `sensitive()` は `$unknown`（`TF-SENSITIVE-VAR`、info。中の参照は引き継ぐ）を返す。`ephemeral = true` の変数は `sensitive = true` と同じ扱い（値を使わず、`evaluation.vars` にも書かない）。7.2 に書いた。
+- **R2** 作られないブロックの中で、`TF-UNDEFINED-REF`・`TF-CYCLE` まで info に下がっていた → 下げるのは値が決まらないことによる code（`TF-UNRESOLVED-VAR`・`TF-EVAL-ERROR`・`TF-UNEVALUATED`・`TF-UNSUPPORTED-FUNCTION`）だけにし、参照の誤りと循環は warn のまま。
+- **R3** count が文字列の数（型の無い変数に `--var n=2` で渡した値、`count = "2"`）だと ×N になっていた → 文字列なら数に変換する（変換できなければ `TF-EVAL-ERROR` の ×N）。for_each（マップか文字列の集合）と dynamic の for_each には同じ問題は無い。
+- **R1** `sensitive` の印の無い秘密の値（tfvars のパスワードなど）が `evaluation.vars` と props に出る → ユーザーに確認し、「両方」に決まった（2026-10-17）:
+  - (a) `evaluation.vars` には値を書かず、宣言したすべての変数の値の出どころだけを書く（`{"source": "env/dev.tfvars" | "--var" | "default" | null}`、値を使わない変数は `"hidden": "sensitive" | "ephemeral" | "redact-var"`）。ir-raw.schema.json の `vars` の形を変え、ir-schema.md の 7.1、`test_ir_schema_v1.py` の例を合わせた（`validate_ir.py` は Schema で調べるので変更なし）。props は今のまま評価した値を入れる。
+  - (b) `--redact-var <名前>`（何回でも指定できる。`build_raw(redact_vars=...)`）で指定した変数の値を伏せる（`sensitive = true` と同じ扱い。`$unknown`、中の参照は保つ、診断は info）。宣言に無い名前は `TF-VAR-UNDECLARED`（warn）。
+  - (c) README と SKILL.md に「`sensitive` を付けていない変数の値は props（図のラベルなど）に入りうる。伏せたいものは `sensitive` を付けるか `--redact-var` を使う」と書いた。
+  - 「決めたこと」の表の「`evaluation.vars` は入力のままの値」は、この対応で「値を書かない」に変わった。
+- 任意（すべて対応）:
+  1. `element(aws_subnet.p[*].id, count.index)` で、選ばなかった同じブロックの別のインスタンスが N×(N−1) 件 `pruned` になっていた → `pruned` にするかの比較を、インスタンスの添字を除いたブロックの address（`block_address()`）で行う。
+  2. ×N と作られないブロックの `count.index`・`each.*` の info を `TF-COUNT-INDEX` に分けた（`TF-COUNT-UNRESOLVED` は count・for_each の位置の warn だけ）。
+  3. `urlencode` を Go の `QueryEscape` と同じに（空白は `+`）。数の演算を Decimal（34桁）で行い、`0.1 + 0.2` が `0.3` になる。`range()` の 1024 個での打ち切りを `TF-EVAL-ERROR` に。`can(x)` は `x` の値の全体が決まらなければ `$unknown`。
+  4. 別のドライブの `--var-file` は、`evaluation.var_files` にファイル名だけを書き、`TF-VARFILE-OTHER-DRIVE`（info）を出す（ユーザー名を含む絶対パスを書かない）。
+  5. tf.py の docstring の `pruned` の説明を実装（決まった count・for_each の式の参照は残さない）に合わせた。
+  6. 変数のファイルを読めないときの誤りの文に lark の字句（値の一部）が入っていた → パスと行・列だけにする。
+- テストを7件足した（`ReviewFixTest`。M1・R1 の `--redact-var`・R2・R3・数と range・urlencode・can・変数のファイルの誤りの文・別のドライブ）。既存のテストの期待を直した（element の pruned、`TF-COUNT-INDEX`、`evaluation.vars` の形）。
+- 確かめたこと: テスト 185 件が通過。5構成（three-tier は変数なし・dev・prod）の raw IR を `uv run` で作り、`validate_ir.py` が通った（dev・prod は診断 0）。`c1_check.py` は入力 25・辺 513 本・対応の無い辺 0。公開サンプルの TF のルート 52 で例外 0・error 0・検査を通る（warn 130、info 164 は変わらず。info の内訳で `TF-COUNT-UNRESOLVED` の一部が `TF-COUNT-INDEX` 6 に移った）。172 フォルダすべても失敗 0（warn 821）。
