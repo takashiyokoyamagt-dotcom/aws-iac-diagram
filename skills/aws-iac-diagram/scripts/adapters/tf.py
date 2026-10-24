@@ -574,8 +574,9 @@ class Context:
         self.modules: list["ModuleEval"] = []  # 展開したモジュール（evaluation.vars を書くため）
 
     def rel(self, path: Path) -> str:
+        # 両方を resolve してから比べる（Windows の 8.3 の短い名前 `RUNNER~1` と実際の名前が混ざると、`../..` だらけになる）
         try:
-            return Path(os.path.relpath(path, self.root_dir)).as_posix()
+            return Path(os.path.relpath(Path(path).resolve(), Path(self.root_dir).resolve())).as_posix()
         except ValueError:  # Windows でドライブが違う
             return Path(path).resolve().as_posix()
 
@@ -834,7 +835,7 @@ class ModuleEval:
     def var_file_name(self, path: Path) -> str:
         """evaluation.var_files に書く名前（root からの相対パス。別のドライブならファイル名だけ）。"""
         try:
-            return Path(os.path.relpath(path, self.ctx.root_dir)).as_posix()
+            return Path(os.path.relpath(Path(path).resolve(), Path(self.ctx.root_dir).resolve())).as_posix()
         except ValueError:  # Windows でドライブが違う（絶対パスにはユーザー名などが入りうるので書かない）
             self.diag("info", "TF-VARFILE-OTHER-DRIVE", "",
                       f"{Path(path).name}: the var file is on another drive; only the file name is written", "")

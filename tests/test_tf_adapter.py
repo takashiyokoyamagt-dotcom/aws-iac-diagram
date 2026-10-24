@@ -791,8 +791,11 @@ class ModuleTest(unittest.TestCase):
 
 def build_module_call(source: str, body: str, version: str | None = None) -> dict:
     """モジュールの呼び出し1つのルートを作って読む（source はルートからの相対パスかレジストリの source）。"""
-    with tempfile.TemporaryDirectory() as tmp:
-        if not tf.M.registry_key(source) and not source.startswith("."):
+    local = not tf.M.registry_key(source) and not source.startswith(".")
+    # ルートからの相対パスで書くので、一時フォルダは source と同じドライブに置く
+    # （Windows の CI はリポジトリが D:、既定の一時フォルダが C: で、相対パスが作れない）
+    with tempfile.TemporaryDirectory(dir=WS if local else None, prefix="tmp-") as tmp:
+        if local:
             source = os.path.relpath(source, tmp).replace("\\", "/")
         ver = f'  version = "{version}"\n' if version else ""
         Path(tmp, "main.tf").write_text(f'module "m" {{\n  source = "{source}"\n{ver}{body}\n}}\n'
