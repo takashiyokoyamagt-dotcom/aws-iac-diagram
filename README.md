@@ -8,7 +8,9 @@ Terraform（`.tf` と plan JSON）や CloudFormation（YAML／JSON、SAM、CDK �
 - Claude Code（手元、Claude Code on the web、GitHub Actions の `@claude`）
 - GitHub Agentic Workflows（gh-aw。GitHub Actions の Ubuntu ランナー）
 
-現在は実装の初期段階（フェーズ0）です。図を作る処理はまだありません。計画は [PLAN.md](PLAN.md)、作業を再開するときの手順は [HANDOFF.md](HANDOFF.md) にまとめています。
+**現在は開発中（アルファ）です。** Terraform と CloudFormation を読んで中間表現（IR）にするところまでが動きます（CloudFormation アダプタは完成、Terraform アダプタは作成中）。**IR から draw.io・Mermaid・PNG の図を出す処理は、まだありません。** 計画は [PLAN.md](PLAN.md)、開発の経緯と作業を再開するときの手順は [docs/dev-notes/HANDOFF.md](docs/dev-notes/HANDOFF.md) と [docs/dev-notes/WORKLOG.md](docs/dev-notes/WORKLOG.md) にあります。
+
+非公式のプロジェクトです。AWS、HashiCorp、Anthropic、GitHub、draw.io とは提携しておらず、承認も受けていません。商標はそれぞれの所有者のものです。詳しくは末尾の「ライセンスと注意」を見てください。
 
 ## SKILL を使う
 
@@ -134,3 +136,11 @@ uv run python aws-iac-diagram-workspace\tools\check_coverage.py --lint
 `check_coverage.py` は開発用の環境（`uv run python ...`）で動かしてください。`uv run check_coverage.py` だと、Windows では uv のキャッシュの中の cfn-lint のパスが 260 文字を超えて `--lint` が落ちることがあります。
 
 fixture の説明は [aws-iac-diagram-workspace/fixtures/README.md](aws-iac-diagram-workspace/fixtures/README.md)、IR の形は [references/ir-schema.md](skills/aws-iac-diagram/references/ir-schema.md) にあります。
+
+## ライセンスと注意
+
+- このプロジェクトのコード・文書・テストは、MIT License（[LICENSE](LICENSE)）です。
+- 第三者のファイルは MIT の対象外で、それぞれの元のライセンスに従います。一覧は [NOTICE](NOTICE) にあります。特に `aws-iac-diagram-workspace/fixtures/public/`（公開されている Terraform・CloudFormation のサンプル。試験用の入力データ）と `skills/aws-iac-diagram/assets/vendor/`（draw.io の `Sidebar-AWS4.js`、Apache-2.0）です。
+- AWS のアイコン（AWS Architecture Icons）は、このリポジトリに同梱していません。図にアイコンを使うときは、[AWS の利用条件](https://aws.amazon.com/architecture/icons/)に従ってください。
+- 非公式のプロジェクトです。AWS、Amazon CloudFormation、Terraform、draw.io、Claude、GitHub などの名前は、それぞれの所有者の商標です。
+- Terraform の plan JSON や変数のファイルには、秘密の値が入っていることがあります。図や IR を共有する前に、中身を確かめてください。

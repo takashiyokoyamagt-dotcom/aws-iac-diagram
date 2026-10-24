@@ -1,7 +1,7 @@
 # aws-iac-diagram 計画書
 
 - 作成日: 2026-10-14
-- 状態: **フェーズ1 完了**（2026-10-17）。CloudFormation アダプタ（`scripts/adapters/cfn.py`）が raw IR を出し、C1（cfn-lint のグラフとの照合、`aws-iac-diagram-workspace/tools/c1_check.py`）は対応の無い辺 0。評価基準値は [evals/CRITERIA.md](aws-iac-diagram-workspace/evals/CRITERIA.md)。フェーズ2（Terraform アダプタ、`scripts/adapters/tf.py`）を5つの手順に分けて進めている（手順は HANDOFF の 3a）。実行環境の方針は 1.2、**共通 Agent Skill の方針は 1.3**（1.1・1.2 より優先する）。再開時は [HANDOFF.md](HANDOFF.md) から読むこと
+- 状態: **フェーズ1 完了**（2026-10-17）。CloudFormation アダプタ（`scripts/adapters/cfn.py`）が raw IR を出し、C1（cfn-lint のグラフとの照合、`aws-iac-diagram-workspace/tools/c1_check.py`）は対応の無い辺 0。評価基準値は [evals/CRITERIA.md](aws-iac-diagram-workspace/evals/CRITERIA.md)。フェーズ2（Terraform アダプタ、`scripts/adapters/tf.py`）を5つの手順に分けて進めている（手順は HANDOFF の 3a）。実行環境の方針は 1.2、**共通 Agent Skill の方針は 1.3**（1.1・1.2 より優先する）。再開時は [docs/dev-notes/HANDOFF.md](docs/dev-notes/HANDOFF.md) から読むこと
 - 目的: Terraform と CloudFormation のコードを読み込み、AWS 構成図を draw.io・Mermaid・PNG の3形式で出力する Agent Skill を作る。1つの SKILL を Claude Code、VS Code + GitHub Copilot、GitHub Agentic Workflows（gh-aw）で共通に使う（1.3）
 
 ---
@@ -13,9 +13,9 @@
 | 入力（Terraform） | `.tf` を python-hcl2 で静的に解析するのが基本。`terraform show -json` の plan JSON があれば、そちらを優先して使う |
 | 入力（CloudFormation） | YAML と JSON の両方。SAM と CDK の出力（`cdk.out` 配下のテンプレート）も対象 |
 | 出力 | `.drawio`（これを正本とする）、`.mmd`（Mermaid）、`.png` の3形式 |
-| 置き場所 | 独立した private リポジトリ `takashiyokoyamagt-dotcom/aws-iac-diagram` の `skills/aws-iac-diagram/`。手元では `~/.claude/skills/aws-iac-diagram` と `~/.copilot/skills/aws-iac-diagram` からジャンクションで参照する。ほかのリポジトリやクラウドへはタグを付けて配る（1.3 の 5） |
+| 置き場所 | 独立した公開リポジトリ（MIT）`takashiyokoyamagt-dotcom/aws-iac-diagram` の `skills/aws-iac-diagram/`。手元では `~/.claude/skills/aws-iac-diagram` と `~/.copilot/skills/aws-iac-diagram` からジャンクションで参照する。ほかのリポジトリやクラウドへはタグを付けて配る（1.3 の 5） |
 | インストール（許可済み） | draw.io Desktop（brew cask／winget）、`@mermaid-js/mermaid-cli`（npm）、uv（winget、2026-10-16）。Python のパッケージは uv が入れる。WSL と CI に入れる物（draw.io の deb、xvfb、Chromium）は未許可で、入れる前にユーザーの許可を得る |
-| ダウンロード（許可済み） | draw.io の `Sidebar-AWS4.js`（Apache-2.0）、awslabs/aws-icons-for-plantuml の Mermaid 用アイコン JSON（AWS アイコンの利用規約に従う） |
+| ダウンロード（許可済み） | draw.io の `Sidebar-AWS4.js`（Apache-2.0）。awslabs/aws-icons-for-plantuml の Mermaid 用アイコン JSON は、CC-BY-ND-2.0（改変禁止）で、MIT のこのリポジトリに置けないので、同梱しない（2026-10-24 に取り除いた）。Mermaid のアイコンは利用者の環境のアイコンパックを使う |
 | ライセンス上の注意 | TerraVision は AGPL-3.0 なので、考え方だけを参考にしてコードは流用しない。awslabs のスキル（Apache-2.0）や vidanov のスキル（MIT）から取り入れた知見は、NOTICE に出典を明記する |
 
 環境の確認結果（2026-10-14、Mac）:
@@ -84,7 +84,7 @@ Windows（手元）と GitHub の Web UI（Claude Code on the web、GitHub Actio
 - クラウドの環境（Claude Code on the web、Actions の `@claude`）で draw.io＋xvfb が動くか。apt で入れられるか、ネットワークの制限で deb を取れるか。
 - 同じ環境で mmdc（Chromium＋`--no-sandbox`）が動くか。
 - gh-aw で、ワークフローの frontmatter に `uv` の実行とネットワーク（`pypi.org`、`files.pythonhosted.org`、`github.com`）の許可を書けば `uv run` が動くか。書き方を README に載せる。
-- gh-aw で、非公開のこのリポジトリの SKILL をタグを指定して読み込めるか（APM の `packages:`、`gh skill install`）。
+- gh-aw で、このリポジトリの SKILL をタグを指定して読み込めるか（APM の `packages:`、`gh skill install`）。
 - VS Code + Copilot で、`~/.copilot/skills/` と `.github/skills/` に置いた SKILL が読まれ、PowerShell 5.1 から SKILL.md の1行のコマンドが動くか。`<SKILL>` を絶対パスに置き換えて実行するか。
 - Claude Code on the web で、図を作りたいリポジトリの `.claude/skills/` に置いた SKILL が読まれるか。
 - Actions で draw.io の版・ランナーのイメージ・フォントを固定したとき、PNG がバイト単位で同じになるか。
@@ -224,7 +224,7 @@ uv run "<SKILL>/scripts/diagram.py" --input <IaC のフォルダかファイル>
 
 ```
 aws-iac-diagram/                     ← Skill 専用リポジトリ（正本）。タグを付けて配る（1.3 の 5）
-├── PLAN.md  HANDOFF.md  WORKLOG.md  README.md  NOTICE
+├── PLAN.md  README.md  LICENSE  NOTICE        # HANDOFF.md・WORKLOG.md は docs/dev-notes/
 ├── pyproject.toml  uv.lock  .python-version   # 開発用の環境（1.3 の 3）
 ├── docs/skill-cross-platform-guide.md         # 共通 Agent Skill のガイド（1.3）
 ├── .github/workflows/
@@ -240,7 +240,7 @@ aws-iac-diagram/                     ← Skill 専用リポジトリ（正本）
 │   │   ├── module-summaries.md      # 公開モジュールの中身の要約（A5）
 │   │   ├── layout-guidelines.md
 │   │   └── icons/*.md               # カテゴリ別のアイコン定義（生成物）
-│   ├── assets/                      # Mermaid 用のアイコン JSON など
+│   ├── assets/                      # vendor（draw.io の Sidebar-AWS4.js）など。Mermaid 用のアイコン JSON は同梱しない
 │   └── scripts/
 │       ├── adapters/{tf_plan,tf_hcl,cfn}.py
 │       ├── evaluate.py              # 変数・条件の評価（A4）
@@ -322,13 +322,13 @@ aws-iac-diagram/                     ← Skill 専用リポジトリ（正本）
 | 2 | ・Terraform アダプタ: plan JSON の `configuration` にある参照を優先し、なければ .tf<br>・count／for_each のうち値が決まらないものは「×N」として扱う<br>・A4（Terraform 側の評価）<br>・A5（4モジュール） | 同じ構成の Terraform 版と CloudFormation 版が同じ IR になる |
 | 3 | 正規化: 型別の表、A1、A2、A3、A6、AZ の挿入、SG を辺に変換、B3 | 網羅分類の漏れと重複が0件（CRITERIA の X4。`unknown` は分類として正しい）。正解 IR に対する再現率と適合率が CRITERIA の 1.1・1.2 を満たす。raw IR の参照で分類されないものが0件（CRITERIA の 1.8） |
 | 4 | draw.io の出力と配置<br>・相対座標、辺と図形の2レイヤ、背景矩形<br>・B1、B2、C5<br>・ELK が入れ子のコンテナを保てるか試し、採否を決める | CRITERIA の 2.2 を満たす（重なり・はみ出しは0件。辺の貫通は0件で、L4 だけ上限以内）。同じ入力を再実行してもバイト単位で同じになる |
-| 5a | スパイク（1.2 の未確認事項。フェーズ5 の手前で小さく試す）<br>・Claude Code on the web と Actions の `@claude` で、draw.io の deb＋xvfb を入れて `xvfb-run drawio --no-sandbox -x` が動くか<br>・同じ環境で mmdc（Chromium＋`--no-sandbox`）が動くか<br>・gh-aw で `uv run` を許可する frontmatter の書き方と、非公開のこのリポジトリの SKILL をタグ指定で読み込めるか（APM、`gh skill install`）<br>・VS Code + Copilot（`~/.copilot/skills/`・`.github/skills/`）と Claude Code on the web（`.claude/skills/`）で SKILL が読まれ、1行のコマンドが動くか<br>・Actions で draw.io の版・ランナーのイメージ（例 `ubuntu-24.04`）・フォントを固定して、PNG がバイト単位で同じになるか | 各項目の可否と手順（または動かない理由）が WORKLOG に記録され、1.2 の表とフェーズ5・6 の作業が結果に合わせて直っている |
+| 5a | スパイク（1.2 の未確認事項。フェーズ5 の手前で小さく試す）<br>・Claude Code on the web と Actions の `@claude` で、draw.io の deb＋xvfb を入れて `xvfb-run drawio --no-sandbox -x` が動くか<br>・同じ環境で mmdc（Chromium＋`--no-sandbox`）が動くか<br>・gh-aw で `uv run` を許可する frontmatter の書き方と、このリポジトリの SKILL をタグ指定で読み込めるか（APM、`gh skill install`）<br>・VS Code + Copilot（`~/.copilot/skills/`・`.github/skills/`）と Claude Code on the web（`.claude/skills/`）で SKILL が読まれ、1行のコマンドが動くか<br>・Actions で draw.io の版・ランナーのイメージ（例 `ubuntu-24.04`）・フォントを固定して、PNG がバイト単位で同じになるか | 各項目の可否と手順（または動かない理由）が WORKLOG に記録され、1.2 の表とフェーズ5・6 の作業が結果に合わせて直っている |
 | 5 | ・Mermaid の出力（アイコン付き版と GitHub 表示用版。ノードが多いときは flowchart に切り替える）<br>・PNG の書き出し（`export_png.py`）と環境による切り替え（1.2 の 2）: draw.io が使えない（見つからない・起動できない・タイムアウト・無出力か 0 バイト）ときは PNG だけスキップして報告し、`.drawio`／`.mmd` は出す。`DRAWIO` のパスが無いときもエラーではなくスキップにする。mmdc が使えないときは `.mmd` の描画確認だけスキップして報告<br>・Linux 対応: `drawio_cli.py` に画面の有無の判定と `xvfb-run`・`--no-sandbox` の付与、xvfb を使う指定（名前は仮）、Linux の既定の場所（`_candidates()` に既にある）の確認と追加。mmdc の puppeteer 設定（`--no-sandbox`）<br>・WSL（Ubuntu）での動作確認（`DISPLAY`／`WAYLAND_DISPLAY` を外すか xvfb を使う指定で、画面なしの経路を通す）<br>・GitHub Actions のワークフロー `render-png`（仮）: `.drawio` のコミットで PNG を生成（`.mmd` は描画確認だけ）してコミットか artifact に。draw.io の版・ランナーのイメージ・フォントを固定<br>・validate.py（必要なら PostToolUse フックも） | ・Windows で3形式とも生成でき、検証が通る<br>・WSL（Ubuntu）で画面なし（xvfb）の経路で3形式とも生成でき、検証が通る<br>・draw.io が無い環境（`DRAWIO` を存在しないパスにする、または PATH と既定の場所から外して試す）で `.drawio` と `.mmd` は出て検証が通り、PNG のスキップが報告され、終了コードは失敗にならない<br>・`render-png` が固定した版・イメージ・フォントで PNG を作り、同じ入力で再実行してもバイト単位で同じになる（5a で再現しないと分かれば基準を見直す） |
 | 6 | ・SKILL.md の仕上げ（骨組みは 2026-10-16 に作成済み。`diagram.py` の手順、`result.json` の読み方、あいまいな点の確認のしかた）<br>・配布: タグ（例 `v0.1.0`）を付け、Copilot・Claude Code・gh-aw での取り込み方を README に書く（1.3 の 5）<br>・CI `ci.yml`（`render-png` とは別のワークフロー）に3形式の生成・検証を足す<br>・評価: C3、C4、C6（使える環境で。1.3 の 9）、3回実行したときのばらつき<br>・第三者レビューのサイクル | ・評価基準（[evals/CRITERIA.md](aws-iac-diagram-workspace/evals/CRITERIA.md)、2026-10-16 確定）を満たす<br>・Windows と Ubuntu の CI で3形式が生成でき、検証が通る<br>・別のリポジトリにタグを指定して取り込み、VS Code + Copilot（Windows）・Claude Code・gh-aw で SKILL を使える（クラウドは 5a で可能と分かったもの）<br>・README と NOTICE を整える |
 
 ### 進め方
 - 実装はサブエージェントが行い、そのレビューは別のサブエージェントが第三者として行う（ほかのスキルと同じやり方）
-- 区切りごとに HANDOFF.md を更新し、main へ反映する
+- 区切りごとに docs/dev-notes/HANDOFF.md を更新し、main へ反映する
 
 ---
 

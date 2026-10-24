@@ -1,0 +1,75 @@
+aws-iac-diagram
+Copyright (c) 2026 takashiyokoyamagt-dotcom
+
+このプロジェクトは非公式のコミュニティ作品です。Amazon Web Services、HashiCorp（IBM）、
+Anthropic、GitHub／Microsoft、JGraph（draw.io）とは提携しておらず、これらの会社の承認や後援を
+受けていません。AWS、Amazon CloudFormation は Amazon.com, Inc. またはその関連会社、Terraform は
+HashiCorp, Inc.、draw.io は JGraph Ltd、Claude は Anthropic, PBC、GitHub と GitHub Copilot は
+GitHub, Inc. の商標または登録商標です。
+
+This is an unofficial community project. It is not affiliated with, endorsed by, or sponsored
+by Amazon Web Services, HashiCorp/IBM, Anthropic, GitHub/Microsoft, or JGraph/draw.io. All
+trademarks belong to their respective owners.
+
+----------------------------------------------------------------------------------------------
+1. このプロジェクト自身のライセンス
+----------------------------------------------------------------------------------------------
+作者が書いたコード・文書・テスト・fixture は、MIT License（LICENSE）です。
+以下の 2〜4 は MIT の対象外で、それぞれの元のライセンスに従います。
+
+----------------------------------------------------------------------------------------------
+2. 同梱している第三者のファイル
+----------------------------------------------------------------------------------------------
+(a) skills/aws-iac-diagram/assets/vendor/Sidebar-AWS4.js
+    出典: https://github.com/jgraph/drawio （v32.4.1。src/main/webapp/js/diagramly/sidebar/Sidebar-AWS4.js）
+    ライセンス: Apache License 2.0。Copyright (c) 2020-2025, JGraph Holdings Ltd / draw.io AG
+    ファイルの冒頭の著作権表示は、元のまま残してあり、内容は変更していない。
+    ライセンス全文: skills/aws-iac-diagram/assets/vendor/LICENSE-drawio-Apache-2.0.txt
+    このファイルから作ったもの（図形名とスタイルの辞書）: skills/aws-iac-diagram/references/icons/
+    ※ 描かれるアイコンの絵そのもの（SVG など）は同梱していない。描画は利用者が入れた draw.io 本体が行う。
+
+(b) skills/aws-iac-diagram/references/module-summaries.md
+    次の terraform-aws-modules（Apache License 2.0）のソースから、変数の宣言・出力・主要な
+    リソースのブロックを写して短くしたもの（改変あり）。
+      - https://github.com/terraform-aws-modules/terraform-aws-vpc
+      - https://github.com/terraform-aws-modules/terraform-aws-alb
+      - https://github.com/terraform-aws-modules/terraform-aws-rds
+      - https://github.com/terraform-aws-modules/terraform-aws-eks
+    著作権表示とライセンス全文は、各リポジトリの LICENSE にある。同じ版のコピーが
+    aws-iac-diagram-workspace/fixtures/public/ にあり、そこにも LICENSE を残してある。
+
+----------------------------------------------------------------------------------------------
+3. 試験用の入力として置いている第三者のサンプル
+----------------------------------------------------------------------------------------------
+aws-iac-diagram-workspace/fixtures/public/ には、公開されている Terraform・CloudFormation の
+サンプルを、試験用の入力データとして、そのままの形で置いている（読むだけで、実行はしない）。
+各フォルダの LICENSE・NOTICE は、取得元のものを保持している。出典・コミット・ライセンスの
+一覧は fixtures/public/SOURCES.md にある。ライセンスは次のとおり。
+  - Apache License 2.0 : terraform-aws-modules の各リポジトリ、terraform-aws-bedrock、
+                         terraform-aws-eks-blueprints、aws-cloudformation-templates、
+                         ecs-refarch-cloudformation、amazon-cloudfront-secure-static-site
+  - MIT-0              : aws-samples の各リポジトリ（serverless-patterns など）
+  - MIT                : joshuamkite/terraform-aws-static-website-s3-cloudfront-acm
+  - MPL-2.0            : hashicorp-education の learn-terraform-* の3つ。ファイル単位のコピーレフトなので、
+                         これらのファイルは変更せずに保持している。
+このフォルダの内容を再利用するときは、各フォルダの LICENSE に従うこと。
+
+----------------------------------------------------------------------------------------------
+4. 同梱していないもの（利用者の側で扱う）
+----------------------------------------------------------------------------------------------
+- AWS Architecture Icons（AWS のアイコン）: このリポジトリには同梱していない。利用条件は
+  https://aws.amazon.com/architecture/icons/ にある。このツールが出力する図にアイコンを使う場合は、
+  その条件に従うこと。
+- draw.io Desktop、Mermaid CLI（mmdc）、uv、Python のパッケージ: 同梱していない。利用者の環境に入れる。
+  開発用の依存の版は pyproject.toml と uv.lock にある。
+
+----------------------------------------------------------------------------------------------
+5. 考え方だけを参考にしたもの（コードは取り込んでいない）
+----------------------------------------------------------------------------------------------
+- TerraVision（AGPL-3.0。https://github.com/patrickchugh/terravision）: 図の入れ子の考え方
+  （AZ のノードなど）を参考にした。コードは流用していない。
+- awslabs/agent-plugins の aws-architecture-diagram（Apache-2.0）と
+  vidanov/aws-architecture-diagram-skill（MIT）: 失敗知見の一部（例: dynamodb_table という
+  draw.io の図形名は無い）を参考にした。コードは流用していない。
+- そのほか PLAN.md の参考資料に挙げたもの（jgraph/drawio-mcp: Apache-2.0、
+  Agents365-ai/drawio-skill: MIT など）は調査の参考で、コードは取り込んでいない。

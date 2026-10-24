@@ -3,7 +3,7 @@
 - 状態: フェーズ2 の手順3（2026-10-17）で作成。対象は terraform-aws-modules の vpc・alb・rds・eks（PLAN の A5）。4つとも、タグを付けた版の本物のソース（`aws-iac-diagram-workspace/fixtures/public/`）と突き合わせるテストがある
 - 使うもの: TF アダプタ（`scripts/adapters/tf.py`）が、手元に中身の無いレジストリモジュールの呼び出しを、この表の HCL で展開する。読み込みは `scripts/lib/tf_modules.py`
 - raw IR での出し方: [ir-schema.md](ir-schema.md) の 7.2（モジュール）と 4章の `via: "module_summary"`
-- 表の HCL は terraform-aws-modules（Apache-2.0）のソースから、変数の宣言（`type`・`default`・`nullable`）・出力・主要なリソースのブロックを写して短くしたもの
+- 表の HCL は terraform-aws-modules（Apache-2.0）のソースから、変数の宣言（`type`・`default`・`nullable`）・出力・主要なリソースのブロックを写して短くしたもの（改変あり）。出典とライセンスは、ルートの [NOTICE](../../../NOTICE) の 2(b)
 
 ## 1. 考え方
 

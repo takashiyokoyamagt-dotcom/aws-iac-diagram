@@ -1,5 +1,7 @@
 # 公開サンプルの出典一覧（fixtures/public）
 
+> **このフォルダの内容は、リポジトリのルートの MIT License（LICENSE）の対象外です。** 各フォルダの LICENSE・NOTICE に従います（Apache-2.0、MIT-0、MIT、MPL-2.0）。全体の一覧は、ルートの NOTICE の 3 にあります。
+
 - 取得日: 2026-10-14
 - 取得方法:
   - `git clone --depth 1 --filter=blob:none --sparse` でクローンし、sparse-checkout で必要なパスと LICENSE・NOTICE だけを取り出した。
@@ -25,17 +27,17 @@
 
 | ID | 規模 | 種類 | ディレクトリ（このフォルダ配下） | 取得元 | コミット | 最終コミット | ライセンス | SAM/CFn 版 |
 |---|---|---|---|---|---|---|---|---|
-| T01 | L1 | サーバーレス（EventBridge→SQS） | `serverless-patterns/eventbridge-sqs-terraform/` | aws-samples/serverless-patterns | b44005c | 2026-10-13 | MIT（LICENSE本文で確認） | `serverless-patterns/eventbridge-sqs/` |
+| T01 | L1 | サーバーレス（EventBridge→SQS） | `serverless-patterns/eventbridge-sqs-terraform/` | aws-samples/serverless-patterns | b44005c | 2026-10-13 | MIT-0（LICENSE 本文で確認） | `serverless-patterns/eventbridge-sqs/` |
 | T02 | L1（展開すると L3） | ネットワーク（TGW、VPC×2、count 付き module） | `aws-transit-gateway-vpc-terraform/` | aws-samples/aws-transit-gateway-vpc-terraform | 115826f | 2023-01-23 | MIT-0系（Amazon、本文は MIT 形式）、archived | なし |
 | T03 | L1〜L2 | 3層の DB 部分（VPC module＋RDS） | `learn-terraform-rds/` | hashicorp-education/learn-terraform-rds | 8681725 | 2026-03-16 | MPL-2.0 | なし |
 | T04 | L2 | 静的サイト（S3、CloudFront、R53、ACM、dynamic、for_each） | `terraform-aws-static-website-s3-cloudfront-acm/` | joshuamkite/terraform-aws-static-website-s3-cloudfront-acm | 24d5a64 | 2025-11-03 | MIT | 作者は別だが同じ構成のものあり → C01 |
-| T05 | L2 | サーバーレス（Lambda→SQS） | `serverless-patterns/lambda-sqs-terraform/` | aws-samples/serverless-patterns | b44005c | 2026-10-13 | MIT | `serverless-patterns/lambda-sqs/` |
-| T06 | L2 | サーバーレス（EventBridge→SNS→Lambda） | `serverless-patterns/eventbridge-sns-lambda-terraform/` | 同上 | b44005c | 2026-10-13 | MIT | `serverless-patterns/eventbridge-sns-lambda/` |
-| T07 | L2 | サーバーレス（API GW HTTP→Lambda→DynamoDB） | `serverless-patterns/apigw-lambda-dynamodb-terraform/` | 同上 | b44005c | 2026-10-13 | MIT | `serverless-patterns/apigw-lambda-dynamodb/` |
-| T08 | L2 | データ（DynamoDB→Glue→S3） | `serverless-patterns/dynamodb-glue-s3-terraform/` | 同上 | b44005c | 2026-10-13 | MIT | 不明 |
+| T05 | L2 | サーバーレス（Lambda→SQS） | `serverless-patterns/lambda-sqs-terraform/` | aws-samples/serverless-patterns | b44005c | 2026-10-13 | MIT-0（LICENSE 本文で確認） | `serverless-patterns/lambda-sqs/` |
+| T06 | L2 | サーバーレス（EventBridge→SNS→Lambda） | `serverless-patterns/eventbridge-sns-lambda-terraform/` | 同上 | b44005c | 2026-10-13 | MIT-0（LICENSE 本文で確認） | `serverless-patterns/eventbridge-sns-lambda/` |
+| T07 | L2 | サーバーレス（API GW HTTP→Lambda→DynamoDB） | `serverless-patterns/apigw-lambda-dynamodb-terraform/` | 同上 | b44005c | 2026-10-13 | MIT-0（LICENSE 本文で確認） | `serverless-patterns/apigw-lambda-dynamodb/` |
+| T08 | L2 | データ（DynamoDB→Glue→S3） | `serverless-patterns/dynamodb-glue-s3-terraform/` | 同上 | b44005c | 2026-10-13 | MIT-0（LICENSE 本文で確認） | 不明 |
 | T09 | L2 | RAG（Bedrock KB、OpenSearch Serverless） | `sample-bedrock-knowledge-base-terraform/` | aws-samples/sample-bedrock-knowledge-base-terraform | 425e5ec | 2025-08-19 | MIT-0 | なし |
 | T10 | L2 | 3層（VPC、ALB、ASG）。**旧構文（aws ~>3.38、launch_configuration）** | `learn-terraform-aws-asg/` | hashicorp-education/learn-terraform-aws-asg | e619fbb | 2025-05-01 | MPL-2.0 | なし |
-| T11 | L3 | サーバーレス（API GW REST→Step Functions→DynamoDB） | `serverless-patterns/apigw-sfn-crud-terraform/` | aws-samples/serverless-patterns | b44005c | 2026-10-13 | MIT | `serverless-patterns/apigw-sfn-crud/` |
+| T11 | L3 | サーバーレス（API GW REST→Step Functions→DynamoDB） | `serverless-patterns/apigw-sfn-crud-terraform/` | aws-samples/serverless-patterns | b44005c | 2026-10-13 | MIT-0（LICENSE 本文で確認） | `serverless-patterns/apigw-sfn-crud/` |
 | T12 | L3 | データ（Glue Data Quality、ローカル module×3） | `sample-build-aws-glue-data-quality-pipeline-using-terraform/` | aws-samples/sample-build-aws-glue-data-quality-pipeline-using-terraform | 6e7eb56 | 2026-02-22 | MIT-0 | なし |
 | T13 | L3（展開すると L4） | ネットワーク（TGW hub-and-spoke、VPCE、R53 Resolver） | `hub-and-spoke-with-shared-services-vpc-terraform/` | aws-samples/hub-and-spoke-with-shared-services-vpc-terraform | b752014 | 2023-03-21 | MIT-0 | なし |
 | T14 | L3 | 静的サイトの上級版（Lambda@Edge、VPC オリジン） | `terraform-aws-cloudfront/examples/complete/`（`../../` を参照） | terraform-aws-modules/terraform-aws-cloudfront | 5b9a0a4 | 2026-08-26 | Apache-2.0 | なし |

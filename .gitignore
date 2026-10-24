@@ -10,3 +10,14 @@ build/
 *.tfstate
 *.tfstate.*
 .terraform.lock.hcl
+# 秘密や手元の設定を、うっかり入れないための備え
+.env
+.env.*
+*.pem
+*.key
+*.tfplan
+.aws/
+.claude/settings.local.json
+.vscode/
+# テストの一時フォルダ（異常終了したときの残り）
+aws-iac-diagram-workspace/tmp-*/

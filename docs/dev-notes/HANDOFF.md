@@ -2,14 +2,14 @@
 
 ## 作業状況のまとめ（2026-10-17 時点）
 
-再開するときは、まずこの節を読み、細かい経緯は下の節と [WORKLOG.md](WORKLOG.md)、計画は [PLAN.md](PLAN.md) を見る。
+再開するときは、まずこの節を読み、細かい経緯は下の節と [WORKLOG.md](WORKLOG.md)、計画は [PLAN.md](../../PLAN.md) を見る。
 
 ### フェーズの状態
 
 | フェーズ | 内容 | 状態 |
 |---|---|---|
 | 0 | 準備（ツール、アイコン辞書と C2、自作 fixture 5構成と正解 IR、公開サンプルの選定、評価基準値） | **完了**（2026-10-16、`4b5787f`） |
-| — | 共通 Agent Skill の方針への移行（[docs/skill-cross-platform-guide.md](docs/skill-cross-platform-guide.md)、PLAN の 1.3） | **完了**（2026-10-16、`4af11c3`） |
+| — | 共通 Agent Skill の方針への移行（[docs/skill-cross-platform-guide.md](../../docs/skill-cross-platform-guide.md)、PLAN の 1.3） | **完了**（2026-10-16、`4af11c3`） |
 | 1 | IR スキーマの確定と CloudFormation アダプタ（A4、C1） | **完了**（2026-10-17、`7e14639`） |
 | 2 | Terraform アダプタ（.tf と plan JSON、A4、A5） | **進行中**。手順1（土台、`e61aa9e`）・手順2（A4、`dd8d471`。秘密の値の扱いはユーザーの決定で `evaluation.vars` に値を書かず `--redact-var` を足した）はコミット済み。**手順3（モジュール、A5）もコミット済み**（2026-10-17。第三者レビュー「修正後コミット」→対応分の再確認「コミット可」）。残りは下の「次にやること」の 3a |
 | 3〜6 | 正規化、配置と .drawio、Mermaid と PNG、SKILL.md の仕上げと評価 | 未着手 |
@@ -70,19 +70,19 @@ uv run python aws-iac-diagram-workspace\tools\c1_check.py
 - Bash のヒアドキュメントに、日本語と `'` を多く含む長い文書やコードを渡すと解析に失敗することがある（「unexpected EOF」）。またコードの文字列の `\n` が本物の改行に化けることがある。長い書き換えは、Write ツールで `.git/` の下に修正用の Python を書き、`.venv\Scripts\python.exe` で当ててから消す。
 
 ## 共通 Agent Skill への移行（2026-10-16）
-- [docs/skill-cross-platform-guide.md](docs/skill-cross-platform-guide.md) の方針を採用した。内容は PLAN.md の **1.3**（1.1・1.2 より優先）。利用環境は Claude Code と VS Code + Copilot（Windows）と gh-aw の3つで、SKILL は1つだけ。配布はタグ付きの Skill リポジトリから行い、プラグイン案はやめた。
+- [docs/skill-cross-platform-guide.md](../../docs/skill-cross-platform-guide.md) の方針を採用した。内容は PLAN.md の **1.3**（1.1・1.2 より優先）。利用環境は Claude Code と VS Code + Copilot（Windows）と gh-aw の3つで、SKILL は1つだけ。配布はタグ付きの Skill リポジトリから行い、プラグイン案はやめた。
 - SKILL は `skills/aws-iac-diagram/` に移した。手元の登録は `~/.claude/skills/aws-iac-diagram` と `~/.copilot/skills/aws-iac-diagram` のジャンクション。単体テストはルートの `tests/` に移した。
 - `.venv`＋`requirements*.txt` をやめ、`uv`（0.13.1、winget）にした。依存は各スクリプト先頭の PEP 723、開発用の環境は `pyproject.toml`・`uv.lock`（`uv sync`）。
 - 作ったもの: `SKILL.md`（骨組み。図はまだ作れないと書いてある）、`scripts/doctor.py`、`lib/drawio_cli.py` の Linux 対応（`--no-sandbox`、画面が無いときの `xvfb-run -a`、`AWS_IAC_DIAGRAM_XVFB=1`）、`.github/workflows/ci.yml`（Ubuntu 24.04 と Windows 2025。Windows は PowerShell 5.1 から日本語とスペースを含むパスの SKILL を起動）、テスト 11 件（計 61 件）。
 - CI は `4af11c3` から GitHub で両 OS とも成功している。
 
 ## 背景（2026-10-15）
-- 計画は確定しています。詳細は [PLAN.md](PLAN.md) にあります。
+- 計画は確定しています。詳細は [PLAN.md](../../PLAN.md) にあります。
 - 日ごとの作業の経緯とつまずいた点は [WORKLOG.md](WORKLOG.md) にあります。
 - **開発環境を Mac から Windows 11 に移しました。** 違いは PLAN.md の「1.1 Windows への移行」を参照してください。
 - 公開サンプルは取得済みです（2026-10-14）。置き場所は `aws-iac-diagram-workspace/fixtures/public/` です。
   - 内容: 推奨セット T01〜T20、予備候補 P01〜P04、CloudFormation の参考 C01〜C05
-  - 出典、コミット、ライセンスは同じフォルダの [SOURCES.md](aws-iac-diagram-workspace/fixtures/public/SOURCES.md) にまとめてあります。
+  - 出典、コミット、ライセンスは同じフォルダの [SOURCES.md](../../aws-iac-diagram-workspace/fixtures/public/SOURCES.md) にまとめてあります。
   - 公開モジュールの中身（`terraform init` で取得されるもの）は取得していません。
 
 ## フェーズ0 の進み具合
@@ -91,10 +91,10 @@ uv run python aws-iac-diagram-workspace\tools\c1_check.py
 |---|---|---|
 | 1 | ツールのインストール | **済（Windows）**: Git 2.55、Node 24.20、Python 3.12.10、gh、draw.io Desktop 32.4.1、mmdc 12.0.0、uv 0.13.1（2026-10-16）。Python の依存は uv が入れる |
 | 2 | SKILL のフォルダの作成と登録 | **済**: 2026-10-16 に `skills/aws-iac-diagram/` へ移し、`~/.claude/skills/aws-iac-diagram` と `~/.copilot/skills/aws-iac-diagram` からジャンクションで登録 |
-| 3 | アイコン素材の取得と辞書の生成 | **済**: 版と SHA-256 は [assets/SOURCES.md](skills/aws-iac-diagram/assets/SOURCES.md)。`scripts/build_icon_catalog.py` で `references/icons/`（1045件、31カテゴリ）を生成。検索は `scripts/find_aws_icon.py`。再実行してもバイト単位で同じ出力になることを確認済み |
+| 3 | アイコン素材の取得と辞書の生成 | **済**: 版と SHA-256 は [assets/SOURCES.md](../../skills/aws-iac-diagram/assets/SOURCES.md)。`scripts/build_icon_catalog.py` で `references/icons/`（1045件、31カテゴリ）を生成。検索は `scripts/find_aws_icon.py`。再実行してもバイト単位で同じ出力になることを確認済み |
 | 3b | C2（壊れたアイコンの自動検出 `check_icons.py`） | **済**: draw.io 32.4.1 で 1032 件（shape・resource_icon・group）を判定し、**壊れたものは 0 件**。対照 9 件（壊れ 6 種・正常 3 種）はすべて期待どおり。結果は `references/icons/broken.json` → 辞書の `broken`。テストはルートの `tests/`（当時 31件） |
 | 4 | 自作テスト構成5種（TF 版と CFN 版）と正解 IR、公開サンプルからの選定、第三者レビュー | **済（`46ae7c3`）**: 第三者レビュー2回（1回目「修正後コミット」、正解 IR の誤りは無し。指摘反映後の2回目「コミット可」）。構成5種（three-tier、serverless-api、vpc-endpoints、three-tier-modules、rag）を `fixtures/tf/`・`fixtures/cfn/`（YAML・SAM・JSON・ネストスタック）に、正解 IR を `expected/*.ir.json` に作成。IR スキーマ草案 v0.1（`references/ir-schema.md`・`ir.schema.json`）と規則表の草案（`resource-catalog.md`・`relation-resources.md`・`edge-rules.md`）。検証: `scripts/validate_ir.py`（全正解 IR が通過）、`workspace/tools/check_coverage.py --lint`（網羅分類と入力が一致、cfn-lint 警告0、hcl2 で全 .tf を読める）。公開サンプルの選定は `fixtures/public/SELECTION.md`（主セット12、補助セット） |
-| 5 | フェーズ6の評価基準値を決めてユーザーの了承を得る | **済（2026-10-16、`606ffb4`）**: [aws-iac-diagram-workspace/evals/CRITERIA.md](aws-iac-diagram-workspace/evals/CRITERIA.md)。第三者レビュー2回のあと、ユーザーが了承して確定。8章の申し送りのうち、`unknown` の扱い（ir-schema.md・resource-catalog.md）、id の対応づけと名前の一致率（ir-schema.md の 5）、PLAN の LLM の役割と 1.3 の 9 は反映済み |
+| 5 | フェーズ6の評価基準値を決めてユーザーの了承を得る | **済（2026-10-16、`606ffb4`）**: [aws-iac-diagram-workspace/evals/CRITERIA.md](../../aws-iac-diagram-workspace/evals/CRITERIA.md)。第三者レビュー2回のあと、ユーザーが了承して確定。8章の申し送りのうち、`unknown` の扱い（ir-schema.md・resource-catalog.md）、id の対応づけと名前の一致率（ir-schema.md の 5）、PLAN の LLM の役割と 1.3 の 9 は反映済み |
 
 **フェーズ0 は完了。**
 
