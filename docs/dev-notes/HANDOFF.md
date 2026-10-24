@@ -10,10 +10,10 @@
 
 | フェーズ | 内容 | 状態 |
 |---|---|---|
-| 0 | 準備（ツール、アイコン辞書と C2、自作 fixture 5構成と正解 IR、公開サンプルの選定、評価基準値） | **完了**（2026-10-16、`53227cf`） |
-| — | 共通 Agent Skill の方針への移行（[docs/skill-cross-platform-guide.md](../../docs/skill-cross-platform-guide.md)、PLAN の 1.3） | **完了**（2026-10-16、`cadc73c`） |
-| 1 | IR スキーマの確定と CloudFormation アダプタ（A4、C1） | **完了**（2026-10-17、`7b19a6f`） |
-| 2 | Terraform アダプタ（.tf と plan JSON、A4、A5） | **進行中**。手順1（土台、`db6523b`）・手順2（A4、`087aef1`。秘密の値の扱いはユーザーの決定で `evaluation.vars` に値を書かず `--redact-var` を足した）はコミット済み。**手順3（モジュール、A5）もコミット済み**（2026-10-17。第三者レビュー「修正後コミット」→対応分の再確認「コミット可」）。残りは下の「次にやること」の 3a |
+| 0 | 準備（ツール、アイコン辞書と C2、自作 fixture 5構成と正解 IR、公開サンプルの選定、評価基準値） | **完了**（2026-10-16、`48ff43a`） |
+| — | 共通 Agent Skill の方針への移行（[docs/skill-cross-platform-guide.md](../../docs/skill-cross-platform-guide.md)、PLAN の 1.3） | **完了**（2026-10-16、`0550532`） |
+| 1 | IR スキーマの確定と CloudFormation アダプタ（A4、C1） | **完了**（2026-10-17、`5630f35`） |
+| 2 | Terraform アダプタ（.tf と plan JSON、A4、A5） | **進行中**。手順1（土台、`3ebc024`）・手順2（A4、`45c9740`。秘密の値の扱いはユーザーの決定で `evaluation.vars` に値を書かず `--redact-var` を足した）はコミット済み。**手順3（モジュール、A5）もコミット済み**（2026-10-17。第三者レビュー「修正後コミット」→対応分の再確認「コミット可」）。残りは下の「次にやること」の 3a |
 | 3〜6 | 正規化、配置と .drawio、Mermaid と PNG、SKILL.md の仕上げと評価 | 未着手 |
 
 ### できているもの
@@ -38,7 +38,7 @@
 - TF アダプタ（手順3 まで）: 自作 fixture の5構成と、公開サンプルの TF のルート 52 フォルダ（T01〜T20、P01〜P04）、`.tf` のあるフォルダすべて（172）で例外なく動き、raw IR の検査を通る（error の診断 0）。正解 IR の TF 側の網羅分類と、モジュールの中身（要約表の展開とローカルモジュール）まで読み替えなしで一致（three-tier は `env/dev.tfvars`）。モジュールを展開したので、ルート 52 のリソースは 854 → 2480、warn は 130 → 381（展開したモジュールの中の、値の無い変数やリソースの属性に依る値。WORKLOG の「フェーズ2 の手順3」）。
 - C1: 自作 fixture と公開サンプルの CFN（入力 25）で、cfn-lint のグラフの辺 513 本のすべてに raw IR の参照が対応（対応の無い辺 0）。
 - 正解 IR の CFN 側の網羅分類と、CFN アダプタの出力の address・型・ファイル・作られるか（enabled）が、5構成すべてで一致。
-- GitHub の CI は、`cadc73c` から `7b19a6f`（C1 の照合を足したもの）まで、両 OS で成功。
+- GitHub の CI は、`0550532` から `5630f35`（C1 の照合を足したもの）まで、両 OS で成功。
 
 ### 再開の手順（Windows）
 
@@ -76,7 +76,7 @@ uv run python aws-iac-diagram-workspace\tools\c1_check.py
 - SKILL は `skills/aws-iac-diagram/` に移した。手元の登録は `~/.claude/skills/aws-iac-diagram` と `~/.copilot/skills/aws-iac-diagram` のジャンクション。単体テストはルートの `tests/` に移した。
 - `.venv`＋`requirements*.txt` をやめ、`uv`（0.13.1、winget）にした。依存は各スクリプト先頭の PEP 723、開発用の環境は `pyproject.toml`・`uv.lock`（`uv sync`）。
 - 作ったもの: `SKILL.md`（骨組み。図はまだ作れないと書いてある）、`scripts/doctor.py`、`lib/drawio_cli.py` の Linux 対応（`--no-sandbox`、画面が無いときの `xvfb-run -a`、`AWS_IAC_DIAGRAM_XVFB=1`）、`.github/workflows/ci.yml`（Ubuntu 24.04 と Windows 2025。Windows は PowerShell 5.1 から日本語とスペースを含むパスの SKILL を起動）、テスト 11 件（計 61 件）。
-- CI は `cadc73c` から GitHub で両 OS とも成功している。
+- CI は `0550532` から GitHub で両 OS とも成功している。
 
 ## 背景（2026-10-15）
 - 計画は確定しています。詳細は [PLAN.md](../../PLAN.md) にあります。
@@ -95,13 +95,13 @@ uv run python aws-iac-diagram-workspace\tools\c1_check.py
 | 2 | SKILL のフォルダの作成と登録 | **済**: 2026-10-16 に `skills/aws-iac-diagram/` へ移し、`~/.claude/skills/aws-iac-diagram` と `~/.copilot/skills/aws-iac-diagram` からジャンクションで登録 |
 | 3 | アイコン素材の取得と辞書の生成 | **済**: 版と SHA-256 は [assets/SOURCES.md](../../skills/aws-iac-diagram/assets/SOURCES.md)。`scripts/build_icon_catalog.py` で `references/icons/`（1045件、31カテゴリ）を生成。検索は `scripts/find_aws_icon.py`。再実行してもバイト単位で同じ出力になることを確認済み |
 | 3b | C2（壊れたアイコンの自動検出 `check_icons.py`） | **済**: draw.io 32.4.1 で 1032 件（shape・resource_icon・group）を判定し、**壊れたものは 0 件**。対照 9 件（壊れ 6 種・正常 3 種）はすべて期待どおり。結果は `references/icons/broken.json` → 辞書の `broken`。テストはルートの `tests/`（当時 31件） |
-| 4 | 自作テスト構成5種（TF 版と CFN 版）と正解 IR、公開サンプルからの選定、第三者レビュー | **済（`267867a`）**: 第三者レビュー2回（1回目「修正後コミット」、正解 IR の誤りは無し。指摘反映後の2回目「コミット可」）。構成5種（three-tier、serverless-api、vpc-endpoints、three-tier-modules、rag）を `fixtures/tf/`・`fixtures/cfn/`（YAML・SAM・JSON・ネストスタック）に、正解 IR を `expected/*.ir.json` に作成。IR スキーマ草案 v0.1（`references/ir-schema.md`・`ir.schema.json`）と規則表の草案（`resource-catalog.md`・`relation-resources.md`・`edge-rules.md`）。検証: `scripts/validate_ir.py`（全正解 IR が通過）、`workspace/tools/check_coverage.py --lint`（網羅分類と入力が一致、cfn-lint 警告0、hcl2 で全 .tf を読める）。公開サンプルの選定は `fixtures/public/SELECTION.md`（主セット12、補助セット） |
-| 5 | フェーズ6の評価基準値を決めてユーザーの了承を得る | **済（2026-10-16、`0225d32`）**: [aws-iac-diagram-workspace/evals/CRITERIA.md](../../aws-iac-diagram-workspace/evals/CRITERIA.md)。第三者レビュー2回のあと、ユーザーが了承して確定。8章の申し送りのうち、`unknown` の扱い（ir-schema.md・resource-catalog.md）、id の対応づけと名前の一致率（ir-schema.md の 5）、PLAN の LLM の役割と 1.3 の 9 は反映済み |
+| 4 | 自作テスト構成5種（TF 版と CFN 版）と正解 IR、公開サンプルからの選定、第三者レビュー | **済（`c24951f`）**: 第三者レビュー2回（1回目「修正後コミット」、正解 IR の誤りは無し。指摘反映後の2回目「コミット可」）。構成5種（three-tier、serverless-api、vpc-endpoints、three-tier-modules、rag）を `fixtures/tf/`・`fixtures/cfn/`（YAML・SAM・JSON・ネストスタック）に、正解 IR を `expected/*.ir.json` に作成。IR スキーマ草案 v0.1（`references/ir-schema.md`・`ir.schema.json`）と規則表の草案（`resource-catalog.md`・`relation-resources.md`・`edge-rules.md`）。検証: `scripts/validate_ir.py`（全正解 IR が通過）、`workspace/tools/check_coverage.py --lint`（網羅分類と入力が一致、cfn-lint 警告0、hcl2 で全 .tf を読める）。公開サンプルの選定は `fixtures/public/SELECTION.md`（主セット12、補助セット） |
+| 5 | フェーズ6の評価基準値を決めてユーザーの了承を得る | **済（2026-10-16、`07dbb5f`）**: [aws-iac-diagram-workspace/evals/CRITERIA.md](../../aws-iac-diagram-workspace/evals/CRITERIA.md)。第三者レビュー2回のあと、ユーザーが了承して確定。8章の申し送りのうち、`unknown` の扱い（ir-schema.md・resource-catalog.md）、id の対応づけと名前の一致率（ir-schema.md の 5）、PLAN の LLM の役割と 1.3 の 9 は反映済み |
 
 **フェーズ0 は完了。**
 
 ## 次にやること
-0. （済）GitHub の `ci` は `cadc73c` で両 OS とも成功した（Windows 約45秒、Ubuntu 約20秒）。Node 20 の廃止の警告が出ている（0b）。
+0. （済）GitHub の `ci` は `0550532` で両 OS とも成功した（Windows 約45秒、Ubuntu 約20秒）。Node 20 の廃止の警告が出ている（0b）。
 0b. 2026-10-16 のレビューで見送った推奨: R2（doctor に Windows のパス長の診断: `LongPathsEnabled`、SKILL のパスの長さ、uv のキャッシュの場所）、R4（PEP 723 の間接依存の固定: `[tool.uv] exclude-newer` か `uv lock --script`。PEP 723 と `pyproject.toml` の版が揃っているかのテスト）、CI の `actions/checkout`・`setup-uv` を Node 20 廃止に合わせて更新し SHA で固定。再レビューの R1: SKILL.md の「gh-aw では `RUNNER_TEMP` に出す」は、同じファイルの `$VAR` の禁止とぶつかる（エージェントが値を知るにはシェルで展開するしかない）→ `diagram.py` を作るときに、`--out`／`--out-dir` を省略したらスクリプトが既定値（`RUNNER_TEMP`、無ければ作業中のフォルダの `aws-iac-diagram-out`）を決め、書いた先を ASCII で標準出力に出すようにし、doctor も合わせる。あわせて doctor で `--out` に書けなかったときも、集めた診断の結果を捨てずに出す。
 1. （済）表の 5（評価基準値）。
 2. **フェーズ1**（CloudFormation のアダプタ）。5つの手順に分けて1つずつ進める（2026-10-17 にユーザーと合意）。
@@ -117,9 +117,9 @@ uv run python aws-iac-diagram-workspace\tools\c1_check.py
      - cdk.out は、テストの中で作った manifest でしか確かめていない。実際の `cdk synth` の出力は公開サンプルに無く、C1 の対象（`c1_check.py` の discover はフォルダを見ない）にも入っていない。フェーズ6 の評価の前に、実物の cdk.out を1つ fixture に足して確かめる
      - C1 の `raw_only`（raw IR にあって cfn-lint に無い参照）は、ネストスタックの出力をたどった参照の数え方の違い（WORKLOG の「フェーズ1 の手順5」）。参考値で基準ではない
 3a. **フェーズ2（Terraform アダプタ）**。同じ raw IR（ir-schema.md の 7章）を .tf と plan JSON から出す。5つの手順に分けて1つずつ進め、それぞれ第三者レビューを受ける（2026-10-17）。
-   1. （済、`db6523b`）**土台**（`scripts/adapters/tf.py`）。ルートモジュールの .tf を python-hcl2 の構文木で読み、resource・data・module、参照（`$res`、`depends_on`）、`$pseudo`・`$az`・`$json`・`$concat`、heredoc の前処理（T06）、`path.module`・`terraform.workspace`・`file()`／`templatefile()`、`provider`・`region`（Schema に足した）。まだ評価しないものは `$unknown`（`TF-DEFERRED`、中の参照は `unevaluated`）・×N（`[*]`、`enabled: null`）・黒箱の module 呼び出し（`TF-MODULE-DEFERRED`）で出す（ir-schema.md の 7.6）。手順1 の時点の `ExpectedIrTest` は、正解 IR を手順1 の形に読み替えていた
+   1. （済、`3ebc024`）**土台**（`scripts/adapters/tf.py`）。ルートモジュールの .tf を python-hcl2 の構文木で読み、resource・data・module、参照（`$res`、`depends_on`）、`$pseudo`・`$az`・`$json`・`$concat`、heredoc の前処理（T06）、`path.module`・`terraform.workspace`・`file()`／`templatefile()`、`provider`・`region`（Schema に足した）。まだ評価しないものは `$unknown`（`TF-DEFERRED`、中の参照は `unevaluated`）・×N（`[*]`、`enabled: null`）・黒箱の module 呼び出し（`TF-MODULE-DEFERRED`）で出す（ir-schema.md の 7.6）。手順1 の時点の `ExpectedIrTest` は、正解 IR を手順1 の形に読み替えていた
    2. （済）**A4（TF 側の評価）**: 評価器 `scripts/lib/tf_eval.py`（値の型、関数 81、type の変換）。変数（default → `terraform.tfvars` → `terraform.tfvars.json` → `*.auto.tfvars(.json)`（名前順）→ `--var-file`・`--var`（指定した順）。`TF_VAR_*` は読まない。sensitive の値は使わない）、locals、テンプレートの `%{if}`・`%{for}`、条件式・演算・for 式、`try`・`can`、`dynamic`。count・for_each を展開し（`[0]`・`["key"]`、0 個は添字なしで `enabled: false`、そこへの参照も添字なし）、決まらないものだけ ×N（`TF-COUNT-UNRESOLVED`）。インスタンスへの参照とスプラットはインスタンスごとの `$res`。`evaluation.var_files`・`vars`、値の無い変数と `*.tfvars` の候補（`TF-UNRESOLVED-VARS`）。`pruned` は条件式・`try`・選ぶ関数・リストの添字・for の `if` だけ（7.2）。`ephemeral`（resources に載せない）、`check` の中の `data`、override のファイルも読む。`ExpectedIrTest` はモジュールの中身だけを読み替えていた（`step3_expected()`。手順3 で外した）。詳細は WORKLOG の「フェーズ2 の手順2」
-      - 第三者レビュー（判定「修正後コミット」）の指摘（M1・R1〜R3・任意 1〜6）を直してコミットした（`087aef1`）。R1 はユーザーの決定で、`evaluation.vars` に値を書かず出どころだけを書き、`--redact-var` で値を伏せられるようにした（README・SKILL.md に注意書き）
+      - 第三者レビュー（判定「修正後コミット」）の指摘（M1・R1〜R3・任意 1〜6）を直してコミットした（`45c9740`）。R1 はユーザーの決定で、`evaluation.vars` に値を書かず出どころだけを書き、`--redact-var` で値を伏せられるようにした（README・SKILL.md に注意書き）
    3. （済。2026-10-17）**モジュール**: ローカルモジュールの再帰（address `module.x.…`、count・for_each の呼び出しはインスタンスごと、`module` フィールド、`through` の `module.x.output.y`・`module.x.var.y`、`path.module`、depends_on、循環 `TF-MODULE-CYCLE`・深さ 16 段 `TF-MODULE-DEPTH`）、A5 の要約表（`references/module-summaries.md`。vpc 6.x・alb 10.x・rds 7.x・eks 21.x を HCL で写し、同じ評価器で展開。`via: module_summary`。vpc・eks は手元の本物のソースと突き合わせるテスト）、要約表に無い・版が合わないレジストリと `git::` などは黒箱（`TF-MODULE-BLACKBOX`）、IAM だけのモジュールは source の一覧で判定（`tf_modules.iam_only()`。raw IR は黒箱のまま、正規化が H-IAM）、`terraform_remote_state`（state を読まず `attr: "outputs.<名前>"`）、モジュールに渡した provider（`providers` 引数と既定の provider の引き継ぎでたどり、alias の `provider` と `region` を書く）。`ExpectedIrTest` の読み替えを外した。詳細は WORKLOG の「フェーズ2 の手順3」と ir-schema.md の 7.2「TF のモジュール」
       - 第三者レビュー（判定「修正後コミット」）の指摘（M1・R1〜R3・任意1〜3）を直した（コミットはまだ）。alb のリスナーのルール・weighted_forward を写し、`# not-covered:` に入れ子の経路を書けるようにした。eks の KMS は本物どおり `create` 引数（黒箱の `create = false` は `enabled: false`）。ユーザーの許可で terraform-aws-alb v10.5.1・terraform-aws-rds v7.2.2 を取り込み、要約表を本物と突き合わせた（WORKLOG の「フェーズ2 の手順3」の「第三者レビュー」）
       - 見送ったもの: alb の認証のアクション（`authenticate_*`・`jwt_validation`。入力を渡すと `TF-MODULE-SUMMARY-INPUT`）、vpc 5.x・eks 20.x の要約表（ユーザーの決定でフェーズ6 の前に改めて決める。T16・T18 が黒箱のまま）、kms などほかの terraform-aws-modules、`terraform init` 済みの `.terraform/modules` を読むこと

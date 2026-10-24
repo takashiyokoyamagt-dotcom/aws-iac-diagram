@@ -144,7 +144,7 @@ uv run "<SKILL>/scripts/diagram.py" --input <IaC のフォルダかファイル>
   - 型ごとの統合・削除・移動の表を持っている
   - VPC → AZ → Subnet の中間ノードを挿入している
   - SG はポートのラベル付きの辺に変換している
-  - `docs/LEARNINGS_DRAWIO_NATIVE.md` に多数の失敗知見がある（下の 2.2）
+  - TerraVision のリポジトリの `docs/LEARNINGS_DRAWIO_NATIVE.md`（このリポジトリのファイルではない）に多数の失敗知見がある（下の 2.2）
 - **InfraMap**（MIT）
   - 型ごとに「ノードにする型」と「辺にする型」の表を持っている
   - 中間の型は1本の辺に畳んでいる

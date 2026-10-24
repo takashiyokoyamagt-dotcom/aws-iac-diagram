@@ -48,7 +48,10 @@ aws-iac-diagram-workspace/fixtures/public/ には、公開されている Terraf
   - Apache License 2.0 : terraform-aws-modules の各リポジトリ、terraform-aws-bedrock、
                          terraform-aws-eks-blueprints、aws-cloudformation-templates、
                          ecs-refarch-cloudformation、amazon-cloudfront-secure-static-site
-  - MIT-0              : aws-samples の各リポジトリ（serverless-patterns など）
+  - MIT-0              : aws-samples のうち、serverless-patterns、amazon-ecs-fullstack-app-terraform、
+                         aws-network-hub-for-terraform、aws-transit-gateway-vpc-terraform、
+                         hub-and-spoke-with-shared-services-vpc-terraform、sample-* の3つ
+                         （aws-samples の ecs-refarch-cloudformation と amazon-cloudfront-secure-static-site は Apache-2.0）
   - MIT                : joshuamkite/terraform-aws-static-website-s3-cloudfront-acm
   - MPL-2.0            : hashicorp-education の learn-terraform-* の3つ。ファイル単位のコピーレフトなので、
                          これらのファイルは変更せずに保持している。
