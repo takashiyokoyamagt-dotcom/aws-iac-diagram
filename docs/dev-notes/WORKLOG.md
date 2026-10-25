@@ -685,7 +685,7 @@ TF アダプタで、`terraform show -json` の plan JSON を読めるように�
 ## 2026-10-26 フェーズ2 の手順5: 公開サンプルでの確認と完了
 
 ### 概要
-TF アダプタを公開サンプルの TF すべてにかけて確かめ、TF／SAM の対の型を比べ、ir-schema.md の 7.6（フェーズ2 の間だけの注記）を消して 7章を確定し、フェーズ2 を実装と確認まで完了にした（完了基準の移し替えはユーザーの確認待ち）。アダプタの不具合は見つからなかった。第三者レビューの前（未コミット）。
+TF アダプタを公開サンプルの TF すべてにかけて確かめ、TF／SAM の対の型を比べ、ir-schema.md の 7.6（フェーズ2 の間だけの注記）を消して 7章を確定し、フェーズ2 を完了にした（完了基準の分け方は、下の決めたことの表のとおり、ユーザーが決めた）。アダプタの不具合は見つからなかった。第三者レビューの前（未コミット）。
 
 ### やったこと
 1. **公開サンプルでの確認の道具** `aws-iac-diagram-workspace/tools/tf_public_check.py`（新規）: 公開サンプルの TF を TF アダプタで読み、`validate_ir.py <ファイル>` と同じ検査（スキーマ、参照の整合、出力の形 C5）を、書き出したファイルにかける。例外・検査の失敗・error の診断があれば終了コード 1。既定は T01〜T20、P01〜P04 のルート 52 フォルダ（`survey_public.py` の一覧）、`--all` は `.tf` のあるフォルダすべて、`--jobs N` で並列、`--pairs` で対の表、`--out` で JSON。
@@ -704,7 +704,7 @@ TF アダプタを公開サンプルの TF すべてにかけて確かめ、TF�
 | **`.tf.json` は .tf だけでは読まない（`TF-TFJSON-UNSUPPORTED` の warn のまま）** | HCL の JSON の書き方では、`"ingress": {…}`（または `[{…}]`）が入れ子のブロックか、オブジェクトの値の属性かが書き方から決まらず、決めるには provider のスキーマが要る。ブロックと属性を取り違えると props の形が .tf と plan JSON で変わる（リスト化されるか否か）。公開サンプルに `.tf.json` は無い（`fixtures/` 全体を探した。あるのは自作の `tf-plan/edge/extra.tf.json` だけ）。plan JSON と一緒なら plan の `configuration` から正しく読める。「安く、正しく」できる方法が無いので保守的に残した。provider のスキーマ（`terraform providers schema -json`）を入力に取れば読めるので、要るなら後で足す（ir-schema.md の 8章） |
 | `--workspace <名前>` を足した（`terraform.workspace` の値。既定は `default`。plan JSON だけのときは終了コード 2） | `terraform.workspace` を `lookup` や count に使う構成は実在する（公開サンプルの fixtures には無いが、TF の定番の書き方）。`default` 固定だと別の環境の図が作れない。`Context` に値を持たせるだけの小さな変更で、前提（`evaluation.assumptions`）には使ったときだけ書く。テスト `test_workspace_option` |
 | 対の比較は raw IR のリソースの型だけ。「同じ IR」「辺の多重集合」はフェーズ3 | 比べる対象のノード・辺は正規化の後のもの。SAM が暗黙に作る IAM ロール・Subscription・Permission は CFN アダプタが展開せず（暗黙の API を除く。7.2）、TF 側は分けて書く |
-| PLAN のフェーズ2 の完了基準「同じ構成の TF 版と CFN 版が同じ IR になる」をフェーズ3 の完了基準に移した | 上と同じ。HANDOFF の 3a は、元からフェーズ2 では `ExpectedIrTest` で確かめると書いていた。**CRITERIA.md の 1.1 の「TF 版と CFN 版の canonical 部 … バイト単位で一致（フェーズ2 の完了基準）」は、確定済みの文書なので書き換えていない**（ユーザーの了承が要る。同じ事情で、フェーズ3 の基準と読む） |
+| PLAN のフェーズ2 の完了基準「同じ構成の TF 版と CFN 版が同じ IR になる」をフェーズ3 の完了基準に移した | 上と同じ。HANDOFF の 3a は、元からフェーズ2 では `ExpectedIrTest` で確かめると書いていた。**CRITERIA.md の 1.1 の「TF 版と CFN 版の canonical 部 … バイト単位で一致（フェーズ2 の完了基準）」は、確定済みの文書なので、実装役は書き換えなかった**。そのあと（2026-10-26）ユーザーが「C: フェーズ2 は raw IR の確認、フェーズ3 は canonical 部の一致に分ける」と決め、CRITERIA.md の 1.1 を2行に分けた |
 
 ### 手順1〜3 で見送った小さなこと（それぞれの結論）
 | 項目 | 結論 |

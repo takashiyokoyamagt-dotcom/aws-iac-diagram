@@ -38,7 +38,7 @@ IR には2つの段階がある。
 | `name`, `description`, `notes` | 説明 | `notes` は判断理由。比較には使わない |
 | `diagnostics` | 記録 | 省略可。正規化で残した記録（「使わなかった参照」など。形は 7.5、code は `NORM-…`）。比較には使わない |
 
-**同じ構成の TF 版と CFN 版は canonical 部が一致する**（フェーズ2 の完了基準）。由来部は形式ごとに違ってよい（例: TF には `aws_s3_bucket_versioning` のような設定だけのリソースがあり、CFN ではそれが `AWS::S3::Bucket` のプロパティになる。逆に CFN には `AWS::EC2::VPCGatewayAttachment` があり、TF では `aws_internet_gateway.vpc_id` で表す）。
+**同じ構成の TF 版と CFN 版は canonical 部が一致する**（フェーズ3 の完了基準。canonical 部は正規化の後に作る）。由来部は形式ごとに違ってよい（例: TF には `aws_s3_bucket_versioning` のような設定だけのリソースがあり、CFN ではそれが `AWS::S3::Bucket` のプロパティになる。逆に CFN には `AWS::EC2::VPCGatewayAttachment` があり、TF では `aws_internet_gateway.vpc_id` で表す）。
 
 ## 2. ノード
 
