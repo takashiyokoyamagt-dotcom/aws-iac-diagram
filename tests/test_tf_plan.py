@@ -878,12 +878,13 @@ resource "aws_sqs_queue" "other3" { name = "o3" }
 class HostilePlanTest(TempTestCase):
     """壊れた plan JSON・敵意のある plan JSON: 終了コード 2、traceback なし、絶対パスなし（M2・m9 と nit）。"""
 
-    def check(self, name: str, text: str, code: int = 2):
+    def check(self, name: str, text: str, code: int | tuple = 2):
+        """code は期待する終了コード（OS や Python の再帰の上限で結果が変わるものは、組で渡す）。"""
         f = self.tmp / f"{name}.json"
         f.write_text(text, encoding="utf-8")
         out = self.tmp / f"{name}.out.json"
         rc_, stdout, stderr = self.run_main(["--input", str(f), "--out", str(out), "--root-base", str(self.tmp)])
-        self.assertEqual(rc_, code, (name, stderr))
+        self.assertIn(rc_, code if isinstance(code, tuple) else (code,), (name, stderr))
         for shown in (stdout, stderr, out.read_text(encoding="utf-8") if out.exists() else ""):
             self.assertNotIn("Traceback", shown, name)
             self.assertNotIn(str(self.tmp), shown, name)
@@ -931,8 +932,10 @@ class HostilePlanTest(TempTestCase):
 
     def test_deep_nesting_is_exit_2(self):
         self.check("deep_array", "[" * 100000 + "]" * 100000)
+        # 構造としては正しい深い JSON: 読める深さは OS（Windows と Linux）と Python で違うので、0 か 2。
+        # どちらでも traceback と絶対パスは出ない
         self.check("deep_object", '{"format_version":"1.0","terraform_version":"1","planned_values":' +
-                   '{"a":' * 5000 + "1" + "}" * 5000 + "}")
+                   '{"a":' * 5000 + "1" + "}" * 5000 + "}", code=(0, 2))
         # JSON としては読める深さ（上限の手前）でも、処理で RecursionError になれば exit 2（traceback なし）
         depth = 700
         deep = {"k": 1}
