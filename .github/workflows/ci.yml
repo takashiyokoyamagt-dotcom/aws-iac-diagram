@@ -46,6 +46,18 @@ jobs:
               --out "$RUNNER_TEMP/tf-raw/$(basename "$d").json" --root-base aws-iac-diagram-workspace
           done
           uv run skills/aws-iac-diagram/scripts/validate_ir.py "$RUNNER_TEMP/tf-raw/*.json"
+          # plan JSON の入力（フェーズ2 の手順4）。terraform は動かさず、コミットした plan JSON（fixtures/tf-plan）を読む。
+          # plan JSON だけのものと、.tf のフォルダと合わせたもの（--plan）の両方
+          for f in aws-iac-diagram-workspace/fixtures/tf-plan/*.json; do
+            n=$(basename "$f" .json)
+            d="aws-iac-diagram-workspace/fixtures/tf/${n%%.*}"
+            if [ "$n" = "edge" ]; then d="aws-iac-diagram-workspace/fixtures/tf-plan/edge"; fi
+            uv run skills/aws-iac-diagram/scripts/adapters/tf.py --input "$f" \
+              --out "$RUNNER_TEMP/tf-plan-raw/$n.plan.json" --root-base aws-iac-diagram-workspace
+            uv run skills/aws-iac-diagram/scripts/adapters/tf.py --input "$d" --plan "$f" \
+              --out "$RUNNER_TEMP/tf-plan-raw/$n.combined.json" --root-base aws-iac-diagram-workspace
+          done
+          uv run skills/aws-iac-diagram/scripts/validate_ir.py "$RUNNER_TEMP/tf-plan-raw/*.json"
 
       # 以下は SKILL を使う側と同じ起動のしかた（リポジトリの外に置き、PEP 723 の宣言だけで uv run する）
       - name: SKILL の起動（Windows PowerShell 5.1、日本語とスペースを含むパス）
@@ -81,6 +93,13 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "tf.py exit code was $LASTEXITCODE" }
           uv run "$skill\scripts\validate_ir.py" "$tfout"
           if ($LASTEXITCODE -ne 0) { throw "validate_ir (tf raw) exit code was $LASTEXITCODE" }
+          # plan JSON（コミットしたもの）を .tf のフォルダと合わせて読む（--plan。フェーズ2 の手順4）
+          $plan = Join-Path $env:GITHUB_WORKSPACE 'aws-iac-diagram-workspace\fixtures\tf-plan\three-tier.dev.json'
+          $planout = Join-Path $base 'out\three-tier.plan.raw.json'
+          uv run "$skill\scripts\adapters\tf.py" --input "$tfin" --plan "$plan" --out "$planout"
+          if ($LASTEXITCODE -ne 0) { throw "tf.py --plan exit code was $LASTEXITCODE" }
+          uv run "$skill\scripts\validate_ir.py" "$planout"
+          if ($LASTEXITCODE -ne 0) { throw "validate_ir (tf plan raw) exit code was $LASTEXITCODE" }
           exit 0
 
       - name: SKILL の起動（bash、日本語とスペースを含むパス）

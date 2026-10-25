@@ -1,0 +1,2244 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.16.5",
+  "variables": {
+    "db_password": {
+      "value": "not-a-real-password"
+    },
+    "enable_extra": {
+      "value": false
+    },
+    "queues": {
+      "value": [
+        "a",
+        "b"
+      ]
+    }
+  },
+  "planned_values": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_acm_certificate.cert",
+          "mode": "managed",
+          "type": "aws_acm_certificate",
+          "name": "cert",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "values": {
+            "certificate_authority_arn": null,
+            "certificate_body": null,
+            "certificate_chain": null,
+            "domain_name": "example.com",
+            "domain_validation_options": [
+              {
+                "domain_name": "example.com"
+              }
+            ],
+            "early_renewal_duration": null,
+            "private_key": null,
+            "private_key_wo": null,
+            "private_key_wo_version": null,
+            "region": "us-east-1",
+            "subject_alternative_names": [
+              "example.com"
+            ],
+            "tags": null,
+            "validation_method": "DNS",
+            "validation_option": []
+          },
+          "sensitive_values": {
+            "domain_validation_options": [
+              {}
+            ],
+            "options": [],
+            "private_key": true,
+            "renewal_summary": [],
+            "subject_alternative_names": [
+              false
+            ],
+            "tags_all": {},
+            "validation_emails": [],
+            "validation_option": []
+          },
+          "identity_schema_version": 0,
+          "identity": {
+            "arn": null
+          }
+        },
+        {
+          "address": "aws_security_group.sg",
+          "mode": "managed",
+          "type": "aws_security_group",
+          "name": "sg",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "values": {
+            "description": "Managed by Terraform",
+            "ingress": [
+              {
+                "cidr_blocks": [
+                  "10.0.0.0/8"
+                ],
+                "description": "",
+                "from_port": 443,
+                "ipv6_cidr_blocks": [],
+                "prefix_list_ids": [],
+                "protocol": "tcp",
+                "security_groups": [],
+                "self": false,
+                "to_port": 443
+              },
+              {
+                "cidr_blocks": [
+                  "10.0.0.0/8"
+                ],
+                "description": "",
+                "from_port": 80,
+                "ipv6_cidr_blocks": [],
+                "prefix_list_ids": [],
+                "protocol": "tcp",
+                "security_groups": [],
+                "self": false,
+                "to_port": 80
+              }
+            ],
+            "name": "edge",
+            "region": "ap-northeast-1",
+            "revoke_rules_on_delete": false,
+            "tags": null,
+            "timeouts": null
+          },
+          "sensitive_values": {
+            "egress": [],
+            "ingress": [
+              {
+                "cidr_blocks": [
+                  false
+                ],
+                "ipv6_cidr_blocks": [],
+                "prefix_list_ids": [],
+                "security_groups": []
+              },
+              {
+                "cidr_blocks": [
+                  false
+                ],
+                "ipv6_cidr_blocks": [],
+                "prefix_list_ids": [],
+                "security_groups": []
+              }
+            ],
+            "tags_all": {}
+          },
+          "identity_schema_version": 0,
+          "identity": {
+            "account_id": null,
+            "id": null,
+            "region": null
+          }
+        },
+        {
+          "address": "aws_sns_topic.t",
+          "mode": "managed",
+          "type": "aws_sns_topic",
+          "name": "t",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "values": {
+            "application_failure_feedback_role_arn": null,
+            "application_success_feedback_role_arn": null,
+            "application_success_feedback_sample_rate": null,
+            "archive_policy": null,
+            "content_based_deduplication": false,
+            "delivery_policy": null,
+            "display_name": null,
+            "fifo_topic": false,
+            "firehose_failure_feedback_role_arn": null,
+            "firehose_success_feedback_role_arn": null,
+            "firehose_success_feedback_sample_rate": null,
+            "http_failure_feedback_role_arn": null,
+            "http_success_feedback_role_arn": null,
+            "http_success_feedback_sample_rate": null,
+            "kms_master_key_id": null,
+            "lambda_failure_feedback_role_arn": null,
+            "lambda_success_feedback_role_arn": null,
+            "lambda_success_feedback_sample_rate": null,
+            "name": "edge-topic",
+            "region": "ap-northeast-1",
+            "sqs_failure_feedback_role_arn": null,
+            "sqs_success_feedback_role_arn": null,
+            "sqs_success_feedback_sample_rate": null,
+            "tags": null
+          },
+          "sensitive_values": {
+            "tags_all": {}
+          },
+          "identity_schema_version": 0,
+          "identity": {
+            "arn": null
+          }
+        },
+        {
+          "address": "aws_sns_topic_policy.pol",
+          "mode": "managed",
+          "type": "aws_sns_topic_policy",
+          "name": "pol",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "values": {
+            "region": "ap-northeast-1"
+          },
+          "sensitive_values": {},
+          "identity_schema_version": 0,
+          "identity": {
+            "arn": null
+          }
+        },
+        {
+          "address": "aws_sns_topic_subscription.json_sub",
+          "mode": "managed",
+          "type": "aws_sns_topic_subscription",
+          "name": "json_sub",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "values": {
+            "confirmation_timeout_in_minutes": 1,
+            "delivery_policy": null,
+            "endpoint_auto_confirms": false,
+            "filter_policy": null,
+            "protocol": "sqs",
+            "raw_message_delivery": false,
+            "redrive_policy": null,
+            "region": "ap-northeast-1",
+            "replay_policy": null,
+            "subscription_role_arn": null
+          },
+          "sensitive_values": {},
+          "identity_schema_version": 0,
+          "identity": {
+            "arn": null
+          }
+        },
+        {
+          "address": "aws_sns_topic_subscription.s[\"a\"]",
+          "mode": "managed",
+          "type": "aws_sns_topic_subscription",
+          "name": "s",
+          "index": "a",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "values": {
+            "confirmation_timeout_in_minutes": 1,
+            "delivery_policy": null,
+            "endpoint_auto_confirms": false,
+            "filter_policy": null,
+            "protocol": "sqs",
+            "raw_message_delivery": false,
+            "redrive_policy": null,
+            "region": "ap-northeast-1",
+            "replay_policy": null,
+            "subscription_role_arn": null
+          },
+          "sensitive_values": {},
+          "identity_schema_version": 0,
+          "identity": {
+            "arn": null
+          }
+        },
+        {
+          "address": "aws_sns_topic_subscription.s[\"b\"]",
+          "mode": "managed",
+          "type": "aws_sns_topic_subscription",
+          "name": "s",
+          "index": "b",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "values": {
+            "confirmation_timeout_in_minutes": 1,
+            "delivery_policy": null,
+            "endpoint_auto_confirms": false,
+            "filter_policy": null,
+            "protocol": "sqs",
+            "raw_message_delivery": false,
+            "redrive_policy": null,
+            "region": "ap-northeast-1",
+            "replay_policy": null,
+            "subscription_role_arn": null
+          },
+          "sensitive_values": {},
+          "identity_schema_version": 0,
+          "identity": {
+            "arn": null
+          }
+        },
+        {
+          "address": "aws_sqs_queue.acct",
+          "mode": "managed",
+          "type": "aws_sqs_queue",
+          "name": "acct",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "values": {
+            "content_based_deduplication": false,
+            "delay_seconds": 0,
+            "fifo_queue": false,
+            "kms_master_key_id": null,
+            "max_message_size": 262144,
+            "message_retention_seconds": 345600,
+            "name": "edge-123456789012",
+            "receive_wait_time_seconds": 0,
+            "region": "ap-northeast-1",
+            "tags": null,
+            "timeouts": null,
+            "visibility_timeout_seconds": 30
+          },
+          "sensitive_values": {
+            "tags_all": {}
+          },
+          "identity_schema_version": 1,
+          "identity": {
+            "url": null
+          }
+        },
+        {
+          "address": "aws_sqs_queue.dep",
+          "mode": "managed",
+          "type": "aws_sqs_queue",
+          "name": "dep",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "values": {
+            "content_based_deduplication": false,
+            "delay_seconds": 0,
+            "fifo_queue": false,
+            "kms_master_key_id": null,
+            "max_message_size": 262144,
+            "message_retention_seconds": 345600,
+            "name": "edge-dep",
+            "receive_wait_time_seconds": 0,
+            "region": "ap-northeast-1",
+            "tags": null,
+            "timeouts": null,
+            "visibility_timeout_seconds": 30
+          },
+          "sensitive_values": {
+            "tags_all": {}
+          },
+          "identity_schema_version": 1,
+          "identity": {
+            "url": null
+          }
+        },
+        {
+          "address": "aws_sqs_queue.from_file",
+          "mode": "managed",
+          "type": "aws_sqs_queue",
+          "name": "from_file",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "values": {
+            "content_based_deduplication": false,
+            "delay_seconds": 0,
+            "fifo_queue": false,
+            "kms_master_key_id": null,
+            "max_message_size": 262144,
+            "message_retention_seconds": 345600,
+            "name": "edge-from-file",
+            "receive_wait_time_seconds": 0,
+            "region": "ap-northeast-1",
+            "tags": null,
+            "timeouts": null,
+            "visibility_timeout_seconds": 30
+          },
+          "sensitive_values": {
+            "tags_all": {}
+          },
+          "identity_schema_version": 1,
+          "identity": {
+            "url": null
+          }
+        },
+        {
+          "address": "aws_sqs_queue.from_module",
+          "mode": "managed",
+          "type": "aws_sqs_queue",
+          "name": "from_module",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "values": {
+            "content_based_deduplication": false,
+            "delay_seconds": 0,
+            "fifo_queue": false,
+            "kms_master_key_id": null,
+            "max_message_size": 262144,
+            "message_retention_seconds": 345600,
+            "name": "edge-from-module",
+            "receive_wait_time_seconds": 0,
+            "region": "ap-northeast-1",
+            "tags": null,
+            "timeouts": null,
+            "visibility_timeout_seconds": 30
+          },
+          "sensitive_values": {
+            "tags_all": {}
+          },
+          "identity_schema_version": 1,
+          "identity": {
+            "url": null
+          }
+        },
+        {
+          "address": "aws_sqs_queue.json_q",
+          "mode": "managed",
+          "type": "aws_sqs_queue",
+          "name": "json_q",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "values": {
+            "content_based_deduplication": false,
+            "delay_seconds": 0,
+            "fifo_queue": false,
+            "kms_master_key_id": null,
+            "max_message_size": 262144,
+            "message_retention_seconds": 345600,
+            "name": "edge-json",
+            "receive_wait_time_seconds": 0,
+            "region": "ap-northeast-1",
+            "tags": {
+              "Name": "edge-json"
+            },
+            "tags_all": {
+              "Name": "edge-json"
+            },
+            "timeouts": null,
+            "visibility_timeout_seconds": 30
+          },
+          "sensitive_values": {
+            "tags": {},
+            "tags_all": {}
+          },
+          "identity_schema_version": 1,
+          "identity": {
+            "url": null
+          }
+        },
+        {
+          "address": "aws_sqs_queue.q[\"a\"]",
+          "mode": "managed",
+          "type": "aws_sqs_queue",
+          "name": "q",
+          "index": "a",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "values": {
+            "content_based_deduplication": false,
+            "delay_seconds": 0,
+            "fifo_queue": false,
+            "kms_master_key_id": null,
+            "max_message_size": 262144,
+            "message_retention_seconds": 345600,
+            "name": "edge-a",
+            "receive_wait_time_seconds": 0,
+            "region": "ap-northeast-1",
+            "tags": null,
+            "timeouts": null,
+            "visibility_timeout_seconds": 30
+          },
+          "sensitive_values": {
+            "tags_all": {}
+          },
+          "identity_schema_version": 1,
+          "identity": {
+            "url": null
+          }
+        },
+        {
+          "address": "aws_sqs_queue.q[\"b\"]",
+          "mode": "managed",
+          "type": "aws_sqs_queue",
+          "name": "q",
+          "index": "b",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "values": {
+            "content_based_deduplication": false,
+            "delay_seconds": 0,
+            "fifo_queue": false,
+            "kms_master_key_id": null,
+            "max_message_size": 262144,
+            "message_retention_seconds": 345600,
+            "name": "edge-b",
+            "receive_wait_time_seconds": 0,
+            "region": "ap-northeast-1",
+            "tags": null,
+            "timeouts": null,
+            "visibility_timeout_seconds": 30
+          },
+          "sensitive_values": {
+            "tags_all": {}
+          },
+          "identity_schema_version": 1,
+          "identity": {
+            "url": null
+          }
+        },
+        {
+          "address": "aws_sqs_queue.uses_extra",
+          "mode": "managed",
+          "type": "aws_sqs_queue",
+          "name": "uses_extra",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "values": {
+            "content_based_deduplication": false,
+            "delay_seconds": 0,
+            "fifo_queue": false,
+            "kms_master_key_id": null,
+            "max_message_size": 262144,
+            "message_retention_seconds": 345600,
+            "name": "edge-uses-extra",
+            "receive_wait_time_seconds": 0,
+            "region": "ap-northeast-1",
+            "tags": null,
+            "timeouts": null,
+            "visibility_timeout_seconds": 30
+          },
+          "sensitive_values": {
+            "tags_all": {}
+          },
+          "identity_schema_version": 1,
+          "identity": {
+            "url": null
+          }
+        },
+        {
+          "address": "aws_ssm_parameter.p",
+          "mode": "managed",
+          "type": "aws_ssm_parameter",
+          "name": "p",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "values": {
+            "allowed_pattern": null,
+            "description": null,
+            "name": "/edge/p",
+            "overwrite": null,
+            "region": "ap-northeast-1",
+            "tags": null,
+            "type": "SecureString",
+            "value": "not-a-real-password",
+            "value_wo": null,
+            "value_wo_version": null
+          },
+          "sensitive_values": {
+            "tags_all": {},
+            "value": true,
+            "value_wo": true
+          },
+          "identity_schema_version": 0,
+          "identity": {
+            "account_id": null,
+            "name": null,
+            "region": null
+          }
+        }
+      ],
+      "child_modules": [
+        {
+          "resources": [
+            {
+              "address": "module.m[0].aws_sns_topic_subscription.this",
+              "mode": "managed",
+              "type": "aws_sns_topic_subscription",
+              "name": "this",
+              "provider_name": "registry.terraform.io/hashicorp/aws",
+              "schema_version": 0,
+              "values": {
+                "confirmation_timeout_in_minutes": 1,
+                "delivery_policy": null,
+                "endpoint_auto_confirms": false,
+                "filter_policy": null,
+                "protocol": "sqs",
+                "raw_message_delivery": false,
+                "redrive_policy": null,
+                "region": "ap-northeast-1",
+                "replay_policy": null,
+                "subscription_role_arn": null
+              },
+              "sensitive_values": {},
+              "identity_schema_version": 0,
+              "identity": {
+                "arn": null
+              }
+            },
+            {
+              "address": "module.m[0].aws_sqs_queue.this",
+              "mode": "managed",
+              "type": "aws_sqs_queue",
+              "name": "this",
+              "provider_name": "registry.terraform.io/hashicorp/aws",
+              "schema_version": 0,
+              "values": {
+                "content_based_deduplication": false,
+                "delay_seconds": 0,
+                "fifo_queue": false,
+                "kms_master_key_id": null,
+                "max_message_size": 262144,
+                "message_retention_seconds": 345600,
+                "name": "edge-m0",
+                "receive_wait_time_seconds": 0,
+                "region": "ap-northeast-1",
+                "tags": null,
+                "timeouts": null,
+                "visibility_timeout_seconds": 30
+              },
+              "sensitive_values": {
+                "tags_all": {}
+              },
+              "identity_schema_version": 1,
+              "identity": {
+                "url": null
+              }
+            }
+          ],
+          "address": "module.m[0]"
+        },
+        {
+          "resources": [
+            {
+              "address": "module.m[1].aws_sns_topic_subscription.this",
+              "mode": "managed",
+              "type": "aws_sns_topic_subscription",
+              "name": "this",
+              "provider_name": "registry.terraform.io/hashicorp/aws",
+              "schema_version": 0,
+              "values": {
+                "confirmation_timeout_in_minutes": 1,
+                "delivery_policy": null,
+                "endpoint_auto_confirms": false,
+                "filter_policy": null,
+                "protocol": "sqs",
+                "raw_message_delivery": false,
+                "redrive_policy": null,
+                "region": "ap-northeast-1",
+                "replay_policy": null,
+                "subscription_role_arn": null
+              },
+              "sensitive_values": {},
+              "identity_schema_version": 0,
+              "identity": {
+                "arn": null
+              }
+            },
+            {
+              "address": "module.m[1].aws_sqs_queue.this",
+              "mode": "managed",
+              "type": "aws_sqs_queue",
+              "name": "this",
+              "provider_name": "registry.terraform.io/hashicorp/aws",
+              "schema_version": 0,
+              "values": {
+                "content_based_deduplication": false,
+                "delay_seconds": 0,
+                "fifo_queue": false,
+                "kms_master_key_id": null,
+                "max_message_size": 262144,
+                "message_retention_seconds": 345600,
+                "name": "edge-m1",
+                "receive_wait_time_seconds": 0,
+                "region": "ap-northeast-1",
+                "tags": null,
+                "timeouts": null,
+                "visibility_timeout_seconds": 30
+              },
+              "sensitive_values": {
+                "tags_all": {}
+              },
+              "identity_schema_version": 1,
+              "identity": {
+                "url": null
+              }
+            }
+          ],
+          "address": "module.m[1]"
+        }
+      ]
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "aws_acm_certificate.cert",
+      "mode": "managed",
+      "type": "aws_acm_certificate",
+      "name": "cert",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "certificate_authority_arn": null,
+          "certificate_body": null,
+          "certificate_chain": null,
+          "domain_name": "example.com",
+          "domain_validation_options": [
+            {
+              "domain_name": "example.com"
+            }
+          ],
+          "early_renewal_duration": null,
+          "private_key": null,
+          "private_key_wo": null,
+          "private_key_wo_version": null,
+          "region": "us-east-1",
+          "subject_alternative_names": [
+            "example.com"
+          ],
+          "tags": null,
+          "validation_method": "DNS",
+          "validation_option": []
+        },
+        "after_unknown": {
+          "arn": true,
+          "domain_validation_options": [
+            {
+              "resource_record_name": true,
+              "resource_record_type": true,
+              "resource_record_value": true
+            }
+          ],
+          "id": true,
+          "key_algorithm": true,
+          "not_after": true,
+          "not_before": true,
+          "options": true,
+          "pending_renewal": true,
+          "renewal_eligibility": true,
+          "renewal_summary": true,
+          "status": true,
+          "subject_alternative_names": [
+            false
+          ],
+          "tags_all": true,
+          "type": true,
+          "validation_emails": true,
+          "validation_option": []
+        },
+        "before_sensitive": false,
+        "after_sensitive": {
+          "domain_validation_options": [
+            {}
+          ],
+          "options": [],
+          "private_key": true,
+          "renewal_summary": [],
+          "subject_alternative_names": [
+            false
+          ],
+          "tags_all": {},
+          "validation_emails": [],
+          "validation_option": []
+        },
+        "after_identity": {
+          "arn": null
+        }
+      }
+    },
+    {
+      "address": "aws_security_group.sg",
+      "mode": "managed",
+      "type": "aws_security_group",
+      "name": "sg",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "description": "Managed by Terraform",
+          "ingress": [
+            {
+              "cidr_blocks": [
+                "10.0.0.0/8"
+              ],
+              "description": "",
+              "from_port": 443,
+              "ipv6_cidr_blocks": [],
+              "prefix_list_ids": [],
+              "protocol": "tcp",
+              "security_groups": [],
+              "self": false,
+              "to_port": 443
+            },
+            {
+              "cidr_blocks": [
+                "10.0.0.0/8"
+              ],
+              "description": "",
+              "from_port": 80,
+              "ipv6_cidr_blocks": [],
+              "prefix_list_ids": [],
+              "protocol": "tcp",
+              "security_groups": [],
+              "self": false,
+              "to_port": 80
+            }
+          ],
+          "name": "edge",
+          "region": "ap-northeast-1",
+          "revoke_rules_on_delete": false,
+          "tags": null,
+          "timeouts": null
+        },
+        "after_unknown": {
+          "arn": true,
+          "egress": true,
+          "id": true,
+          "ingress": [
+            {
+              "cidr_blocks": [
+                false
+              ],
+              "ipv6_cidr_blocks": [],
+              "prefix_list_ids": [],
+              "security_groups": []
+            },
+            {
+              "cidr_blocks": [
+                false
+              ],
+              "ipv6_cidr_blocks": [],
+              "prefix_list_ids": [],
+              "security_groups": []
+            }
+          ],
+          "name_prefix": true,
+          "owner_id": true,
+          "tags_all": true,
+          "vpc_id": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {
+          "egress": [],
+          "ingress": [
+            {
+              "cidr_blocks": [
+                false
+              ],
+              "ipv6_cidr_blocks": [],
+              "prefix_list_ids": [],
+              "security_groups": []
+            },
+            {
+              "cidr_blocks": [
+                false
+              ],
+              "ipv6_cidr_blocks": [],
+              "prefix_list_ids": [],
+              "security_groups": []
+            }
+          ],
+          "tags_all": {}
+        },
+        "after_identity": {
+          "account_id": null,
+          "id": null,
+          "region": null
+        }
+      }
+    },
+    {
+      "address": "aws_sns_topic.t",
+      "mode": "managed",
+      "type": "aws_sns_topic",
+      "name": "t",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "application_failure_feedback_role_arn": null,
+          "application_success_feedback_role_arn": null,
+          "application_success_feedback_sample_rate": null,
+          "archive_policy": null,
+          "content_based_deduplication": false,
+          "delivery_policy": null,
+          "display_name": null,
+          "fifo_topic": false,
+          "firehose_failure_feedback_role_arn": null,
+          "firehose_success_feedback_role_arn": null,
+          "firehose_success_feedback_sample_rate": null,
+          "http_failure_feedback_role_arn": null,
+          "http_success_feedback_role_arn": null,
+          "http_success_feedback_sample_rate": null,
+          "kms_master_key_id": null,
+          "lambda_failure_feedback_role_arn": null,
+          "lambda_success_feedback_role_arn": null,
+          "lambda_success_feedback_sample_rate": null,
+          "name": "edge-topic",
+          "region": "ap-northeast-1",
+          "sqs_failure_feedback_role_arn": null,
+          "sqs_success_feedback_role_arn": null,
+          "sqs_success_feedback_sample_rate": null,
+          "tags": null
+        },
+        "after_unknown": {
+          "arn": true,
+          "beginning_archive_time": true,
+          "fifo_throughput_scope": true,
+          "id": true,
+          "maximum_message_size": true,
+          "name_prefix": true,
+          "owner": true,
+          "policy": true,
+          "signature_version": true,
+          "tags_all": true,
+          "tracing_config": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {
+          "tags_all": {}
+        },
+        "after_identity": {
+          "arn": null
+        }
+      }
+    },
+    {
+      "address": "aws_sns_topic_policy.pol",
+      "mode": "managed",
+      "type": "aws_sns_topic_policy",
+      "name": "pol",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "region": "ap-northeast-1"
+        },
+        "after_unknown": {
+          "arn": true,
+          "id": true,
+          "owner": true,
+          "policy": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {},
+        "after_identity": {
+          "arn": null
+        }
+      }
+    },
+    {
+      "address": "aws_sns_topic_subscription.json_sub",
+      "mode": "managed",
+      "type": "aws_sns_topic_subscription",
+      "name": "json_sub",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "confirmation_timeout_in_minutes": 1,
+          "delivery_policy": null,
+          "endpoint_auto_confirms": false,
+          "filter_policy": null,
+          "protocol": "sqs",
+          "raw_message_delivery": false,
+          "redrive_policy": null,
+          "region": "ap-northeast-1",
+          "replay_policy": null,
+          "subscription_role_arn": null
+        },
+        "after_unknown": {
+          "arn": true,
+          "confirmation_was_authenticated": true,
+          "endpoint": true,
+          "filter_policy_scope": true,
+          "id": true,
+          "owner_id": true,
+          "pending_confirmation": true,
+          "topic_arn": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {},
+        "after_identity": {
+          "arn": null
+        }
+      }
+    },
+    {
+      "address": "aws_sns_topic_subscription.s[\"a\"]",
+      "mode": "managed",
+      "type": "aws_sns_topic_subscription",
+      "name": "s",
+      "index": "a",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "confirmation_timeout_in_minutes": 1,
+          "delivery_policy": null,
+          "endpoint_auto_confirms": false,
+          "filter_policy": null,
+          "protocol": "sqs",
+          "raw_message_delivery": false,
+          "redrive_policy": null,
+          "region": "ap-northeast-1",
+          "replay_policy": null,
+          "subscription_role_arn": null
+        },
+        "after_unknown": {
+          "arn": true,
+          "confirmation_was_authenticated": true,
+          "endpoint": true,
+          "filter_policy_scope": true,
+          "id": true,
+          "owner_id": true,
+          "pending_confirmation": true,
+          "topic_arn": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {},
+        "after_identity": {
+          "arn": null
+        }
+      }
+    },
+    {
+      "address": "aws_sns_topic_subscription.s[\"b\"]",
+      "mode": "managed",
+      "type": "aws_sns_topic_subscription",
+      "name": "s",
+      "index": "b",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "confirmation_timeout_in_minutes": 1,
+          "delivery_policy": null,
+          "endpoint_auto_confirms": false,
+          "filter_policy": null,
+          "protocol": "sqs",
+          "raw_message_delivery": false,
+          "redrive_policy": null,
+          "region": "ap-northeast-1",
+          "replay_policy": null,
+          "subscription_role_arn": null
+        },
+        "after_unknown": {
+          "arn": true,
+          "confirmation_was_authenticated": true,
+          "endpoint": true,
+          "filter_policy_scope": true,
+          "id": true,
+          "owner_id": true,
+          "pending_confirmation": true,
+          "topic_arn": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {},
+        "after_identity": {
+          "arn": null
+        }
+      }
+    },
+    {
+      "address": "aws_sqs_queue.acct",
+      "mode": "managed",
+      "type": "aws_sqs_queue",
+      "name": "acct",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "content_based_deduplication": false,
+          "delay_seconds": 0,
+          "fifo_queue": false,
+          "kms_master_key_id": null,
+          "max_message_size": 262144,
+          "message_retention_seconds": 345600,
+          "name": "edge-123456789012",
+          "receive_wait_time_seconds": 0,
+          "region": "ap-northeast-1",
+          "tags": null,
+          "timeouts": null,
+          "visibility_timeout_seconds": 30
+        },
+        "after_unknown": {
+          "arn": true,
+          "deduplication_scope": true,
+          "fifo_throughput_limit": true,
+          "id": true,
+          "kms_data_key_reuse_period_seconds": true,
+          "name_prefix": true,
+          "policy": true,
+          "redrive_allow_policy": true,
+          "redrive_policy": true,
+          "sqs_managed_sse_enabled": true,
+          "tags_all": true,
+          "url": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {
+          "tags_all": {}
+        },
+        "after_identity": {
+          "url": null
+        }
+      }
+    },
+    {
+      "address": "aws_sqs_queue.dep",
+      "mode": "managed",
+      "type": "aws_sqs_queue",
+      "name": "dep",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "content_based_deduplication": false,
+          "delay_seconds": 0,
+          "fifo_queue": false,
+          "kms_master_key_id": null,
+          "max_message_size": 262144,
+          "message_retention_seconds": 345600,
+          "name": "edge-dep",
+          "receive_wait_time_seconds": 0,
+          "region": "ap-northeast-1",
+          "tags": null,
+          "timeouts": null,
+          "visibility_timeout_seconds": 30
+        },
+        "after_unknown": {
+          "arn": true,
+          "deduplication_scope": true,
+          "fifo_throughput_limit": true,
+          "id": true,
+          "kms_data_key_reuse_period_seconds": true,
+          "name_prefix": true,
+          "policy": true,
+          "redrive_allow_policy": true,
+          "redrive_policy": true,
+          "sqs_managed_sse_enabled": true,
+          "tags_all": true,
+          "url": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {
+          "tags_all": {}
+        },
+        "after_identity": {
+          "url": null
+        }
+      }
+    },
+    {
+      "address": "aws_sqs_queue.from_file",
+      "mode": "managed",
+      "type": "aws_sqs_queue",
+      "name": "from_file",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "content_based_deduplication": false,
+          "delay_seconds": 0,
+          "fifo_queue": false,
+          "kms_master_key_id": null,
+          "max_message_size": 262144,
+          "message_retention_seconds": 345600,
+          "name": "edge-from-file",
+          "receive_wait_time_seconds": 0,
+          "region": "ap-northeast-1",
+          "tags": null,
+          "timeouts": null,
+          "visibility_timeout_seconds": 30
+        },
+        "after_unknown": {
+          "arn": true,
+          "deduplication_scope": true,
+          "fifo_throughput_limit": true,
+          "id": true,
+          "kms_data_key_reuse_period_seconds": true,
+          "name_prefix": true,
+          "policy": true,
+          "redrive_allow_policy": true,
+          "redrive_policy": true,
+          "sqs_managed_sse_enabled": true,
+          "tags_all": true,
+          "url": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {
+          "tags_all": {}
+        },
+        "after_identity": {
+          "url": null
+        }
+      }
+    },
+    {
+      "address": "aws_sqs_queue.from_module",
+      "mode": "managed",
+      "type": "aws_sqs_queue",
+      "name": "from_module",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "content_based_deduplication": false,
+          "delay_seconds": 0,
+          "fifo_queue": false,
+          "kms_master_key_id": null,
+          "max_message_size": 262144,
+          "message_retention_seconds": 345600,
+          "name": "edge-from-module",
+          "receive_wait_time_seconds": 0,
+          "region": "ap-northeast-1",
+          "tags": null,
+          "timeouts": null,
+          "visibility_timeout_seconds": 30
+        },
+        "after_unknown": {
+          "arn": true,
+          "deduplication_scope": true,
+          "fifo_throughput_limit": true,
+          "id": true,
+          "kms_data_key_reuse_period_seconds": true,
+          "name_prefix": true,
+          "policy": true,
+          "redrive_allow_policy": true,
+          "redrive_policy": true,
+          "sqs_managed_sse_enabled": true,
+          "tags_all": true,
+          "url": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {
+          "tags_all": {}
+        },
+        "after_identity": {
+          "url": null
+        }
+      }
+    },
+    {
+      "address": "aws_sqs_queue.json_q",
+      "mode": "managed",
+      "type": "aws_sqs_queue",
+      "name": "json_q",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "content_based_deduplication": false,
+          "delay_seconds": 0,
+          "fifo_queue": false,
+          "kms_master_key_id": null,
+          "max_message_size": 262144,
+          "message_retention_seconds": 345600,
+          "name": "edge-json",
+          "receive_wait_time_seconds": 0,
+          "region": "ap-northeast-1",
+          "tags": {
+            "Name": "edge-json"
+          },
+          "tags_all": {
+            "Name": "edge-json"
+          },
+          "timeouts": null,
+          "visibility_timeout_seconds": 30
+        },
+        "after_unknown": {
+          "arn": true,
+          "deduplication_scope": true,
+          "fifo_throughput_limit": true,
+          "id": true,
+          "kms_data_key_reuse_period_seconds": true,
+          "name_prefix": true,
+          "policy": true,
+          "redrive_allow_policy": true,
+          "redrive_policy": true,
+          "sqs_managed_sse_enabled": true,
+          "tags": {},
+          "tags_all": {},
+          "url": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {
+          "tags": {},
+          "tags_all": {}
+        },
+        "after_identity": {
+          "url": null
+        }
+      }
+    },
+    {
+      "address": "aws_sqs_queue.q[\"a\"]",
+      "mode": "managed",
+      "type": "aws_sqs_queue",
+      "name": "q",
+      "index": "a",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "content_based_deduplication": false,
+          "delay_seconds": 0,
+          "fifo_queue": false,
+          "kms_master_key_id": null,
+          "max_message_size": 262144,
+          "message_retention_seconds": 345600,
+          "name": "edge-a",
+          "receive_wait_time_seconds": 0,
+          "region": "ap-northeast-1",
+          "tags": null,
+          "timeouts": null,
+          "visibility_timeout_seconds": 30
+        },
+        "after_unknown": {
+          "arn": true,
+          "deduplication_scope": true,
+          "fifo_throughput_limit": true,
+          "id": true,
+          "kms_data_key_reuse_period_seconds": true,
+          "name_prefix": true,
+          "policy": true,
+          "redrive_allow_policy": true,
+          "redrive_policy": true,
+          "sqs_managed_sse_enabled": true,
+          "tags_all": true,
+          "url": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {
+          "tags_all": {}
+        },
+        "after_identity": {
+          "url": null
+        }
+      }
+    },
+    {
+      "address": "aws_sqs_queue.q[\"b\"]",
+      "mode": "managed",
+      "type": "aws_sqs_queue",
+      "name": "q",
+      "index": "b",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "content_based_deduplication": false,
+          "delay_seconds": 0,
+          "fifo_queue": false,
+          "kms_master_key_id": null,
+          "max_message_size": 262144,
+          "message_retention_seconds": 345600,
+          "name": "edge-b",
+          "receive_wait_time_seconds": 0,
+          "region": "ap-northeast-1",
+          "tags": null,
+          "timeouts": null,
+          "visibility_timeout_seconds": 30
+        },
+        "after_unknown": {
+          "arn": true,
+          "deduplication_scope": true,
+          "fifo_throughput_limit": true,
+          "id": true,
+          "kms_data_key_reuse_period_seconds": true,
+          "name_prefix": true,
+          "policy": true,
+          "redrive_allow_policy": true,
+          "redrive_policy": true,
+          "sqs_managed_sse_enabled": true,
+          "tags_all": true,
+          "url": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {
+          "tags_all": {}
+        },
+        "after_identity": {
+          "url": null
+        }
+      }
+    },
+    {
+      "address": "aws_sqs_queue.uses_extra",
+      "mode": "managed",
+      "type": "aws_sqs_queue",
+      "name": "uses_extra",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "content_based_deduplication": false,
+          "delay_seconds": 0,
+          "fifo_queue": false,
+          "kms_master_key_id": null,
+          "max_message_size": 262144,
+          "message_retention_seconds": 345600,
+          "name": "edge-uses-extra",
+          "receive_wait_time_seconds": 0,
+          "region": "ap-northeast-1",
+          "tags": null,
+          "timeouts": null,
+          "visibility_timeout_seconds": 30
+        },
+        "after_unknown": {
+          "arn": true,
+          "deduplication_scope": true,
+          "fifo_throughput_limit": true,
+          "id": true,
+          "kms_data_key_reuse_period_seconds": true,
+          "name_prefix": true,
+          "policy": true,
+          "redrive_allow_policy": true,
+          "redrive_policy": true,
+          "sqs_managed_sse_enabled": true,
+          "tags_all": true,
+          "url": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {
+          "tags_all": {}
+        },
+        "after_identity": {
+          "url": null
+        }
+      }
+    },
+    {
+      "address": "aws_ssm_parameter.p",
+      "mode": "managed",
+      "type": "aws_ssm_parameter",
+      "name": "p",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "allowed_pattern": null,
+          "description": null,
+          "name": "/edge/p",
+          "overwrite": null,
+          "region": "ap-northeast-1",
+          "tags": null,
+          "type": "SecureString",
+          "value": "not-a-real-password",
+          "value_wo": null,
+          "value_wo_version": null
+        },
+        "after_unknown": {
+          "arn": true,
+          "data_type": true,
+          "has_value_wo": true,
+          "id": true,
+          "insecure_value": true,
+          "key_id": true,
+          "tags_all": true,
+          "tier": true,
+          "version": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {
+          "tags_all": {},
+          "value": true,
+          "value_wo": true
+        },
+        "after_identity": {
+          "account_id": null,
+          "name": null,
+          "region": null
+        }
+      }
+    },
+    {
+      "address": "module.m[0].aws_sns_topic_subscription.this",
+      "module_address": "module.m[0]",
+      "mode": "managed",
+      "type": "aws_sns_topic_subscription",
+      "name": "this",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "confirmation_timeout_in_minutes": 1,
+          "delivery_policy": null,
+          "endpoint_auto_confirms": false,
+          "filter_policy": null,
+          "protocol": "sqs",
+          "raw_message_delivery": false,
+          "redrive_policy": null,
+          "region": "ap-northeast-1",
+          "replay_policy": null,
+          "subscription_role_arn": null
+        },
+        "after_unknown": {
+          "arn": true,
+          "confirmation_was_authenticated": true,
+          "endpoint": true,
+          "filter_policy_scope": true,
+          "id": true,
+          "owner_id": true,
+          "pending_confirmation": true,
+          "topic_arn": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {},
+        "after_identity": {
+          "arn": null
+        }
+      }
+    },
+    {
+      "address": "module.m[0].aws_sqs_queue.this",
+      "module_address": "module.m[0]",
+      "mode": "managed",
+      "type": "aws_sqs_queue",
+      "name": "this",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "content_based_deduplication": false,
+          "delay_seconds": 0,
+          "fifo_queue": false,
+          "kms_master_key_id": null,
+          "max_message_size": 262144,
+          "message_retention_seconds": 345600,
+          "name": "edge-m0",
+          "receive_wait_time_seconds": 0,
+          "region": "ap-northeast-1",
+          "tags": null,
+          "timeouts": null,
+          "visibility_timeout_seconds": 30
+        },
+        "after_unknown": {
+          "arn": true,
+          "deduplication_scope": true,
+          "fifo_throughput_limit": true,
+          "id": true,
+          "kms_data_key_reuse_period_seconds": true,
+          "name_prefix": true,
+          "policy": true,
+          "redrive_allow_policy": true,
+          "redrive_policy": true,
+          "sqs_managed_sse_enabled": true,
+          "tags_all": true,
+          "url": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {
+          "tags_all": {}
+        },
+        "after_identity": {
+          "url": null
+        }
+      }
+    },
+    {
+      "address": "module.m[1].aws_sns_topic_subscription.this",
+      "module_address": "module.m[1]",
+      "mode": "managed",
+      "type": "aws_sns_topic_subscription",
+      "name": "this",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "confirmation_timeout_in_minutes": 1,
+          "delivery_policy": null,
+          "endpoint_auto_confirms": false,
+          "filter_policy": null,
+          "protocol": "sqs",
+          "raw_message_delivery": false,
+          "redrive_policy": null,
+          "region": "ap-northeast-1",
+          "replay_policy": null,
+          "subscription_role_arn": null
+        },
+        "after_unknown": {
+          "arn": true,
+          "confirmation_was_authenticated": true,
+          "endpoint": true,
+          "filter_policy_scope": true,
+          "id": true,
+          "owner_id": true,
+          "pending_confirmation": true,
+          "topic_arn": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {},
+        "after_identity": {
+          "arn": null
+        }
+      }
+    },
+    {
+      "address": "module.m[1].aws_sqs_queue.this",
+      "module_address": "module.m[1]",
+      "mode": "managed",
+      "type": "aws_sqs_queue",
+      "name": "this",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "content_based_deduplication": false,
+          "delay_seconds": 0,
+          "fifo_queue": false,
+          "kms_master_key_id": null,
+          "max_message_size": 262144,
+          "message_retention_seconds": 345600,
+          "name": "edge-m1",
+          "receive_wait_time_seconds": 0,
+          "region": "ap-northeast-1",
+          "tags": null,
+          "timeouts": null,
+          "visibility_timeout_seconds": 30
+        },
+        "after_unknown": {
+          "arn": true,
+          "deduplication_scope": true,
+          "fifo_throughput_limit": true,
+          "id": true,
+          "kms_data_key_reuse_period_seconds": true,
+          "name_prefix": true,
+          "policy": true,
+          "redrive_allow_policy": true,
+          "redrive_policy": true,
+          "sqs_managed_sse_enabled": true,
+          "tags_all": true,
+          "url": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {
+          "tags_all": {}
+        },
+        "after_identity": {
+          "url": null
+        }
+      }
+    }
+  ],
+  "prior_state": {
+    "format_version": "1.0",
+    "terraform_version": "1.16.5",
+    "values": {
+      "root_module": {
+        "resources": [
+          {
+            "address": "data.aws_caller_identity.me",
+            "mode": "data",
+            "type": "aws_caller_identity",
+            "name": "me",
+            "provider_name": "registry.terraform.io/hashicorp/aws",
+            "schema_version": 0,
+            "values": {
+              "account_id": "123456789012",
+              "arn": "arn:aws:sts::123456789012:user/moto",
+              "id": "123456789012",
+              "user_id": "AKIAIOSFODNN7EXAMPLE"
+            },
+            "sensitive_values": {}
+          }
+        ]
+      }
+    }
+  },
+  "configuration": {
+    "provider_config": {
+      "aws": {
+        "name": "aws",
+        "full_name": "registry.terraform.io/hashicorp/aws",
+        "version_constraint": "~> 6.0",
+        "expressions": {
+          "region": {
+            "constant_value": "ap-northeast-1"
+          }
+        }
+      },
+      "aws.use1": {
+        "name": "aws",
+        "full_name": "registry.terraform.io/hashicorp/aws",
+        "alias": "use1",
+        "version_constraint": "~> 6.0",
+        "expressions": {
+          "region": {
+            "constant_value": "us-east-1"
+          }
+        }
+      }
+    },
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_acm_certificate.cert",
+          "mode": "managed",
+          "type": "aws_acm_certificate",
+          "name": "cert",
+          "provider_config_key": "aws.use1",
+          "expressions": {
+            "domain_name": {
+              "constant_value": "example.com"
+            },
+            "validation_method": {
+              "constant_value": "DNS"
+            }
+          },
+          "schema_version": 0
+        },
+        {
+          "address": "aws_security_group.sg",
+          "mode": "managed",
+          "type": "aws_security_group",
+          "name": "sg",
+          "provider_config_key": "aws",
+          "expressions": {
+            "name": {
+              "constant_value": "edge"
+            }
+          },
+          "schema_version": 1
+        },
+        {
+          "address": "aws_sns_topic.t",
+          "mode": "managed",
+          "type": "aws_sns_topic",
+          "name": "t",
+          "provider_config_key": "aws",
+          "expressions": {
+            "name": {
+              "constant_value": "edge-topic"
+            }
+          },
+          "schema_version": 0
+        },
+        {
+          "address": "aws_sns_topic_policy.pol",
+          "mode": "managed",
+          "type": "aws_sns_topic_policy",
+          "name": "pol",
+          "provider_config_key": "aws",
+          "expressions": {
+            "arn": {
+              "references": [
+                "local.topic_arn"
+              ]
+            },
+            "policy": {
+              "references": [
+                "aws_sns_topic.t.arn",
+                "aws_sns_topic.t"
+              ]
+            }
+          },
+          "schema_version": 0
+        },
+        {
+          "address": "aws_sns_topic_subscription.json_sub",
+          "mode": "managed",
+          "type": "aws_sns_topic_subscription",
+          "name": "json_sub",
+          "provider_config_key": "aws",
+          "expressions": {
+            "endpoint": {
+              "constant_value": "${aws_sqs_queue.json_q.arn}",
+              "references": [
+                "aws_sqs_queue.json_q.arn",
+                "aws_sqs_queue.json_q"
+              ]
+            },
+            "protocol": {
+              "constant_value": "sqs"
+            },
+            "topic_arn": {
+              "constant_value": "${aws_sns_topic.t.arn}",
+              "references": [
+                "aws_sns_topic.t.arn",
+                "aws_sns_topic.t"
+              ]
+            }
+          },
+          "schema_version": 0
+        },
+        {
+          "address": "aws_sns_topic_subscription.s",
+          "mode": "managed",
+          "type": "aws_sns_topic_subscription",
+          "name": "s",
+          "provider_config_key": "aws",
+          "expressions": {
+            "endpoint": {
+              "references": [
+                "each.value.arn",
+                "each.value"
+              ]
+            },
+            "protocol": {
+              "constant_value": "sqs"
+            },
+            "topic_arn": {
+              "references": [
+                "aws_sns_topic.t.arn",
+                "aws_sns_topic.t"
+              ]
+            }
+          },
+          "schema_version": 0,
+          "for_each_expression": {
+            "references": [
+              "aws_sqs_queue.q"
+            ]
+          }
+        },
+        {
+          "address": "aws_sqs_queue.acct",
+          "mode": "managed",
+          "type": "aws_sqs_queue",
+          "name": "acct",
+          "provider_config_key": "aws",
+          "expressions": {
+            "name": {
+              "references": [
+                "data.aws_caller_identity.me.account_id",
+                "data.aws_caller_identity.me"
+              ]
+            }
+          },
+          "schema_version": 0
+        },
+        {
+          "address": "aws_sqs_queue.dep",
+          "mode": "managed",
+          "type": "aws_sqs_queue",
+          "name": "dep",
+          "provider_config_key": "aws",
+          "expressions": {
+            "name": {
+              "constant_value": "edge-dep"
+            }
+          },
+          "schema_version": 0,
+          "depends_on": [
+            "module.m"
+          ]
+        },
+        {
+          "address": "aws_sqs_queue.extra",
+          "mode": "managed",
+          "type": "aws_sqs_queue",
+          "name": "extra",
+          "provider_config_key": "aws",
+          "expressions": {
+            "name": {
+              "constant_value": "edge-extra"
+            }
+          },
+          "schema_version": 0,
+          "count_expression": {
+            "references": [
+              "var.enable_extra"
+            ]
+          }
+        },
+        {
+          "address": "aws_sqs_queue.from_file",
+          "mode": "managed",
+          "type": "aws_sqs_queue",
+          "name": "from_file",
+          "provider_config_key": "aws",
+          "expressions": {
+            "name": {
+              "references": [
+                "path.module"
+              ]
+            }
+          },
+          "schema_version": 0
+        },
+        {
+          "address": "aws_sqs_queue.from_module",
+          "mode": "managed",
+          "type": "aws_sqs_queue",
+          "name": "from_module",
+          "provider_config_key": "aws",
+          "expressions": {
+            "name": {
+              "constant_value": "edge-from-module"
+            },
+            "redrive_allow_policy": {
+              "references": [
+                "module.m[0].queue_arn",
+                "module.m[0]"
+              ]
+            },
+            "visibility_timeout_seconds": {
+              "constant_value": 30
+            }
+          },
+          "schema_version": 0
+        },
+        {
+          "address": "aws_sqs_queue.json_q",
+          "mode": "managed",
+          "type": "aws_sqs_queue",
+          "name": "json_q",
+          "provider_config_key": "aws",
+          "expressions": {
+            "name": {
+              "constant_value": "edge-json"
+            },
+            "tags": {
+              "constant_value": {
+                "Name": "edge-json"
+              }
+            }
+          },
+          "schema_version": 0
+        },
+        {
+          "address": "aws_sqs_queue.q",
+          "mode": "managed",
+          "type": "aws_sqs_queue",
+          "name": "q",
+          "provider_config_key": "aws",
+          "expressions": {
+            "name": {
+              "references": [
+                "each.key"
+              ]
+            }
+          },
+          "schema_version": 0,
+          "for_each_expression": {
+            "references": [
+              "var.queues"
+            ]
+          }
+        },
+        {
+          "address": "aws_sqs_queue.uses_extra",
+          "mode": "managed",
+          "type": "aws_sqs_queue",
+          "name": "uses_extra",
+          "provider_config_key": "aws",
+          "expressions": {
+            "kms_master_key_id": {
+              "references": [
+                "var.enable_extra",
+                "aws_sqs_queue.extra[0].arn",
+                "aws_sqs_queue.extra[0]",
+                "aws_sqs_queue.extra"
+              ]
+            },
+            "name": {
+              "constant_value": "edge-uses-extra"
+            }
+          },
+          "schema_version": 0
+        },
+        {
+          "address": "aws_ssm_parameter.p",
+          "mode": "managed",
+          "type": "aws_ssm_parameter",
+          "name": "p",
+          "provider_config_key": "aws",
+          "expressions": {
+            "name": {
+              "constant_value": "/edge/p"
+            },
+            "type": {
+              "constant_value": "SecureString"
+            },
+            "value": {
+              "references": [
+                "var.db_password"
+              ]
+            }
+          },
+          "schema_version": 0
+        },
+        {
+          "address": "data.aws_caller_identity.me",
+          "mode": "data",
+          "type": "aws_caller_identity",
+          "name": "me",
+          "provider_config_key": "aws",
+          "schema_version": 0
+        }
+      ],
+      "module_calls": {
+        "m": {
+          "source": "./mod",
+          "expressions": {
+            "name": {
+              "references": [
+                "count.index"
+              ]
+            },
+            "topic_arn": {
+              "references": [
+                "aws_sns_topic.t.arn",
+                "aws_sns_topic.t"
+              ]
+            }
+          },
+          "count_expression": {
+            "constant_value": 2
+          },
+          "module": {
+            "outputs": {
+              "queue_arn": {
+                "expression": {
+                  "references": [
+                    "aws_sqs_queue.this.arn",
+                    "aws_sqs_queue.this"
+                  ]
+                }
+              }
+            },
+            "resources": [
+              {
+                "address": "aws_sns_topic_subscription.this",
+                "mode": "managed",
+                "type": "aws_sns_topic_subscription",
+                "name": "this",
+                "provider_config_key": "aws",
+                "expressions": {
+                  "endpoint": {
+                    "references": [
+                      "aws_sqs_queue.this.arn",
+                      "aws_sqs_queue.this"
+                    ]
+                  },
+                  "protocol": {
+                    "constant_value": "sqs"
+                  },
+                  "topic_arn": {
+                    "references": [
+                      "var.topic_arn"
+                    ]
+                  }
+                },
+                "schema_version": 0
+              },
+              {
+                "address": "aws_sqs_queue.this",
+                "mode": "managed",
+                "type": "aws_sqs_queue",
+                "name": "this",
+                "provider_config_key": "aws",
+                "expressions": {
+                  "name": {
+                    "references": [
+                      "var.name"
+                    ]
+                  }
+                },
+                "schema_version": 0
+              }
+            ],
+            "variables": {
+              "name": {},
+              "topic_arn": {}
+            }
+          }
+        },
+        "off": {
+          "source": "./mod",
+          "expressions": {
+            "name": {
+              "constant_value": "edge-off"
+            },
+            "topic_arn": {
+              "references": [
+                "aws_sns_topic.t.arn",
+                "aws_sns_topic.t"
+              ]
+            }
+          },
+          "count_expression": {
+            "constant_value": 0
+          },
+          "module": {
+            "outputs": {
+              "queue_arn": {
+                "expression": {
+                  "references": [
+                    "aws_sqs_queue.this.arn",
+                    "aws_sqs_queue.this"
+                  ]
+                }
+              }
+            },
+            "resources": [
+              {
+                "address": "aws_sns_topic_subscription.this",
+                "mode": "managed",
+                "type": "aws_sns_topic_subscription",
+                "name": "this",
+                "provider_config_key": "aws",
+                "expressions": {
+                  "endpoint": {
+                    "references": [
+                      "aws_sqs_queue.this.arn",
+                      "aws_sqs_queue.this"
+                    ]
+                  },
+                  "protocol": {
+                    "constant_value": "sqs"
+                  },
+                  "topic_arn": {
+                    "references": [
+                      "var.topic_arn"
+                    ]
+                  }
+                },
+                "schema_version": 0
+              },
+              {
+                "address": "aws_sqs_queue.this",
+                "mode": "managed",
+                "type": "aws_sqs_queue",
+                "name": "this",
+                "provider_config_key": "aws",
+                "expressions": {
+                  "name": {
+                    "references": [
+                      "var.name"
+                    ]
+                  }
+                },
+                "schema_version": 0
+              }
+            ],
+            "variables": {
+              "name": {},
+              "topic_arn": {}
+            }
+          }
+        }
+      },
+      "variables": {
+        "db_password": {
+          "default": "not-a-real-password",
+          "sensitive": true
+        },
+        "enable_extra": {
+          "default": false
+        },
+        "queues": {
+          "default": [
+            "a",
+            "b"
+          ]
+        }
+      }
+    }
+  },
+  "relevant_attributes": [
+    {
+      "resource": "data.aws_caller_identity.me",
+      "attribute": [
+        "account_id"
+      ]
+    },
+    {
+      "resource": "module.m[0].aws_sqs_queue.this",
+      "attribute": [
+        "arn"
+      ]
+    },
+    {
+      "resource": "module.m[1].aws_sqs_queue.this",
+      "attribute": [
+        "arn"
+      ]
+    },
+    {
+      "resource": "aws_sns_topic.t",
+      "attribute": [
+        "arn"
+      ]
+    },
+    {
+      "resource": "aws_sqs_queue.extra[0]",
+      "attribute": [
+        "arn"
+      ]
+    },
+    {
+      "resource": "aws_sqs_queue.q",
+      "attribute": []
+    },
+    {
+      "resource": "aws_sqs_queue.json_q",
+      "attribute": [
+        "arn"
+      ]
+    }
+  ],
+  "timestamp": "2026-10-17T02:22:56Z",
+  "applyable": true,
+  "complete": true,
+  "errored": false
+}

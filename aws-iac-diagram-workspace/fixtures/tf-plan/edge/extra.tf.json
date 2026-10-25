@@ -1,0 +1,19 @@
+{
+  "resource": {
+    "aws_sqs_queue": {
+      "json_q": {
+        "name": "edge-json",
+        "tags": {
+          "Name": "edge-json"
+        }
+      }
+    },
+    "aws_sns_topic_subscription": {
+      "json_sub": {
+        "topic_arn": "${aws_sns_topic.t.arn}",
+        "protocol": "sqs",
+        "endpoint": "${aws_sqs_queue.json_q.arn}"
+      }
+    }
+  }
+}

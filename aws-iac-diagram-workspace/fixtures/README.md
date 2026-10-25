@@ -4,6 +4,8 @@
 |---|---|
 | `public/` | 公開サンプル（T01〜T20、P01〜P04、C01〜C05）。出典は [public/SOURCES.md](public/SOURCES.md)、C3 で使うものの選定は [public/SELECTION.md](public/SELECTION.md) |
 | `tf/<名前>/`、`cfn/<名前>/` | 自作の構成5種。同じ構成の Terraform 版と CloudFormation 版 |
+| `tf-plan/<名前>.json` | 自作の構成の TF 版の plan JSON（`terraform show -json` の出力）。下の「plan JSON」 |
+| `tf-plan/edge/` | plan JSON の読み方の試験用の小さな構成（図にする構成ではない）。その plan JSON が `tf-plan/edge.json` |
 
 正解 IR は `../expected/<名前>.ir.json`（TF 版・CFN 版で共通の1ファイル。形式ごとの違いは `sources.tf`／`sources.cfn` に書く）。IR の形は [references/ir-schema.md](../../skills/aws-iac-diagram/references/ir-schema.md)。
 
@@ -26,7 +28,32 @@
 - **デプロイはしない前提。** S3 バケット名（`shop-orders-archive`、`rag-docs`）は全世界で一意なので、そのままでは取れない可能性が高い。実際にデプロイするときは、名前に変数で接尾辞（アカウントID など）を足すこと。ただし名前を変えるとノード ID も変わる（K-NAME）ので、正解 IR とは別に評価する。
 - デプロイはしない。構文と型・属性の正しさは次で確かめた。terraform は入れていない（`terraform validate` はしていない）。
   - CFN: `cfn-lint`（1.57.2、`pyproject.toml`）で全テンプレートがエラー・警告 0。ネストスタックの `TemplateURL` はローカルパス（`aws cloudformation package` 前提）で、その警告 W3002 だけはテンプレート内で無効にしている。
-  - TF: 全 `.tf`／`.tfvars` を python-hcl2 で読めること。
+  - TF: 全 `.tf`／`.tfvars` を python-hcl2 で読めること。2026-10-17 からは、下の「plan JSON」を作るときに本物の terraform（1.16.5）の `init`・`plan` が5構成とも通っている（AWS provider 6.x の型・属性の検査を含む。AWS には接続していない）。
+
+## plan JSON（`tf-plan/`）
+
+TF アダプタの plan JSON の入力（フェーズ2 の手順4。ir-schema.md の 7.2「TF の plan JSON」）の fixture。手で書かず、`tools/make_plan_json.py` で本物の terraform と moto（ローカルの AWS モック）から作った。
+
+| ファイル | 元の構成 | 変数 |
+|---|---|---|
+| `three-tier.dev.json`・`three-tier.prod.json` | `tf/three-tier` | `env/dev.tfvars`・`env/prod.tfvars`（dev が正解 IR の値。prod は踏み台が作られる） |
+| `serverless-api.json`・`vpc-endpoints.json`・`rag.json` | `tf/<名前>` | 自動で読むもの（vpc-endpoints は `terraform.tfvars`） |
+| `three-tier-modules.json` | `tf/three-tier-modules` | なし。terraform-aws-modules（vpc ~> 6.7、alb ~> 10.0、rds ~> 7.0）は `terraform init` がレジストリから取ったもの |
+| `edge.json` | `tf-plan/edge` | なし（sensitive の変数の偽の値 `not-a-real-password` を含む。raw IR に出ないことを確かめるため） |
+
+作り方（Windows、PowerShell）:
+
+```powershell
+winget install --id Hashicorp.Terraform -e      # terraform 1.16.5（2026-10-17）
+$env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')
+# moto[server] 5.2.4 は既定の環境（uv sync）には入らない。pyproject.toml の依存グループ fixtures を足して実行する
+uv run --group fixtures python aws-iac-diagram-workspace\tools\make_plan_json.py   # 名前を渡すとそれだけ作る
+```
+
+- **本物の AWS には接続しない。** moto のサーバーを 127.0.0.1 で起動し、`%TEMP%\tfp\<名前>` に構成をコピーして `moto_override.tf`（AWS provider の endpoints をすべて moto に向け、`skip_credentials_validation`・`skip_requesting_account_id`・`skip_metadata_api_check` などを付ける）を置き、`terraform init`・`plan -out`・`show -json` を流す。fixture の .tf は変えない。環境変数は必要なものだけから作り直し、偽の認証情報（`testing`）だけを渡し、`USERPROFILE`・`HOME`・`APPDATA`・`AWS_CONFIG_FILE`・`AWS_SHARED_CREDENTIALS_FILE`・`TF_CLI_CONFIG_FILE` を作業用のフォルダに向けて、手元の `~/.aws` と Terraform の設定を読ませない。ネットワークは provider とレジストリモジュールの取得だけに使う。`.terraform`・provider・plan のファイルは `%TEMP%\tfp` に残り、リポジトリには入らない。
+- 出来た plan JSON からは、override で足した provider の設定（`configuration.provider_config` の endpoints・skip_* など）を取り除く。偽の認証情報・moto の URL・作業用のフォルダの絶対パス・ユーザー名が残っていれば失敗にする（`tests/test_tf_plan.py` でも調べる）。
+- moto が返した値が入る: アカウント ID `123456789012`（`data.aws_caller_identity`。ARN は `arn:aws:sts::123456789012:user/moto`）、AZ の名前、SSM の AMI のパラメータの ARN など。plan JSON の `timestamp` は作った日時。
+- 作り直すと、`timestamp` と、moto・provider の版によっては値が変わりうる（テストは address・型・参照・主な値だけを見る）。
 
 ## 検証のしかた
 
@@ -47,4 +74,4 @@ uv run python aws-iac-diagram-workspace\tools\check_coverage.py --lint
 - 値が決まらない count／for_each（×N）、`!GetAZs`、CFN の `Fn::ForEach`（LanguageExtensions）
 - 型が表に無いリソース（`unknown`）。C4 の変異テストで、架空の型を足して確かめる予定
 - 既存のインフラを指す `data`（`data.aws_vpc` など）、CloudFront、EventBridge、Step Functions、EKS
-- terraform の plan JSON 入力、cdk.out
+- cdk.out（terraform の plan JSON 入力は、2026-10-17 に `tf-plan/` で試した）

@@ -623,3 +623,61 @@ TF アダプタで、モジュールの呼び出しを展開するようにし�
 
 ### 再確認（判定「コミット可」）と対応
 - R1' `create = false` を `enabled: false` にする規則を、source が `terraform-aws-modules/` の黒箱の呼び出し（と要約表の中の呼び出し）に限り、当てたときは `TF-MODULE-NOT-CREATED`（info）を書く（ほかの source の `create` は読まない）。任意: `create` が決まらなければ `enabled: null`（count が決まらないときと同じ）、`path_present()` は空の `{}`・`[]` を当てず、途中の値が決まらず調べられなかった経路は `TF-MODULE-SUMMARY-INPUT` の info（`path: "unknown"`）に書く、`null` との比較で属性の無いリソース・モジュールの呼び出しそのもの（`aws_x.y`・`module.x`）も null にならない値とした。7.2・module-summaries.md の 1章を合わせ、テストを直した。テスト 205 件・`c1_check.py`（対応の無い辺 0）・公開サンプルのルート 52（例外 0・error 0、リソース 2480・warn 381 は変わらず）が通った。
+
+---
+
+## 2026-10-17（続き）フェーズ2 の手順4: plan JSON
+
+### 概要
+TF アダプタで、`terraform show -json` の plan JSON を読めるようにした（`scripts/lib/tf_plan.py`、tf.py の `--plan` と `--input` の判定）。plan JSON の fixture は、ユーザーの決定（「手元で本物の plan JSON を作る」）で、本物の terraform と moto（ローカルの AWS モック）から作った。第三者レビューの前（未コミット）。
+
+### 入れたツールと版
+| もの | 版 | 入れ方 |
+|---|---|---|
+| terraform | 1.16.5（windows_amd64。2026-10-17 の時点で 1.16.6 が出ている） | `winget install --id Hashicorp.Terraform -e`（HashiCorp 公式。winget がハッシュを確認）。入れた後に `$env:Path` をレジストリから読み直した |
+| moto[server] | 5.2.4 | `pyproject.toml` の開発用の依存（`uv add` の後に `==` で固定。**2026-10-26: `[dependency-groups] fixtures` に移した。既定の `uv sync` には入らず、`uv run --group fixtures …` で使う**）、`uv sync`（uv.lock を更新。boto3・flask・werkzeug・pywin32 などの間接依存を含む） |
+| terraform の provider・モジュール（`%TEMP%\tfp` の中だけ） | hashicorp/aws 6.x・archive 2.x・time 0.13.x・random、opensearch-project/opensearch 2.x、terraform-aws-modules の vpc ~> 6.7・alb ~> 10.0・rds ~> 7.0 | `terraform init` がレジストリから取得（`TF_PLUGIN_CACHE_DIR` を `%TEMP%\tfp\.plugin-cache` に） |
+
+### やったこと
+1. **plan JSON の fixture**（`aws-iac-diagram-workspace/fixtures/tf-plan/`）: 自作の5構成の TF 版から7つ（three-tier は dev と prod の2つ）と、試験用の小さな構成 `tf-plan/edge`（sensitive の変数、count 0、for_each、count 2・0 のローカルモジュール、`depends_on = [module.m]`、alias の provider（us-east-1）、dynamic ブロック、locals・`each.value` を通した参照、`file()`、`.tf.json`）の plan。作り方は道具 `aws-iac-diagram-workspace/tools/make_plan_json.py` にした（fixtures/README.md の「plan JSON」）。
+   - moto のサーバーを 127.0.0.1:5555 で起動し、`%TEMP%\tfp\<名前>\cfg` に構成をコピーして `moto_override.tf`（AWS provider の endpoints 27 サービスを moto に向け、`skip_credentials_validation`・`skip_requesting_account_id`・`skip_metadata_api_check`・`skip_region_validation`・`s3_use_path_style`）を置く。fixture の .tf は変えていない。ほかのサービスは `AWS_ENDPOINT_URL` で同じ先へ。
+   - 本物の AWS に接続しないように、環境変数は必要なもの（PATH・SYSTEMROOT・TEMP など）だけから作り直し、偽の認証情報（`testing`）を渡し、`USERPROFILE`・`HOME`・`APPDATA`・`LOCALAPPDATA`・`AWS_CONFIG_FILE`・`AWS_SHARED_CREDENTIALS_FILE`・`TF_CLI_CONFIG_FILE` を作業用のフォルダに向けた（手元の `~/.aws` と Terraform の CLI の設定を読ませない）。`AWS_EC2_METADATA_DISABLED=true`。
+   - `terraform init`・`plan -input=false -lock=false -out=plan.tfplan [-var-file=…]`・`show -json`。出来た JSON から override で足した provider の設定（`configuration.provider_config` の endpoints・skip_* など）を取り除き、偽の認証情報・`127.0.0.1`・`localhost`・作業用のフォルダの絶対パス・ホームのパス・ユーザー名が残っていないか調べてから書く（残っていれば失敗）。7つとも1回で作れた（作れなかった構成は無い）。合わせて約 1.4 MB（three-tier-modules が 620 KB）。
+2. **tf.py の入力**: `--input` が `.json` のファイルで plan JSON の形（`format_version`・`terraform_version` と `planned_values` か `resource_changes`）なら plan JSON だけから作る。`--input <フォルダ> --plan <plan JSON>` なら .tf と合わせる。plan JSON でない JSON・state の JSON・`format_version` 2.x・plan JSON だけのときの `--var-file`・`--var`・`--redact-var` は終了コード 2。
+3. **plan JSON だけから作る**（`tf_plan.PlanReader`、`build_plan_raw`）: address と enabled は `resource_changes`（delete・forget だけのものは除く）・`prior_state`（plan のときに読んだ data）・`planned_values`。`configuration` のモジュールの木（`module_calls`）をインスタンスごとに作り（count・for_each の呼び出しは、インスタンスの address から添字を集める。無ければ count 0）、インスタンスの無いブロックは添字なしで `enabled: false`。リモートのモジュールの中の作られないブロックと data は載せない。props は `expressions` にあるものだけ、値は after（known after apply は `$unknown`、sensitive は使わない）。dynamic ブロック（`configuration` に出ない）は値だけ入れて `TF-PLAN-DYNAMIC-BLOCK`。provider・region（alias とモジュールの中の provider は plan の `region`、既定の provider は引数 `region` が定数か既定と違うときだけ）。変数は `evaluation.vars` に出どころ `"plan"`（値は書かない）、ローカルモジュールの変数は `"argument"`／`"default"`。
+4. **参照の重なりと置き方**（ir-schema.md の 7.3「plan JSON の参照」）: `references` の重なり（`aws_subnet.private[0].id`・`aws_subnet.private[0]`・`aws_subnet.private`）を、ほかの文字列の前の部分を除いて最も細かいもの1つにする（`collapse()`）。`var.*` は呼び出しの式へ、`module.x.y` は子の出力の式へたどって `through` を書き、出力の後ろの `["app"].arn` を先に続ける。置き方は、値の全体が known after apply で先が1つなら `$res`、スプラットならインスタンスごとの `$res` のリスト、known after apply の位置の数と先の数が同じなら順に、決まった値が先の属性の値と同じ（JSON は `$json` どうし）なら `$res`、文字列の一部なら `$concat`、値が null なら `pruned`、それ以外は `unevaluated`。
+5. **.tf と合わせる**（`tf_plan.combine`、`build_raw(plan=…)`）: plan の `variables` を変数の値として .tf を読み（出どころ `"plan"`。`setup_variables` に `"plan"` の種類を足した）、plan の address の一覧を正として、同じ address・型の .tf のリソースを使う（`enabled` は plan）。.tf の `$unknown` のうち値が決まらないことによる診断のある位置を plan の値で埋め、その診断を消す（`--redact-var`・sensitive の位置は埋めない）。.tf に無いもの（×N・黒箱の中身・要約表に無いもの・`.tf.json`）は plan から作り、file は `.tf.json`・同じブロック・モジュールの .tf の順。plan の `configuration` にあって .tf に無い参照の組は `unevaluated` で足す（`TF-PLAN-EXTRA-REF`）。
+6. **`.tf.json`**（手順2・3 から回したもの）: plan JSON と一緒なら、そのブロックは plan から取り（`configuration` は provider のスキーマで読んだ後の形なので、ブロックと属性が分かれている）、file は `.tf.json`。`TF-TFJSON-UNSUPPORTED` は info にする。**.tf だけで `.tf.json` を読むことは手順5 に回した**（ir-schema.md の 8章）。
+7. **テスト** `tests/test_tf_plan.py`（19 件。計 224 件）: 重なりのまとめ方・address の分け方・入力の判定と誤り（state・ほかの JSON・2.x・CLI の組み合わせ）、fixture に残してはいけない文字列、7つの plan の raw IR が検査を通る（plan だけと合わせたもの）、**plan だけと .tf の比較**、**合わせたものと .tf の比較**、**正解 IR の TF 側の網羅分類との突き合わせ（plan の入力）**、dev／prod、参照の置き方、モジュール（through、リモートのモジュールの中の作られないブロックと data、変数の出どころ、sensitive）、edge（sensitive の値が出ない、count・for_each・モジュール・depends_on・pruned、alias の region、plan だけの限界と合わせたときの違い、`file()` の値を埋める、`.tf.json`）、×N を plan の address に置き換える、`--redact-var` の値を埋め戻さない、CLI。
+8. **CI**（`ci.yml`）: terraform を動かさず、コミットした plan JSON を plan だけと `--plan` の両方で `uv run tf.py` にかけ、`validate_ir.py` で調べる手順を足した。Windows PowerShell 5.1 の手順にも、日本語のパスに置いた SKILL で `--plan` を1回流す手順を足した。
+9. **文書**: ir-schema.md の 7.1（`root`、変数の出どころ `"plan"`）、7.2（「TF の plan JSON」を新設、`.tf.json`）、7.3（「plan JSON の参照」）、7.5（`TF-PLAN-*`）、7.6（手順4 を済に）、8章（重なりの規則を 7.3 へ移し、`.tf.json` を手順5 の項目にした）。README の使い方と plan JSON の注意、fixtures/README.md、tf.py の docstring。ir-raw.schema.json は変えていない（`vars` の `source` は文字列なので `"plan"` も通る。`TF-PLAN-*` も code の形に合う）。
+
+### 決めたこと
+| 決定 | 理由 |
+|---|---|
+| 入力は `--input <plan JSON>`（.json のファイルで、中身が plan JSON の形なら）と `--input <フォルダ> --plan <plan JSON>` の2つ | ファイルかフォルダかで分かれ、`.json` の CFN のテンプレートと取り違えない（TF のアダプタはフォルダを読むので、ファイルは plan JSON だけ）。中身で判定するので、state の JSON などには理由を出せる |
+| **.tf と合わせるのを推奨の形にし、address と enabled は plan、file・props・参照の位置は .tf** | plan JSON の `configuration` は属性ごとの参照の一覧だけで、式の形・locals・dynamic ブロック・ファイル名を持たない。plan だけでは参照の位置と `$concat`・`$json` の中が分からない。一方で count・for_each・モジュールの展開と、.tf で決まらない値（data、`file()` など）は plan が正しい。PLAN の「plan JSON があれば優先」は、address と値は plan を正とし、`configuration` の参照の組は必ず出す（.tf に無ければ足す）ことで満たす |
+| plan JSON の `variables` を、.tf を読むときの変数の値にする（出どころ `"plan"`） | plan を作ったときの tfvars を利用者が渡し直さなくても、.tf の評価が plan と揃う |
+| 重なりのまとめ方: ほかの文字列の前の部分（`.` か `[` が続く）になっている文字列を除く | Terraform は参照の各段（`a.b[0].c`・`a.b[0]`・`a.b`）を並べて出す。最も細かいものが、.tf の `$res` の address と `attr` に当たる |
+| 参照の置き方は、値の形と先のリソースの値で決める（推測を含むことを 7.3 に書く） | 式の形が無いので、`x = aws_y.z.id` を確かめる方法が値しかない。値の全体が known after apply で参照が1つなら、多くは直接の参照（`vpc_id = aws_vpc.main.id` など）。外れるもの（`jsonencode` の中など）は、合わせたときに .tf の位置になる |
+| count.index・each.* で選ぶ参照は、すべてのインスタンスへの `unevaluated` | `aws_subnet.private[count.index].id` も `element(aws_subnet.private[*].id, count.index)` も、configuration では `aws_subnet.private`・`count.index` になり、添字が分からない。推測で active にしない |
+| リモートのモジュールの中の作られないブロックと data は載せない。`via` は付けない | 要約表の展開（4章の `module_summary`）と同じ一覧にして、正解 IR と .tf の結果と比べられるようにする。中身は Terraform が読んだ本物なので、`module_summary` とは書かない |
+| sensitive の値は使わない（null のものは書かない） | ユーザーの決定（秘密の値を IR に書かない）。plan JSON の `variables`・`configuration` には sensitive の変数の値が平文で入るので、そこから値を取らない |
+| plan だけのときは、引数の無い `aws_caller_identity` などの値も plan の値のまま（`$pseudo` にしない） | plan の値は Terraform が決めた値で、式の形が無いので `$pseudo` の位置が分からない。合わせると .tf の `$pseudo` になる |
+| three-tier の plan は dev と prod の両方 | 正解 IR は dev。prod は踏み台（count 1）と sensitive の値（SSM の AMI のパラメータ）の確認に使う |
+
+### 確かめたこと
+- **plan だけと .tf の比較**（5構成と three-tier の prod）: address・型・enabled・module・provider・region がすべて一致（file は plan JSON の名前）。.tf の active の参照の (from, to) の組は、three-tier-modules の 8 組（dynamic ブロックのリスナー → TG の1組、vpc・alb・rds モジュールの locals を通した 7 組）を除いてすべて plan の IR にある。plan だけにある組は、count.index で選ぶ参照の他のインスタンスへの `unevaluated` だけ。(from, to, attr, path) まで同じ active の参照は、three-tier 42/61、serverless-api 39/40、vpc-endpoints 34/62、rag 55/62、three-tier-modules 74/117（違いはスプラットの `attr: null`、集合の属性の位置、count.index の `unevaluated`、JSON の中の参照）。診断は info だけ。
+- **合わせたものと .tf の比較**: 5構成と prod で `resources`・`references` が .tf の結果と同じ（plan だけにあるリソース 0、足した参照 0）。three-tier-modules の vpc モジュールの plan のリソース（25 件。`aws_default_*` を含む）は要約表の展開と同じ address だった。warn は rag の `sha1()`（plan でも known after apply）の1件だけ。
+- **正解 IR の TF 側の網羅分類**: plan だけは型と enabled が5構成で一致（file・via は上の理由で違う）、合わせたものは file・via まで一致。
+- edge: sensitive の値（`not-a-real-password`。plan JSON には平文で入っている）が raw IR に出ない、`file()` の値を plan で埋める、`.tf.json` の2ブロックを plan から取って file が `extra.tf.json`、×N（変数を渡さない three-tier の .tf に plan を合わせる）を plan の address に置き換える。
+- テスト 224 件が通過。CI に足した手順（plan だけ7＋合わせたもの7 を `uv run` で作り `validate_ir.py`）を手元の bash で流して通った。PowerShell 5.1 から `--plan` を流して `validate_ir.py` が通った。`c1_check.py` は入力 25・辺 513 本・対応の無い辺 0。公開サンプルの TF のルート 52 は、変更の前後で同じ（リソース 2480、warn 381、info 1027、error 0、検査を通る）。`check_coverage.py --lint`・正解 IR の検査も通る。
+
+### つまずいたこと
+- plan JSON の `configuration` には dynamic ブロックが出ない（alb モジュールのリスナーの `default_action`）。locals の式も無い。どちらも plan だけでは参照が欠けるので、合わせる形を推奨にした。
+- スプラット（`aws_subnet.public[*].id`）の `references` は `aws_subnet.public` だけで、属性の名前が無い。
+- AWS provider v6 は、すべてのリソースの after に `region` を入れる。モジュールの `region = var.region`（null）でも既定のリージョンが入るので、既定と同じなら書かないようにした（.tf と揃う）。
+- sensitive の印は、値が null の属性（rds の `password_wo`）にも付く。null は書かないようにした。
+- SSM のパラメータの data の `value` は sensitive なので、それを使う `ami` も sensitive になる（`TF-PLAN-SENSITIVE`）。
+- moto の偽のアカウント ID（123456789012）と ARN の `user/moto` が plan に入る（URL ではないので残した。fixtures/README.md に書いた）。
+- `git stash` で変更前の公開サンプルの数を測ったとき、追跡していない新しいファイルは残るので、tf.py が新しいライブラリを読まない状態で比べた（問題なし）。

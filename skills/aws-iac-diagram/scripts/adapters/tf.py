@@ -4,7 +4,7 @@
 # ///
 """Terraform のルートモジュール（.tf のフォルダ）を読み、アダプタの出力（raw IR。references/ir-schema.md の 7章）を作る。
 
-いまの範囲（フェーズ2 の手順1〜3）:
+いまの範囲（フェーズ2 の手順1〜4）:
   - フォルダ直下の *.tf を python-hcl2 で読み（構文木をそのまま使う）、resource・data・module のブロックを集める。
     check ブロックの中の data も読む。*_override.tf・override.tf は Terraform と同じ規則で元のブロックに重ねる
   - 属性とブロックを props にする（ブロックはリスト。count・for_each・provider・depends_on・lifecycle・
@@ -31,15 +31,22 @@
     （via: module_summary）。それ以外のレジストリ・git などのソースと、読めない・循環する・深すぎるものは黒箱の
     呼び出し1件（type: module、via: module_blackbox）。providers 引数で渡した provider をたどって provider・region
     を書く。terraform_remote_state の出力への参照は attr: "outputs.<名前>"（state は読まない）
+  - plan JSON（手順4。lib/tf_plan.py、ir-schema.md の 7.2「TF の plan JSON」と 7.3「plan JSON の参照」）:
+    --input に plan JSON（terraform show -json の出力の .json）を渡すと、plan JSON だけから作る（file は plan JSON
+    の名前）。--input にフォルダ、--plan に plan JSON を渡すと、変数の値は plan の variables を使い、address と
+    作られるかは plan、file・props・参照の位置は .tf にする（.tf で決まらなかった値は plan の値で埋める）。
+    plan の sensitive の値は使わない。.tf.json のブロックは、plan と一緒なら plan から取る
 後の手順に回したもの:
-  - 手順4: plan JSON。.tf.json は読まない（TF-TFJSON-UNSUPPORTED。手順4・5 で決める）
+  - 手順5: .tf.json を .tf だけで読むか（いまは TF-TFJSON-UNSUPPORTED）
 file()・templatefile() などのファイルを読む関数は、ファイルを読まずに $unknown（診断 TF-UNEVALUATED）。
 引数の中の参照は unevaluated で残す。sensitive = true・ephemeral = true の変数と sensitive() の値は使わない
 （$unknown。evaluation.vars にも書かない）。
 
 使い方:
   uv run scripts/adapters/tf.py --input <ルートモジュールのフォルダ> --out <raw.json> [--root-base <フォルダ>]
-      [--var-file <ファイル> ...] [--var KEY=VALUE ...] [--redact-var <名前> ...]
+      [--var-file <ファイル> ...] [--var KEY=VALUE ...] [--redact-var <名前> ...] [--plan <plan JSON>]
+  uv run scripts/adapters/tf.py --input <plan JSON> --out <raw.json> [--root-base <フォルダ>]
+  --plan: 同じ構成の plan JSON（terraform show -json <plan> の出力）。--input のフォルダの .tf と合わせて読む
   --root-base: raw IR の root を、このフォルダからの相対パスで書く（既定: 作業中のフォルダ）
   --var-file: 変数の値のファイル（.tfvars か .tfvars.json）。相対パスは作業中のフォルダ、無ければ --input から
   --var: 変数の値。type が list・map・object などの変数は HCL の式として読む（Terraform の -var と同じ）
@@ -47,7 +54,8 @@ file()・templatefile() などのファイルを読む関数は、ファイル�
   --redact-var: 値を伏せる変数（sensitive = true と同じく値を使わず、props では $unknown）。
     sensitive を付けていない変数の値は props（図のラベルなど）に入りうる。evaluation.vars には値を書かない
 
-終了コード: 0 = 書けた（diagnostics に warn・error があっても）、2 = フォルダや変数のファイルを読めなかった
+終了コード: 0 = 書けた（diagnostics に warn・error があっても）、2 = フォルダや変数のファイル・plan JSON を読めなかった
+（plan JSON でない .json、state の JSON、plan JSON だけのときの --var-file・--var・--redact-var も 2）
 """
 from __future__ import annotations
 
@@ -67,6 +75,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from lib import ir_raw  # noqa: E402
 from lib import tf_eval as E  # noqa: E402
 from lib import tf_modules as M  # noqa: E402
+from lib import tf_plan as P  # noqa: E402
 from lib.tf_eval import Az, Concat, EvalError, Json, Pseudo, Res, Unknown, ZeroColl  # noqa: E402
 
 # 読み飛ばす記号の字句（構文木の中で意味を持たないもの）
@@ -788,12 +797,12 @@ class ModuleEval:
                         self.diag("warn", "TF-VAR-UNDECLARED", "", f"{shown}: variable {name} is not declared", "")
                         continue
                     given[name], origin[name] = value, shown
-            elif kind == "value":  # build_raw の vars（値をそのまま渡す）
+            elif kind in ("value", "plan"):  # build_raw の vars と、plan JSON の variables（値をそのまま渡す）
                 name, value = item
                 if name not in self.variables:
                     self.diag("warn", "TF-VAR-UNDECLARED", "", f"variable {name} is not declared", "")
                     continue
-                given[name], origin[name] = value, "--var"
+                given[name], origin[name] = value, "--var" if kind == "value" else "plan"
             else:
                 name, text = item.split("=", 1)
                 name = name.strip()
@@ -2428,17 +2437,23 @@ def resolve_var_file(path: Path, input_dir: Path) -> Path:
 
 
 def build_raw(input_dir: Path, root_base: Path | None = None, var_files: list | None = None,
-              vars: dict | None = None, var_args: list | None = None, redact_vars=()) -> dict:
+              vars: dict | None = None, var_args: list | None = None, redact_vars=(),
+              plan: Path | None = None) -> dict:
     """ルートモジュールのフォルダから raw IR を作る。
 
     var_files・vars: 外から渡す変数の値（--var-file、--var）。この順に（vars が後で）重ねる。
     var_args: コマンドラインの順のまま渡すとき。("file", パス) と ("var", "K=V") の並び（var_files・vars より後）。
+    plan: 同じ構成の plan JSON（--plan）。変数の値は plan の variables を使い（var_files・vars・var_args はその後に
+    重ねる）、address と作られるかは plan に合わせる（lib/tf_plan.py の combine。ir-schema.md の 7.2）。
     """
+    plan_doc = P.load_plan(plan) if plan is not None else None
     ctx = Context(input_dir)
     mod = ModuleEval(ctx, input_dir)
     mod.chain = (input_dir.resolve(),)
     mod.load()
     sources: list = [("file", p) for p in auto_var_files(input_dir)]
+    if plan_doc is not None:
+        sources += [("plan", (k, v)) for k, v in sorted(P.plan_variables(plan_doc).items())]
     sources += [("file", resolve_var_file(Path(p), input_dir)) for p in (var_files or [])]
     sources += [("value", (k, v)) for k, v in (vars or {}).items()]
     for kind, item in var_args or []:
@@ -2458,13 +2473,12 @@ def build_raw(input_dir: Path, root_base: Path | None = None, var_files: list | 
         ctx.diagnostics.append({"level": "info", "code": "TF-UNRESOLVED-VARS", "address": "", "path": "",
                                 "message": message})
     mod.run()
-    root_base = root_base or Path.cwd()
-    try:
-        root = Path(os.path.relpath(input_dir.resolve(), root_base.resolve())).as_posix()
-    except ValueError:  # Windows でドライブが違うと相対パスにできない
-        root = input_dir.resolve().as_posix()
-        ctx.diagnostics.append({"level": "info", "code": "TF-ABSOLUTE-ROOT", "address": "", "path": "",
-                                "message": "root is on another drive; written as an absolute path"})
+    # Windows でドライブが違うと相対パスにできない: フォルダの名前だけを書く（絶対パスは書かない。plan JSON だけの
+    # ときと同じ規則）
+    root, relative = P.root_text(input_dir, root_base or Path.cwd())
+    if not relative:
+        ctx.diagnostics.append({"level": "info", "code": "TF-ROOT-OTHER-DRIVE", "address": "", "path": "",
+                                "message": P.ROOT_OTHER_DRIVE_MESSAGE})
     diagnostics = list({(d.get("address", ""), d.get("path", ""), d["code"], d["message"]): d
                         for d in ctx.diagnostics}.values())
     # 変数の値は書かない（名前と値の出どころだけ。秘密の値を IR に残さないため）。手元のモジュールの変数は
@@ -2484,7 +2498,14 @@ def build_raw(input_dir: Path, root_base: Path | None = None, var_files: list | 
         "references": _dedupe(ctx.refs),
         "diagnostics": diagnostics,
     }
+    if plan is not None:
+        return P.combine(raw, plan, input_dir, root_base, plan_doc)
     return ir_raw.canonical_raw(raw)
+
+
+def build_from_plan(plan: Path, root_base: Path | None = None) -> dict:
+    """plan JSON だけから raw IR を作る（--input に plan JSON を渡したとき。lib/tf_plan.py）。"""
+    return P.build_plan_raw(plan, root_base)
 
 
 def dump(raw: dict) -> str:
@@ -2504,8 +2525,11 @@ def main(argv: list[str] | None = None) -> int:
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8")
-    ap = argparse.ArgumentParser(description="Terraform のルートモジュールから raw IR を作る")
-    ap.add_argument("--input", required=True, type=Path, help="ルートモジュールのフォルダ")
+    ap = argparse.ArgumentParser(description="Terraform のルートモジュール（か plan JSON）から raw IR を作る")
+    ap.add_argument("--input", required=True, type=Path,
+                    help="ルートモジュールのフォルダか、plan JSON（terraform show -json の出力の .json）")
+    ap.add_argument("--plan", type=Path, default=None,
+                    help="同じ構成の plan JSON（--input のフォルダの .tf と合わせて読む）")
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--root-base", type=Path, default=None)
     ap.add_argument("--var-file", action=_OrderedVar, dest="var_args", metavar="FILE",
@@ -2520,17 +2544,46 @@ def main(argv: list[str] | None = None) -> int:
         if kind == "var" and "=" not in item:
             print(f"--var は KEY=VALUE の形で指定してください: {item}", file=sys.stderr)
             return 2
+    plan_only = a.input.is_file()
+    if plan_only and not P.is_plan_file(a.input):
+        why = P.why_unreadable(a.input) if a.input.suffix.lower() == ".json" else None
+        if why:
+            print(f"plan JSON を読めませんでした: {why}", file=sys.stderr)
+            return 2
+        print(f"--input には、ルートモジュールのフォルダか plan JSON（terraform show -json の出力の .json）を指定して"
+              f"ください: {a.input.name}", file=sys.stderr)
+        return 2
+    if plan_only and (a.plan is not None or var_args or a.redact_var):
+        print("--input に plan JSON を渡したときは、--plan・--var-file・--var・--redact-var は使えません（変数の値は "
+              "plan のものを使う。値を伏せるには .tf のフォルダを --input に、plan JSON を --plan に渡す）",
+              file=sys.stderr)
+        return 2
     try:
-        raw = build_raw(a.input, a.root_base, var_args=var_args, redact_vars=a.redact_var)
+        if plan_only:
+            raw = build_from_plan(a.input, a.root_base)
+        else:
+            raw = build_raw(a.input, a.root_base, var_args=var_args, redact_vars=a.redact_var, plan=a.plan)
+        text = dump(raw)
+    except P.PlanError as e:
+        print(f"plan JSON を読めませんでした: {e}", file=sys.stderr)
+        return 2
+    except RecursionError:
+        print("入力の入れ子が深すぎて処理できませんでした", file=sys.stderr)
+        return 2
     except (OSError, ValueError) as e:
-        print(f"Terraform のフォルダを読めませんでした: {a.input}: {e}", file=sys.stderr)
+        # 絶対パスは書かない（OSError の文には入力のパスが入る）
+        print(f"Terraform のフォルダを読めませんでした: {a.input.name}: "
+              f"{type(e).__name__ if isinstance(e, OSError) else e}", file=sys.stderr)
         return 2
     except Exception as e:  # noqa: BLE001  想定外の失敗も終了コード 2 で返す
-        print(f"Terraform の評価に失敗しました: {a.input}: {type(e).__name__}: {e}", file=sys.stderr)
+        if plan_only:  # plan JSON の中身や絶対パスは書かない
+            print(f"plan JSON の処理に失敗しました: {type(e).__name__}", file=sys.stderr)
+        else:
+            print(f"Terraform の評価に失敗しました: {a.input.name}: {type(e).__name__}: {e}", file=sys.stderr)
         return 2
     try:
         a.out.parent.mkdir(parents=True, exist_ok=True)
-        a.out.write_text(dump(raw), encoding="utf-8", newline="\n")
+        a.out.write_text(text, encoding="utf-8", newline="\n")
     except OSError as e:
         print(f"raw IR を書けませんでした: {a.out}: {e}", file=sys.stderr)
         return 2

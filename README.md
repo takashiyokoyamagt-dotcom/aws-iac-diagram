@@ -60,7 +60,7 @@ cmd /c mklink /J "$HOME\.claude\skills\aws-iac-diagram" "$PWD\skills\aws-iac-dia
 cmd /c mklink /J "$HOME\.copilot\skills\aws-iac-diagram" "$PWD\skills\aws-iac-diagram"
 ```
 
-`uv sync` で、単体テストと fixture の検証に使う開発用の環境（`.venv`、依存は [pyproject.toml](pyproject.toml) と `uv.lock`）ができます。SKILL のスクリプトはこの環境を使わず、PEP 723 の宣言だけで動きます。版は両方で揃えてください。
+`uv sync` で、単体テストと fixture の検証に使う開発用の環境（`.venv`、依存は [pyproject.toml](pyproject.toml) と `uv.lock`）ができます。SKILL のスクリプトはこの環境を使わず、PEP 723 の宣言だけで動きます。版は両方で揃えてください。plan JSON の fixture を作り直すとき（`aws-iac-diagram-workspace/tools/make_plan_json.py`）だけ使う moto は、既定の環境には入りません（依存グループ `fixtures`。`uv run --group fixtures python ...`。[fixtures の README](aws-iac-diagram-workspace/fixtures/README.md) を見てください）。
 
 macOS では draw.io を `brew install --cask drawio` で入れ、登録は `ln -s` で行います。WSL（Ubuntu）を使う場合は、リポジトリを WSL 側（`~/work/...`）に clone してください。
 
@@ -115,12 +115,19 @@ uv run python aws-iac-diagram-workspace\tools\c1_check.py
 
 ### Terraform アダプタ（フェーズ2 で作成中）
 
-Terraform のルートモジュール（.tf のフォルダ）から、同じ raw IR を作ります。変数・locals・式を評価し、count・for_each をインスタンスごとに展開します（手順2）。ローカルモジュール（`./`・`../`）は中身を再帰的に読み、terraform-aws-modules の vpc・alb・rds・eks は要約表（`references/module-summaries.md`）で展開します。それ以外のレジストリ・git のモジュールは黒箱の呼び出し1件にします（手順3。ネットワークからモジュールを取りに行きません）。plan JSON は手順4 です（ir-schema.md の 7.6）。
+Terraform のルートモジュール（.tf のフォルダ）から、同じ raw IR を作ります。変数・locals・式を評価し、count・for_each をインスタンスごとに展開します（手順2）。ローカルモジュール（`./`・`../`）は中身を再帰的に読み、terraform-aws-modules の vpc・alb・rds・eks は要約表（`references/module-summaries.md`）で展開します。それ以外のレジストリ・git のモジュールは黒箱の呼び出し1件にします（手順3。ネットワークからモジュールを取りに行きません）。
+
+`terraform show -json` の plan JSON も読めます（手順4。ir-schema.md の 7.2「TF の plan JSON」）。.tf のフォルダと一緒に渡す（`--plan`）のがおすすめです。address と count・for_each の展開・作られるかは Terraform の結果を使い、ファイル名・値・参照の位置は .tf から読みます（.tf で決まらなかった値は plan の値で埋める）。plan JSON だけ（`--input` に `.json`）でも読めますが、plan JSON は locals・dynamic ブロックの式と .tf のファイル名を持たないので、参照の一部が分からず、`file` は plan JSON の名前になります。
 
 ```powershell
 uv run skills\aws-iac-diagram\scripts\adapters\tf.py --input aws-iac-diagram-workspace\fixtures\tf\three-tier --out out\three-tier.tf.raw.json --var-file env\dev.tfvars
 uv run python skills\aws-iac-diagram\scripts\validate_ir.py out\three-tier.tf.raw.json
+# plan JSON と合わせる（変数の値は plan のもの）／plan JSON だけ
+uv run skills\aws-iac-diagram\scripts\adapters\tf.py --input aws-iac-diagram-workspace\fixtures\tf\three-tier --plan aws-iac-diagram-workspace\fixtures\tf-plan\three-tier.dev.json --out out\three-tier.plan.raw.json
+uv run skills\aws-iac-diagram\scripts\adapters\tf.py --input aws-iac-diagram-workspace\fixtures\tf-plan\three-tier.dev.json --out out\three-tier.planonly.raw.json
 ```
+
+**注意（plan JSON）:** plan JSON そのものには、`sensitive` の変数の値も平文で入ります（Terraform の仕様）。アダプタは plan の `sensitive` の位置の値を raw IR に書かず（.tf と合わせるときも、.tf の評価で値が出た位置を伏せます）、plan JSON のファイルの扱いには気をつけてください。
 
 変数の値は Terraform と同じく、`terraform.tfvars`・`*.auto.tfvars` を自動で読み、`--var-file`（相対パスは作業中のフォルダ、無ければ `--input` のフォルダから）と `--var KEY=VALUE` で渡します（指定した順に後のものが優先）。値の無い変数があると、自動では読まれない `*.tfvars` の候補を診断 `TF-UNRESOLVED-VARS` に書きます。
 

@@ -6,6 +6,14 @@
 
 再開するときは、まずこの節を読み、細かい経緯は下の節と [WORKLOG.md](WORKLOG.md)、計画は [PLAN.md](../../PLAN.md) を見る。
 
+### 現在地（2026-10-26）
+- フェーズ2 の**手順4（plan JSON）は、第三者レビューを2回受けて指摘を直し、main に取り込んだ**（2026-10-26）。次は**手順5**（公開サンプルでの確認と完了）。
+- レビューの経緯: 1回目（APPROVE WITH CHANGES）で、`--plan` 併用のときに sensitive を宣言していない変数の値が IR に出る不具合（B1）などを直した。2回目（APPROVE WITH CHANGES）で、destroy plan の sensitive の扱いなどを直した。変異ファズ（2500 回 x 2）でスキーマ違反の IR が出ないことも確かめた。詳しくは WORKLOG の「フェーズ2 の手順4」。
+- main の CI が Windows で落ちていた件は、直した（2026-10-24。原因は2つ: ① テストの `build_module_call` が、別のドライブの一時フォルダとの `os.path.relpath` を取っていた、② `tf.py` の `Context.rel` が、8.3 の短い名前（`RUNNER~1`）と実際の名前を比べていた）。
+- 作業用のブランチ `wip/phase2-step4` は、手元に残っているだけで、もう使わない（main に取り込み済み。消してよい）。
+- `%TEMP%	fp` には terraform の provider の置き場と作業用の小さなスクリプトが残っている（リポジトリの外。手順5 が終わったら消してよい）。
+- 作業の進め方: 手順ごとに、実装役のサブエージェントが実装とテスト → 主のセッションが動作を確かめる → 別のサブエージェントが第三者レビュー → 指摘を直す → main にコミットして push。**リポジトリは公開されている**ので、push の前に、テスト（266 件）と、個人情報・秘密が混ざっていないことの確認を毎回行う。
+
 ### フェーズの状態
 
 | フェーズ | 内容 | 状態 |
@@ -13,7 +21,8 @@
 | 0 | 準備（ツール、アイコン辞書と C2、自作 fixture 5構成と正解 IR、公開サンプルの選定、評価基準値） | **完了**（2026-10-16、`48ff43a`） |
 | — | 共通 Agent Skill の方針への移行（[docs/skill-cross-platform-guide.md](../../docs/skill-cross-platform-guide.md)、PLAN の 1.3） | **完了**（2026-10-16、`0550532`） |
 | 1 | IR スキーマの確定と CloudFormation アダプタ（A4、C1） | **完了**（2026-10-17、`5630f35`） |
-| 2 | Terraform アダプタ（.tf と plan JSON、A4、A5） | **進行中**。手順1（土台、`3ebc024`）・手順2（A4、`45c9740`。秘密の値の扱いはユーザーの決定で `evaluation.vars` に値を書かず `--redact-var` を足した）はコミット済み。**手順3（モジュール、A5）もコミット済み**（2026-10-17。第三者レビュー「修正後コミット」→対応分の再確認「コミット可」）。残りは下の「次にやること」の 3a |
+| 2 | Terraform アダプタ（.tf と plan JSON、A4、A5） | **進行中**。手順1（土台、`3ebc024`）・手順2（A4、`45c9740`。秘密の値の扱いはユーザーの決定で `evaluation.vars` に値を書かず `--redact-var` を足した）はコミット済み。手順3（モジュール、A5）もコミット済み（`a3b996c`）。**手順4（plan JSON）も完了**（レビュー2回、2026-10-26に main へ取り込み）。残りは手順5。下の「次にやること」の 3a |
+| 2b | 構成の階層化（PLAN の 1.4。2026-10-24 にユーザーと合意） | 未着手（フェーズ2 の後） |
 | 3〜6 | 正規化、配置と .drawio、Mermaid と PNG、SKILL.md の仕上げと評価 | 未着手 |
 
 ### できているもの
@@ -24,17 +33,18 @@
 | IR スキーマ v1.0 | `references/ir-schema.md`、`ir.schema.json`、`ir-raw.schema.json` | 正規化後の形（1〜6章）と、アダプタの出力 raw IR（7章）。どちらも確定 |
 | 規則表（草案） | `references/resource-catalog.md`、`relation-resources.md`、`edge-rules.md` | 型ごとの扱い、関係リソース、辺の規則、辺にしない参照（`E-NOEDGE-*`）。フェーズ3 で広げる |
 | CloudFormation アダプタ | `scripts/adapters/cfn.py` | テンプレート・ネストスタック・SAM・cdk.out から raw IR を作る。条件の評価、`--param`／`--param-file` |
-| Terraform アダプタ（作成中） | `scripts/adapters/tf.py`、`scripts/lib/tf_eval.py`、`scripts/lib/tf_modules.py` | ルートモジュールの .tf から raw IR を作る。変数（tfvars、`--var-file`・`--var`）・locals・式を評価し、count・for_each をインスタンスごとに展開する（手順2）。ローカルモジュールを再帰的に展開し、terraform-aws-modules の vpc・alb・rds・eks は要約表で展開、それ以外は黒箱（手順3）。plan JSON はまだ読まない（ir-schema.md の 7.6） |
+| Terraform アダプタ（作成中） | `scripts/adapters/tf.py`、`scripts/lib/tf_eval.py`、`scripts/lib/tf_modules.py` | ルートモジュールの .tf から raw IR を作る。変数（tfvars、`--var-file`・`--var`）・locals・式を評価し、count・for_each をインスタンスごとに展開する（手順2）。ローカルモジュールを再帰的に展開し、terraform-aws-modules の vpc・alb・rds・eks は要約表で展開、それ以外は黒箱（手順3）。plan JSON（`terraform show -json`）も読む（手順4、`scripts/lib/tf_plan.py`。`--input <plan JSON>` か `--input <フォルダ> --plan <plan JSON>`。ir-schema.md の 7.2「TF の plan JSON」） |
 | A5 の要約表 | `references/module-summaries.md` | vpc 6.x・alb 10.x・rds 7.x・eks 21.x の主要なリソースと出力を、本物のソースから HCL で写したもの。4つとも、タグを付けた版のソース（`fixtures/public/terraform-aws-{vpc,alb,rds,eks}`）の展開と突き合わせるテストあり。IAM だけのモジュールの source の一覧（H-IAM） |
 | 検査 | `scripts/validate_ir.py`、`scripts/lib/ir_raw.py` | 正規化後と raw IR の両方を検査（`stage` で切り替え） |
 | アイコン辞書と C2 | `references/icons/`、`scripts/build_icon_catalog.py`・`check_icons.py`・`find_aws_icon.py` | 1045 件、壊れたもの 0 件 |
 | 評価基準 | `aws-iac-diagram-workspace/evals/CRITERIA.md` | 確定（ユーザーの了承済み） |
-| fixture と正解 IR | `aws-iac-diagram-workspace/fixtures/`、`expected/` | 自作5構成（TF／CFN）、公開サンプル（T01〜T20、C01〜C05 など） |
-| 開発用の道具 | `aws-iac-diagram-workspace/tools/` | `c1_check.py`（C1）、`check_coverage.py`（網羅）、`iac_inventory.py`、`survey_public.py` |
-| テストと CI | `tests/`（205 件）、`.github/workflows/ci.yml` | Ubuntu 24.04 と Windows 2025（PowerShell 5.1 から SKILL を起動）で、テスト・検証・C1・TF アダプタの起動 |
+| fixture と正解 IR | `aws-iac-diagram-workspace/fixtures/`、`expected/` | 自作5構成（TF／CFN）、その plan JSON（`fixtures/tf-plan/`。three-tier は dev・prod、試験用の `edge`）、公開サンプル（T01〜T20、C01〜C05 など） |
+| 開発用の道具 | `aws-iac-diagram-workspace/tools/` | `c1_check.py`（C1）、`check_coverage.py`（網羅）、`iac_inventory.py`、`survey_public.py`、`make_plan_json.py`（plan JSON の fixture を terraform と moto で作る。手順4） |
+| テストと CI | `tests/`（224 件）、`.github/workflows/ci.yml` | Ubuntu 24.04 と Windows 2025（PowerShell 5.1 から SKILL を起動）で、テスト・検証・C1・TF アダプタの起動（.tf と、コミットした plan JSON。CI では terraform を動かさない） |
 
 ### 数字で見た現状
-- 単体テスト 205 件がすべて通過（TF アダプタと評価器の 70 件を含む）。
+- 単体テスト 266 件がすべて通過（TF アダプタと評価器の 70 件、plan JSON の 61 件を含む。2026-10-26 のレビュー対応後）。
+- plan JSON（手順4。完了、レビュー2回）: 自作5構成の plan だけの raw IR は、.tf の結果と address・型・enabled・module・provider・region が一致し、.tf の active の参照の (from, to) の組は three-tier-modules の 8 組（locals・dynamic ブロックを通したもの）を除いてすべてある。.tf と合わせると `resources`・`references` が .tf の結果と同じになる。正解 IR の TF 側の網羅分類とも一致（plan だけは型と enabled、合わせたものは file・via まで）。
 - TF アダプタ（手順3 まで）: 自作 fixture の5構成と、公開サンプルの TF のルート 52 フォルダ（T01〜T20、P01〜P04）、`.tf` のあるフォルダすべて（172）で例外なく動き、raw IR の検査を通る（error の診断 0）。正解 IR の TF 側の網羅分類と、モジュールの中身（要約表の展開とローカルモジュール）まで読み替えなしで一致（three-tier は `env/dev.tfvars`）。モジュールを展開したので、ルート 52 のリソースは 854 → 2480、warn は 130 → 381（展開したモジュールの中の、値の無い変数やリソースの属性に依る値。WORKLOG の「フェーズ2 の手順3」）。
 - C1: 自作 fixture と公開サンプルの CFN（入力 25）で、cfn-lint のグラフの辺 513 本のすべてに raw IR の参照が対応（対応の無い辺 0）。
 - 正解 IR の CFN 側の網羅分類と、CFN アダプタの出力の address・型・ファイル・作られるか（enabled）が、5構成すべてで一致。
@@ -49,20 +59,35 @@ uv run python -m unittest discover -s tests
 uv run python aws-iac-diagram-workspace\tools\c1_check.py
 ```
 
+terraform と moto は、plan JSON の fixture（`fixtures/tf-plan/`）を作り直すときだけ要る（テストと CI はコミットした plan JSON を読むだけ）。作り直すときは、terraform（winget の `Hashicorp.Terraform`。1.16.5 で作った）を入れて `$env:Path` を読み直し、`uv run --group fixtures python aws-iac-diagram-workspace\tools\make_plan_json.py`（moto[server] 5.2.4 は依存グループ `fixtures` で、既定の `uv sync` には入らない）（本物の AWS には接続しない。fixtures/README.md の「plan JSON」）。
+
 ### 判断待ち・許可待ち
-下の「ユーザーの判断待ち」の節にある5つ（L4 の辺の貫通の上限値、PNG をどちらで作るか、WSL と CI に入れるもののインストールの許可、実行時間の基準値の見直し、vpc 5.x・eks 20.x の要約表を作るか）。どれも急ぎではなく、フェーズ3〜6 の手前で確認する。
+なし。2026-10-17 時点の5つは、2026-10-24 にユーザーがすべて決めた（下の「ユーザーの決定（2026-10-24）」）。
+
+### 残りの作業の順番（2026-10-24 にユーザーと合意）
+1. （済。2026-10-24）Windows の CI の失敗を直す。**これは今の Windows で行う**（別のドライブを Windows で再現するため）
+   - 1b. **開発の場所を WSL に移す**（PLAN の 1.5。2026-10-24 にユーザーと合意）: WSL の `~/` の下に clone し、uv・gh・Node.js（mmdc）・Claude Code・draw.io の deb・xvfb・Chromium を入れ（すべて許可済み）、`~/.claude/skills/aws-iac-diagram` をシンボリックリンクにする。テストが WSL で通ることを確かめ、この HANDOFF の「再開の手順」を WSL 用に書き直す。Windows の側の clone は、Windows の VS Code ＋ Copilot で手で確かめる用に残す
+2. フェーズ2 の手順4 の第三者レビュー → 指摘を直す → main に取り込んで push（ここから WSL で進める）
+3. フェーズ2 の手順5（公開サンプルでの確認と完了）
+4. **フェーズ 2b: 構成の階層化**（2026-10-24 にユーザーと合意。PLAN の 1.4 とフェーズ表の 2b）。入口のスクリプトと中身のパッケージ `scripts/aws_iac_diagram/` を分け、スクリプトが読むものを `data/`、開発者向けの仕様を SKILL の外の `docs/spec/`、辞書の保守用を `scripts/maintenance/` に移す。最初に raw IR を固定し、中身の動きを変えずに R1〜R6 の順で移す（手順ごとに第三者レビュー）。今すぐではなくフェーズ2 の後にしたのは、手順4 のレビュー前の変更とファイルの移動が混ざるのと、Windows の CI が落ちていて比べる元を作れないため
+5. **vpc 5.x・eks 20.x の要約表**（フェーズ 2b の後、フェーズ3 の前）: terraform-aws-vpc v5.8.1・terraform-aws-eks v20.8.5（T16）と、T18 の `~> 5.0` を確かめるための vpc 5.x の最新のタグを `fixtures/public/` に取り込み（SOURCES.md に出どころ）、`data/module-summaries/` にファイルを足して版で選び分け、本物の展開と突き合わせるテストを足す。T16・T18 の黒箱が無くなることを確かめ、第三者レビューを受ける
+6. フェーズ3（正規化）。`aws_iac_diagram/normalize/` に作る。終わったら CI の Ubuntu で実行時間を測り、合計 30 分の見込みを確かめる
+7. フェーズ4（配置）。L4 の辺の貫通の割合（図1枚ごとに 5% 以下）を数える検査を作る
+8. フェーズ5 の前のスパイク（5a）とフェーズ5。5a には、github.com の画面の Copilot Chat と Copilot coding agent で SKILL がどこまで使えるかも加えた（PLAN の 1.2 の未確認事項と 1.5 の 3）。WSL と CI に uv・draw.io 32.4.1 の deb・xvfb・Chromium を入れ、`render-png` で PNG を作る（コミットする PNG は CI のものだけ）
+9. フェーズ6（SKILL.md の仕上げと評価。実物の cdk.out の fixture を足す）
 
 ### 次にやること（要点）
-1. **フェーズ2（Terraform アダプタ）。** 5つの手順に分けた（1=土台、2=A4、3=モジュール、4=plan JSON、5=公開サンプルでの確認と完了）。手順1・2 はコミット済み。手順3 もコミット済み。**次は手順4（plan JSON）**。決まっていること・気をつけることは「次にやること」の 3a。
+1. **フェーズ2（Terraform アダプタ）。** 5つの手順に分けた（1=土台、2=A4、3=モジュール、4=plan JSON、5=公開サンプルでの確認と完了）。手順1〜4 は main に入っている。次が手順5（公開サンプルでの確認と完了）。決まっていること・気をつけることは「次にやること」の 3a。
 2. 見送った小さな直し（「次にやること」の 0b）: CI の action の版の更新、doctor のパス長の診断、PEP 723 の間接依存の固定など。
 3. 既知の制約: cdk.out は実物の `cdk synth` の出力では未確認（フェーズ6 の前に fixture を1つ足す）。
 
-## ユーザーの判断待ち（2026-10-17 時点）
-- **L4（T17、T19、T20）の辺の貫通の上限値**（CRITERIA.md の 7 の 4）。フェーズ4 の配置の実装を始める前に、案を出して了承を得る（結果を見てから決めない）。
-- **手元の Windows で作った PNG と CI で作った PNG のどちらをコミットするか**（PLAN 1.2 の 3）。フェーズ5 までに決める。
-- **WSL の Ubuntu と CI に入れるもの**（uv、draw.io の `.deb`、xvfb、Chromium）のインストールの許可。フェーズ5 の手前で確認する。
-- （フェーズ3 の実測の後）実行時間の基準値（CRITERIA.md の 4）を見直すなら、案を出して了承を得る。見直してよいのは一度だけ。
-- **vpc 5.x・eks 20.x の要約表を作るか**（T16 の vpc 5.8.1・eks 20.8.5、T18 の vpc `~> 5.0` が黒箱のまま）。フェーズ6 の評価の前に改めて決める（2026-10-17 のユーザーの決定。作るなら、そのタグのソースの取り込みの許可も要る）。
+## ユーザーの決定（2026-10-24）
+もとは 2026-10-17 時点の「ユーザーの判断待ち」だった5つ。
+- **L4（T17、T19、T20）の辺の貫通**: 分割した後の図1枚ごとに「貫通する辺の本数 ÷ その図の辺の本数」が **5% 以下**（CRITERIA.md の 2.2 と 7.1 の 1）。**5% は仮の値で、ユーザーはあとで微調整したい**（0 の 4 の例外として一度だけ、了承を得て行う）。
+- **コミットする PNG は CI（GitHub Actions の Ubuntu）で作ったもの**（PLAN 1.2 の 3）。手元の PNG は確認用。
+- **WSL と CI へのインストールはまとめて許可**（uv、draw.io の `.deb`、xvfb、Chromium。PLAN 1.1）。
+- **実行時間**: 評価のすべての入力の合計（PNG の書き出しを含む）が **30 分以内**なら合格。1入力あたりの基準は無くした（CRITERIA.md の 4章と 7.1 の 2。7章の 5 の一度だけの見直しはこれで使った）。
+- **vpc 5.x・eks 20.x の要約表を作る**。そのタグのソースの取り込みも許可（上の「残りの作業の順番」の 4）。
 
 ## 作業の進め方
 - 作業はユーザーと合意した手順に分けて1つずつ進める。実装とテスト・動作確認のあと、別のサブエージェントが第三者レビューをする（2026-10-17 までは、raw IR の設計を知っている同じレビュアーに続けて頼んだ）。判定が「コミット可」か、「修正後コミット」で指摘を直したら main にコミットして push する。「要再レビュー」なら直して再レビューを受ける。確定した基準（CRITERIA.md）や計画を変えるときは、先にユーザーの了承を得る。
@@ -122,10 +147,11 @@ uv run python aws-iac-diagram-workspace\tools\c1_check.py
       - 第三者レビュー（判定「修正後コミット」）の指摘（M1・R1〜R3・任意 1〜6）を直してコミットした（`45c9740`）。R1 はユーザーの決定で、`evaluation.vars` に値を書かず出どころだけを書き、`--redact-var` で値を伏せられるようにした（README・SKILL.md に注意書き）
    3. （済。2026-10-17）**モジュール**: ローカルモジュールの再帰（address `module.x.…`、count・for_each の呼び出しはインスタンスごと、`module` フィールド、`through` の `module.x.output.y`・`module.x.var.y`、`path.module`、depends_on、循環 `TF-MODULE-CYCLE`・深さ 16 段 `TF-MODULE-DEPTH`）、A5 の要約表（`references/module-summaries.md`。vpc 6.x・alb 10.x・rds 7.x・eks 21.x を HCL で写し、同じ評価器で展開。`via: module_summary`。vpc・eks は手元の本物のソースと突き合わせるテスト）、要約表に無い・版が合わないレジストリと `git::` などは黒箱（`TF-MODULE-BLACKBOX`）、IAM だけのモジュールは source の一覧で判定（`tf_modules.iam_only()`。raw IR は黒箱のまま、正規化が H-IAM）、`terraform_remote_state`（state を読まず `attr: "outputs.<名前>"`）、モジュールに渡した provider（`providers` 引数と既定の provider の引き継ぎでたどり、alias の `provider` と `region` を書く）。`ExpectedIrTest` の読み替えを外した。詳細は WORKLOG の「フェーズ2 の手順3」と ir-schema.md の 7.2「TF のモジュール」
       - 第三者レビュー（判定「修正後コミット」）の指摘（M1・R1〜R3・任意1〜3）を直した（コミットはまだ）。alb のリスナーのルール・weighted_forward を写し、`# not-covered:` に入れ子の経路を書けるようにした。eks の KMS は本物どおり `create` 引数（黒箱の `create = false` は `enabled: false`）。ユーザーの許可で terraform-aws-alb v10.5.1・terraform-aws-rds v7.2.2 を取り込み、要約表を本物と突き合わせた（WORKLOG の「フェーズ2 の手順3」の「第三者レビュー」）
-      - 見送ったもの: alb の認証のアクション（`authenticate_*`・`jwt_validation`。入力を渡すと `TF-MODULE-SUMMARY-INPUT`）、vpc 5.x・eks 20.x の要約表（ユーザーの決定でフェーズ6 の前に改めて決める。T16・T18 が黒箱のまま）、kms などほかの terraform-aws-modules、`terraform init` 済みの `.terraform/modules` を読むこと
-   4. **plan JSON**: `configuration` の参照を優先する。`references` が `aws_subnet.private[0].id`・`aws_subnet.private[0]`・`aws_subnet.private` を重ねて出すので、最も細かいインスタンスの address にまとめる規則を 7.3 に書く。「known after apply」は `$unknown`
+      - 見送ったもの: alb の認証のアクション（`authenticate_*`・`jwt_validation`。入力を渡すと `TF-MODULE-SUMMARY-INPUT`）、vpc 5.x・eks 20.x の要約表（2026-10-24 のユーザーの決定で作ることにした。「残りの作業の順番」の 4）、kms などほかの terraform-aws-modules、`terraform init` 済みの `.terraform/modules` を読むこと
+   4. （済。2026-10-26。第三者レビュー2回）**plan JSON**（`scripts/lib/tf_plan.py`、tf.py の `--plan`）: `--input <plan JSON>`（.json のファイルで中身が plan JSON の形）は plan だけから、`--input <フォルダ> --plan <plan JSON>`（推奨）は .tf と合わせて作る。address・enabled は plan（count・for_each・モジュールの展開は Terraform の結果）、合わせたときは file・props・参照の位置は .tf で、.tf で決まらない値（`file()`・data など）を plan の値で埋め、plan の `variables` を変数の値に使う（出どころ `"plan"`）。`references` の重なりは、ほかの文字列の前の部分を除いて最も細かいもの1つにまとめる（7.3 の「plan JSON の参照」）。known after apply は `$unknown`、sensitive の値は使わない。リモートのモジュールの中の作られないブロックと data は載せない（要約表と同じ）。`.tf.json` は plan と一緒なら plan から取る。plan JSON の fixture は、ユーザーの決定で本物の terraform 1.16.5（winget）と moto 5.2.4 から作った（`tools/make_plan_json.py`、`fixtures/tf-plan/`。AWS には接続しない）。テスト `tests/test_tf_plan.py`（61 件。レビュー対応で 19 件から増えた）。詳細は WORKLOG の「フェーズ2 の手順4」
+      - plan だけの限界（7.3 に書いた）: locals・dynamic ブロック・`each.value` を通した参照はたどれない、スプラットの `attr` は `null`、count.index・each.* で選ぶ参照は添字が分からず `unevaluated`、値の全体が known after apply で参照が1つなら値の全体への `$res`（`jsonencode` の中でも）、file は plan JSON の名前
    5. **公開サンプルでの確認と完了**: T01〜T20 で落ちない・検査を通ることに加え、TF／SAM の対（T06、T07、T11）の型の多重集合（SELECTION.md の 4 の 3）を確かめ、ir-schema.md の 7.6 を消して 7章を確定し、PLAN と HANDOFF を「フェーズ2 完了」にする
-   - 手順1〜3 で見送った小さなこと: `.tf.json`（`TF-TFJSON-UNSUPPORTED` の warn で飛ばす。入れ子のブロックと属性の区別に provider のスキーマが要る。公開サンプルには無い。手順3 でも見送り、plan JSON の `configuration` で区別できるかを見て手順4・5 で決める）、`lifecycle` の `replace_triggered_by`・`provisioner` の中の参照（出さない）、ワークスペースを選ぶ引数（`terraform.workspace` は `"default"`）、リソースの属性の値を設定に書いた値から決めること（`cidrsubnet(aws_vpc.main.cidr_block, …)` は `$unknown`。ir-schema.md の 8章。フェーズ3 で要るかを見る）。`ephemeral`・`check` の中の `data`・override のファイルは手順2 で扱った
+   - 手順1〜3 で見送った小さなこと: `.tf.json`（手順4 で、plan JSON と一緒なら plan から取るようにした。**.tf だけで読むか（`TF-TFJSON-UNSUPPORTED` の warn）は手順5 で決める**。入れ子のブロックと属性の区別に provider のスキーマが要る。公開サンプルには無い）、`lifecycle` の `replace_triggered_by`・`provisioner` の中の参照（出さない）、ワークスペースを選ぶ引数（`terraform.workspace` は `"default"`）、リソースの属性の値を設定に書いた値から決めること（`cidrsubnet(aws_vpc.main.cidr_block, …)` は `$unknown`。ir-schema.md の 8章。フェーズ3 で要るかを見る）。`ephemeral`・`check` の中の `data`・override のファイルは手順2 で扱った
    - A5: terraform-aws-modules の vpc／eks／rds／alb の要約表（`via: module_summary`）。要約表に無いレジストリモジュールは黒箱（`module`）、IAM だけのものは H-IAM（手順3 で実装）
    - 完了基準: 同じ構成の TF 版と CFN 版が同じ IR になる（正規化の後）。フェーズ2 ではアダプタの出力を、正解 IR の TF 側の網羅分類と突き合わせるテスト（`tests/test_tf_adapter.py` の `ExpectedIrTest`）で確かめる
    - 主セットの正解 IR は、ツールの出力を見る前に別のサブエージェントが書き、さらに別のサブエージェントがレビューする（CRITERIA.md の 1.2）。

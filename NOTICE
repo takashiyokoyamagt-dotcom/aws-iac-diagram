@@ -38,6 +38,11 @@ trademarks belong to their respective owners.
     著作権表示とライセンス全文は、各リポジトリの LICENSE にある。同じ版のコピーが
     aws-iac-diagram-workspace/fixtures/public/ にあり、そこにも LICENSE を残してある。
 
+(c) aws-iac-diagram-workspace/fixtures/tf-plan/three-tier-modules.json
+    terraform-aws-modules の vpc・alb・rds（Apache License 2.0）を呼ぶ構成に `terraform show -json` をかけた
+    出力（モックの AWS 相手）。モジュールの変数の既定値・説明・式が、そのまま入っている。
+    出典と著作権表示は (b) と同じ。モジュールの説明文は上流のままで、このプロジェクトの意見ではない。
+
 ----------------------------------------------------------------------------------------------
 3. 試験用の入力として置いている第三者のサンプル
 ----------------------------------------------------------------------------------------------
