@@ -1,0 +1,1450 @@
+{
+ "cases": {
+  "cfn/custom/rag": {
+   "adapter": "cfn",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/cfn/rag/template.yaml",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 26885,
+   "diagnostics": 0,
+   "references": 31,
+   "resources": 22,
+   "sha256": "f8d680d81727749171c027fc1537dfdf45accaa5f253a0decd977f8f2fe95f98"
+  },
+  "cfn/custom/serverless-api": {
+   "adapter": "cfn",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/cfn/serverless-api/template.yaml",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 9788,
+   "diagnostics": 0,
+   "references": 14,
+   "resources": 11,
+   "sha256": "3d70448cfa693e79286b8586e306e4844dab4f35e496f12a3d9d8493166750b6"
+  },
+  "cfn/custom/three-tier": {
+   "adapter": "cfn",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/cfn/three-tier/template.yaml",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 31099,
+   "diagnostics": 1,
+   "references": 60,
+   "resources": 38,
+   "sha256": "4bdb3890c2a02e7f37bcbd7df74290b2a48994ba7e33506fe7665b0c49f223e3"
+  },
+  "cfn/custom/three-tier-modules": {
+   "adapter": "cfn",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/cfn/three-tier-modules/root.yaml",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 43155,
+   "diagnostics": 0,
+   "references": 70,
+   "resources": 41,
+   "sha256": "c75034727af4e8ea7e761d88e31cf4458a212aefc7874dc875e22b6807167e23"
+  },
+  "cfn/custom/three-tier.param": {
+   "adapter": "cfn",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/cfn/three-tier/template.yaml",
+    "--root-base",
+    "aws-iac-diagram-workspace",
+    "--param",
+    "AWS::Region=ap-northeast-1"
+   ],
+   "bytes": 31099,
+   "diagnostics": 1,
+   "references": 60,
+   "resources": 38,
+   "sha256": "4bdb3890c2a02e7f37bcbd7df74290b2a48994ba7e33506fe7665b0c49f223e3"
+  },
+  "cfn/custom/vpc-endpoints": {
+   "adapter": "cfn",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/cfn/vpc-endpoints/template.json",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 28027,
+   "diagnostics": 1,
+   "references": 56,
+   "resources": 33,
+   "sha256": "b0a7f1b6f157f5a4d415aec4cdce9d0cd671d42ab16aa598c4976ecc6c12c462"
+  },
+  "cfn/custom/vpc-endpoints.param-file": {
+   "adapter": "cfn",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/cfn/vpc-endpoints/template.json",
+    "--root-base",
+    "aws-iac-diagram-workspace",
+    "--param-file",
+    "aws-iac-diagram-workspace/fixtures/cfn/vpc-endpoints/parameters.json"
+   ],
+   "bytes": 27927,
+   "diagnostics": 1,
+   "references": 56,
+   "resources": 33,
+   "sha256": "3a70ad9b93380c7cc16b643e3f7fb274a2daf543b728c150a75215ca9d253b6e"
+  },
+  "cfn/public/amazon-cloudfront-secure-static-site/templates/main.yaml": {
+   "adapter": "cfn",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/amazon-cloudfront-secure-static-site/templates/main.yaml",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 25634,
+   "diagnostics": 5,
+   "references": 23,
+   "resources": 16,
+   "sha256": "1504db8f1340a99c94e1cde00aa178226294b9ab58c078bdfacd9260a082ede6"
+  },
+  "cfn/public/aws-cloudformation-templates/Solutions/VPCPeering/templates/VPCPeering-Accepter-Role.cfn.json": {
+   "adapter": "cfn",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/aws-cloudformation-templates/Solutions/VPCPeering/templates/VPCPeering-Accepter-Role.cfn.json",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 1902,
+   "diagnostics": 2,
+   "references": 0,
+   "resources": 1,
+   "sha256": "3861dce085035aae14b8a1299d91cd8e0e9d490872f08954e924fdff3971eb7a"
+  },
+  "cfn/public/aws-cloudformation-templates/Solutions/VPCPeering/templates/VPCPeering-Accepter-Role.cfn.yaml": {
+   "adapter": "cfn",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/aws-cloudformation-templates/Solutions/VPCPeering/templates/VPCPeering-Accepter-Role.cfn.yaml",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 1902,
+   "diagnostics": 2,
+   "references": 0,
+   "resources": 1,
+   "sha256": "597d8424e01e9700be237c8f47a7b7cdbe719e2e775fdd37c80532a1a4b8261a"
+  },
+  "cfn/public/aws-cloudformation-templates/Solutions/VPCPeering/templates/VPCPeering-Accepter-Tag.cfn.json": {
+   "adapter": "cfn",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/aws-cloudformation-templates/Solutions/VPCPeering/templates/VPCPeering-Accepter-Tag.cfn.json",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 9684,
+   "diagnostics": 4,
+   "references": 4,
+   "resources": 4,
+   "sha256": "76cf4902c68299007755e35267231c5ea5a1a2748d2e1821c95ed343db20ce6e"
+  },
+  "cfn/public/aws-cloudformation-templates/Solutions/VPCPeering/templates/VPCPeering-Accepter.main.cfn.json": {
+   "adapter": "cfn",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/aws-cloudformation-templates/Solutions/VPCPeering/templates/VPCPeering-Accepter.main.cfn.json",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 31650,
+   "diagnostics": 44,
+   "references": 5,
+   "resources": 18,
+   "sha256": "39f331d302287cd22905a6f0598455cf8ddd55f1faebf440391030e12af17505"
+  },
+  "cfn/public/aws-cloudformation-templates/Solutions/VPCPeering/templates/VPCPeering-Accepter.main.cfn.yaml": {
+   "adapter": "cfn",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/aws-cloudformation-templates/Solutions/VPCPeering/templates/VPCPeering-Accepter.main.cfn.yaml",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 31650,
+   "diagnostics": 44,
+   "references": 5,
+   "resources": 18,
+   "sha256": "84673b7b125915ac1ad37407a0d67236b0d66f5ab62d8f8857636886cc0312c7"
+  },
+  "cfn/public/aws-cloudformation-templates/Solutions/VPCPeering/templates/VPCPeering-Requester-Setup.cfn.json": {
+   "adapter": "cfn",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/aws-cloudformation-templates/Solutions/VPCPeering/templates/VPCPeering-Requester-Setup.cfn.json",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 2387,
+   "diagnostics": 6,
+   "references": 0,
+   "resources": 1,
+   "sha256": "2d332780c4fbf9af87b1c015b5453477d78a5c633c20ecaac6c82b7a5202d57b"
+  },
+  "cfn/public/aws-cloudformation-templates/Solutions/VPCPeering/templates/VPCPeering-Requester.main.cfn.json": {
+   "adapter": "cfn",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/aws-cloudformation-templates/Solutions/VPCPeering/templates/VPCPeering-Requester.main.cfn.json",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 27154,
+   "diagnostics": 47,
+   "references": 7,
+   "resources": 15,
+   "sha256": "a62da540506a5a8ac27e574aee0cc685aa64638c9b8333ba53d38fd7c8b336ea"
+  },
+  "cfn/public/aws-cloudformation-templates/Solutions/VPCPeering/templates/VPCPeering-Requester.main.cfn.yaml": {
+   "adapter": "cfn",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/aws-cloudformation-templates/Solutions/VPCPeering/templates/VPCPeering-Requester.main.cfn.yaml",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 27154,
+   "diagnostics": 47,
+   "references": 7,
+   "resources": 15,
+   "sha256": "3e8395745f211b95495c9e96cf7c7f90bb6a53f84dad2625fdf937e7ef0a3b1d"
+  },
+  "cfn/public/aws-cloudformation-templates/Solutions/VPCPeering/templates/VPCPeering-Updates.cfn.json": {
+   "adapter": "cfn",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/aws-cloudformation-templates/Solutions/VPCPeering/templates/VPCPeering-Updates.cfn.json",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 22500,
+   "diagnostics": 74,
+   "references": 0,
+   "resources": 12,
+   "sha256": "52c943b23d3e9d7a0cdfd218bf92bd63b8ad6d0d9b0606c73e0ab5e5045acfc6"
+  },
+  "cfn/public/aws-cloudformation-templates/Solutions/WebApp/webapp.json": {
+   "adapter": "cfn",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/aws-cloudformation-templates/Solutions/WebApp/webapp.json",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 68055,
+   "diagnostics": 2,
+   "references": 59,
+   "resources": 42,
+   "sha256": "3f70ffccf05122095601ddee76fa8c28a741646a473e055bcbdf1f517fc927a1"
+  },
+  "cfn/public/aws-cloudformation-templates/Solutions/WebApp/webapp.yaml": {
+   "adapter": "cfn",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/aws-cloudformation-templates/Solutions/WebApp/webapp.yaml",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 68055,
+   "diagnostics": 2,
+   "references": 59,
+   "resources": 42,
+   "sha256": "f17ca35f909c46528e46b8014969a77751487e73fc4d62f269a64ba27d5db405"
+  },
+  "cfn/public/aws-cloudformation-templates/VPC/VPC_With_Managed_NAT_And_Private_Subnet.yaml": {
+   "adapter": "cfn",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/aws-cloudformation-templates/VPC/VPC_With_Managed_NAT_And_Private_Subnet.yaml",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 20218,
+   "diagnostics": 0,
+   "references": 35,
+   "resources": 26,
+   "sha256": "559afda8b20bfc80b19bb899d71285c844cb456a15d16006b52951b7e06843bc"
+  },
+  "cfn/public/ecs-refarch-cloudformation/master.yaml": {
+   "adapter": "cfn",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/ecs-refarch-cloudformation/master.yaml",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 84320,
+   "diagnostics": 2,
+   "references": 114,
+   "resources": 63,
+   "sha256": "43d226527236747d3e2c5a5a585d7f0a0f3a08544dcf1f8270a9496df66d19ae"
+  },
+  "cfn/public/sample-multi-source-cdc-iceberg-lakehouse/iac/bootstrap/tf-backend-cf-stack.yml": {
+   "adapter": "cfn",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/sample-multi-source-cdc-iceberg-lakehouse/iac/bootstrap/tf-backend-cf-stack.yml",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 9070,
+   "diagnostics": 5,
+   "references": 7,
+   "resources": 6,
+   "sha256": "b9ffd78986d9fb95486b7b4474d9066c23aed7977c417d063b41dacb23f1c028"
+  },
+  "cfn/public/serverless-patterns/apigw-lambda-dynamodb/template.yaml": {
+   "adapter": "cfn",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/serverless-patterns/apigw-lambda-dynamodb/template.yaml",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 1591,
+   "diagnostics": 0,
+   "references": 1,
+   "resources": 3,
+   "sha256": "d4b34287eb5121f93de9804bbd540a7d2f0e73fe08e4a6f5e131855d252bdbd0"
+  },
+  "cfn/public/serverless-patterns/apigw-sfn-crud/template.yaml": {
+   "adapter": "cfn",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/serverless-patterns/apigw-sfn-crud/template.yaml",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 6421,
+   "diagnostics": 1,
+   "references": 5,
+   "resources": 6,
+   "sha256": "6391270956f86e1cb8c3ecbca2560165ae79b7356574a3dfc68f88bf534429b4"
+  },
+  "cfn/public/serverless-patterns/eventbridge-sns-lambda/template.yaml": {
+   "adapter": "cfn",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/serverless-patterns/eventbridge-sns-lambda/template.yaml",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 3165,
+   "diagnostics": 0,
+   "references": 4,
+   "resources": 4,
+   "sha256": "f1e0dc05cd03e5571df9bf88001b9cf45408e3b4ec248eeed91b35f54f591b54"
+  },
+  "cfn/public/serverless-patterns/eventbridge-sqs/template.yaml": {
+   "adapter": "cfn",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/serverless-patterns/eventbridge-sqs/template.yaml",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 2269,
+   "diagnostics": 0,
+   "references": 3,
+   "resources": 3,
+   "sha256": "e863b227bc630696baf9194db16fbe92b9ca751182731af6ec1e3f7b135f1f22"
+  },
+  "cfn/public/serverless-patterns/lambda-sqs/template.yaml": {
+   "adapter": "cfn",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/serverless-patterns/lambda-sqs/template.yaml",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 1595,
+   "diagnostics": 0,
+   "references": 2,
+   "resources": 2,
+   "sha256": "f6008c83d4169b96a7a5c389f6b86f93833d0244c810f50272200dcc815fb427"
+  },
+  "tf/combined/edge": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/tf-plan/edge",
+    "--plan",
+    "aws-iac-diagram-workspace/fixtures/tf-plan/edge.json",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 13901,
+   "diagnostics": 3,
+   "references": 20,
+   "resources": 24,
+   "sha256": "672ed9d029f62a1f80ad63c906746ccc448036e1b08fb0963173f0443c0c375b"
+  },
+  "tf/combined/rag": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/tf/rag",
+    "--plan",
+    "aws-iac-diagram-workspace/fixtures/tf-plan/rag.json",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 36988,
+   "diagnostics": 1,
+   "references": 65,
+   "resources": 41,
+   "sha256": "a8768b4bc5b4cacb68b6cda4e26ae4e3f474c8d805447de49e2bf149f2d29961"
+  },
+  "tf/combined/serverless-api": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/tf/serverless-api",
+    "--plan",
+    "aws-iac-diagram-workspace/fixtures/tf-plan/serverless-api.json",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 23413,
+   "diagnostics": 0,
+   "references": 40,
+   "resources": 30,
+   "sha256": "4aa353e65cb3efafbbd2ab2ca8de4ebc648a5c585e450fd9288c21afd6c88817"
+  },
+  "tf/combined/three-tier-modules": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/tf/three-tier-modules",
+    "--plan",
+    "aws-iac-diagram-workspace/fixtures/tf-plan/three-tier-modules.json",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 54623,
+   "diagnostics": 0,
+   "references": 119,
+   "resources": 42,
+   "sha256": "6ab9d6422f5f56103d03230c4a3b6922dc2c2b9d2b41ba74bded55e2176c3591"
+  },
+  "tf/combined/three-tier.dev": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/tf/three-tier",
+    "--plan",
+    "aws-iac-diagram-workspace/fixtures/tf-plan/three-tier.dev.json",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 34841,
+   "diagnostics": 7,
+   "references": 61,
+   "resources": 39,
+   "sha256": "b3dcc976cd2c0c4873383a979c931da188c240151327f9d8f736c158fbb2973b"
+  },
+  "tf/combined/three-tier.prod": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/tf/three-tier",
+    "--plan",
+    "aws-iac-diagram-workspace/fixtures/tf-plan/three-tier.prod.json",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 32286,
+   "diagnostics": 0,
+   "references": 61,
+   "resources": 39,
+   "sha256": "94d6257965ceecdc4e46f93d2f0c7a43c5818eb22585d2f0c992d3f555e27a3c"
+  },
+  "tf/combined/vpc-endpoints": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/tf/vpc-endpoints",
+    "--plan",
+    "aws-iac-diagram-workspace/fixtures/tf-plan/vpc-endpoints.json",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 29823,
+   "diagnostics": 0,
+   "references": 62,
+   "resources": 38,
+   "sha256": "50b6194da15883d126fa9f201675a3be32bf06ea158cf8d41bf5ce00f181b0ae"
+  },
+  "tf/custom/rag": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/tf/rag",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 36816,
+   "diagnostics": 1,
+   "references": 65,
+   "resources": 41,
+   "sha256": "339ef762cad48f0471c250c8d924638eac23a988edeb46ff81760ee42cbf26df"
+  },
+  "tf/custom/serverless-api": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/tf/serverless-api",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 23238,
+   "diagnostics": 0,
+   "references": 40,
+   "resources": 30,
+   "sha256": "d2e35abedd9b82c675bcb1cdd94104faa77d2d314ff16a1fb65b0bd991eaadeb"
+  },
+  "tf/custom/three-tier": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/tf/three-tier",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 34274,
+   "diagnostics": 8,
+   "references": 61,
+   "resources": 39,
+   "sha256": "91fee0f864585a0d2ebdbf91191f26c6e0adeac5b58cd67b17e70ddf75bdaaea"
+  },
+  "tf/custom/three-tier-modules": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/tf/three-tier-modules",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 55299,
+   "diagnostics": 3,
+   "references": 119,
+   "resources": 42,
+   "sha256": "fd270200b4ff5c2e30b4f969f63c09b6203ca3e768f08da4a888662c5b4975c2"
+  },
+  "tf/custom/three-tier.redact-workspace": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/tf/three-tier",
+    "--root-base",
+    "aws-iac-diagram-workspace",
+    "--var-file",
+    "env/dev.tfvars",
+    "--redact-var",
+    "project",
+    "--workspace",
+    "staging"
+   ],
+   "bytes": 43227,
+   "diagnostics": 28,
+   "references": 61,
+   "resources": 39,
+   "sha256": "c4c5a9b67074e0735b98a9b4ea58b78dd601a286928845a3401cfbe4e100eb28"
+  },
+  "tf/custom/three-tier.var-file-dev": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/tf/three-tier",
+    "--root-base",
+    "aws-iac-diagram-workspace",
+    "--var-file",
+    "env/dev.tfvars",
+    "--var",
+    "project=demo"
+   ],
+   "bytes": 32091,
+   "diagnostics": 0,
+   "references": 61,
+   "resources": 39,
+   "sha256": "ae3e626ff8b8a1aad39a5c4a49d4b8d3c9f4b08874f6b94567f4be0f509bff3e"
+  },
+  "tf/custom/three-tier.var-file-prod": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/tf/three-tier",
+    "--root-base",
+    "aws-iac-diagram-workspace",
+    "--var-file",
+    "env/prod.tfvars"
+   ],
+   "bytes": 32180,
+   "diagnostics": 0,
+   "references": 61,
+   "resources": 39,
+   "sha256": "e8beb29e6637b8e34a166fe3e0755b24d01f7fefc50800a0e5e36fbb071a0404"
+  },
+  "tf/custom/vpc-endpoints": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/tf/vpc-endpoints",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 29669,
+   "diagnostics": 0,
+   "references": 62,
+   "resources": 38,
+   "sha256": "9b8fec30ff4eb6af036edeac30769b3390843636c95bdcddb65df2aa9592abad"
+  },
+  "tf/plan-only/edge": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/tf-plan/edge.json",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 14832,
+   "diagnostics": 10,
+   "references": 17,
+   "resources": 24,
+   "sha256": "1338175f6daecee77a8dab1703695151b4cf45e8c7a408718b70182ba0e5cb27"
+  },
+  "tf/plan-only/rag": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/tf-plan/rag.json",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 35631,
+   "diagnostics": 6,
+   "references": 64,
+   "resources": 41,
+   "sha256": "a429c76fd1c56123cd15e6748141ee8f9bb8920b548b2d3d13e08f5fcd145c87"
+  },
+  "tf/plan-only/serverless-api": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/tf-plan/serverless-api.json",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 23601,
+   "diagnostics": 1,
+   "references": 40,
+   "resources": 30,
+   "sha256": "eee5dbb3d3c002da720c7abde51d381088ae9a0476f65ee5d430d60962ce087c"
+  },
+  "tf/plan-only/three-tier-modules": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/tf-plan/three-tier-modules.json",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 94006,
+   "diagnostics": 119,
+   "references": 118,
+   "resources": 42,
+   "sha256": "b470760c3487b1cef2c2fc3ba9f047b9bb04470a4a6468e4c7321b5f52f7ee02"
+  },
+  "tf/plan-only/three-tier.dev": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/tf-plan/three-tier.dev.json",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 34873,
+   "diagnostics": 8,
+   "references": 67,
+   "resources": 39,
+   "sha256": "60c84f917a16cb5907a42cb30bc942ec3c55e12a0baac31ae39eec0a8dbe665d"
+  },
+  "tf/plan-only/three-tier.prod": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/tf-plan/three-tier.prod.json",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 35830,
+   "diagnostics": 9,
+   "references": 67,
+   "resources": 39,
+   "sha256": "58a88849a32f7150523e27180fa9468179e1388872cd088c9588115b8a26e1cd"
+  },
+  "tf/plan-only/vpc-endpoints": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/tf-plan/vpc-endpoints.json",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 36013,
+   "diagnostics": 16,
+   "references": 76,
+   "resources": 38,
+   "sha256": "de4041dec8aa9aa5278fdfd037119848ba94994ff96c84c1efa0b00e3bbc3899"
+  },
+  "tf/public/amazon-ecs-fullstack-app-terraform/Infrastructure": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/amazon-ecs-fullstack-app-terraform/Infrastructure",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 268021,
+   "diagnostics": 112,
+   "references": 218,
+   "resources": 139,
+   "sha256": "1e84b6c300382b7f4a13abdf341d2f84bdb651ed39bb8675cb214173483b4e75"
+  },
+  "tf/public/aws-network-hub-for-terraform": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/aws-network-hub-for-terraform",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 844764,
+   "diagnostics": 92,
+   "references": 2564,
+   "resources": 198,
+   "sha256": "7992ce290c15a13e038a71a3c799e446de11746433ede5dccf2f0a9173512c1b"
+  },
+  "tf/public/aws-transit-gateway-vpc-terraform": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/aws-transit-gateway-vpc-terraform",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 29679,
+   "diagnostics": 38,
+   "references": 43,
+   "resources": 14,
+   "sha256": "53b6a401680cadd401ed69475d4ef2b53c07bf10c0739f719e6d427c9b209ac8"
+  },
+  "tf/public/hub-and-spoke-with-shared-services-vpc-terraform": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/hub-and-spoke-with-shared-services-vpc-terraform",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 66387,
+   "diagnostics": 13,
+   "references": 84,
+   "resources": 46,
+   "sha256": "5f7ba3ff4554c8940fb6e947004531ed822edd21c5e1cb7574469ff851b74478"
+  },
+  "tf/public/learn-terraform-aws-asg": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/learn-terraform-aws-asg",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 9416,
+   "diagnostics": 2,
+   "references": 14,
+   "resources": 11,
+   "sha256": "df7d0a6ff5a1c9f2512a5460e90fbee76528be07fe1ff331045ba187e2e91679"
+  },
+  "tf/public/learn-terraform-provision-eks-cluster": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/learn-terraform-provision-eks-cluster",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 6751,
+   "diagnostics": 3,
+   "references": 7,
+   "resources": 6,
+   "sha256": "a9f8cc0961f783b43ea6be7f678d4495878576c5f9af62ff47fe7dc075f5a63d"
+  },
+  "tf/public/learn-terraform-rds": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/learn-terraform-rds",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 15429,
+   "diagnostics": 2,
+   "references": 23,
+   "resources": 18,
+   "sha256": "a61a5b02555d53a41536c5cb102134849835a967b3e1d5afb4d56f8f7a6637a6"
+  },
+  "tf/public/sample-bedrock-knowledge-base-terraform": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/sample-bedrock-knowledge-base-terraform",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 22316,
+   "diagnostics": 0,
+   "references": 21,
+   "resources": 17,
+   "sha256": "5924675d72ba61c92d9aed94f182020a6249c62a9801c7d29f9e779cc52bba3a"
+  },
+  "tf/public/sample-build-aws-glue-data-quality-pipeline-using-terraform/examples": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/sample-build-aws-glue-data-quality-pipeline-using-terraform/examples",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 90856,
+   "diagnostics": 5,
+   "references": 202,
+   "resources": 29,
+   "sha256": "29e2a4e54990c7d9dd33a7597292cc007b25fcb40cf2d4f59af7a07ff7456748"
+  },
+  "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/datasources/aurora": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/datasources/aurora",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 49963,
+   "diagnostics": 4,
+   "references": 63,
+   "resources": 44,
+   "sha256": "c4fa80ab8fc742e1a2d0f2ccb735f6655899e9b2581360c1c96d0afaa00eb7e8"
+  },
+  "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/datasources/cockroach": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/datasources/cockroach",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 33580,
+   "diagnostics": 3,
+   "references": 44,
+   "resources": 41,
+   "sha256": "0edb452f083442685c5d46b0a69a253f17668b98868bdbe7c5bdce964d8a3237"
+  },
+  "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/datasources/data-generator": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/datasources/data-generator",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 34060,
+   "diagnostics": 4,
+   "references": 38,
+   "resources": 38,
+   "sha256": "66adde445f34d5859b83e0a0f9cb6e0b222133b51f456da45ce0d8b3b96a79ec"
+  },
+  "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/datasources/msk": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/datasources/msk",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 29541,
+   "diagnostics": 2,
+   "references": 32,
+   "resources": 33,
+   "sha256": "0bda2068f0cf0f14aae3124edceea93599e6361158611d3a30bd2d1d1554ddcc"
+  },
+  "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/datasources/oracle": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/datasources/oracle",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 38406,
+   "diagnostics": 6,
+   "references": 58,
+   "resources": 37,
+   "sha256": "5260268f2317faa3385efbfc4f70f232bcdcb682a155e011d4cc447b80dee7a8"
+  },
+  "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/flink": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/flink",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 75317,
+   "diagnostics": 4,
+   "references": 90,
+   "resources": 48,
+   "sha256": "9482bcbfef85b0e9741a3aea1ebe620c68db56b0a1eab0876bb85ba65b4b7867"
+  },
+  "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/foundation/athena": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/foundation/athena",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 2737,
+   "diagnostics": 0,
+   "references": 1,
+   "resources": 4,
+   "sha256": "abcb1c763dc740b79ec85cd28a7e576834bc1248debc6f4b73dd06a72d0e6324"
+  },
+  "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/foundation/buckets": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/foundation/buckets",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 31141,
+   "diagnostics": 0,
+   "references": 36,
+   "resources": 31,
+   "sha256": "beff088a80d22dca64ac911fa018eaa072df33b5d37dc6d1d79c566fdf718d64"
+  },
+  "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/foundation/glue-databases": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/foundation/glue-databases",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 179100,
+   "diagnostics": 0,
+   "references": 64,
+   "resources": 51,
+   "sha256": "d0c81023431ae3e30255a26cc6c36c84399e46975d1a4f7706a8645814ca2505"
+  },
+  "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/foundation/iam-roles": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/foundation/iam-roles",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 49944,
+   "diagnostics": 0,
+   "references": 28,
+   "resources": 34,
+   "sha256": "141ae73a43e1816cca29eab8072b9c301d37f757df845cbc09cd7b962e7d7091"
+  },
+  "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/foundation/kms-keys": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/foundation/kms-keys",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 23219,
+   "diagnostics": 0,
+   "references": 10,
+   "resources": 22,
+   "sha256": "e835b10ec1bc6d0b676bfaaa6d4cbbfb7f5f6a31168d8a45c3ba531123ec7505"
+  },
+  "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/foundation/network": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/foundation/network",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 28961,
+   "diagnostics": 13,
+   "references": 41,
+   "resources": 31,
+   "sha256": "92829c96eec5fb744d696ada31dea95e2d3d5f357dd6da552fd5bf8c57030e91"
+  },
+  "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/foundation/s3-tables": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/foundation/s3-tables",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 467918,
+   "diagnostics": 0,
+   "references": 71,
+   "resources": 39,
+   "sha256": "2958132ccb0f5f6d3158d7d6f1128f2d54c7cd8ddaa044482bd5f7f1391771d9"
+  },
+  "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/ingestion-layer/debezium-aurora": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/ingestion-layer/debezium-aurora",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 24427,
+   "diagnostics": 3,
+   "references": 19,
+   "resources": 21,
+   "sha256": "a79e7bab23a701014a52cbcfbf5947036bfe4236f522339ca5db71848ca1384f"
+  },
+  "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/ingestion-layer/debezium-oracle": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/ingestion-layer/debezium-oracle",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 26935,
+   "diagnostics": 2,
+   "references": 23,
+   "resources": 23,
+   "sha256": "b948c1b186a39301154c52822e9a9f969525bdef6b6929b963f90e48fa985086"
+  },
+  "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/ingestion-layer/dms-aurora": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/ingestion-layer/dms-aurora",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 27854,
+   "diagnostics": 5,
+   "references": 20,
+   "resources": 23,
+   "sha256": "d3db5be3127aa8dcda9501d068b8b38f87959d6b131b92d5b73b5e8c8e1100ee"
+  },
+  "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/ingestion-layer/dms-oracle": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/ingestion-layer/dms-oracle",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 30198,
+   "diagnostics": 7,
+   "references": 23,
+   "resources": 25,
+   "sha256": "aa02bf4e7d2300532c9f7ec5cdedef23dcc11cd770f095a0ad9af0d7375b007a"
+  },
+  "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/ingestion-layer/firehose-streams/aurora-brokerage-msk-firehose-stream": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/ingestion-layer/firehose-streams/aurora-brokerage-msk-firehose-stream",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 217726,
+   "diagnostics": 9,
+   "references": 399,
+   "resources": 54,
+   "sha256": "7383be03477105d9a358ae293985855fda7b076dbc97645cc4cd331741267ae3"
+  },
+  "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/ingestion-layer/firehose-streams/aurora-financial-msk-firehose-stream": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/ingestion-layer/firehose-streams/aurora-financial-msk-firehose-stream",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 209591,
+   "diagnostics": 9,
+   "references": 399,
+   "resources": 54,
+   "sha256": "a97e1e552a7dec0573b3f3d929c739bde27240281bb7e07b4cdd135c0908f1e9"
+  },
+  "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/ingestion-layer/firehose-streams/cockroach-brokerage-msk-firehose-stream": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/ingestion-layer/firehose-streams/cockroach-brokerage-msk-firehose-stream",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 215031,
+   "diagnostics": 9,
+   "references": 399,
+   "resources": 50,
+   "sha256": "101e8cf5c23b005edce38647aa951fc4e08bb5c85037d9812c9e086413f4b8e0"
+  },
+  "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/ingestion-layer/firehose-streams/cockroach-financial-msk-firehose-stream": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/ingestion-layer/firehose-streams/cockroach-financial-msk-firehose-stream",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 204014,
+   "diagnostics": 9,
+   "references": 395,
+   "resources": 50,
+   "sha256": "e7c7f8cf215007f6e87cde6f57deecaf9bcd96f17038981c8247a8f5e3c0d87d"
+  },
+  "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/ingestion-layer/firehose-streams/msk-brokerage-firehose-stream": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/ingestion-layer/firehose-streams/msk-brokerage-firehose-stream",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 115465,
+   "diagnostics": 7,
+   "references": 132,
+   "resources": 43,
+   "sha256": "dfcbae800716febdc1b13200795c1ea820f5a361067d9865a462d43c4d790860"
+  },
+  "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/ingestion-layer/firehose-streams/msk-financial-firehose-stream": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/ingestion-layer/firehose-streams/msk-financial-firehose-stream",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 107330,
+   "diagnostics": 7,
+   "references": 132,
+   "resources": 43,
+   "sha256": "48fd2ef4621fcf0fd59817d9a9360692be5cb5f85349710b82c062829b350019"
+  },
+  "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/ingestion-layer/firehose-streams/oracle-brokerage-msk-firehose-stream": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/ingestion-layer/firehose-streams/oracle-brokerage-msk-firehose-stream",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 217726,
+   "diagnostics": 9,
+   "references": 399,
+   "resources": 54,
+   "sha256": "185554e61ff3ff4a450c40f0ef5e9de4e0df943a2c400fe9757c73908262c3a1"
+  },
+  "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/ingestion-layer/firehose-streams/oracle-financial-msk-firehose-stream": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/ingestion-layer/firehose-streams/oracle-financial-msk-firehose-stream",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 208652,
+   "diagnostics": 9,
+   "references": 399,
+   "resources": 54,
+   "sha256": "2dd2abadfcb4ee3146bfe98737bf3c360e0d39ad13a63d0d121425280f3b9ed5"
+  },
+  "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/ingestion-layer/msk-ingest": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/ingestion-layer/msk-ingest",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 75137,
+   "diagnostics": 4,
+   "references": 143,
+   "resources": 55,
+   "sha256": "86dff35d616803ca5469ba410c2a1c4d7ee4a8dd2385cd9447fcbcfa7f024160"
+  },
+  "tf/public/serverless-patterns/apigw-lambda-dynamodb-terraform": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/serverless-patterns/apigw-lambda-dynamodb-terraform",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 15119,
+   "diagnostics": 1,
+   "references": 24,
+   "resources": 17,
+   "sha256": "213300de8bf97b0b571ce8b910c6aa8f2d484306cf725a72c8ef1ed3033e87be"
+  },
+  "tf/public/serverless-patterns/apigw-sfn-crud-terraform": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/serverless-patterns/apigw-sfn-crud-terraform",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 44795,
+   "diagnostics": 1,
+   "references": 86,
+   "resources": 29,
+   "sha256": "24ddb5dc8e1fa60380b1f876fde5555d6304456ae5c77f41f85ad8a95db748dc"
+  },
+  "tf/public/serverless-patterns/dynamodb-glue-s3-terraform": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/serverless-patterns/dynamodb-glue-s3-terraform",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 11857,
+   "diagnostics": 0,
+   "references": 14,
+   "resources": 11,
+   "sha256": "8059054fb977c72672489e680f2ec336c00f1a9b9336517221521cbd0971d9bb"
+  },
+  "tf/public/serverless-patterns/eventbridge-sns-lambda-terraform": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/serverless-patterns/eventbridge-sns-lambda-terraform",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 8883,
+   "diagnostics": 1,
+   "references": 14,
+   "resources": 12,
+   "sha256": "b4983b38cd3bb88cfcc8f53187c60bd2549495f69bec1ae78465b403b94a4d10"
+  },
+  "tf/public/serverless-patterns/eventbridge-sqs-terraform": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/serverless-patterns/eventbridge-sqs-terraform",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 3557,
+   "diagnostics": 0,
+   "references": 5,
+   "resources": 5,
+   "sha256": "bc67b6fd72ab64ad6e4dba66ee62fa4c9f975f9ec035e349f30ba303e5d25f0c"
+  },
+  "tf/public/serverless-patterns/lambda-sqs-terraform": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/serverless-patterns/lambda-sqs-terraform",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 6325,
+   "diagnostics": 0,
+   "references": 10,
+   "resources": 9,
+   "sha256": "a187f6307e15ed17d6be38956ef9b0d19102d83d966f2d6b8a385b04b38f2dea"
+  },
+  "tf/public/terraform-aws-bedrock/examples/agent-with-knowledge-base": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/terraform-aws-bedrock/examples/agent-with-knowledge-base",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 159743,
+   "diagnostics": 24,
+   "references": 157,
+   "resources": 90,
+   "sha256": "3f9326a8b3236029b89965276d9302cfd3284cdc8fe9bbd771b7e0e1b0258fb9"
+  },
+  "tf/public/terraform-aws-cloudfront/examples/complete": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/terraform-aws-cloudfront/examples/complete",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 81764,
+   "diagnostics": 17,
+   "references": 109,
+   "resources": 55,
+   "sha256": "d111c9cd2cca22b300e63840b2beabe45f0e67b634ab88b3d8c148341d30272e"
+  },
+  "tf/public/terraform-aws-ecs/examples/fargate": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/terraform-aws-ecs/examples/fargate",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 295609,
+   "diagnostics": 76,
+   "references": 328,
+   "resources": 145,
+   "sha256": "fd5d2df92eada384014cb3ab62df7e5c0d86bd992bea1b8752c759348d5c2208"
+  },
+  "tf/public/terraform-aws-eks-blueprints/patterns/blue-green-upgrade/eks-blue": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/terraform-aws-eks-blueprints/patterns/blue-green-upgrade/eks-blue",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 54746,
+   "diagnostics": 20,
+   "references": 56,
+   "resources": 26,
+   "sha256": "275d1aa8b2b36ede715f7a56ef907dda7651df39ec8400ab9572974593945ce3"
+  },
+  "tf/public/terraform-aws-eks-blueprints/patterns/blue-green-upgrade/eks-green": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/terraform-aws-eks-blueprints/patterns/blue-green-upgrade/eks-green",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 54761,
+   "diagnostics": 20,
+   "references": 56,
+   "resources": 26,
+   "sha256": "35ac577319fd560ac10345fcf27f1a9732e3d5b15f60ff7c8b024d84a5033b00"
+  },
+  "tf/public/terraform-aws-eks-blueprints/patterns/blue-green-upgrade/environment": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/terraform-aws-eks-blueprints/patterns/blue-green-upgrade/environment",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 6486,
+   "diagnostics": 5,
+   "references": 5,
+   "resources": 9,
+   "sha256": "5f2f7a4fcb39eb54d810462fad558771f76d95d1c92c816d21c00cf26885dd44"
+  },
+  "tf/public/terraform-aws-eks/examples/eks-managed-node-group": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/terraform-aws-eks/examples/eks-managed-node-group",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 133087,
+   "diagnostics": 5,
+   "references": 218,
+   "resources": 97,
+   "sha256": "f68fa5f2a6ddb41a35b1d13a68b5f75c92f3710e3002b03f78d6d3440cae28e6"
+  },
+  "tf/public/terraform-aws-rds-aurora/examples/postgresql": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/terraform-aws-rds-aurora/examples/postgresql",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 77592,
+   "diagnostics": 20,
+   "references": 96,
+   "resources": 57,
+   "sha256": "00015fe714a4edeeb22266d13b96021445341b879c1cd5fd16cf204e6bfeee93"
+  },
+  "tf/public/terraform-aws-static-website-s3-cloudfront-acm/examples/custom-error-response-and-bucket": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/terraform-aws-static-website-s3-cloudfront-acm/examples/custom-error-response-and-bucket",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 26923,
+   "diagnostics": 22,
+   "references": 21,
+   "resources": 17,
+   "sha256": "239590453c633fb08707a484b3f95e9efce194767d70f7b0c53601b33e5fd1f6"
+  },
+  "tf/public/terraform-aws-vpc/examples/complete": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/terraform-aws-vpc/examples/complete",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 395724,
+   "diagnostics": 405,
+   "references": 425,
+   "resources": 220,
+   "sha256": "bd6a54b328f0d30aad30a87e50a1bd0d48d33bd6f5405d5d405c8a84f356c3e6"
+  },
+  "tf/public/terraform-aws-vpc/examples/simple": {
+   "adapter": "tf",
+   "args": [
+    "--input",
+    "aws-iac-diagram-workspace/fixtures/public/terraform-aws-vpc/examples/simple",
+    "--root-base",
+    "aws-iac-diagram-workspace"
+   ],
+   "bytes": 303341,
+   "diagnostics": 399,
+   "references": 258,
+   "resources": 175,
+   "sha256": "30009216cfa5700009cdba9f293193372502f594062bc7ebfca5dd0f1b804525"
+  }
+ },
+ "note": "tests/golden/manifest.json は golden.py --update だけが書く。手で直さない。リファクタを通すために更新しない（PLAN の 1.4 の 6）",
+ "version": 1
+}
