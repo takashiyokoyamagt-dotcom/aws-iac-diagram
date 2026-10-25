@@ -7,6 +7,8 @@
 再開するときは、まずこの節を読み、細かい経緯は下の節と [WORKLOG.md](WORKLOG.md)、計画は [PLAN.md](../../PLAN.md) を見る。
 
 ### 現在地（2026-10-26）
+- **フェーズ 2b の R1 まで実装済み**（ローカルのブランチ `phase2b-r1`。第三者レビューと main への取り込み待ち。push はまだ）。中身の動きは変えず、次の 3 つを入れた: ① 出力の固定（`tests/golden/manifest.json`。raw IR の 101 ケースの SHA-256。道具 `aws-iac-diagram-workspace/tools/golden.py`、テスト `tests/test_golden.py`）、② 骨組みと `lib/` の移動（`scripts/aws_iac_diagram/` と `scripts/maintenance/`。下の「新しい配置」）、③ 構成を守るテスト（`tests/test_architecture.py`）と [docs/architecture.md](../architecture.md)。単体テスト 312 件（281 + golden 10 + architecture 21）が Windows（別のドライブ・8.3 の短い名前の TEMP も）と WSL（Ubuntu）で通り、golden の 101 ケースは Windows・Linux・移す前のコミット（6587691）のコードでも同じ hash。詳しくは WORKLOG の「フェーズ 2b の R1」。**次は R2（Terraform の分割）。** R2 は `adapters/tf.py`（2613 行）と `tf_plan.py`（1558 行）の行数の免除（`tests/test_architecture.py` の `EXEMPT`）を空にすること。
+- **新しい配置（R1 の後）**: 入口は `scripts/` の直下（`doctor.py`・`validate_ir.py`・`find_aws_icon.py`）と、R2・R3 まで入口と本体を兼ねる `scripts/adapters/tf.py`・`cfn.py`。中身は `scripts/aws_iac_diagram/{core/ir_raw.py, platform/drawio_cli.py, adapters/terraform/{tf_eval,tf_modules,tf_plan}.py, adapters/registry.py, ほかは空の層}`。辞書の保守用は `scripts/maintenance/{build_icon_catalog,check_icons}.py` と `sidebar_harness.js`。`lib/` は無くなった。リファクタで出力が変わったら、`golden.py --update` で通さずにコードを直す（調べるには `golden.py --dump <名前> --out <ファイル>`）。
 - **フェーズ2（Terraform アダプタ）は完了**（2026-10-26。完了基準は、ユーザーの決定（C）で分けた（CRITERIA.md の 1.1））。手順4（plan JSON）は第三者レビューを2回受けて main に取り込み済み。**手順5（公開サンプルでの確認と完了）は実装・文書まで済んで、第三者レビューとコミット待ち**（`tools/tf_public_check.py`、`tests/test_tf_public.py`、ir-schema.md の 7.6 の削除と7章の確定、`--workspace`、`.tf.json` は読まないと決定。WORKLOG の「フェーズ2 の手順5」）。次は、ユーザーの環境の作業の 1b（開発の場所を WSL に移す）と、**フェーズ 2b（構成の階層化）**。
 - レビューの経緯: 1回目（APPROVE WITH CHANGES）で、`--plan` 併用のときに sensitive を宣言していない変数の値が IR に出る不具合（B1）などを直した。2回目（APPROVE WITH CHANGES）で、destroy plan の sensitive の扱いなどを直した。変異ファズ（2500 回 x 2）でスキーマ違反の IR が出ないことも確かめた。詳しくは WORKLOG の「フェーズ2 の手順4」。
 - main の CI が Windows で落ちていた件は、直した（2026-10-24。原因は2つ: ① テストの `build_module_call` が、別のドライブの一時フォルダとの `os.path.relpath` を取っていた、② `tf.py` の `Context.rel` が、8.3 の短い名前（`RUNNER~1`）と実際の名前を比べていた）。
@@ -29,7 +31,7 @@
 | — | 共通 Agent Skill の方針への移行（[docs/skill-cross-platform-guide.md](../../docs/skill-cross-platform-guide.md)、PLAN の 1.3） | **完了**（2026-10-16、`0550532`） |
 | 1 | IR スキーマの確定と CloudFormation アダプタ（A4、C1） | **完了**（2026-10-17、`5630f35`） |
 | 2 | Terraform アダプタ（.tf と plan JSON、A4、A5） | **完了**（2026-10-26。完了基準は、ユーザーの決定（C）で分けた（CRITERIA.md の 1.1））。手順1（土台、`3ebc024`）・手順2（A4、`45c9740`。秘密の値の扱いはユーザーの決定で `evaluation.vars` に値を書かず `--redact-var` を足した）・手順3（モジュール、A5、`a3b996c`）・手順4（plan JSON。レビュー2回、2026-10-26に main へ取り込み）はコミット済み。手順5（公開サンプル全部で確認、TF／SAM の対、7章の確定）は下の「次にやること」の 3a |
-| 2b | 構成の階層化（PLAN の 1.4。2026-10-24 にユーザーと合意） | 未着手（フェーズ2 の後） |
+| 2b | 構成の階層化（PLAN の 1.4。2026-10-24 にユーザーと合意） | **R1 実装済み**（2026-10-26。ブランチ `phase2b-r1`、レビュー待ち）。R2〜R6 は未着手 |
 | 3〜6 | 正規化、配置と .drawio、Mermaid と PNG、SKILL.md の仕上げと評価 | 未着手 |
 
 ### できているもの
@@ -46,11 +48,11 @@
 | アイコン辞書と C2 | `references/icons/`、`scripts/maintenance/build_icon_catalog.py`・`check_icons.py`・`find_aws_icon.py` | 1045 件、壊れたもの 0 件 |
 | 評価基準 | `aws-iac-diagram-workspace/evals/CRITERIA.md` | 確定（ユーザーの了承済み） |
 | fixture と正解 IR | `aws-iac-diagram-workspace/fixtures/`、`expected/` | 自作5構成（TF／CFN）、その plan JSON（`fixtures/tf-plan/`。three-tier は dev・prod、試験用の `edge`）、公開サンプル（T01〜T20、C01〜C05 など） |
-| 開発用の道具 | `aws-iac-diagram-workspace/tools/` | `c1_check.py`（C1）、`check_coverage.py`（網羅）、`iac_inventory.py`、`survey_public.py`、`make_plan_json.py`（plan JSON の fixture を terraform と moto で作る。手順4）、`tf_public_check.py`（TF アダプタを公開サンプルの全フォルダで確かめ、TF／SAM の対の型を比べる。手順5） |
-| テストと CI | `tests/`（279 件）、`.github/workflows/ci.yml` | Ubuntu 24.04 と Windows 2025（PowerShell 5.1 から SKILL を起動）で、テスト・検証・C1・TF アダプタの起動（.tf と、コミットした plan JSON。CI では terraform を動かさない）・公開サンプルの TF の全フォルダ（`tf_public_check.py --all --jobs 4`、約 30 秒） |
+| 開発用の道具 | `aws-iac-diagram-workspace/tools/` | `c1_check.py`（C1）、`check_coverage.py`（網羅）、`iac_inventory.py`、`survey_public.py`、`make_plan_json.py`（plan JSON の fixture を terraform と moto で作る。手順4）、`golden.py`（raw IR の固定と比較。2b の R1）、`tf_public_check.py`（TF アダプタを公開サンプルの全フォルダで確かめ、TF／SAM の対の型を比べる。手順5） |
+| テストと CI | `tests/`（312 件。golden と architecture を含む）、`.github/workflows/ci.yml` | Ubuntu 24.04 と Windows 2025（PowerShell 5.1 から SKILL を起動）で、テスト・検証・C1・TF アダプタの起動（.tf と、コミットした plan JSON。CI では terraform を動かさない）・公開サンプルの TF の全フォルダ（`tf_public_check.py --all --jobs 4`、約 30 秒） |
 
 ### 数字で見た現状
-- 単体テスト 279 件がすべて通過（TF アダプタと評価器の 72 件、plan JSON の 61 件、公開サンプルと TF／SAM の対の 11 件を含む。2026-10-26 の手順5 の後）。
+- 単体テスト 312 件がすべて通過（2b の R1 の後。golden 10・architecture 21 を足した。TF アダプタと評価器の 72 件、plan JSON の 61 件、公開サンプルと TF／SAM の対の 11 件を含む。2026-10-26 の手順5 の後）。
 - plan JSON（手順4。完了、レビュー2回）: 自作5構成の plan だけの raw IR は、.tf の結果と address・型・enabled・module・provider・region が一致し、.tf の active の参照の (from, to) の組は three-tier-modules の 8 組（locals・dynamic ブロックを通したもの）を除いてすべてある。.tf と合わせると `resources`・`references` が .tf の結果と同じになる。正解 IR の TF 側の網羅分類とも一致（plan だけは型と enabled、合わせたものは file・via まで）。
 - TF アダプタ（手順3 まで）: 自作 fixture の5構成と、公開サンプルの TF のルート 52 フォルダ（T01〜T20、P01〜P04）、`.tf` のあるフォルダすべて（手順3 の時点で 172、alb・rds のソースの取り込み後は 205）で例外なく動き、raw IR の検査を通る（error の診断 0）。手順5 で道具 `tf_public_check.py` にし、205 フォルダ（リソース 11621、warn 2224、info 13336）を CI でも確かめる。TF／SAM の対（T01、T05、T06、T07、T11）のリソースの型の多重集合の違いは、理由つきの表（`PAIR_EXPECTED`）と一致する（WORKLOG の「フェーズ2 の手順5」）。正解 IR の TF 側の網羅分類と、モジュールの中身（要約表の展開とローカルモジュール）まで読み替えなしで一致（three-tier は `env/dev.tfvars`）。モジュールを展開したので、ルート 52 のリソースは 854 → 2480、warn は 130 → 381（展開したモジュールの中の、値の無い変数やリソースの属性に依る値。WORKLOG の「フェーズ2 の手順3」）。
 - C1: 自作 fixture と公開サンプルの CFN（入力 25）で、cfn-lint のグラフの辺 513 本のすべてに raw IR の参照が対応（対応の無い辺 0）。
@@ -64,6 +66,7 @@ $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Env
 uv sync
 uv run python -m unittest discover -s tests
 uv run python aws-iac-diagram-workspace\tools\c1_check.py
+uv run python aws-iac-diagram-workspace\tools\golden.py        # raw IR を固定した値と比べる（約 20 秒。単体テストにも入っている）
 ```
 
 terraform と moto は、plan JSON の fixture（`fixtures/tf-plan/`）を作り直すときだけ要る（テストと CI はコミットした plan JSON を読むだけ）。作り直すときは、terraform（winget の `Hashicorp.Terraform`。1.16.5 で作った）を入れて `$env:Path` を読み直し、`uv run --group fixtures python aws-iac-diagram-workspace\tools\make_plan_json.py`（moto[server] 5.2.4 は依存グループ `fixtures` で、既定の `uv sync` には入らない）（本物の AWS には接続しない。fixtures/README.md の「plan JSON」）。
@@ -77,7 +80,7 @@ terraform と moto は、plan JSON の fixture（`fixtures/tf-plan/`）を作り
    - 1b. **開発の場所を WSL に移す**（PLAN の 1.5。2026-10-24 にユーザーと合意）: WSL の `~/` の下に clone し、uv・gh・Node.js（mmdc）・Claude Code・draw.io の deb・xvfb・Chromium を入れ（すべて許可済み）、`~/.claude/skills/aws-iac-diagram` をシンボリックリンクにする。テストが WSL で通ることを確かめ、この HANDOFF の「再開の手順」を WSL 用に書き直す。Windows の側の clone は、Windows の VS Code ＋ Copilot で手で確かめる用に残す
 2. フェーズ2 の手順4 の第三者レビュー → 指摘を直す → main に取り込んで push（ここから WSL で進める）
 3. （実装済み。レビューとコミット待ち）フェーズ2 の手順5（公開サンプルでの確認と完了）
-4. **フェーズ 2b: 構成の階層化**（2026-10-24 にユーザーと合意。PLAN の 1.4 とフェーズ表の 2b）。入口のスクリプトと中身のパッケージ `scripts/aws_iac_diagram/` を分け、スクリプトが読むものを `data/`、開発者向けの仕様を SKILL の外の `docs/spec/`、辞書の保守用を `scripts/maintenance/` に移す。最初に raw IR を固定し、中身の動きを変えずに R1〜R6 の順で移す（手順ごとに第三者レビュー）。今すぐではなくフェーズ2 の後にしたのは、手順4 のレビュー前の変更とファイルの移動が混ざるのと、Windows の CI が落ちていて比べる元を作れないため
+4. **フェーズ 2b: 構成の階層化**（2026-10-24 にユーザーと合意。PLAN の 1.4 とフェーズ表の 2b）。入口のスクリプトと中身のパッケージ `scripts/aws_iac_diagram/` を分け、スクリプトが読むものを `data/`、開発者向けの仕様を SKILL の外の `docs/spec/`、辞書の保守用を `scripts/maintenance/` に移す。最初に raw IR を固定し、中身の動きを変えずに R1〜R6 の順で移す（手順ごとに第三者レビュー）。**R1 は済み（2026-10-26）。** 今すぐではなくフェーズ2 の後にしたのは、手順4 のレビュー前の変更とファイルの移動が混ざるのと、Windows の CI が落ちていて比べる元を作れないため
 5. **vpc 5.x・eks 20.x の要約表**（フェーズ 2b の後、フェーズ3 の前）: terraform-aws-vpc v5.8.1・terraform-aws-eks v20.8.5（T16）と、T18 の `~> 5.0` を確かめるための vpc 5.x の最新のタグを `fixtures/public/` に取り込み（SOURCES.md に出どころ）、`data/module-summaries/` にファイルを足して版で選び分け、本物の展開と突き合わせるテストを足す。T16・T18 の黒箱が無くなることを確かめ、第三者レビューを受ける
 6. フェーズ3（正規化）。`aws_iac_diagram/normalize/` に作る。終わったら CI の Ubuntu で実行時間を測り、合計 30 分の見込みを確かめる
 7. フェーズ4（配置）。L4 の辺の貫通の割合（図1枚ごとに 5% 以下）を数える検査を作る

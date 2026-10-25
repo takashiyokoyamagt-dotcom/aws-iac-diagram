@@ -733,3 +733,57 @@ TF アダプタを公開サンプルの TF すべてにかけて確かめ、TF�
 
 ### つまずいたこと
 - Bash のヒアドキュメントで `\n`・`\t`・`\n` が改行・タブに化けた（HANDOFF の注意のとおり）。Python のコードには `chr(10)` などを使うか Edit ツールで直した。README のパスのバックスラッシュがタブになったのも同じ。
+
+## 2026-10-26 フェーズ2b の R1: 出力の固定、骨組み、`lib/` の移動、依存の向きのテスト
+
+### 概要
+構成の階層化（PLAN の 1.4）の最初の手順。**中身の動きは変えずに**、(a) アダプタの出力を移す前に固定し、(b) パッケージ `scripts/aws_iac_diagram/` の骨組みを作って `lib/` などを `git mv` し、(c) 依存の向きと行数をテストで守り、(d) 旧パスの参照を直した。ローカルのブランチ `phase2b-r1`（main の `6587691` から。コミット 3 つ（出力の固定、移動とテスト、HANDOFF・WORKLOG）。push はしていない）。第三者レビューは別。
+
+### やったこと
+1. **出力の固定（コミット 1）**: `aws-iac-diagram-workspace/tools/golden.py` と `tests/golden/manifest.json`（1 ファイル、キーを並べ替え、LF）。アダプタの CLI を子プロセスで動かし（引数は CI と同じ。リポジトリのルートを作業フォルダにし、相対パスと `--root-base aws-iac-diagram-workspace`）、`--out` に書かれたバイト列の SHA-256 を比べる。ケースは **101**: 自作 TF 5＋変数の渡し方 3（`--var-file`・`--var`・`--redact-var`・`--workspace`）、plan JSON 7 の plan だけ 7 と `--plan` の合わせたもの 7、公開サンプルの TF のルート 52（`tf_public_check.root_folders()`）、CFN は `c1_check.discover()` の入力 25（自作 5＋公開 20）に `--param-file`・`--param` を渡したもの 2。
+   - `--check`（既定。差分を `CHANGED`・`NEW`・`MISSING`・`ARGS`・`FAILED`・`ABSPATH` で一覧にして終了コード 1）、`--update`（リファクタを通すために使わない。docstring と警告に書いた。既存のケースの hash が変わるときは `--accept-changes` が無いと書かない）、`--dump NAME --out FILE`（今の出力を 1 件書く。不一致の調査用）、`--list`、`--only <接頭辞>`、`--jobs`。
+   - 出力に絶対パス（リポジトリのルート、ホーム、一時フォルダ）が入っていたら、hash が合っていても失敗にする。「ドライブ名:\」の一般的な形は調べない（公開サンプルの Lambda のコードの文字列 `e:\n` が当たったため）。
+   - `tests/test_golden.py`（10 件）: 全ケースの一致（約 20 秒）、manifest の形、道具が不一致・欠け・余り・失敗・引数違い・絶対パス・`--update` の歯止めを見逃さないこと。
+2. **骨組みと移動（コミット 2）**: `aws_iac_diagram/{core, adapters/{terraform,cloudformation}, normalize, layout, emit, validate, icons, platform}`。空の層は `__init__.py` に「どのフェーズで埋めるか」の 1 行。`adapters/registry.py` は形式 → アダプタのパッケージ名の表だけ。
+   | 元 | 先 |
+   |---|---|
+   | `scripts/lib/ir_raw.py` | `scripts/aws_iac_diagram/core/ir_raw.py` |
+   | `scripts/lib/drawio_cli.py` | `scripts/aws_iac_diagram/platform/drawio_cli.py` |
+   | `scripts/lib/tf_eval.py`・`tf_modules.py`・`tf_plan.py` | `scripts/aws_iac_diagram/adapters/terraform/`（R2 で分ける） |
+   | `scripts/lib/sidebar_harness.js` | `scripts/maintenance/sidebar_harness.js` |
+   | `scripts/build_icon_catalog.py`・`check_icons.py` | `scripts/maintenance/` |
+   | `scripts/adapters/tf.py`・`cfn.py`、`doctor.py`、`validate_ir.py`、`find_aws_icon.py` | そのまま（入口。tf.py・cfn.py は R2・R3 まで入口と本体を兼ねる） |
+3. **構成を守るテスト**: `tests/test_architecture.py`（21 件）と `docs/architecture.md`。
+4. **参照の更新**: README（テストの節に golden と architecture を追記、辞書の保守用の起動パス）、PLAN（状態、1.4 の状況、フェーズ表の 2b。構成の図と 1.4 の本文は予定のまま）、HANDOFF（現在地、新しい配置、数字、再開の手順に golden）、ir-schema.md・module-summaries.md・assets/SOURCES.md のパス、辞書の生成物（`references/icons/*.md` と `broken.json` のヘッダのスクリプトのパス。`build_icon_catalog.py` を再実行して手で直した結果と同一だと確かめた）。**WORKLOG の過去の記録のパスは直していない**（その時点の事実）。
+
+### 決めたこと
+| 決めたこと | 理由 |
+|---|---|
+| 入口がパッケージを見つける方法は、各入口の先頭の `sys.path.insert(0, str(Path(__file__).resolve().parent[.parent]))` の 1 パターン（`scripts/` の直下は `.parent`、`adapters/`・`maintenance/` は `.parent.parent`）。ヘルパー・`PYTHONPATH`・インストールは使わない | 今までのやり方と同じで、`uv run <パス>` の 1 行がどのフォルダからでも、日本語とスペースを含むパスでも動く（確かめた）。ヘルパーを置くと、それ自身を見つけるのに同じ 1 行が要る |
+| パッケージの中の import は絶対名（`from aws_iac_diagram.core import ir_raw`） | アーキテクチャのテストが読みやすく、移動しても書き換えが少ない（相対 import もテストは解決できる） |
+| テストは `tests/` の直下に平らに置いた（`test_golden.py`、`test_architecture.py`）。PLAN の図の `tests/architecture/`・`tests/golden/` の形は R5 | `unittest discover -s tests` は `__init__.py` の無いサブフォルダを探さない。CI の 1 行を変えずに済む最も簡単な形。`tests/golden/` には今は manifest だけ |
+| golden はアダプタの CLI を子プロセスで動かす | CLI の引数の処理、書き出し、入口の `sys.path` の 1 行まで含めて固定できる。入口の場所は `golden.py` の `ENTRY` の 1 か所（R2・R3 で直す） |
+| 依存の向きの表（`ALLOWED`）: `core` → なし、アダプタ 3 つ → `core`、`normalize`・`layout`・`icons`・`platform` → `core`、`validate` → `core`・`icons`、`emit` → `core`・`layout`・`icons`・`platform`。入口はすべて可 | PLAN の 1.4 の 4 と図から。後の層は必要になったときに、表と docs/architecture.md の表（テストが照合する）を同じコミットで直す |
+| 入口どうし・パッケージから入口の import は禁止 | 共通の処理は必ずパッケージに置かせるため |
+| 行数の免除 2 つ（2026-10-26）: `adapters/tf.py`（2613 行）、`aws_iac_diagram/adapters/terraform/tf_plan.py`（1558 行）。どちらも R2 で外す。上限を超えて増えたら失敗、1,500 行以内に減ったら免除を消さないと失敗 | PLAN の 1.4 の 4。免除を口実に大きくしない／消し忘れない |
+| `doctor.py`・`validate_ir.py`・`find_aws_icon.py` の本体のロジックは動かさなかった | 入口と本体が 1 ファイルのままで、`validate`・`icons`・`platform` の層に移すのはそれが育つフェーズ（4・5）。R1 は動きを変えない |
+| `SKILL_DIR` の求め方は、移した 2 つのスクリプトで 1 段上げた。`tf_modules.py` の `SUMMARY_FILE` は `parents[4]`（R4 で `data/` に移すときに直す） | ファイルの深さが変わったため。それ以外のコードの変更は import とパスだけ |
+
+### 確かめたこと
+- **golden**: 移す前のコミット（`6587691`）の `git archive` を別の場所に展開し、manifest と `golden.py` だけを足して `--check` → **101 ケースすべて一致**（manifest が正しいこと、場所に依らないこと）。最後の木でも一致。Windows・WSL（Ubuntu 26.04）で同じ hash。`PYTHONHASHSEED` を変えても同じ。作業の途中で `tf_modules.py` の `SUMMARY_FILE` の深さを直し忘れたときは golden のほかに 25 件の単体テストが落ちた。`cfn.py` の `dump()` に空白を 1 文字足すと、27 ケースが `CHANGED`（バイト数 +1）で、終了コード 1。
+- **単体テスト 312 件**（281 + golden 10 + architecture 21）が通る。Windows（通常の TEMP、別のドライブの TEMP `subst Y:`、8.3 の短い名前の TEMP）と WSL（`git archive HEAD` を `/tmp` に展開して `uv sync --locked` → `uv run python -m unittest discover -s tests`）。所要は Windows で約 60 秒、WSL で約 36 秒。
+- `uv lock --check`・`uv sync --locked` が通る。CI の手順を手元で（Git Bash）: `validate_ir.py` で正解 IR、`check_coverage.py --lint`、`c1_check.py`（入力 25・辺 513・対応の無い辺 0）、TF アダプタの自作 5 構成と plan JSON 7 の `uv run`（PEP 723）と `validate_ir.py`、`tf_public_check.py --all --jobs 4`（205 フォルダ、リソース 11621、error 0。Windows 約 28 秒、WSL 約 18 秒）。
+- PowerShell 5.1 の「日本語とスペースを含むパスから SKILL を起動」を、CI の手順と同じ文で手元で通した（`doctor.py`・`validate_ir.py`・`tf.py`（`--var-file`・`--plan`）。さらに `cfn.py`・`maintenance/build_icon_catalog.py`・`find_aws_icon.py` も）。WSL の bash の同じ手順も通った（doctor は warn。mmdc が無いだけ）。
+- アーキテクチャのテストが空振りでないこと: 一時フォルダにコピーした構成に、`core` → `platform`、`terraform` ⇄ `cloudformation`、アダプタ → `emit`・`layout`・`normalize`・`validate`、`platform`・`icons` → アダプタ、パッケージ → 入口、入口 → 入口、相対 import、未知の層のフォルダ、1,501 行のファイル、免除の期限切れ・上限超えを入れ、どれも失敗する。
+
+### R2 以降に残したこと
+- **R2**: `adapters/tf.py` を入口 `adapt_tf.py` と `adapters/terraform/` の本体に分け、`tf_plan.py`（1558 行）を `plan/` に分ける。`tests/test_architecture.py` の `EXEMPT` を空にする。`golden.py` の `ENTRY` の `tf` を直す。`tf_public_check.py`・`test_tf_*.py` の `from adapters import tf` を直す。
+- **R3**: `cfn.py`（1327 行。免除は要らないが 800 行を超えている）を同様に分ける。診断コードの一覧（`core/diagnostics.py`）と、一覧に無いコードを使ったら失敗するテスト。`ENTRY` の `cfn` を直す。
+- **R4**: `SUMMARY_FILE`（`tf_modules.py`）、スキーマ、辞書、規則表を `data/` に移す。パスの深さは `parents[4]` から変わる。
+- **R5**: テストを `unit/`・`integration/`・`golden/`・`architecture/` に分ける（`__init__.py` か discover の指定が要る）。
+- **R6**: SKILL.md・references・`docs/spec/`・`docs/architecture.md` の印（R2〜R6 と書いた所）・PLAN の図。
+- `doctor.py` の中身（`platform`）、`validate_ir.py` の検査（`validate`）、`find_aws_icon.py` の検索（`icons`）は、入口と本体を分けていない。
+
+### つまずいたこと
+- Bash のヒアドキュメントで `\n`・`\t` が化けて、置換が空振りした（HANDOFF の注意のとおり）。Python のコードは `chr(92)` で組んだ。Git Bash の `/tmp` と Windows の Python の `/tmp` は別のものを指す（ファイルは `%TEMP%` で開く）。
+- `tf_modules.py` の `SUMMARY_FILE` が相対の深さ（`parent.parent.parent`）で書かれていて、移動で要約表を読めなくなった（`load()` は読めなければ空を返すので、エラーにならず要約表なしの扱いに変わる。R4 で読めないときに大きな声で失敗させるかを決める）。golden と単体テストが落ちて気づいた。**ファイルの位置に依る相対パスは、移動のたびに golden で確かめること。**
