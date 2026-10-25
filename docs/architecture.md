@@ -21,6 +21,7 @@ skills/aws-iac-diagram/
 - **入口のスクリプト**は引数の処理と、パッケージの関数の呼び出しだけをする。PEP 723 の宣言を持ち、`uv run <パス>` の 1 行で動く（どのフォルダからでも、日本語やスペースを含むパスに置いても）。
 - **パッケージ `aws_iac_diagram`** は入口からだけ読まれる。入口は先頭で、自分の場所から `scripts/` を `sys.path` の先頭に入れる（`sys.path.insert(0, str(Path(__file__).resolve().parent...))`。`scripts/` の直下の入口は `.parent`、`adapters/`・`maintenance/` の入口は `.parent.parent`）。この 1 行だけが入口とパッケージの接点で、ほかの方法（ヘルパーの import、`PYTHONPATH`、`pip install`）は使わない。
 - パッケージの中の import は絶対名（`from aws_iac_diagram.core import ir_raw`）で書く。
+- **`aws_iac_diagram/` のフォルダ自体を `sys.path` に入れない（その中で `python` を動かさない、`python -m` の作業フォルダにしない）。** 層の名前 `platform` が標準ライブラリの `platform` を隠すため（PLAN の 1.4 の層の名前なので残してある）。`sys.path` に入れるのは `scripts/` だけ。テスト（`tests/test_architecture.py` の `STDLIB_ALLOW`）は、標準ライブラリと同じ名前を許すのを `platform` の 1 つだけにし、新しいフォルダ・モジュールの名前が標準ライブラリと重なると失敗する。
 
 ## 2. 層
 
@@ -63,7 +64,8 @@ skills/aws-iac-diagram/
 - `core` はほかの層を読み込まない。
 - `adapters/terraform` と `adapters/cloudformation` は読み込み合わない。アダプタは `emit`・`layout`・`normalize`・`validate` を読まない（アダプタの出力は raw IR という JSON で、次の段は JSON を読む）。
 - `platform`・`icons` は `adapters` を読まない。
-- パッケージの中から入口のスクリプトを読まない。入口どうしも読み合わない（共通の処理はパッケージに置く）。
+- パッケージの中から入口のスクリプトを読まない。入口どうしも読み合わない（`scripts/` の直下、`adapters/`、`maintenance/` のすべての入口の名前が対象。共通の処理はパッケージに置く）。例外は `tests/test_architecture.py` の `ENTRY_IMPORT_ALLOW` に理由を付けて書いたものだけで、今は `maintenance/check_icons.py` → `build_icon_catalog`（辞書の書き出しの共有）の 1 つ。辞書の読み書きを `icons` 層に移すときに外す。
+- パッケージの中で動的な import（`importlib`、`__import__`）と `exec`・`eval` の呼び出しをしない（静的な import の検査をすり抜けるため）。
 - 層どうしが循環しない。
 
 向きを変える・層を足すときは、テストの `ALLOWED` とこの表を同じコミットで直し、理由をコミットメッセージに書きます。
@@ -77,7 +79,7 @@ skills/aws-iac-diagram/
 構成を動かす手順（R1〜R6）は、中身の動きを変えません。`tests/golden/manifest.json` が、アダプタの CLI の出力（raw IR）101 ケースの SHA-256 を固定していて、`tests/test_golden.py` と `aws-iac-diagram-workspace/tools/golden.py` が比べます（自作の fixture、plan JSON、公開サンプルの TF のルート 52、CFN の入力 25）。
 
 - 落ちたら、コードを直します。**`golden.py --update` で通してはいけません。** 調べるには `golden.py --dump <名前> --out <ファイル>` で今の出力を書き、移す前のコミット（`git worktree add` か `git archive`）の同じケースの出力と比べます（名前の一覧は `golden.py --list`）。
-- `--update` は、アダプタの動きを意図して変えたとき（フェーズ 3 以降の仕様変更や fixture の追加）だけ、理由をコミットメッセージに書いて使います。既存のケースの hash が変わるときは `--accept-changes` が要ります。
+- `--update` は、アダプタの動きを意図して変えたとき（フェーズ 3 以降の仕様変更や fixture の追加）だけ、理由をコミットメッセージに書いて使います。既存のケースの hash が変わるとき、ケースが減るときは `--accept-changes` が要ります。`--only` に合うケースが無いと失敗します。
 - 入口のスクリプトの場所を変えたとき（R2・R3）は、`golden.py` の `ENTRY` の表を直します。出力（manifest）は変わりません。
 
 ## 6. 拡張のしかた

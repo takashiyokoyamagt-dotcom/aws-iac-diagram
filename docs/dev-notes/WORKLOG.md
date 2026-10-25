@@ -787,3 +787,8 @@ TF アダプタを公開サンプルの TF すべてにかけて確かめ、TF�
 ### つまずいたこと
 - Bash のヒアドキュメントで `\n`・`\t` が化けて、置換が空振りした（HANDOFF の注意のとおり）。Python のコードは `chr(92)` で組んだ。Git Bash の `/tmp` と Windows の Python の `/tmp` は別のものを指す（ファイルは `%TEMP%` で開く）。
 - `tf_modules.py` の `SUMMARY_FILE` が相対の深さ（`parent.parent.parent`）で書かれていて、移動で要約表を読めなくなった（`load()` は読めなければ空を返すので、エラーにならず要約表なしの扱いに変わる。R4 で読めないときに大きな声で失敗させるかを決める）。golden と単体テストが落ちて気づいた。**ファイルの位置に依る相対パスは、移動のたびに golden で確かめること。**
+
+### レビューの指摘への対応（R1 の第三者レビュー: APPROVE WITH CHANGES）
+- **要約表の欠落を黙って通さない（MAJOR）**: `references/module-summaries.md` が無いと、`tf.py` は終了コード 0 のまま three-tier-modules が 42 でなく 13 リソースになり、`doctor.py` も ok だった。`doctor.py` の必須ファイルに足し（無ければ error・終了コード 2）、TF アダプタは要約表が空・読めないのにレジストリモジュールの呼び出しがあるとき `TF-MODULE-SUMMARY-TABLE-MISSING`（warn。ir-schema.md の TF の code の一覧は 43 個）を出す（`tf_modules.blackbox_plan`。`tf.py` の行数は増やしていない）。golden は 101/101 のまま。`SummaryTableFileTest` 4 件。
+- **構成のテストの穴**: `platform` が標準ライブラリを隠す危険（`aws_iac_diagram/` 自体を `sys.path` に入れない決まりを architecture.md に書き、標準ライブラリと同じ名前の新規のフォルダ・モジュールを失敗に。許可は `platform` の 1 つ）、入口どうしの import（`adapters/`・`maintenance/` の入口も対象。実在した `check_icons.py` → `build_icon_catalog`（辞書の書き出しの共有）は理由付きの許可表 `ENTRY_IMPORT_ALLOW` に 1 件だけ書き、外す時期を記した）、`importlib`・`__import__`・`exec`・`eval` の禁止。それぞれ一時フォルダのコピーで失敗を確かめる。
+- **golden.py**: `--only` に合うケースが無ければ失敗、`--update` はケースが減るときも `--accept-changes` が要る。`find_aws_icon.py` のメッセージのパスを直した。テストは 323 件（312 + 11）。

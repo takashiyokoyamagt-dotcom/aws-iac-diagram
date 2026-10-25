@@ -27,7 +27,7 @@ KINDS = ("resource_icon", "shape", "group", "plain_group", "plain", "edge")
 
 def load() -> list[dict]:
     if not CATALOG.exists():
-        sys.exit(f"{CATALOG} がありません。先に build_icon_catalog.py を実行してください。")
+        sys.exit(f"{CATALOG} がありません。先に scripts/maintenance/build_icon_catalog.py を実行してください。")
     return json.loads(CATALOG.read_text(encoding="utf-8"))
 
 

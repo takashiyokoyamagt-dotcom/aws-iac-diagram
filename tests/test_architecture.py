@@ -43,6 +43,23 @@ ALLOWED: dict[str, frozenset[str]] = {
     "platform": frozenset({"core"}),
 }
 
+# 動的な import・実行に使う組み込み関数（パッケージの中では呼ばない）
+DYNAMIC_CALLS = {"__import__", "exec", "eval"}
+
+# aws_iac_diagram の下で、標準ライブラリと同じ名前を許すもの（名前 → 理由）。PLAN の 1.4 の層の名前 platform は残す。
+# 危険: aws_iac_diagram/ のフォルダ自体を sys.path に入れる（その中から python を動かす、`python -m` を打つ）と、
+# 標準ライブラリの platform を隠す。入口は scripts/ を sys.path に入れ、aws_iac_diagram/ の中では動かさない。
+STDLIB_ALLOW: dict[str, str] = {
+    "platform": "PLAN 1.4 の層の名前（draw.io の探索と呼び出し）。aws_iac_diagram/ 自体を sys.path に入れない決まり（docs/architecture.md）",
+}
+
+# 入口が入口を import してよい例外（(importする側のscripts/からの相対パス, 読まれる入口の名前) → 理由と外す時期）。
+# 増やさない。ここにあるものが実際に使われていなければ失敗する（古い許可を残さない）。
+ENTRY_IMPORT_ALLOW: dict[tuple[str, str], str] = {
+    ("maintenance/check_icons.py", "build_icon_catalog"):
+        "辞書の書き出し（write_outputs・strip_broken）を共有している保守用の 2 つ。辞書の読み書きを icons 層に移すとき（フェーズ 4 以降）に外す",
+}
+
 WARN_LINES = 800
 MAX_LINES = 1500
 
@@ -90,7 +107,12 @@ def source_layer(path: Path, scripts: Path) -> str:
 
 
 def entry_names(scripts: Path) -> set[str]:
-    return {p.stem for p in scripts.glob("*.py")} | ENTRY_DIRS
+    """入口のスクリプトの名前（scripts/ の直下、adapters/、maintenance/ の .py と、入口のフォルダ）。
+    アダプタの入口どうし（cfn.py が `import tf`）や保守用の入口どうしの import も、これで見つける。"""
+    stems = {p.stem for p in scripts.glob("*.py")}
+    for d in ("adapters", "maintenance"):
+        stems |= {p.stem for p in (scripts / d).glob("*.py")}
+    return stems | ENTRY_DIRS
 
 
 def imported_targets(tree: ast.AST, path: Path, scripts: Path) -> list[tuple[int, str]]:
@@ -117,7 +139,8 @@ def imported_targets(tree: ast.AST, path: Path, scripts: Path) -> list[tuple[int
     return out
 
 
-def violations_in_dependencies(scripts: Path, allowed: dict[str, frozenset[str]] = ALLOWED) -> tuple[list[str], set[tuple[str, str]]]:
+def violations_in_dependencies(scripts: Path, allowed: dict[str, frozenset[str]] = ALLOWED,
+                               entry_allow: dict[tuple[str, str], str] = ENTRY_IMPORT_ALLOW) -> tuple[list[str], set[tuple[str, str]]]:
     """依存の向きの違反の一覧と、見つけた辺 (from の層, to の層) の集合。"""
     problems: list[str] = []
     edges: set[tuple[str, str]] = set()
@@ -143,10 +166,54 @@ def violations_in_dependencies(scripts: Path, allowed: dict[str, frozenset[str]]
                 elif src != "entry" and dst != src and dst not in allowed.get(src, frozenset()):
                     problems.append(f"{rel}:{lineno}: 層 {src} は層 {dst} を import できない（import {target}）")
             elif top in entries:
-                # パッケージの中から入口を読むのも、入口が入口を読むのも不可（入口は引数の処理と呼び出しだけ）
+                # パッケージの中から入口を読むのも、入口が入口を読むのも不可（入口は引数の処理と呼び出しだけ）。
+                # 例外は ENTRY_IMPORT_ALLOW の表にある（ファイル, 読む入口）だけ
+                if src == "entry" and (rel, top) in entry_allow:
+                    continue
                 edges.add((src, "entry"))
                 problems.append(f"{rel}:{lineno}: 入口のスクリプト {top} を import している（{src} から入口は読めない）")
     return problems, edges
+
+
+def violations_in_dynamic_imports(scripts: Path) -> list[str]:
+    """パッケージの中の動的な import（importlib、__import__、exec、eval）。静的な依存の検査をすり抜けるので禁止。"""
+    problems: list[str] = []
+    for path in sorted((scripts / PACKAGE).rglob("*.py")):
+        if "__pycache__" in path.parts:
+            continue
+        rel = path.relative_to(scripts).as_posix()
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"), filename=str(path))):
+            if isinstance(node, ast.Import) and any(a.name.split(".")[0] == "importlib" for a in node.names):
+                problems.append(f"{rel}:{node.lineno}: importlib を import している（動的な import は禁止）")
+            elif isinstance(node, ast.ImportFrom) and node.level == 0 and (node.module or "").split(".")[0] == "importlib":
+                problems.append(f"{rel}:{node.lineno}: importlib から import している（動的な import は禁止）")
+            elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in DYNAMIC_CALLS:
+                problems.append(f"{rel}:{node.lineno}: {node.func.id}() を呼んでいる（動的な import・実行は禁止）")
+    return problems
+
+
+def stdlib_collisions(scripts: Path, allow: dict[str, str] = STDLIB_ALLOW) -> list[str]:
+    """aws_iac_diagram の下のフォルダ・モジュールの名前が標準ライブラリと同じものの一覧（許可の表にあるものは除く）。
+
+    パッケージのフォルダ自体が sys.path に入ると（その中から python を動かす、`python -m` の作業フォルダにするなど）、
+    同じ名前の標準ライブラリを隠してしまう。"""
+    problems: list[str] = []
+    names: set[str] = set()
+    for path in (scripts / PACKAGE).rglob("*"):
+        if "__pycache__" in path.parts:
+            continue
+        if path.is_dir() or path.suffix == ".py":
+            names.add(path.stem if path.is_file() else path.name)
+    for n in sorted(names):
+        if n in sys.stdlib_module_names and n not in allow:
+            problems.append(f"{PACKAGE} の下の名前 {n} が標準ライブラリと同じ（フォルダ自体が sys.path に入ると隠す）。"
+                            "名前を変えるか、理由を付けて STDLIB_ALLOW に書く")
+    for n in sorted(allow):
+        if n not in names:
+            problems.append(f"STDLIB_ALLOW の {n} が {PACKAGE} の下に無い。許可を消す")
+        elif n not in sys.stdlib_module_names:
+            problems.append(f"STDLIB_ALLOW の {n} は標準ライブラリの名前ではない。許可を消す")
+    return problems
 
 
 def check_allowed_table(allowed: dict[str, frozenset[str]]) -> list[str]:
@@ -207,6 +274,69 @@ class DependencyDirectionTest(unittest.TestCase):
         self.assertIn(("entry", "adapters/terraform"), edges)
         self.assertIn(("entry", "core"), edges)
         self.assertIn(("entry", "platform"), edges)
+        self.assertEqual(violations_in_dynamic_imports(SCRIPTS), [])
+
+    def test_real_tree_names_do_not_collide_with_the_stdlib(self):
+        self.assertEqual(stdlib_collisions(SCRIPTS), [])
+        self.assertEqual(list(STDLIB_ALLOW), ["platform"])  # 許可はこの 1 つだけ
+
+    def test_mutation_new_stdlib_name_fails(self):
+        for name in ("json", "types", "logging"):
+            s = self.copy_tree()
+            (s / PACKAGE / "core" / f"{name}.py").write_text("X = 1\n", encoding="utf-8")
+            problems = stdlib_collisions(s)
+            self.assertEqual(len(problems), 1, (name, problems))
+            self.assertIn(name, problems[0])
+        s = self.copy_tree()
+        (s / PACKAGE / "enum").mkdir()
+        self.assertTrue(any("enum" in p for p in stdlib_collisions(s)))
+        # 許可の表が古くなったら咎める
+        s = self.copy_tree()
+        shutil.rmtree(s / PACKAGE / "platform")
+        self.assertTrue(any("STDLIB_ALLOW の platform" in p for p in stdlib_collisions(s)))
+
+    def test_mutation_dynamic_imports_fail(self):
+        cases = {
+            "import importlib": "importlib を import",
+            "import importlib.util": "importlib を import",
+            "from importlib import import_module": "importlib から import",
+            "mod = __import__('aws_iac_diagram.emit')": "__import__()",
+            "exec('import os')": "exec()",
+            "x = eval('1 + 1')": "eval()",
+        }
+        for line, expect in cases.items():
+            s = self.copy_tree()
+            f = s / PACKAGE / "adapters" / "terraform" / "tf_modules.py"
+            f.write_text(f.read_text(encoding="utf-8") + "\n" + line + "\n", encoding="utf-8", newline="\n")
+            problems = violations_in_dynamic_imports(s)
+            self.assertTrue(any(expect in p for p in problems), (line, problems))
+        # メソッドの eval（self.eval(...)）は動的な実行ではない
+        s = self.copy_tree()
+        f = s / PACKAGE / "core" / "ir_raw.py"
+        f.write_text(f.read_text(encoding="utf-8") + "\nclass _X:\n    def go(self):\n        return self.eval(1)\n",
+                     encoding="utf-8", newline="\n")
+        self.assertEqual(violations_in_dynamic_imports(s), [])
+
+    def test_entry_import_allowlist_is_used_and_narrow(self):
+        # 許可の表を空にすると、表にあるものだけが違反として出る（古い許可が残っていない）
+        problems, _ = violations_in_dependencies(SCRIPTS, entry_allow={})
+        self.assertEqual(len(problems), len(ENTRY_IMPORT_ALLOW), problems)
+        for (rel, top), why in ENTRY_IMPORT_ALLOW.items():
+            self.assertTrue(any(p.startswith(rel + ":") and f"入口のスクリプト {top} " in p for p in problems), (rel, top))
+            self.assertTrue(why.strip())
+        self.assertEqual(list(ENTRY_IMPORT_ALLOW), [("maintenance/check_icons.py", "build_icon_catalog")])
+
+    def test_mutation_sibling_entry_imports_fail(self):
+        for relpath, line, expect in (("adapters/cfn.py", "import tf", "入口のスクリプト tf"),
+                                      ("adapters/tf.py", "from cfn import build_raw", "入口のスクリプト cfn"),
+                                      ("maintenance/build_icon_catalog.py", "import check_icons",
+                                       "入口のスクリプト check_icons"),
+                                      ("maintenance/check_icons.py", "import doctor",
+                                       "入口のスクリプト doctor")):
+            s = self.copy_tree()
+            problems = self.inject(s, relpath, line)
+            self.assertTrue(any(expect in p and p.startswith(relpath) for p in problems), (relpath, problems))
+        self.assertTrue({"tf", "cfn", "check_icons", "build_icon_catalog", "doctor"} <= entry_names(SCRIPTS))
 
     def test_every_package_directory_is_a_known_layer(self):
         pkg = SCRIPTS / PACKAGE

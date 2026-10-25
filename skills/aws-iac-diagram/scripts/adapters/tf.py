@@ -1241,8 +1241,7 @@ class ModuleEval:
         else:
             summary, why, note = M.choose(source, version)
             if summary is None:
-                iam = " (it makes IAM resources only: H-IAM)" if M.iam_only(source) else ""
-                plan = ("blackbox", "info", "TF-MODULE-BLACKBOX", f"module {source} is not read: {why}{iam}")
+                plan = M.blackbox_plan(source, why)
             else:
                 plan = ("summary", summary, note)
         if plan[0] != "blackbox":

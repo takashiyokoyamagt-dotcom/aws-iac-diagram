@@ -88,6 +88,17 @@ def load(path: Path | None = None) -> tuple[dict, tuple]:
 
 # ------------------------------------------------------------------ source の見分け
 
+def blackbox_plan(source: str, why: str) -> tuple:
+    """要約表で展開しないレジストリモジュールの扱い。("blackbox", level, code, 理由)。
+
+    要約表のファイル自体が無い・読めない（取り込みの不備）ときは、「表に無い」(info) とは別の warn にする。"""
+    if registry_key(source) and not load()[0]:
+        return ("blackbox", "warn", "TF-MODULE-SUMMARY-TABLE-MISSING",
+                f"module {source} is not read: the summary table (references/module-summaries.md) is missing or empty")
+    iam = " (it makes IAM resources only: H-IAM)" if iam_only(source) else ""
+    return ("blackbox", "info", "TF-MODULE-BLACKBOX", f"module {source} is not read: {why}{iam}")
+
+
 def is_local(source: str) -> bool:
     """ローカルのパス（./・../ で始まる。Terraform と同じ）か。"""
     return source.startswith(("./", "../")) or source in (".", "..")

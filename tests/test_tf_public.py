@@ -108,7 +108,7 @@ class DiagnosticCodesTest(unittest.TestCase):
         in_doc = set(re.findall(r"`(TF-[A-Z0-9]+(?:-[A-Z0-9]+)*)`", doc[a:b]))
         self.assertEqual(sorted(in_code - in_doc), [])
         self.assertEqual(sorted(in_doc - in_code), [])
-        self.assertEqual(len(in_code), 42)
+        self.assertEqual(len(in_code), 43)
         # 見出しの 7.6 は無い（フェーズ2 の間だけの注記だった）
         self.assertNotIn("### 7.6", doc)
 

@@ -113,6 +113,27 @@ class GoldenToolTest(unittest.TestCase):
             self.assertEqual(golden.main(["--dump", "no/such/case", "--out", str(out)]), 2)
             self.assertEqual(golden.main(["--dump", "tf/custom/rag"]), 2)
 
+    def test_only_without_a_matching_case_fails(self):
+        # 打ち間違いの --only が「0 件で OK」にならない
+        problems = golden.check(only="tf/custom/no-such-prefix")
+        self.assertEqual(len(problems), 1, problems)
+        self.assertTrue(problems[0].startswith("NOMATCH"), problems)
+        self.assertEqual(golden.main(["--only", "tf/custom/no-such-prefix"]), 1)
+
+    def test_update_refuses_to_remove_cases_without_accept(self):
+        with tempfile.TemporaryDirectory() as t:
+            manifest = Path(t) / "manifest.json"
+            both = self.cases
+            one = {"tf/custom/vpc-endpoints": self.cases["tf/custom/vpc-endpoints"]}
+            with mock.patch.object(golden, "MANIFEST", manifest):
+                with mock.patch.object(golden, "enumerate_cases", return_value=both):
+                    self.assertEqual(golden.main(["--update"]), 0)
+                with mock.patch.object(golden, "enumerate_cases", return_value=one):
+                    self.assertEqual(golden.main(["--update"]), 1)  # ケースが減る
+                    self.assertEqual(sorted(json.loads(manifest.read_text(encoding="utf-8"))["cases"]), sorted(both))
+                    self.assertEqual(golden.main(["--update", "--accept-changes"]), 0)
+                    self.assertEqual(sorted(json.loads(manifest.read_text(encoding="utf-8"))["cases"]), sorted(one))
+
     def test_update_refuses_to_change_existing_hashes_without_accept(self):
         # --update をリファクタの「修正」に使えない歯止め。manifest は一時ファイルに向ける
         with tempfile.TemporaryDirectory() as t:

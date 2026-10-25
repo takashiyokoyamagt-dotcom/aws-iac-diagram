@@ -28,8 +28,8 @@ SHA-256 を `tests/golden/manifest.json` と比べる。固定する物:
 注意: **`--update` を、リファクタ（構成の階層化 R1〜R6 など、動きを変えないはずの変更）を「通す」ために使ってはいけない。**
 `--check` が落ちたら、リファクタが出力を変えたということなので、コードを直す（`--dump` で出力を書き、移す前のコミットの
 出力と比べる）。`--update` は、アダプタの動きを意図して変えたとき（フェーズ 3 以降の仕様変更、fixture の追加）に、
-変えた理由をコミットメッセージに書いたうえで使う。既存のケースの hash が変わるときは `--accept-changes` を付けないと
-書き換えない（変わるケースの一覧を出して止まる）。
+変えた理由をコミットメッセージに書いたうえで使う。既存のケースの hash が変わるとき・ケースが減るときは `--accept-changes` を付けないと
+書き換えない（変わる・減るケースの一覧を出して止まる）。
 
 終了コード: 0 = すべて一致、1 = 不一致・欠け・余り・絶対パスの混入、2 = 使い方の誤り
 """
@@ -247,6 +247,8 @@ def check(only: str | None = None, jobs: int | None = None, verbose: bool = Fals
     cases = enumerate_cases()
     if only:
         cases = {n: c for n, c in cases.items() if n.startswith(only)}
+        if not cases:  # 打ち間違いで「0 件で OK」にしない
+            return [f"NOMATCH --only {only!r} に合うケースが無い（golden.py --list で名前を確かめる）"]
     results = run_all(cases, jobs or default_jobs())
     if verbose:
         print(f"golden: {len(cases)} cases, {sum(r['seconds'] for r in results.values()):.1f} s of CPU-ish time")
@@ -308,9 +310,14 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         old = load_manifest()["cases"] if MANIFEST.is_file() else {}
         changed = sorted(n for n in cases if n in old and old[n]["sha256"] != results[n]["sha256"])
-        if changed and not a.accept_changes:
-            print("既存のケースの出力が変わります。意図した変更（アダプタの仕様変更）だけ --accept-changes で認めてください:\n  "
-                  + "\n  ".join(changed), file=sys.stderr)
+        removed = sorted(set(old) - set(cases))
+        if (changed or removed) and not a.accept_changes:
+            if changed:
+                print("既存のケースの出力が変わります。意図した変更（アダプタの仕様変更）だけ --accept-changes で認めてください:\n  "
+                      + "\n  ".join(changed), file=sys.stderr)
+            if removed:
+                print("固定していたケースが無くなります（fixture や入力を消した・名前を変えた）。意図した変更だけ "
+                      "--accept-changes で認めてください:\n  " + "\n  ".join(removed), file=sys.stderr)
             return 1
         doc = {"version": MANIFEST_VERSION,
                "note": "tests/golden/manifest.json は golden.py --update だけが書く。手で直さない。リファクタを通すために更新しない"
@@ -318,7 +325,6 @@ def main(argv: list[str] | None = None) -> int:
                "cases": {n: entry_of(cases[n], results[n]) for n in cases}}
         write_manifest(doc)
         added = sorted(set(cases) - set(old))
-        removed = sorted(set(old) - set(cases))
         shown = MANIFEST.relative_to(ROOT).as_posix() if MANIFEST.is_relative_to(ROOT) else MANIFEST.name
         print(f"wrote {shown}: {len(cases)} cases "
               f"(added {len(added)}, removed {len(removed)}, changed {len(changed)})")

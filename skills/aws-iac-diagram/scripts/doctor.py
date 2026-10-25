@@ -37,6 +37,7 @@ REQUIRED_FILES = [
     "SKILL.md",
     "scripts/aws_iac_diagram/platform/drawio_cli.py",
     "references/icons/catalog.json",
+    "references/module-summaries.md",  # TF アダプタのレジストリモジュールの要約表（無いと黒箱になり、図が欠ける）
     "references/ir.schema.json",
 ]
 

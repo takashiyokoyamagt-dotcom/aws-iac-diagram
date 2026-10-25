@@ -353,11 +353,11 @@ canonical 部の **すべての辺** について、形式ごとに1件ずつ、
 
 - `level` は `info`（読み替えなど、結果に影響しない）／`warn`（評価できなかった値があり、図が不完全になりうる）／`error`（そのリソースか、ファイルを読めなかった）。
 - `code` は大文字で、raw では `CFN-…`／`TF-…`。正規化後の IR にも同じ形の `diagnostics` を持たせ、そこでは `NORM-…`（「使わなかった参照」、「条件が決まらない」など。edge-rules.md）。一覧は各段階の実装と一緒に決める。
-- TF アダプタの `code` の一覧（42 個。テスト `tests/test_tf_public.py` の `test_diagnostic_codes_are_documented` が、コードとこの一覧が食い違わないことを確かめる）:
+- TF アダプタの `code` の一覧（43 個。テスト `tests/test_tf_public.py` の `test_diagnostic_codes_are_documented` が、コードとこの一覧が食い違わないことを確かめる）:
   - 読み込み: `TF-PARSE-ERROR`（error。ファイルを読めない。ほかのファイルは読む）、`TF-HEREDOC-TRAILING-SPACE`（info）、`TF-DUPLICATE-BLOCK`・`TF-MALFORMED-BLOCK`・`TF-OVERRIDE-UNMATCHED`・`TF-TFJSON-UNSUPPORTED`（warn。`.tf.json` は .tf だけでは読まない。plan JSON と一緒のときは info）、`TF-ROOT-OTHER-DRIVE`（`root` が別のドライブで、名前だけを書いた）・`TF-VARFILE-OTHER-DRIVE`（どちらも info）。
   - 変数と評価: `TF-UNRESOLVED-VAR`（値の無い変数。使ったところごと）・`TF-UNRESOLVED-VARS`（info。値の無い変数と `*.tfvars` の候補のまとめ）、`TF-SENSITIVE-VAR`（info）、`TF-VAR-UNDECLARED`・`TF-VAR-INVALID`（warn。変数の値の渡し方）、`TF-UNEVALUATED`（決まらない値を含む演算・関数、ファイルを読む関数など。`self`・要約表の `path.module` などは info）、`TF-UNSUPPORTED-FUNCTION`、`TF-EVAL-ERROR`（Terraform なら誤りになる式）、`TF-UNDEFINED-REF`、`TF-CYCLE`、`TF-EPHEMERAL`（info）。
   - count・for_each: `TF-COUNT-UNRESOLVED`（warn。×N）、`TF-COUNT-INDEX`（info。×N と作られないブロックの `count.index`・`each.*`）。
-  - モジュールとプロバイダ（7.2 の「TF のモジュール」。モジュールの呼び出しの診断の `address` は呼び出しのインスタンスの address で、リソースではない）: `TF-MODULE-BLACKBOX`・`TF-MODULE-SUMMARY`・`TF-MODULE-SUMMARY-INPUT`・`TF-MODULE-NOT-CREATED`（info）、`TF-MODULE-UNREADABLE`・`TF-MODULE-CYCLE`・`TF-MODULE-DEPTH`・`TF-MODULE-SUMMARY-OUTPUT`（warn）、`TF-PROVIDER-UNCONFIGURED`（info）。
+  - モジュールとプロバイダ（7.2 の「TF のモジュール」。モジュールの呼び出しの診断の `address` は呼び出しのインスタンスの address で、リソースではない）: `TF-MODULE-BLACKBOX`・`TF-MODULE-SUMMARY`・`TF-MODULE-SUMMARY-INPUT`・`TF-MODULE-NOT-CREATED`（info）、`TF-MODULE-UNREADABLE`・`TF-MODULE-CYCLE`・`TF-MODULE-DEPTH`・`TF-MODULE-SUMMARY-OUTPUT`・`TF-MODULE-SUMMARY-TABLE-MISSING`（warn。要約表 `references/module-summaries.md` が無い・読めないのに、レジストリモジュールの呼び出しがある。取り込みの不備なので、`TF-MODULE-BLACKBOX` ではなくこちらを出す）、`TF-PROVIDER-UNCONFIGURED`（info）。
   - plan JSON（7.2 の「TF の plan JSON」）: `TF-PLAN-UNKNOWN`・`TF-PLAN-SENSITIVE`・`TF-PLAN-DYNAMIC-BLOCK`・`TF-PLAN-LOCALS`・`TF-PLAN-NOT-PLANNED`・`TF-PLAN-EXTRA-REF`・`TF-PLAN-PATH-OUTSIDE`・`TF-PLAN-LITERAL-ONLY`（info）、`TF-PLAN-ERRORED`・`TF-PLAN-INCOMPLETE`・`TF-PLAN-MISMATCH`（warn）、`TF-PLAN-DESTROY`（destroy の plan は warn、一部だけなら info）。
 - `diagnostics` は `result.json` にそのまま載せる。`error` があっても、読めた分の IR は出す（終了コードは PLAN 1.3 の 4 に従う）。
 
