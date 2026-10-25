@@ -1,4 +1,4 @@
-"""Terraform アダプタの plan JSON の入力（scripts/lib/tf_plan.py と tf.py の --plan。フェーズ2 の手順4）のテスト。
+"""Terraform アダプタの plan JSON の入力（scripts/aws_iac_diagram/adapters/terraform/tf_plan.py と tf.py の --plan。フェーズ2 の手順4）のテスト。
 
 plan JSON の fixture（aws-iac-diagram-workspace/fixtures/tf-plan/）は、tools/make_plan_json.py で本物の terraform と
 moto（ローカルの AWS モック）から作ったもの。テストは terraform を動かさず、コミットした plan JSON を読むだけ。
@@ -25,8 +25,8 @@ PLANS = WS / "fixtures" / "tf-plan"
 sys.path.insert(0, str(SCRIPTS))
 import validate_ir as v  # noqa: E402
 from adapters import tf  # noqa: E402
-from lib import ir_raw  # noqa: E402
-from lib import tf_plan as P  # noqa: E402
+from aws_iac_diagram.adapters.terraform import tf_plan as P  # noqa: E402
+from aws_iac_diagram.core import ir_raw  # noqa: E402
 
 # plan JSON → (.tf のフォルダ, 正解 IR, plan を作ったときの変数のファイル)
 CASES = {

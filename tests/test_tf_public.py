@@ -100,7 +100,7 @@ class DiagnosticCodesTest(unittest.TestCase):
         # コードに出てくる TF-… の code と、ir-schema.md の 7.5 の一覧が食い違わない（7.6 の注記を消したあとも、一覧を正にする）
         scripts = ROOT / "skills" / "aws-iac-diagram" / "scripts"
         in_code = set()
-        for f in [scripts / "adapters" / "tf.py", *sorted((scripts / "lib").glob("tf_*.py"))]:
+        for f in [scripts / "adapters" / "tf.py", *sorted((scripts / "aws_iac_diagram" / "adapters" / "terraform").glob("tf_*.py"))]:
             in_code |= set(re.findall(r'"(TF-[A-Z0-9]+(?:-[A-Z0-9]+)*)"', f.read_text(encoding="utf-8")))
         doc = (scripts.parent / "references" / "ir-schema.md").read_text(encoding="utf-8")
         a = doc.index("### 7.5 診断")

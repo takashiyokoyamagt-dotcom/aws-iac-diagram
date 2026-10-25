@@ -30,7 +30,7 @@ from bisect import bisect_left
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from lib import ir_raw
+from aws_iac_diagram.core import ir_raw
 
 # .tf では $pseudo にする data の属性（7.2。引数の無い data だけ）
 PSEUDO_DATA = {"aws_region": ("name", "region", "id"), "aws_caller_identity": ("account_id",),

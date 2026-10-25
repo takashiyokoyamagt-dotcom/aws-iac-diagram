@@ -14,7 +14,7 @@ FIXTURES = ROOT / "aws-iac-diagram-workspace" / "fixtures" / "cfn"
 sys.path.insert(0, str(SCRIPTS))
 import validate_ir as v  # noqa: E402
 from adapters import cfn  # noqa: E402
-from lib import ir_raw  # noqa: E402
+from aws_iac_diagram.core import ir_raw  # noqa: E402
 
 
 def build(yaml_text: str, name: str = "template.yaml") -> dict:

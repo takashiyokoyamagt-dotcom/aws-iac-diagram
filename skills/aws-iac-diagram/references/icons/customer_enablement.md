@@ -1,6 +1,6 @@
 # AWS / Customer Enablement
 
-<!-- 生成物: scripts/build_icon_catalog.py が出力。手で編集しない -->
+<!-- 生成物: scripts/maintenance/build_icon_catalog.py が出力。手で編集しない -->
 
 | id | title | kind | size | note |
 |---|---|---|---|---|

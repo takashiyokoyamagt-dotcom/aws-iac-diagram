@@ -1,4 +1,4 @@
-"""IR v1.0 のテスト。raw（ir-raw.schema.json と lib/ir_raw.py の決まり）と、正規化後の attrs・黒箱のモジュール。"""
+"""IR v1.0 のテスト。raw（ir-raw.schema.json と aws_iac_diagram/core/ir_raw.py の決まり）と、正規化後の attrs・黒箱のモジュール。"""
 from __future__ import annotations
 
 import copy
@@ -16,7 +16,7 @@ REFS = ROOT / "skills" / "aws-iac-diagram" / "references"
 EXPECTED = ROOT / "aws-iac-diagram-workspace" / "expected"
 sys.path.insert(0, str(SCRIPTS))
 import validate_ir as v  # noqa: E402
-from lib import ir_raw  # noqa: E402
+from aws_iac_diagram.core import ir_raw  # noqa: E402
 
 RAW = jsonschema.Draft202012Validator(json.loads((REFS / "ir-raw.schema.json").read_text(encoding="utf-8")))
 

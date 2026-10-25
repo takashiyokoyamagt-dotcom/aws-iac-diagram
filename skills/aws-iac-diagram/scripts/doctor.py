@@ -35,7 +35,7 @@ ORIGINAL_STDOUT_ENCODING = getattr(sys.stdout, "encoding", None)
 # SKILL が読む同梱ファイル（無ければ配布の取り込み方が誤っている）
 REQUIRED_FILES = [
     "SKILL.md",
-    "scripts/lib/drawio_cli.py",
+    "scripts/aws_iac_diagram/platform/drawio_cli.py",
     "references/icons/catalog.json",
     "references/ir.schema.json",
 ]
@@ -68,12 +68,12 @@ def check_uv() -> dict:
 
 
 def load_drawio_cli(issues: list[dict]):
-    """lib/drawio_cli.py を読む。取り込みが不完全で読めなければ error にして None を返す。"""
+    """aws_iac_diagram/platform/drawio_cli.py を読む。取り込みが不完全で読めなければ error にして None を返す。"""
     try:
-        from lib import drawio_cli
+        from aws_iac_diagram.platform import drawio_cli
     except Exception as e:  # noqa: BLE001  ファイルの欠落も構文エラーも同じく error にする
         issues.append({"level": "error", "item": "skill",
-                       "message": f"scripts/lib/drawio_cli.py を読み込めません（{type(e).__name__}: {e}）。"
+                       "message": f"scripts/aws_iac_diagram/platform/drawio_cli.py を読み込めません（{type(e).__name__}: {e}）。"
                                   "SKILL のフォルダを丸ごと取り込み直してください。"})
         return None
     return drawio_cli

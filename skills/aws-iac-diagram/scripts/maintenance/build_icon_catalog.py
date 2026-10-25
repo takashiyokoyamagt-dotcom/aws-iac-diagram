@@ -14,7 +14,7 @@ JS の解析は正規表現ではなく、Node 上で Sidebar をスタブ化し
 壊れたアイコンの情報は references/icons/broken.json（check_icons.py の出力、C2）から読み、
 各エントリの `broken`（と `broken_reason`）としてマージする。辞書を再生成しても消えない。
 
-使い方: uv run scripts/build_icon_catalog.py [--sidebar PATH]
+使い方: uv run scripts/maintenance/build_icon_catalog.py [--sidebar PATH]
 """
 from __future__ import annotations
 
@@ -26,9 +26,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-SKILL_DIR = Path(__file__).resolve().parent.parent
+SKILL_DIR = Path(__file__).resolve().parent.parent.parent
 DEFAULT_SIDEBAR = SKILL_DIR / "assets" / "vendor" / "Sidebar-AWS4.js"
-HARNESS = Path(__file__).resolve().parent / "lib" / "sidebar_harness.js"
+HARNESS = Path(__file__).resolve().parent / "sidebar_harness.js"
 OUT_DIR = SKILL_DIR / "references" / "icons"
 BROKEN_JSON = OUT_DIR / "broken.json"
 
@@ -127,7 +127,7 @@ def write_markdown(catalog: list[dict], out_dir: Path) -> list[Path]:
         lines = [
             f"# {items[0]['palette_title']}",
             "",
-            "<!-- 生成物: scripts/build_icon_catalog.py が出力。手で編集しない -->",
+            "<!-- 生成物: scripts/maintenance/build_icon_catalog.py が出力。手で編集しない -->",
             "",
             "| id | title | kind | size | note |",
             "|---|---|---|---|---|",

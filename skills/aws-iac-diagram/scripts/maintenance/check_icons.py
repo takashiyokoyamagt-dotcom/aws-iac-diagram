@@ -34,9 +34,9 @@
 期待どおりに判定されなければ異常終了して辞書を更新しない。
 
 使い方:
-  uv run scripts/check_icons.py                # 描画・判定して broken.json と辞書を更新
-  uv run scripts/check_icons.py --no-write     # 判定だけ（辞書は更新しない）
-  uv run scripts/check_icons.py --work-dir DIR # .drawio・PNG・report.json の置き場所
+  uv run scripts/maintenance/check_icons.py                # 描画・判定して broken.json と辞書を更新
+  uv run scripts/maintenance/check_icons.py --no-write     # 判定だけ（辞書は更新しない）
+  uv run scripts/maintenance/check_icons.py --work-dir DIR # .drawio・PNG・report.json の置き場所
 
 辞書の保守用。開発リポジトリの中でだけ使う（既定の作業ディレクトリは SKILL のフォルダの2つ上を
 リポジトリのルートとみなして決める。配布先では SKILL.md から呼ばない）。
@@ -53,10 +53,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from xml.sax.saxutils import quoteattr
 
-SCRIPTS_DIR = Path(__file__).resolve().parent
+SCRIPTS_DIR = Path(__file__).resolve().parent.parent  # scripts/（この本体のパッケージ aws_iac_diagram がある）
 sys.path.insert(0, str(SCRIPTS_DIR))
 
-from lib.drawio_cli import DrawioError, drawio_version, export_png, find_drawio  # noqa: E402
+from aws_iac_diagram.platform.drawio_cli import DrawioError, drawio_version, export_png, find_drawio  # noqa: E402
 
 try:
     from PIL import Image
@@ -465,7 +465,7 @@ def main() -> int:
     if args.no_write:
         return 0
     doc = {
-        "comment": "生成物: scripts/check_icons.py が出力する。手で編集しない。build_icon_catalog.py がこれを辞書にマージする",
+        "comment": "生成物: scripts/maintenance/check_icons.py が出力する。手で編集しない。build_icon_catalog.py がこれを辞書にマージする",
         "drawio_version": ver,
         "sidebar_sha256": sha256(SIDEBAR),
         "checked": len(checked),

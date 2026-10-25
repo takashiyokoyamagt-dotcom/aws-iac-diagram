@@ -15,7 +15,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "skills" / "aws-iac-diagram" / "scripts"))
 
-import build_icon_catalog as bic  # noqa: E402
+from maintenance import build_icon_catalog as bic  # noqa: E402
 import find_aws_icon as fai  # noqa: E402
 
 

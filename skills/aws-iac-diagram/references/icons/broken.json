@@ -1,7 +1,7 @@
 {
  "broken": [],
  "checked": 1032,
- "comment": "生成物: scripts/check_icons.py が出力する。手で編集しない。build_icon_catalog.py がこれを辞書にマージする",
+ "comment": "生成物: scripts/maintenance/check_icons.py が出力する。手で編集しない。build_icon_catalog.py がこれを辞書にマージする",
  "drawio_version": "32.4.1",
  "sidebar_sha256": "F633E20B449058C6CB92F1666DB0D9678DA09AAA894DA82BDCBB01AC96D0BC32",
  "skipped_kinds": {

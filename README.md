@@ -72,10 +72,17 @@ uv run python -m unittest discover -s tests -v
 
 CI（[.github/workflows/ci.yml](.github/workflows/ci.yml)）は Ubuntu と Windows で、単体テスト、正解 IR と fixture の検証、日本語とスペースを含むパスに置いた SKILL の起動（Windows は PowerShell 5.1 から）を行います。
 
+### 構成を守るテスト（フェーズ 2b）
+
+構成の階層化（[PLAN.md](PLAN.md) の 1.4。層の分け方と依存の向きは [docs/architecture.md](docs/architecture.md)）では、中身の動きを変えずにファイルを移します。それを次の 2 つが守ります（どちらも上の単体テストに入っています）。
+
+- **出力の固定（golden）:** アダプタの出力（raw IR）を、自作 fixture・plan JSON・公開サンプルの TF のルート 52・CFN の入力 25 の 101 ケースについて、SHA-256 で `tests/golden/manifest.json` に固定しています。単独で動かすには `uv run python aws-iac-diagram-workspace/tools/golden.py`（`--list`、`--only <接頭辞>`、不一致の調査には `--dump <名前> --out <ファイル>`）。**落ちたらコードを直します。`--update` で通してはいけません**（アダプタの動きを意図して変えたときだけ、理由を書いて使います）。
+- **構成の検査（`tests/test_architecture.py`）:** import を読んで層の依存の向きを、行数（800 行で注意、1,500 行で失敗。期限付きの免除あり）を確かめます。
+
 ### アイコン辞書の再生成
 
 ```powershell
-uv run skills\aws-iac-diagram\scripts\build_icon_catalog.py
+uv run skills\aws-iac-diagram\scripts\maintenance\build_icon_catalog.py
 uv run skills\aws-iac-diagram\scripts\find_aws_icon.py lambda
 ```
 
@@ -84,7 +91,7 @@ uv run skills\aws-iac-diagram\scripts\find_aws_icon.py lambda
 draw.io Desktop を更新したとき、または `Sidebar-AWS4.js` を取り直したときに実行します。
 
 ```powershell
-uv run skills\aws-iac-diagram\scripts\check_icons.py
+uv run skills\aws-iac-diagram\scripts\maintenance\check_icons.py
 ```
 
 - 辞書の全アイコン（shape・resource_icon・group）を draw.io で PNG にし、セルごとに「空箱」「黒塗り」「単色」を判定します。さらに、ステンシル名（`resIcon`／`grIcon`／`shape`）だけを存在しない名前にした参照を隣に描いて比べ、画素がほぼ同じもの（グラデーションの正方形だけになる resourceIcon、アイコンの無い group 枠など）を「ステンシル欠落」とします。

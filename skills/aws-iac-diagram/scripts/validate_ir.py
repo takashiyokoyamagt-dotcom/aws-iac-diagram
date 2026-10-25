@@ -34,7 +34,7 @@ SCHEMA_PATH = SKILL / "references" / "ir.schema.json"
 RAW_SCHEMA_PATH = SKILL / "references" / "ir-raw.schema.json"
 sys.path.insert(0, str(SKILL / "scripts"))
 
-from lib import ir_raw  # noqa: E402
+from aws_iac_diagram.core import ir_raw  # noqa: E402
 RULE_DOCS = [SKILL / "references" / n for n in ("resource-catalog.md", "relation-resources.md", "edge-rules.md")]
 RULE_ROW = re.compile(r"^\|\s*`([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+)`\s*\|", re.M)
 SYNTHETIC_TYPES = {"availability_zone", "external", "bedrock_model"}

@@ -11,7 +11,7 @@
     provisioner・connection はメタ引数なので props に入れない）。dynamic ブロックは for_each が決まれば展開する
   - A4（手順2）: 変数（default → terraform.tfvars → terraform.tfvars.json → *.auto.tfvars(.json)（名前順）→
     --var-file・--var（指定した順））、locals、テンプレート（${…}、%{if}・%{for}）、条件式・演算・for 式・
-    組み込み関数（lib/tf_eval.py）を評価する。count・for_each が決まればインスタンスごとに出し（address の
+    組み込み関数（aws_iac_diagram/adapters/terraform/tf_eval.py）を評価する。count・for_each が決まればインスタンスごとに出し（address の
     [0]・["key"]、0 個なら enabled: false で添字なし）、決まらなければ ×N（[*]、enabled: null）
   - 参照を印にする: resource・data・module への参照は $res（attr は最初の属性名。インスタンスへの参照と
     スプラットはインスタンスごと）、data.aws_region・aws_caller_identity・aws_partition は $pseudo、
@@ -28,11 +28,11 @@
   - モジュール（手順3。ir-schema.md の 7.2 の「TF のモジュール」）: ローカルモジュール（./・../）は再帰的に
     展開する（address は module.x.…、count・for_each の呼び出しはインスタンスごと）。子の変数は呼び出しの引数を
     親の中で評価した値、module.x.y は子の出力 y の値で、たどった経路を参照の through に書く。terraform-aws-modules
-    の vpc・alb・rds・eks は A5 の要約表（references/module-summaries.md、lib/tf_modules.py）で展開する
+    の vpc・alb・rds・eks は A5 の要約表（references/module-summaries.md、aws_iac_diagram/adapters/terraform/tf_modules.py）で展開する
     （via: module_summary）。それ以外のレジストリ・git などのソースと、読めない・循環する・深すぎるものは黒箱の
     呼び出し1件（type: module、via: module_blackbox）。providers 引数で渡した provider をたどって provider・region
     を書く。terraform_remote_state の出力への参照は attr: "outputs.<名前>"（state は読まない）
-  - plan JSON（手順4。lib/tf_plan.py、ir-schema.md の 7.2「TF の plan JSON」と 7.3「plan JSON の参照」）:
+  - plan JSON（手順4。aws_iac_diagram/adapters/terraform/tf_plan.py、ir-schema.md の 7.2「TF の plan JSON」と 7.3「plan JSON の参照」）:
     --input に plan JSON（terraform show -json の出力の .json）を渡すと、plan JSON だけから作る（file は plan JSON
     の名前）。--input にフォルダ、--plan に plan JSON を渡すと、変数の値は plan の variables を使い、address と
     作られるかは plan、file・props・参照の位置は .tf にする（.tf で決まらなかった値は plan の値で埋める）。
@@ -77,11 +77,11 @@ from lark import Token, Tree
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from lib import ir_raw  # noqa: E402
-from lib import tf_eval as E  # noqa: E402
-from lib import tf_modules as M  # noqa: E402
-from lib import tf_plan as P  # noqa: E402
-from lib.tf_eval import Az, Concat, EvalError, Json, Pseudo, Res, Unknown, ZeroColl  # noqa: E402
+from aws_iac_diagram.adapters.terraform import tf_eval as E  # noqa: E402
+from aws_iac_diagram.adapters.terraform import tf_modules as M  # noqa: E402
+from aws_iac_diagram.adapters.terraform import tf_plan as P  # noqa: E402
+from aws_iac_diagram.adapters.terraform.tf_eval import Az, Concat, EvalError, Json, Pseudo, Res, Unknown, ZeroColl  # noqa: E402
+from aws_iac_diagram.core import ir_raw  # noqa: E402
 
 # 読み飛ばす記号の字句（構文木の中で意味を持たないもの）
 SKIP_TOKENS = {"LPAR", "RPAR", "LBRACE", "RBRACE", "LSQB", "RSQB", "COMMA", "DOT", "EQ", "COLON", "DBLQUOTE",
@@ -2455,7 +2455,7 @@ def build_raw(input_dir: Path, root_base: Path | None = None, var_files: list | 
     var_files・vars: 外から渡す変数の値（--var-file、--var）。この順に（vars が後で）重ねる。
     var_args: コマンドラインの順のまま渡すとき。("file", パス) と ("var", "K=V") の並び（var_files・vars より後）。
     plan: 同じ構成の plan JSON（--plan）。変数の値は plan の variables を使い（var_files・vars・var_args はその後に
-    重ねる）、address と作られるかは plan に合わせる（lib/tf_plan.py の combine。ir-schema.md の 7.2）。
+    重ねる）、address と作られるかは plan に合わせる（adapters/terraform/tf_plan.py の combine。ir-schema.md の 7.2）。
     """
     plan_doc = P.load_plan(plan) if plan is not None else None
     ctx = Context(input_dir, workspace)
@@ -2515,7 +2515,7 @@ def build_raw(input_dir: Path, root_base: Path | None = None, var_files: list | 
 
 
 def build_from_plan(plan: Path, root_base: Path | None = None) -> dict:
-    """plan JSON だけから raw IR を作る（--input に plan JSON を渡したとき。lib/tf_plan.py）。"""
+    """plan JSON だけから raw IR を作る（--input に plan JSON を渡したとき。adapters/terraform/tf_plan.py）。"""
     return P.build_plan_raw(plan, root_base)
 
 

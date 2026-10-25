@@ -44,15 +44,15 @@ class JapanesePathTest(unittest.TestCase):
         self.assertIn("status", json.loads(res.stdout))
 
     def test_doctor_incomplete_skill_is_error(self):
-        # lib/ が欠けた取り込みは warn（1）ではなく error（2）で、JSON も出す
+        # aws_iac_diagram/ が欠けた取り込みは warn（1）ではなく error（2）で、JSON も出す
         skill = self.dir / "aws-iac-diagram"
-        shutil.copytree(SCRIPTS.parent, skill, ignore=shutil.ignore_patterns("lib", "__pycache__"))
+        shutil.copytree(SCRIPTS.parent, skill, ignore=shutil.ignore_patterns("aws_iac_diagram", "__pycache__"))
         out = self.dir / "doctor.json"
         res = run(str(skill / "scripts" / "doctor.py"), "--out", str(out))
         self.assertEqual(res.returncode, 2, res.stdout + res.stderr)
         report = json.loads(out.read_text(encoding="utf-8"))
         self.assertEqual(report["status"], "error")
-        self.assertIn("scripts/lib/drawio_cli.py", report["skill"]["missing_files"])
+        self.assertIn("scripts/aws_iac_diagram/platform/drawio_cli.py", report["skill"]["missing_files"])
         self.assertTrue(any(i["level"] == "error" for i in report["issues"]))
 
     def test_doctor_unwritable_out_falls_back_to_stdout(self):

@@ -43,7 +43,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from lib import ir_raw  # noqa: E402
+from aws_iac_diagram.core import ir_raw  # noqa: E402
 
 PSEUDO = {"AWS::Region", "AWS::AccountId", "AWS::Partition", "AWS::StackName", "AWS::StackId",
           "AWS::URLSuffix", "AWS::NotificationARNs"}
@@ -610,7 +610,7 @@ def split_concat(parts: list, delim: str) -> list:
     return [ir_raw.normalize_concat(c) for c in out]
 
 
-# JSON の文字列を $json にする処理は TF アダプタと共通（lib/ir_raw.py）
+# JSON の文字列を $json にする処理は TF アダプタと共通（aws_iac_diagram/core/ir_raw.py）
 _maybe_json = ir_raw.maybe_json
 
 

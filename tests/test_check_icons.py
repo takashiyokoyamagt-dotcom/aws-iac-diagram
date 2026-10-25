@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "skills" / "aws-
 
 from PIL import Image, ImageDraw  # noqa: E402
 
-import check_icons as ci  # noqa: E402
+from maintenance import check_icons as ci  # noqa: E402
 
 WHITE = (255, 255, 255)
 PURPLE = (140, 79, 255)

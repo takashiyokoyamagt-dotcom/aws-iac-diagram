@@ -1,4 +1,4 @@
-"""Terraform アダプタ（scripts/adapters/tf.py）と評価器（scripts/lib/tf_eval.py）のテスト。
+"""Terraform アダプタ（scripts/adapters/tf.py）と評価器（scripts/aws_iac_diagram/adapters/terraform/tf_eval.py）のテスト。
 
 フェーズ2 の手順1（土台）、手順2（A4: 変数・locals・式・count／for_each の展開）、手順3（モジュール: ローカル
 モジュールの再帰、A5 の要約表、黒箱、H-IAM、terraform_remote_state、provider の受け渡し）の範囲。
@@ -26,7 +26,7 @@ sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(WS / "tools"))
 import validate_ir as v  # noqa: E402
 from adapters import tf  # noqa: E402
-from lib import ir_raw  # noqa: E402
+from aws_iac_diagram.core import ir_raw  # noqa: E402
 
 
 def write_files(tmp: Path, files: dict[str, str]) -> None:
@@ -2015,7 +2015,7 @@ class BlockKindTest(unittest.TestCase):
 
 
 class EvaluatorTest(unittest.TestCase):
-    """lib/tf_eval.py の組み込み関数と型の変換（印を含む値の扱い）。"""
+    """adapters/terraform/tf_eval.py の組み込み関数と型の変換（印を含む値の扱い）。"""
 
     def test_functions_on_known_values(self):
         call = tf.E.call_function

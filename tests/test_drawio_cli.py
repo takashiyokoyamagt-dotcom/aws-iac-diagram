@@ -8,7 +8,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "skills" / "aws-iac-diagram" / "scripts"))
 
-from lib import drawio_cli as dc  # noqa: E402
+from aws_iac_diagram.platform import drawio_cli as dc  # noqa: E402
 
 EXE = Path("drawio")
 
