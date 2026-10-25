@@ -14,6 +14,13 @@
 - `%TEMP%	fp` には terraform の provider の置き場と作業用の小さなスクリプトが残っている（リポジトリの外。手順5 が終わったら消してよい）。
 - 作業の進め方: 手順ごとに、実装役のサブエージェントが実装とテスト → 主のセッションが動作を確かめる → 別のサブエージェントが第三者レビュー → 指摘を直す → main にコミットして push。**リポジトリは公開されている**ので、push の前に、テスト（279 件）と、個人情報・秘密が混ざっていないことの確認を毎回行う。
 
+### WSL の状態（2026-10-26。PLAN の 1.5、「残りの作業の順番」の 1b）
+- **済**（sudo が要らないもの）: WSL（Ubuntu 26.04、WSL2）の `~/work/aws-iac-diagram` に clone。uv 0.13.1 を公式のリリースから `~/.local/bin` に入れた（SHA-256 を検証）。`~/.claude/skills/aws-iac-diagram` を `~/work/aws-iac-diagram/skills/aws-iac-diagram` へのシンボリックリンクにした。リポジトリの git の名前とメールは noreply に設定済み。
+- **Linux で確かめた**: 単体テスト 281 件がすべて通る。`tf_public_check.py --all` は Windows と同じ数（205 フォルダ、11621 リソース、error 0）。`doctor.py` は warn（draw.io・mmdc・xvfb が無いだけ）。
+- **残り（sudo のパスワードが要るので、ユーザーが行う）**: `sudo apt-get install -y xvfb unzip`、draw.io 32.4.1 の deb（`drawio-amd64-32.4.1.deb`。https://github.com/jgraph/drawio-desktop/releases の v32.4.1）を `sudo apt-get install -y ./drawio-amd64-32.4.1.deb`。
+- **残り（フェーズ5 の手前の 5a までに）**: Node.js・mmdc・Chromium、gh（WSL での push の認証は `gh auth login`）、Claude Code。WSL でのコミットは、まだ push の認証が無いので、Windows の側の clone から push する。
+- WSL の home の `.aws`・`.azure` は、Windows の同名のフォルダへのシンボリックリンク（このプロジェクトとは無関係。触っていない）。
+
 ### フェーズの状態
 
 | フェーズ | 内容 | 状態 |
