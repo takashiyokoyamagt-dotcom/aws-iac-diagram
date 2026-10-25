@@ -681,3 +681,55 @@ TF アダプタで、`terraform show -json` の plan JSON を読めるように�
 - SSM のパラメータの data の `value` は sensitive なので、それを使う `ami` も sensitive になる（`TF-PLAN-SENSITIVE`）。
 - moto の偽のアカウント ID（123456789012）と ARN の `user/moto` が plan に入る（URL ではないので残した。fixtures/README.md に書いた）。
 - `git stash` で変更前の公開サンプルの数を測ったとき、追跡していない新しいファイルは残るので、tf.py が新しいライブラリを読まない状態で比べた（問題なし）。
+
+## 2026-10-26 フェーズ2 の手順5: 公開サンプルでの確認と完了
+
+### 概要
+TF アダプタを公開サンプルの TF すべてにかけて確かめ、TF／SAM の対の型を比べ、ir-schema.md の 7.6（フェーズ2 の間だけの注記）を消して 7章を確定し、フェーズ2 を実装と確認まで完了にした（完了基準の移し替えはユーザーの確認待ち）。アダプタの不具合は見つからなかった。第三者レビューの前（未コミット）。
+
+### やったこと
+1. **公開サンプルでの確認の道具** `aws-iac-diagram-workspace/tools/tf_public_check.py`（新規）: 公開サンプルの TF を TF アダプタで読み、`validate_ir.py <ファイル>` と同じ検査（スキーマ、参照の整合、出力の形 C5）を、書き出したファイルにかける。例外・検査の失敗・error の診断があれば終了コード 1。既定は T01〜T20、P01〜P04 のルート 52 フォルダ（`survey_public.py` の一覧）、`--all` は `.tf` のあるフォルダすべて、`--jobs N` で並列、`--pairs` で対の表、`--out` で JSON。
+   - 手順3 までは、52 ルートが `test_tf_adapter.py` の `FixtureTest.test_public_samples`、「172 フォルダ」は手元の一回限りのスクリプトだった。前者を `tests/test_tf_public.py`（`PublicFoldersTest`）に移して道具の関数を使うようにし、後者を `--all` にして CI の手順（両 OS）に入れた。
+2. **TF／SAM の対の比較**（同じ道具、`tests/test_tf_public.py` の `PairTest`）: T01、T05、T06、T07、T11（SELECTION.md は T06・T07・T11 を主セット、T01・T05 を煙試験とする。同じ表で済むので5つとも）の TF 版と SAM 版を TF アダプタと CFN アダプタで読み、**リソースの型の多重集合**を比べる。
+   - 正規化（最小限。道具の docstring に書いた）: TF は `data` と aws 以外のプロバイダのリソースと `enabled: false` を除き、型を CFN の型名にする（`TF_TO_CFN`。表に無い型は `KeyError` で失敗にして足し忘れを防ぐ。CFN ではプロパティとして埋め込まれるものは `AWS::Events::Rule#Targets` のように `#` を付ける）。CFN は SAM の型を変換の後の型にする（`SAM_TO_CFN`。`AWS::Serverless::Function` → `AWS::Lambda::Function` など5つ）。
+   - 違いは `PAIR_EXPECTED` に型と件数と理由を1つずつ書き、増えても減っても失敗する（ゆるい許容ではない）。一致した側（`PAIR_COMMON`）も固定した。
+   - SELECTION.md の 3 の 3（HANDOFF が「4 の 3」と書いていたのは、節の番号の誤り）が求めているのは「ノードの型の多重集合と、辺の (from の型, to の型, kind) の多重集合」だが、ノードと辺は正規化の後の IR のもの。フェーズ2 の raw IR の段階では**リソースの型の多重集合だけ**を比べ、辺と「同じ IR」はフェーズ3 に回した（PLAN のフェーズ3 の完了基準に足した）。
+3. **ir-schema.md**: 7.6 を消し、冒頭の状態と7章の前置きを「確定（2026-10-26）」にし、7.5 の TF の `code` を手順3 の時点のものから、読み込み・変数と評価・count・for_each・モジュールとプロバイダ・plan JSON に分けた42個の一覧にした（テスト `DiagnosticCodesTest` が、コードに出てくる `TF-…` と一覧の食い違いを調べる）。8章は `.tf.json` の決定と `code` の一覧の確定を反映した。ほかの文書に 7.6 への参照は無かった（HANDOFF は手順5 の項目に残っていたのを直した。過去の WORKLOG の記述は、当時の事実なので直していない）。スキーマの JSON は変えていない（TF の `code` の形は `^TF-`）。
+4. **`.tf.json`**: 決定は下の表。メッセージを「plan JSON なしでは読まない。`--plan` で plan から取る」と分かる文にした。テスト `test_tf_json_is_not_read_without_a_plan`。
+5. **手順1〜3 で見送った小さなこと**: 下の表。`--workspace` を足した。
+
+### 決めたこと
+| 決定 | 理由 |
+|---|---|
+| **`.tf.json` は .tf だけでは読まない（`TF-TFJSON-UNSUPPORTED` の warn のまま）** | HCL の JSON の書き方では、`"ingress": {…}`（または `[{…}]`）が入れ子のブロックか、オブジェクトの値の属性かが書き方から決まらず、決めるには provider のスキーマが要る。ブロックと属性を取り違えると props の形が .tf と plan JSON で変わる（リスト化されるか否か）。公開サンプルに `.tf.json` は無い（`fixtures/` 全体を探した。あるのは自作の `tf-plan/edge/extra.tf.json` だけ）。plan JSON と一緒なら plan の `configuration` から正しく読める。「安く、正しく」できる方法が無いので保守的に残した。provider のスキーマ（`terraform providers schema -json`）を入力に取れば読めるので、要るなら後で足す（ir-schema.md の 8章） |
+| `--workspace <名前>` を足した（`terraform.workspace` の値。既定は `default`。plan JSON だけのときは終了コード 2） | `terraform.workspace` を `lookup` や count に使う構成は実在する（公開サンプルの fixtures には無いが、TF の定番の書き方）。`default` 固定だと別の環境の図が作れない。`Context` に値を持たせるだけの小さな変更で、前提（`evaluation.assumptions`）には使ったときだけ書く。テスト `test_workspace_option` |
+| 対の比較は raw IR のリソースの型だけ。「同じ IR」「辺の多重集合」はフェーズ3 | 比べる対象のノード・辺は正規化の後のもの。SAM が暗黙に作る IAM ロール・Subscription・Permission は CFN アダプタが展開せず（暗黙の API を除く。7.2）、TF 側は分けて書く |
+| PLAN のフェーズ2 の完了基準「同じ構成の TF 版と CFN 版が同じ IR になる」をフェーズ3 の完了基準に移した | 上と同じ。HANDOFF の 3a は、元からフェーズ2 では `ExpectedIrTest` で確かめると書いていた。**CRITERIA.md の 1.1 の「TF 版と CFN 版の canonical 部 … バイト単位で一致（フェーズ2 の完了基準）」は、確定済みの文書なので書き換えていない**（ユーザーの了承が要る。同じ事情で、フェーズ3 の基準と読む） |
+
+### 手順1〜3 で見送った小さなこと（それぞれの結論）
+| 項目 | 結論 |
+|---|---|
+| `.tf.json` を .tf だけで読む | 見送り（上の表）。テストで固定 |
+| ワークスペースを選ぶ引数 | **済**（`--workspace`） |
+| `lifecycle` の `replace_triggered_by`、`provisioner`・`connection` の中の参照 | 見送り（フェーズ3 で辺にするかを決める）。図の辺は属性の参照から作るため、いまは出さない。出さないことをテスト `test_lifecycle_and_provisioner_references_are_not_emitted` で固定し、ir-schema.md の 7.2 に書いた。公開サンプルに `replace_triggered_by` は無く、`provisioner` は 7 ファイル（T14 の例や T20 の s3-tables など。`local-exec`）にある |
+| リソースの属性の値を設定に書いた値から決める（`cidrsubnet(aws_vpc.main.cidr_block, …)`） | 見送り（フェーズ3 で図の `cidr` に要るかを見てから。ir-schema.md の 8章のとおり） |
+| alb の認証のアクション（`authenticate_*`・`jwt_validation`、`TF-MODULE-SUMMARY-INPUT`） | 見送り（要約表の追加。実際に描くものではなく、info の診断で残る） |
+| vpc 5.x・eks 20.x の要約表、kms などほかの terraform-aws-modules、`terraform init` 済みの `.terraform/modules` を読むこと | 見送り（vpc 5.x・eks 20.x は 2b の後の別の手順。残りは必要になってから） |
+| HANDOFF の 0b（CI の action の更新、doctor のパス長、PEP 723 の間接依存の固定） | フェーズ2 とは別の項目なので触れていない |
+
+### 確かめたこと
+- **公開サンプル**: T01〜T20、P01〜P04 のルート **52 フォルダ**で、リソース 2480、診断 error 0・warn 381・info 1027（手順3 から変わらない）、例外 0、すべて `validate_ir.py` と同じ検査を通る。`.tf` のあるフォルダすべては **205 フォルダ**（手順3 の「172」は、手順3 のレビューで terraform-aws-alb・rds のソースを取り込む前の数）で、リソース 11621、error 0・warn 2224・info 13336、検査の失敗 0。実行時間は直列で約 70 秒、`--jobs 4` で 28〜34 秒（20 コアの手元。CI の 4 コアでは長くなる）。ルート 52 は約 6 秒（並列）／約 12 秒（直列）。
+- **対**（型の数は正規化の後。共通 / TF だけ / SAM だけ）:
+  | 対 | 共通 | TF だけ | SAM だけ | 違いの中身 |
+  |---|---|---|---|---|
+  | T01 | 3 | 1 | 0 | `aws_cloudwatch_event_target`（CFN では Rule の Targets） |
+  | T05 | 2 | 4 | 0 | SAM の暗黙のロール、管理ポリシー（Policies の SQSSendMessagePolicy）、ロールへの付与2 |
+  | T06 | 4 | 5 | 0 | Rule の Targets、SAM の暗黙のロールと付与、SNS の Events が暗黙に作る Subscription と Lambda Permission |
+  | T07 | 2 | 13 | 1 | **構成の違い**: TF 版は HTTP API（ApiGatewayV2 の4種）、SAM 版は REST API（暗黙の `ServerlessRestApi`）。TF だけのログ2・コードの置き場の S3 3種。SAM の暗黙のロール・Permission |
+  | T11 | 6 | 21 | 0 | REST API のメソッド・統合・応答（SAM では OpenAPI の外部ファイル）、SAM が暗黙に作る Deployment とステージ2、ステートマシンのロール、ロールの Policies・付与3 |
+  どれも入力のコードで確かめた固有の差で、アダプタの不具合ではなかった（TF 側のリソースの数は `survey_public.py` のブロック数と、SAM 側はテンプレートのリソース数と一致）。診断はファイルを読む関数（`filemd5()`・`file()`）と `Fn::Transform`（OpenAPI の `AWS::Include`）の warn だけ。
+- **正解 IR**: `ExpectedIrTest` は変更なしで通る（自作5構成の TF 側の網羅分類）。
+- テスト **279 件**が通過（266 → 279。`tests/test_tf_public.py` 11 件、`test_tf_adapter.py` は公開サンプルのテストを移して 3 件を足した）。`uv lock --check` も通る。
+
+### つまずいたこと
+- Bash のヒアドキュメントで `\n`・`\t`・`\n` が改行・タブに化けた（HANDOFF の注意のとおり）。Python のコードには `chr(10)` などを使うか Edit ツールで直した。README のパスのバックスラッシュがタブになったのも同じ。

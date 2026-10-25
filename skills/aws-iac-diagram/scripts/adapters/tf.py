@@ -21,6 +21,7 @@
     かった式、選ぶ関数（coalesce・element など）とリストの添字で選ばなかった要素、for 式の if で除いた要素の中の
     参照は state: "pruned"（決まった count・for_each の式の参照は残さない。ir-schema.md の 7.2）
   - path.module・path.root・path.cwd はルートからの相対パス（ルートは "."）、terraform.workspace は "default"
+    （--workspace で変えられる。使ったとき evaluation.assumptions に書く）
   - provider = aws.<alias> のリソースは provider を書く。region は、リソースの引数 region（AWS provider v6）→
     その provider の region の順で、文字列で決まるときだけ書く
   - heredoc の開始・終端の行の末尾の空白を取ってから読む（python-hcl2 が読めないため。7.4。診断 info）
@@ -36,8 +37,10 @@
     の名前）。--input にフォルダ、--plan に plan JSON を渡すと、変数の値は plan の variables を使い、address と
     作られるかは plan、file・props・参照の位置は .tf にする（.tf で決まらなかった値は plan の値で埋める）。
     plan の sensitive の値は使わない。.tf.json のブロックは、plan と一緒なら plan から取る
-後の手順に回したもの:
-  - 手順5: .tf.json を .tf だけで読むか（いまは TF-TFJSON-UNSUPPORTED）
+読まないもの:
+  - .tf.json は .tf だけでは読まない（診断 TF-TFJSON-UNSUPPORTED、warn）。JSON の書き方では入れ子のブロックと属性
+    （オブジェクトの値）を区別できず、区別には provider のスキーマが要るため（ir-schema.md の 7.2「TF のそのほかの
+    ブロック」）。plan JSON と一緒なら plan から取る（上）
 file()・templatefile() などのファイルを読む関数は、ファイルを読まずに $unknown（診断 TF-UNEVALUATED）。
 引数の中の参照は unevaluated で残す。sensitive = true・ephemeral = true の変数と sensitive() の値は使わない
 （$unknown。evaluation.vars にも書かない）。
@@ -45,12 +48,14 @@ file()・templatefile() などのファイルを読む関数は、ファイル�
 使い方:
   uv run scripts/adapters/tf.py --input <ルートモジュールのフォルダ> --out <raw.json> [--root-base <フォルダ>]
       [--var-file <ファイル> ...] [--var KEY=VALUE ...] [--redact-var <名前> ...] [--plan <plan JSON>]
+      [--workspace <名前>]
   uv run scripts/adapters/tf.py --input <plan JSON> --out <raw.json> [--root-base <フォルダ>]
   --plan: 同じ構成の plan JSON（terraform show -json <plan> の出力）。--input のフォルダの .tf と合わせて読む
   --root-base: raw IR の root を、このフォルダからの相対パスで書く（既定: 作業中のフォルダ）
   --var-file: 変数の値のファイル（.tfvars か .tfvars.json）。相対パスは作業中のフォルダ、無ければ --input から
   --var: 変数の値。type が list・map・object などの変数は HCL の式として読む（Terraform の -var と同じ）
   --var-file と --var は、指定した順に後のものが優先する（Terraform と同じ）
+  --workspace: terraform.workspace の値（既定は "default"。plan JSON だけのときは使えない）
   --redact-var: 値を伏せる変数（sensitive = true と同じく値を使わず、props では $unknown）。
     sensitive を付けていない変数の値は props（図のラベルなど）に入りうる。evaluation.vars には値を書かない
 
@@ -574,8 +579,9 @@ def inst_address(base: str, key) -> str:
 class Context:
     """1回の読み込み全体で共有するもの（リソースと参照の集まり、診断、前提）。"""
 
-    def __init__(self, root_dir: Path):
+    def __init__(self, root_dir: Path, workspace: str = "default"):
         self.root_dir = root_dir
+        self.workspace = workspace  # terraform.workspace の値（--workspace）
         self.diagnostics: list[dict] = []
         self.resources: list[dict] = []
         self.refs: list[dict] = []
@@ -667,7 +673,9 @@ class ModuleEval:
         if not self.dir.is_dir():
             raise ValueError(f"フォルダではありません: {self.dir}")
         for f in sorted(self.dir.glob("*.tf.json")):
-            self.diag("warn", "TF-TFJSON-UNSUPPORTED", "", f"{self.ctx.rel(f)}: .tf.json is not read yet", "")
+            self.diag("warn", "TF-TFJSON-UNSUPPORTED", "", f"{self.ctx.rel(f)}: .tf.json is not read without a plan JSON "
+                      "(telling nested blocks from attributes needs provider schemas); pass --plan to take its blocks "
+                      "from the plan", "")
         # Terraform が読まないファイル（. で始まるもの、エディタの一時ファイル #…#・…~）は読まない
         files = sorted(p for p in self.dir.iterdir() if p.is_file() and p.suffix == ".tf"
                        and not p.name.startswith((".", "#")) and not p.name.endswith("~"))
@@ -1739,8 +1747,9 @@ class ModuleEval:
             return Unknown(f"path.{first} is not supported", "TF-UNEVALUATED")
         if name == "terraform":
             if first == "workspace":
-                self.ctx.assume('terraform.workspace is evaluated as "default"')
-                return "default"
+                self.ctx.assume(f'terraform.workspace is evaluated as "{self.ctx.workspace}"'
+                                + (" (--workspace)" if self.ctx.workspace != "default" else ""))
+                return self.ctx.workspace
             return Unknown(f"terraform.{first} is not supported", "TF-UNEVALUATED")
         if name == "ephemeral":
             base = f"ephemeral.{first}.{steps[1][1] if len(steps) > 1 and steps[1][0] == 'attr' else ''}"
@@ -2438,8 +2447,10 @@ def resolve_var_file(path: Path, input_dir: Path) -> Path:
 
 def build_raw(input_dir: Path, root_base: Path | None = None, var_files: list | None = None,
               vars: dict | None = None, var_args: list | None = None, redact_vars=(),
-              plan: Path | None = None) -> dict:
+              plan: Path | None = None, workspace: str = "default") -> dict:
     """ルートモジュールのフォルダから raw IR を作る。
+
+    workspace: terraform.workspace の値（--workspace。既定は "default"）。
 
     var_files・vars: 外から渡す変数の値（--var-file、--var）。この順に（vars が後で）重ねる。
     var_args: コマンドラインの順のまま渡すとき。("file", パス) と ("var", "K=V") の並び（var_files・vars より後）。
@@ -2447,7 +2458,7 @@ def build_raw(input_dir: Path, root_base: Path | None = None, var_files: list | 
     重ねる）、address と作られるかは plan に合わせる（lib/tf_plan.py の combine。ir-schema.md の 7.2）。
     """
     plan_doc = P.load_plan(plan) if plan is not None else None
-    ctx = Context(input_dir)
+    ctx = Context(input_dir, workspace)
     mod = ModuleEval(ctx, input_dir)
     mod.chain = (input_dir.resolve(),)
     mod.load()
@@ -2536,6 +2547,8 @@ def main(argv: list[str] | None = None) -> int:
                     help="変数の値のファイル（.tfvars・.tfvars.json。何回でも指定できる）")
     ap.add_argument("--redact-var", action="append", default=[], metavar="NAME",
                     help="値を伏せる変数（何回でも指定できる。sensitive = true と同じく値を使わない）")
+    ap.add_argument("--workspace", default="default", metavar="NAME",
+                    help="terraform.workspace の値（既定は default。選んだワークスペースの図にするとき）")
     ap.add_argument("--var", action=_OrderedVar, dest="var_args", metavar="KEY=VALUE",
                     help="変数の値（何回でも指定できる。--var-file と合わせて、後のものが優先）")
     a = ap.parse_args(argv)
@@ -2553,8 +2566,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"--input には、ルートモジュールのフォルダか plan JSON（terraform show -json の出力の .json）を指定して"
               f"ください: {a.input.name}", file=sys.stderr)
         return 2
-    if plan_only and (a.plan is not None or var_args or a.redact_var):
-        print("--input に plan JSON を渡したときは、--plan・--var-file・--var・--redact-var は使えません（変数の値は "
+    if not re.fullmatch(r"[A-Za-z0-9._-]+", a.workspace):
+        print("--workspace には、英数字と . _ - だけの名前を指定してください（Terraform のワークスペース名）", file=sys.stderr)
+        return 2
+    if plan_only and (a.plan is not None or var_args or a.redact_var or a.workspace != "default"):
+        print("--input に plan JSON を渡したときは、--plan・--var-file・--var・--redact-var・--workspace は使えません（変数の値は "
               "plan のものを使う。値を伏せるには .tf のフォルダを --input に、plan JSON を --plan に渡す）",
               file=sys.stderr)
         return 2
@@ -2562,7 +2578,8 @@ def main(argv: list[str] | None = None) -> int:
         if plan_only:
             raw = build_from_plan(a.input, a.root_base)
         else:
-            raw = build_raw(a.input, a.root_base, var_args=var_args, redact_vars=a.redact_var, plan=a.plan)
+            raw = build_raw(a.input, a.root_base, var_args=var_args, redact_vars=a.redact_var, plan=a.plan,
+                            workspace=a.workspace)
         text = dump(raw)
     except P.PlanError as e:
         print(f"plan JSON を読めませんでした: {e}", file=sys.stderr)

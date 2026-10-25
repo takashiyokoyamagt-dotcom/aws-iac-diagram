@@ -295,6 +295,72 @@ class ValueTest(unittest.TestCase):
                          [("aws_instance.app", "user_data", "aws_db_instance.db", "address", "ref", "unevaluated")])
         self.assertEqual(codes(raw, "aws_instance.app").count("TF-UNEVALUATED"), 2)
 
+    def test_workspace_option(self):
+        # --workspace（フェーズ2 の手順5）: terraform.workspace の値。既定は "default"。使ったときだけ前提に書く
+        files = {"main.tf": '''
+        locals { size = { default = 1, prod = 3 } }
+        resource "aws_instance" "app" {
+          count = local.size[terraform.workspace]
+          tags  = { Env = terraform.workspace }
+        }
+        resource "aws_vpc" "plain" {}
+        '''}
+        with tempfile.TemporaryDirectory() as tmp:
+            write_files(Path(tmp), files)
+            dflt = tf.build_raw(Path(tmp), Path(tmp))
+            prod = tf.build_raw(Path(tmp), Path(tmp), workspace="prod")
+            out = Path(tmp) / "out" / "raw.json"
+            cli = subprocess.run([sys.executable, str(SCRIPTS / "adapters" / "tf.py"), "--input", tmp, "--out", str(out),
+                                  "--root-base", tmp, "--workspace", "prod"], capture_output=True)
+            self.assertEqual(cli.returncode, 0, cli.stderr)
+            self.assertEqual(out.read_text(encoding="utf-8"), tf.dump(prod))
+            plan_only = subprocess.run([sys.executable, str(SCRIPTS / "adapters" / "tf.py"), "--input",
+                                        str(WS / "fixtures" / "tf-plan" / "three-tier.dev.json"), "--out",
+                                        str(Path(tmp) / "x.json"), "--workspace", "prod"], capture_output=True)
+            self.assertEqual(plan_only.returncode, 2)
+            self.assertIn("--workspace", plan_only.stderr.decode("utf-8", "replace"))
+            for bad in ("", "a b", 'a"b', "a;b", "../x"):  # Terraform のワークスペース名として使えない名前は exit 2
+                with self.subTest(workspace=bad):
+                    r = subprocess.run([sys.executable, str(SCRIPTS / "adapters" / "tf.py"), "--input", tmp, "--out",
+                                        str(Path(tmp) / "bad.json"), "--root-base", tmp, "--workspace", bad],
+                                       capture_output=True)
+                    self.assertEqual(r.returncode, 2, bad)
+                    self.assertNotIn(b"Traceback", r.stderr)
+        for raw in (dflt, prod):
+            assert_valid(self, raw)
+        self.assertEqual([r["address"] for r in dflt["resources"] if r["type"] == "aws_instance"],
+                         ["aws_instance.app[0]"])
+        self.assertEqual(props(dflt, "aws_instance.app[0]")["tags"], {"Env": "default"})
+        self.assertEqual(dflt["evaluation"]["assumptions"], ['terraform.workspace is evaluated as "default"'])
+        self.assertEqual(len([r for r in prod["resources"] if r["type"] == "aws_instance"]), 3)
+        self.assertEqual(props(prod, "aws_instance.app[2]")["tags"], {"Env": "prod"})
+        self.assertEqual(prod["evaluation"]["assumptions"], ['terraform.workspace is evaluated as "prod" (--workspace)'])
+        # terraform.workspace を使わない構成では前提を書かない
+        plain = build('resource "aws_vpc" "a" {}')
+        self.assertEqual(plain["evaluation"]["assumptions"], [])
+
+    def test_lifecycle_and_provisioner_references_are_not_emitted(self):
+        # 見送った項目の固定（フェーズ2 の手順5）: lifecycle の replace_triggered_by と provisioner・connection の中の
+        # 参照は、辺にならない参照として出さない（図の辺は属性の参照から作る。要るかはフェーズ3 で決める）
+        raw = build('''
+        resource "aws_vpc" "main" {}
+        resource "aws_instance" "app" {
+          ami = "ami-0"
+          lifecycle {
+            replace_triggered_by = [aws_vpc.main.id]
+          }
+          connection {
+            host = aws_vpc.main.id
+          }
+          provisioner "local-exec" {
+            command = "echo ${aws_vpc.main.id}"
+          }
+        }
+        ''')
+        assert_valid(self, raw)
+        self.assertEqual(refs(raw, "aws_instance.app"), [])
+        self.assertEqual(props(raw, "aws_instance.app"), {"ami": "ami-0"})
+
     def test_unknown_values_keep_references(self):
         raw = build('''
         variable "public" {}
@@ -2084,6 +2150,26 @@ class RobustnessTest(unittest.TestCase):
         self.assertIn("TF-DUPLICATE-BLOCK", by_code)
         self.assertIn("TF-TFJSON-UNSUPPORTED", by_code)
 
+    def test_tf_json_is_not_read_without_a_plan(self):
+        # .tf.json を .tf だけで読むか（フェーズ2 の手順5 で「読まない」と決めた）。JSON の書き方では入れ子のブロックと
+        # 属性（オブジェクトの値）を区別できない（provider のスキーマが要る）ので、リソースは載せず warn を出す。
+        # ほかの .tf は読む。plan JSON と一緒のときの扱いは tests/test_tf_plan.py
+        tfjson = json.dumps({"resource": {"aws_security_group": {"web": {
+            "name": "web", "ingress": {"from_port": 80, "to_port": 80}, "tags": {"Name": "web"}}}}})
+        raw = build({"main.tf": 'resource "aws_vpc" "a" {}', "extra.tf.json": tfjson,
+                     "sub/not_root.tf.json": tfjson})
+        assert_valid(self, raw)
+        self.assertEqual([r["address"] for r in raw["resources"]], ["aws_vpc.a"])
+        found = [d for d in raw["diagnostics"] if d["code"] == "TF-TFJSON-UNSUPPORTED"]
+        self.assertEqual([(d["level"], d["address"]) for d in found], [("warn", "")])  # ルートの1ファイルだけ
+        self.assertIn("extra.tf.json", found[0]["message"])
+        self.assertIn("--plan", found[0]["message"])
+        # .tf.json だけのフォルダは、.tf が無いので読めない（終了コード 2）
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "only.tf.json").write_text(tfjson, encoding="utf-8")
+            with self.assertRaises(ValueError):
+                tf.build_raw(Path(tmp), Path(tmp))
+
     def test_no_tf_files(self):
         with tempfile.TemporaryDirectory() as tmp:
             with self.assertRaises(ValueError):
@@ -2289,21 +2375,6 @@ class FixtureTest(unittest.TestCase):
                                  {b for b in blocks if not b.startswith("module.")})
                 for b in (b for b in blocks if b.startswith("module.")):
                     self.assertTrue(any(a == b or a.startswith(b + ".") or a.startswith(b + "[") for a in got), b)
-
-    def test_public_samples(self):
-        # 公開サンプルの TF（T01〜T20、P01〜P04）のルートがすべて読め、raw IR の検査を通る
-        import survey_public
-        roots = [r for fmt, rs in survey_public.SAMPLES.values() if fmt == "tf" for r in rs]
-        roots += survey_public.t20_roots()
-        self.assertGreaterEqual(len(roots), 50)
-        for r in roots:
-            with self.subTest(r):
-                raw = tf.build_raw(PUBLIC / r, WS)
-                assert_valid(self, raw)
-                self.assertFalse([x for x in raw["diagnostics"] if x["level"] == "error"])
-        t06 = tf.build_raw(PUBLIC / "serverless-patterns" / "eventbridge-sns-lambda-terraform", WS)
-        self.assertIn("TF-HEREDOC-TRAILING-SPACE", codes(t06))
-        self.assertIn("$json", props(t06, "aws_sns_topic_policy.default")["policy"])
 
 
 if __name__ == "__main__":

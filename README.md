@@ -113,11 +113,11 @@ C1（[CRITERIA.md](aws-iac-diagram-workspace/evals/CRITERIA.md) の 1.6）は、
 uv run python aws-iac-diagram-workspace\tools\c1_check.py
 ```
 
-### Terraform アダプタ（フェーズ2 で作成中）
+### Terraform アダプタ
 
-Terraform のルートモジュール（.tf のフォルダ）から、同じ raw IR を作ります。変数・locals・式を評価し、count・for_each をインスタンスごとに展開します（手順2）。ローカルモジュール（`./`・`../`）は中身を再帰的に読み、terraform-aws-modules の vpc・alb・rds・eks は要約表（`references/module-summaries.md`）で展開します。それ以外のレジストリ・git のモジュールは黒箱の呼び出し1件にします（手順3。ネットワークからモジュールを取りに行きません）。
+Terraform のルートモジュール（.tf のフォルダ）から、同じ raw IR を作ります（フェーズ2 で完成）。変数・locals・式を評価し、count・for_each をインスタンスごとに展開します。ローカルモジュール（`./`・`../`）は中身を再帰的に読み、terraform-aws-modules の vpc・alb・rds・eks は要約表（`references/module-summaries.md`）で展開します。それ以外のレジストリ・git のモジュールは黒箱の呼び出し1件にします（ネットワークからモジュールを取りに行きません）。`.tf.json` は .tf だけでは読みません（警告 `TF-TFJSON-UNSUPPORTED`。plan JSON と一緒なら plan から取ります）。`terraform.workspace` は `default` で評価し、`--workspace <名前>` で変えられます。
 
-`terraform show -json` の plan JSON も読めます（手順4。ir-schema.md の 7.2「TF の plan JSON」）。.tf のフォルダと一緒に渡す（`--plan`）のがおすすめです。address と count・for_each の展開・作られるかは Terraform の結果を使い、ファイル名・値・参照の位置は .tf から読みます（.tf で決まらなかった値は plan の値で埋める）。plan JSON だけ（`--input` に `.json`）でも読めますが、plan JSON は locals・dynamic ブロックの式と .tf のファイル名を持たないので、参照の一部が分からず、`file` は plan JSON の名前になります。
+`terraform show -json` の plan JSON も読めます（ir-schema.md の 7.2「TF の plan JSON」）。.tf のフォルダと一緒に渡す（`--plan`）のがおすすめです。address と count・for_each の展開・作られるかは Terraform の結果を使い、ファイル名・値・参照の位置は .tf から読みます（.tf で決まらなかった値は plan の値で埋める）。plan JSON だけ（`--input` に `.json`）でも読めますが、plan JSON は locals・dynamic ブロックの式と .tf のファイル名を持たないので、参照の一部が分からず、`file` は plan JSON の名前になります。
 
 ```powershell
 uv run skills\aws-iac-diagram\scripts\adapters\tf.py --input aws-iac-diagram-workspace\fixtures\tf\three-tier --out out\three-tier.tf.raw.json --var-file env\dev.tfvars
@@ -125,6 +125,13 @@ uv run python skills\aws-iac-diagram\scripts\validate_ir.py out\three-tier.tf.ra
 # plan JSON と合わせる（変数の値は plan のもの）／plan JSON だけ
 uv run skills\aws-iac-diagram\scripts\adapters\tf.py --input aws-iac-diagram-workspace\fixtures\tf\three-tier --plan aws-iac-diagram-workspace\fixtures\tf-plan\three-tier.dev.json --out out\three-tier.plan.raw.json
 uv run skills\aws-iac-diagram\scripts\adapters\tf.py --input aws-iac-diagram-workspace\fixtures\tf-plan\three-tier.dev.json --out out\three-tier.planonly.raw.json
+```
+
+公開サンプルでの確認（フェーズ2 の手順5）は、`tf_public_check.py` で行います。T01〜T20、P01〜P04 のルート（52 フォルダ）が読めて raw IR の検査を通ること（error の診断が 0）と、TF／SAM の対（T01、T05、T06、T07、T11）のリソースの型の違いが、理由つきの表（`PAIR_EXPECTED`）と一致することを調べます。`--all` は `.tf` のあるフォルダすべて（205）を読みます。
+
+```powershell
+uv run python aws-iac-diagram-workspace\tools\tf_public_check.py --pairs
+uv run python aws-iac-diagram-workspace\tools\tf_public_check.py --all --jobs 4
 ```
 
 **注意（plan JSON）:** plan JSON そのものには、`sensitive` の変数の値も平文で入ります（Terraform の仕様）。アダプタは plan の `sensitive` の位置の値を raw IR に書かず（.tf と合わせるときも、.tf の評価で値が出た位置を伏せます）、plan JSON のファイルの扱いには気をつけてください。

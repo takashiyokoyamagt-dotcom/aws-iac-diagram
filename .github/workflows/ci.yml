@@ -59,6 +59,12 @@ jobs:
           done
           uv run skills/aws-iac-diagram/scripts/validate_ir.py "$RUNNER_TEMP/tf-plan-raw/*.json"
 
+      # TF アダプタ（フェーズ2 の手順5）: 公開サンプルの `.tf` のあるフォルダすべて（205）が、例外なく読めて
+      # raw IR の検査を通り、error の診断が 0。T01〜T20、P01〜P04 のルートと TF／SAM の対は、単体テスト
+      # （tests/test_tf_public.py）で確かめている。全フォルダは時間がかかるので並列にする（約 30 秒）
+      - name: TF アダプタ（公開サンプルの全フォルダ）
+        run: uv run python aws-iac-diagram-workspace/tools/tf_public_check.py --all --jobs 4
+
       # 以下は SKILL を使う側と同じ起動のしかた（リポジトリの外に置き、PEP 723 の宣言だけで uv run する）
       - name: SKILL の起動（Windows PowerShell 5.1、日本語とスペースを含むパス）
         if: runner.os == 'Windows'
