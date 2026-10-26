@@ -19,7 +19,7 @@
     型名にする。
   - CFN: SAM の型を SAM_TO_CFN で CFN の型名にする（`AWS::Serverless::Function` → `AWS::Lambda::Function` など。
     SAM が変換のときに足す IAM ロール・Subscription・Permission などは、CFN アダプタが展開しない（暗黙の API を除く。
-    ir-schema.md の 7.2）ので、CFN の側には無い）。
+    docs/spec/ir-schema/ の 7.2）ので、CFN の側には無い）。
   - どちらも型のカウンタ（Counter）にして、TF だけにあるもの（only_tf）と CFN だけにあるもの（only_cfn）を出す。
   - ノードの辺（from の型、to の型、kind）の多重集合の比較は、図の形（正規化）を作るフェーズ3 の仕事（SELECTION.md の
     3 の 3 は正規化後の IR が前提）。ここではリソースの型だけを比べる。

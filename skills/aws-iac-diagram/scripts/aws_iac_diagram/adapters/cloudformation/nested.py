@@ -41,7 +41,7 @@ class NestedMixin:
         return prepend_through(value, hop)
 
     def locate(self, res: str, body: dict) -> Path | None:
-        """子テンプレートのファイルを探す（ir-schema.md の 7.4）。見つからなければ None。"""
+        """子テンプレートのファイルを探す（docs/spec/ir-schema/ の 7.4）。見つからなければ None。"""
         meta = body.get("Metadata") or {}
         asset = meta.get("aws:asset:path") if isinstance(meta, dict) else None
         if isinstance(asset, str) and (self.asset_dir / asset).is_file():  # CDK のネストスタック

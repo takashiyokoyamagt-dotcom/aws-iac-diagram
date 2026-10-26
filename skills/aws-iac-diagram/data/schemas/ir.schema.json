@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:aws-iac-diagram:ir:1.0",
   "title": "aws-iac-diagram IR v1.0 (normalized)",
-  "description": "正規化後の中間表現（IR）。説明は references/ir-schema.md。canonical 部（nodes・edges）と由来部（sources）を分けている。",
+  "description": "正規化後の中間表現（IR）。説明は docs/spec/ir-schema/。canonical 部（nodes・edges）と由来部（sources）を分けている。",
   "type": "object",
   "additionalProperties": false,
   "required": ["ir_version", "stage", "name", "nodes", "edges", "sources"],
@@ -15,7 +15,7 @@
     "evaluation": {"$ref": "#/$defs/evaluation"},
     "nodes": {"type": "array", "items": {"$ref": "#/$defs/node"}},
     "edges": {"type": "array", "items": {"$ref": "#/$defs/edge"}},
-    "diagnostics": {"type": "array", "description": "正規化で残した記録（ir-schema.md の 1章・7.5）。比較には使わない",
+    "diagnostics": {"type": "array", "description": "正規化で残した記録（ir-schema の 1章・7.5）。比較には使わない",
       "items": {"type": "object", "additionalProperties": false, "required": ["level", "code", "message"],
         "properties": {"level": {"enum": ["info", "warn", "error"]}, "code": {"type": "string", "pattern": "^NORM-[A-Z0-9]+(-[A-Z0-9]+)*$"},
           "address": {"type": "string"}, "path": {"type": "string"}, "message": {"type": "string", "minLength": 1}}}},
@@ -80,7 +80,7 @@
           "description": "複数のサブネットに置かれるリソースの、置き場所のサブネット。parent はそれらの最も近い共通の祖先"
         },
         "synthetic": {"type": "boolean", "description": "入力に対応するリソースが無い、正規化で作ったノード（AZ、external/internet、bedrock_model）"},
-        "multiplicity": {"const": "N", "description": "値が決まらない count/for_each を1つのノードにまとめたときだけ \"N\"（×N）。値が決まるものはまとめず、インスタンスごとにノードにする（ir-schema.md の 2章）"},
+        "multiplicity": {"const": "N", "description": "値が決まらない count/for_each を1つのノードにまとめたときだけ \"N\"（×N）。値が決まるものはまとめず、インスタンスごとにノードにする（ir-schema の 2章）"},
         "attrs": {"type": "object", "propertyNames": {"enum": ["cidr", "access", "endpoint_type", "service", "module_source", "module_version"]}, "additionalProperties": {"$ref": "#/$defs/scalar"}},
         "note": {"type": "string", "description": "判断理由。比較には使わない"}
       }
@@ -121,7 +121,7 @@
         "node": {"$ref": "#/$defs/node_id"},
         "into": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"oneOf": [{"$ref": "#/$defs/node_id"}, {"$ref": "#/$defs/edge_id"}]}},
         "rule": {"type": "string", "pattern": "^[A-Z][A-Z0-9]*(-[A-Z0-9]+)+$"},
-        "via": {"enum": ["module_summary", "module_blackbox"], "description": "module_summary: A5 の要約表から展開したレジストリモジュールの中身。module_blackbox: 黒箱のモジュールの呼び出し（ir-schema.md の 2章）"},
+        "via": {"enum": ["module_summary", "module_blackbox"], "description": "module_summary: A5 の要約表から展開したレジストリモジュールの中身。module_blackbox: 黒箱のモジュールの呼び出し（ir-schema の 2章）"},
         "note": {"type": "string"}
       },
       "allOf": [

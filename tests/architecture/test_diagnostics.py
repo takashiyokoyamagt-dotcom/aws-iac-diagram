@@ -1,7 +1,7 @@
 """診断コードの一覧（core/diagnostics.py）のテスト。
 
 - 一覧の形（コードの形、接頭辞、level、説明、並び順）。
-- 一覧と references/ir-schema.md の 7.5 が、TF と CFN の両方で同じ（コードが足りない・余っていると失敗）。
+- 一覧と docs/spec/ir-schema/ の 7.5 が、TF と CFN の両方で同じ（コードが足りない・余っていると失敗）。
 - アダプタを実際に動かして出た (code, level) が、一覧にある（level の組み合わせも）。
 - アダプタのコードにある文字列と一覧の照合（足りない・余っている）は tests/architecture/test_diagnostics_registry.py の DiagnosticRegistryRuleTest。
 """
@@ -24,6 +24,7 @@ from aws_iac_diagram.adapters.terraform import build as tf_build  # noqa: E402
 from aws_iac_diagram.core import diagnostics as D  # noqa: E402
 
 
+# 7 章（アダプタの出力）のファイル。7.5 の診断コードの一覧はここにある（章・節の番号の決まりは docs/spec/ir-schema/README.md）
 SCHEMA_DOC = ROOT / "docs" / "spec" / "ir-schema" / "07-raw-output.md"
 
 # 子テンプレートが YAML として読めない／親が読めない子と、見つからない子を持つ入力（CFN-NESTED-UNREADABLE の error と warn）
@@ -51,8 +52,8 @@ TF_UNSUPPORTED = textwrap.dedent("""    resource "aws_s3_bucket" "b" {{
 def doc_section() -> str:
     doc = SCHEMA_DOC.read_text(encoding="utf-8")
     a = doc.index("### 7.5 診断")
-    b = doc.index("\n## 8.", a)
-    return doc[a:b]
+    nxt = doc.find("\n## ", a)  # 7.5 は 7 章の最後の節（次の章は別のファイル）。次の章の見出しが来たらそこまで
+    return doc[a:] if nxt < 0 else doc[a:nxt]
 
 
 class RegistryShapeTest(unittest.TestCase):
@@ -71,7 +72,7 @@ class RegistryShapeTest(unittest.TestCase):
                 self.assertIn(d.adapter, ("terraform", "cloudformation"))
 
     def test_counts_and_order(self):
-        # 数は文書（ir-schema.md の 7.5）と一緒に直す。CFN は接頭辞 CFN-、TF は TF-。それぞれアルファベット順
+        # 数は文書（ir-schema の 7.5）と一緒に直す。CFN は接頭辞 CFN-、TF は TF-。それぞれアルファベット順
         self.assertEqual((len(D.codes("cloudformation")), len(D.codes("terraform")), len(D.DIAGNOSTICS)), (19, 43, 62))
         self.assertEqual(D.codes(), D.codes("cloudformation") + D.codes("terraform"))
         for adapter in ("cloudformation", "terraform"):
@@ -103,7 +104,7 @@ class RegistryShapeTest(unittest.TestCase):
 
 
 class DiagnosticCodesTest(unittest.TestCase):
-    """一覧と ir-schema.md の 7.5 の診断コードの一覧が、TF と CFN の両方で食い違わない。"""
+    """一覧と ir-schema の 7.5 の診断コードの一覧が、TF と CFN の両方で食い違わない。"""
 
     def test_registry_matches_the_schema_doc(self):
         section = doc_section()
@@ -111,8 +112,8 @@ class DiagnosticCodesTest(unittest.TestCase):
             with self.subTest(prefix):
                 in_doc = set(re.findall(rf"`({prefix}-[A-Z0-9]+(?:-[A-Z0-9]+)*)`", section))
                 in_registry = set(D.codes(adapter))
-                self.assertEqual(sorted(in_registry - in_doc), [], "一覧にあって ir-schema.md の 7.5 に無いコード")
-                self.assertEqual(sorted(in_doc - in_registry), [], "ir-schema.md の 7.5 にあって一覧に無いコード")
+                self.assertEqual(sorted(in_registry - in_doc), [], "一覧にあって ir-schema の 7.5 に無いコード")
+                self.assertEqual(sorted(in_doc - in_registry), [], "ir-schema の 7.5 にあって一覧に無いコード")
         # 見出しの 7.6 は無い（フェーズ2 の間だけの注記だった）
         self.assertNotIn("### 7.6", SCHEMA_DOC.read_text(encoding="utf-8"))
 

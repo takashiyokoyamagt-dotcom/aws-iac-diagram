@@ -34,7 +34,7 @@ def resource(address, type_, props=None, **kw):
     return {"address": address, "type": type_, "file": "template.yaml", "enabled": True, "props": props or {}, **kw}
 
 
-# ir-schema.md の 7章の例をまとめたもの（決まりをすべて守っている）
+# docs/spec/ir-schema/ の 7章の例をまとめたもの（決まりをすべて守っている）
 RAW_EXAMPLE = {
     "ir_version": "1.0",
     "stage": "raw",

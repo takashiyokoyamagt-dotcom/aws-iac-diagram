@@ -3,15 +3,15 @@
 - 状態: フェーズ2 の手順3（2026-10-17）で作成。対象は terraform-aws-modules の vpc・alb・rds・eks（PLAN の A5）。4つとも、タグを付けた版の本物のソース（`aws-iac-diagram-workspace/fixtures/public/`）と突き合わせるテストがある
 - **これは開発者向けの説明です（SKILL の外。配りません）。表そのもの（TF アダプタが実行時に読むデータ）は `skills/aws-iac-diagram/data/module-summaries/` にあります**（R4 で `references/module-summaries.md` から分けた。説明はここ、表はデータのフォルダ）
 - 使うもの: TF アダプタ（`scripts/adapt_tf.py`）が、手元に中身の無いレジストリモジュールの呼び出しを、この表の HCL で展開する。読み込みは `scripts/aws_iac_diagram/adapters/terraform/modules/summaries.py`
-- raw IR での出し方: [ir-schema.md](../../skills/aws-iac-diagram/references/ir-schema.md) の 7.2（モジュール）と 4章の `via: "module_summary"`
+- raw IR での出し方: [ir-schema](ir-schema/07-raw-output.md) の 7.2（モジュール）と [4章](ir-schema/04-sources.md) の `via: "module_summary"`
 - 表の HCL は terraform-aws-modules（Apache-2.0）のソースから、変数の宣言（`type`・`default`・`nullable`）・出力・主要なリソースのブロックを写して短くしたもの（改変あり）。出典とライセンスは、ルートの [NOTICE](../../NOTICE) の 2(b)
 
 ## 1. 考え方
 
 - **要約表は、本物のモジュールの主要なリソースと出力を、同じ HCL の書き方で写したもの。** アダプタは、手元のローカルモジュールと同じように評価する（変数・locals・count・for_each・出力・`through`）。表の形を別に決めず HCL にしたのは、count・for_each の条件（`single_nat_gateway` で NAT の数が変わる、など）を本物と同じ式で評価するため。
 - 写すのは、図に要るもの（ノードになる型、辺・入れ子の根拠になる参照、名前の属性・タグ）と、その count・for_each の条件だけ。そのほかの属性は写さない。変数は本物の宣言をそのまま写す（`type` の変換で `1` が `"1"` になる、などを本物と揃えるため）。
-- **展開するのは、その入力で作られる managed リソースだけ。** 表の中の `data` は載せない（`data.aws_partition` などは擬似パラメータとして使う）。count が 0・for_each が空のリソースも載せない（`try(aws_x.y[0].id, null)` は Terraform と同じく `null` になる）。決まらない count・for_each のものは ×N で載せる。**手元のソースをローカルモジュールとして読んだときは、count が 0 のブロックも `enabled: false` で載る**（ルートモジュールと同じ。ir-schema.md の 7.2）。同じモジュールでも、要約表で展開したときと手元のソースを読んだときで、`enabled: false` のリソースの数が違う。
-- 表の中の黒箱の呼び出し（eks の `module.kms`）は、`create` 引数が false と決まれば `enabled: false`、決まらなければ `enabled: null` で載せる（ir-schema.md の 7.2。`TF-MODULE-NOT-CREATED`。参照の先を残すため、count が 0 のリソースと違って載せる）。
+- **展開するのは、その入力で作られる managed リソースだけ。** 表の中の `data` は載せない（`data.aws_partition` などは擬似パラメータとして使う）。count が 0・for_each が空のリソースも載せない（`try(aws_x.y[0].id, null)` は Terraform と同じく `null` になる）。決まらない count・for_each のものは ×N で載せる。**手元のソースをローカルモジュールとして読んだときは、count が 0 のブロックも `enabled: false` で載る**（ルートモジュールと同じ。docs/spec/ir-schema/ の 7.2）。同じモジュールでも、要約表で展開したときと手元のソースを読んだときで、`enabled: false` のリソースの数が違う。
+- 表の中の黒箱の呼び出し（eks の `module.kms`）は、`create` 引数が false と決まれば `enabled: false`、決まらなければ `enabled: null` で載せる（ir-schema の 7.2。`TF-MODULE-NOT-CREATED`。参照の先を残すため、count が 0 のリソースと違って載せる）。
 - address は本物と同じ（`module.vpc.aws_subnet.public[0]`、`module.db.module.db_instance.aws_db_instance.this[0]`、`module.eks.module.kms`）。`file` は呼び出しのあるファイル（4章）。
 - **写していないリソースを作る入力**は、呼び出しで渡されたら診断 `TF-MODULE-SUMMARY-INPUT`（info）に名前を書く。表に宣言の無い入力と、コードブロックの `# not-covered:` の行に書いた入力が対象。`# not-covered:` には、入れ子の経路も書ける（`listeners.*.authenticate_cognito`。`*` はマップのどのキー・リストのどの要素でもよい。渡した値のその位置に `null`・空の `{}`・`[]` 以外の値があれば当たる。途中の値が決まらず調べられなければ、そのことを info に書く）。そのリソース・属性は図に出ない（推測して描かない。CRITERIA の 2.3 の A5）。
 - 表に無い出力を参照したら `$unknown`（`TF-MODULE-SUMMARY-OUTPUT`、warn）。
@@ -43,7 +43,7 @@
 
 ## 4. IAM だけを作るモジュール（H-IAM）
 
-次の source（サブモジュールを含む）は、IAM のリソースだけを作る。アダプタは黒箱の呼び出し（`via: module_blackbox`）として出し、正規化が `hidden`（規則 `H-IAM`。ir-schema.md の 2章）にする。判定は `scripts/aws_iac_diagram/adapters/terraform/modules/summaries.py` の `iam_only()`（source の前方一致。ホスト名 `registry.terraform.io/` は除く）。ローカルモジュールは中身を読むので、リソースの型ごとに `H-IAM` になる（この一覧は使わない）。
+次の source（サブモジュールを含む）は、IAM のリソースだけを作る。アダプタは黒箱の呼び出し（`via: module_blackbox`）として出し、正規化が `hidden`（規則 `H-IAM`。ir-schema の 2章）にする。判定は `scripts/aws_iac_diagram/adapters/terraform/modules/summaries.py` の `iam_only()`（source の前方一致。ホスト名 `registry.terraform.io/` は除く）。ローカルモジュールは中身を読むので、リソースの型ごとに `H-IAM` になる（この一覧は使わない）。
 
 一覧は `data/module-summaries/iam-only-sources.md`（今は `terraform-aws-modules/iam/aws` の 1 行）。
 

@@ -2,7 +2,7 @@
 
 アダプタのコードにある診断コードの文字列（`diag(...)` などの位置のもの）と core/diagnostics.py の一覧を照合する。
 一覧に無いコードを使ったら失敗、一覧にあって使われていないコードも失敗（UNUSED_ALLOW に理由を付けたものを除く）。
-一覧そのものの形と、ir-schema.md の 7.5 との一致は tests/architecture/test_diagnostics.py。
+一覧そのものの形と、docs/spec/ir-schema/ の 7.5 との一致は tests/architecture/test_diagnostics.py。
 """
 
 from __future__ import annotations

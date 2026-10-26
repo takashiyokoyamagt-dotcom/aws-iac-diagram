@@ -1,7 +1,7 @@
 """Terraform のモジュールの source の見分け（ファイルは読まない）。
 
 ローカルのパスか、レジストリの source か（ホスト名を除いた形にする）。要約表の中の module ブロックのローカルの source を、
-要約表の source にする。ir-schema.md の 7.2。
+要約表の source にする。docs/spec/ir-schema/ の 7.2。
 """
 from __future__ import annotations
 

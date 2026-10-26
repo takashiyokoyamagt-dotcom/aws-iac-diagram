@@ -7,7 +7,7 @@
   <!-- module-summary source="terraform-aws-modules/vpc/aws" majors="6" -->
 と書く（source はレジストリの source。サブモジュールは "//modules/x" を付ける。majors は対象の版の major）。
 中身は、本物のモジュールの主要なリソース（count・for_each の条件と、名前・参照の属性）と出力だけを
-同じ書き方で写したもの。アダプタは、手元のモジュールと同じように評価する（ir-schema.md の 7.2）。
+同じ書き方で写したもの。アダプタは、手元のモジュールと同じように評価する（docs/spec/ir-schema/ の 7.2）。
 コードブロックの中の "# not-covered: a, b" の行に書いた変数（要約表に写していないリソースを作る入力）は、
 呼び出しで渡されたら、宣言の無い入力と同じく診断（TF-MODULE-SUMMARY-INPUT）に書く。
 
@@ -212,7 +212,7 @@ def problems(path: Path | None = None) -> list[str]:
 
 
 def iam_only(source: str, path: Path | None = None) -> bool:
-    """IAM のリソースだけを作るモジュールか（正規化の H-IAM。ir-schema.md の 2章）。"""
+    """IAM のリソースだけを作るモジュールか（正規化の H-IAM。ir-schema の 2章）。"""
     key = registry_key(source)
     if key is None:
         return False

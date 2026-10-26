@@ -122,7 +122,7 @@ def violations_in_diagnostics(scripts: Path, registry: dict[str, tuple[str, ...]
     sites, problems = scan_diagnostic_codes(scripts)
     for s in sites:
         if s.code not in registry:
-            problems.append(f"{s.rel}:{s.line}: 診断コード {s.code} が core/diagnostics.py の一覧に無い（一覧と ir-schema.md の 7.5 に足す）")
+            problems.append(f"{s.rel}:{s.line}: 診断コード {s.code} が core/diagnostics.py の一覧に無い（一覧と docs/spec/ir-schema/ の 7.5 に足す）")
         else:
             for lv in s.levels:
                 if lv not in registry[s.code]:

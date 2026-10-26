@@ -44,7 +44,7 @@ class ForEachMixin:
         return out
 
     def expand_foreach(self, resources: dict, depth: int = 0, record: bool = True) -> dict:
-        """Resources（と Outputs）の Fn::ForEach::<名前> を展開する。値が決まらなければ ×N（ir-schema.md の 2章）。
+        """Resources（と Outputs）の Fn::ForEach::<名前> を展開する。値が決まらなければ ×N（docs/spec/ir-schema/ の 2章）。
 
         展開した名前が重なったら、後のものは診断を出して飛ばす（CloudFormation でも誤り）。
         ×N の名前が重なったら、後ろに ".<ForEach の名前>" を付けて両方残す（網羅の A6 で落とさない）。

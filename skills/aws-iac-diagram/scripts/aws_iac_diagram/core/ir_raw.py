@@ -1,4 +1,4 @@
-"""アダプタの出力（raw IR。references/ir-schema.md の 7章）の共通部品。
+"""アダプタの出力（raw IR。docs/spec/ir-schema/ の 7章）の共通部品。
 
 validate_ir.py（検査）と、各アダプタ（正規形での書き出し）が使う。
 Schema（ir-raw.schema.json）では調べられない決まりをここで調べる:

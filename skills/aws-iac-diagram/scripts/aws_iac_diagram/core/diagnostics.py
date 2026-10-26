@@ -1,9 +1,9 @@
 """アダプタが出す診断コード（raw IR の `diagnostics[].code`）の一覧。データだけ（ロジックは引くための関数のみ）。
 
 - **単一の一覧。** アダプタ（Terraform の `TF-…`、CloudFormation の `CFN-…`）が出すコードはすべてここにある。
-  コードを足す・消すときは、この一覧と `references/ir-schema.md` の 7.5 の一覧を同じコミットで直す。
+  コードを足す・消すときは、この一覧と `docs/spec/ir-schema/` の 7.5 の一覧を同じコミットで直す。
   `tests/architecture/test_diagnostics_registry.py`（アダプタのコードにある `TF-…`・`CFN-…` の文字列がこの一覧に無いと失敗。この一覧にあって
-  使われていないコードも失敗）と `tests/architecture/test_diagnostics.py`（この一覧と ir-schema.md が同じ）が守る。
+  使われていないコードも失敗）と `tests/architecture/test_diagnostics.py`（この一覧と ir-schema が同じ）が守る。
 - **実行時には読まない。** アダプタはこのモジュールを import せず、コードを文字列のまま書く（出力のバイト列を変えないため。
   フェーズ 2b の決まり）。この一覧は検査と文書のための表。
 - `levels` は、そのコードが出うる level（`error`＞`warn`＞`info`）。同じコードが場所によって level を変えるものがある

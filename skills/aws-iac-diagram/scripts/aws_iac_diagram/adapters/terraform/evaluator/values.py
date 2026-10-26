@@ -8,7 +8,7 @@
   - Concat・Json: 文字列のテンプレートと jsonencode（$concat・$json）
   - Unknown: 評価できなかった値（$unknown）。中にあった参照（refs）を持ち歩き、書き出すときに unevaluated で残す
   - ZeroColl: count が 0・for_each が空のリソースのまとまり（空のリスト。添字で引くと作られないリソースへの Res）
-組み込み関数は functions.py。ir-schema.md の 7.2。
+組み込み関数は functions.py。docs/spec/ir-schema/ の 7.2。
 """
 from __future__ import annotations
 

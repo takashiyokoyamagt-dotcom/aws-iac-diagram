@@ -26,7 +26,7 @@ from aws_iac_diagram.core import ir_raw  # noqa: E402
 
 
 # plan JSON だけでは出ない参照（.tf の active の参照の (from, to) の組のうち、plan だけの IR に無いもの）と理由。
-# どれも plan JSON の configuration に式の形が無いことによる（ir-schema.md の 7.3「plan JSON の参照」）
+# どれも plan JSON の configuration に式の形が無いことによる（docs/spec/ir-schema/ の 7.3「plan JSON の参照」）
 LOST_IN_PLAN_ONLY = {
     "three-tier-modules": {
         # dynamic ブロック（alb モジュールのリスナーの default_action）は configuration に出ない

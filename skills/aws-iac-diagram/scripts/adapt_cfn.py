@@ -2,7 +2,7 @@
 # requires-python = ">=3.12"
 # dependencies = ["PyYAML==6.0.3"]
 # ///
-"""CloudFormation のテンプレートを読み、アダプタの出力（raw IR。references/ir-schema.md の 7章）を作る。
+"""CloudFormation のテンプレートを読み、アダプタの出力（raw IR。docs/spec/ir-schema/ の 7章）を作る。
 
 いまの範囲（フェーズ1 の手順2〜4）:
   - YAML の短縮タグ（!Ref など）を Fn::* の長い形に正規化する（PLAN 2.2 の失敗知見 13。awscli の yamlhelper と同じ考え方）

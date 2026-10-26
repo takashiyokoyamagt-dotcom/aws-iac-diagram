@@ -60,7 +60,7 @@ def build_raw(input_dir: Path, root_base: Path | None = None, var_files: list | 
     var_files・vars: 外から渡す変数の値（--var-file、--var）。この順に（vars が後で）重ねる。
     var_args: コマンドラインの順のまま渡すとき。("file", パス) と ("var", "K=V") の並び（var_files・vars より後）。
     plan: 同じ構成の plan JSON（--plan）。変数の値は plan の variables を使い（var_files・vars・var_args はその後に
-    重ねる）、address と作られるかは plan に合わせる（adapters/terraform/plan/combine.py の combine。ir-schema.md の 7.2）。
+    重ねる）、address と作られるかは plan に合わせる（adapters/terraform/plan/combine.py の combine。docs/spec/ir-schema/ の 7.2）。
     """
     plan_doc = load_plan(plan) if plan is not None else None
     ctx = Context(input_dir, workspace)

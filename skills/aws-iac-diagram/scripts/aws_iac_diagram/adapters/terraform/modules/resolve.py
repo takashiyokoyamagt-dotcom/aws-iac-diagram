@@ -1,6 +1,6 @@
 """モジュールの呼び出しの扱いの決め方: source と version に合う要約表の選択、展開しないレジストリモジュールの扱い（黒箱）。
 
-ir-schema.md の 7.2「TF のモジュール」。要約表の読み込みは summaries.py、source の見分けは sources.py。
+docs/spec/ir-schema/ の 7.2「TF のモジュール」。要約表の読み込みは summaries.py、source の見分けは sources.py。
 """
 from __future__ import annotations
 

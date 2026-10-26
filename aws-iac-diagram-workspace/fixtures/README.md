@@ -7,7 +7,7 @@
 | `tf-plan/<名前>.json` | 自作の構成の TF 版の plan JSON（`terraform show -json` の出力）。下の「plan JSON」 |
 | `tf-plan/edge/` | plan JSON の読み方の試験用の小さな構成（図にする構成ではない）。その plan JSON が `tf-plan/edge.json` |
 
-正解 IR は `../expected/<名前>.ir.json`（TF 版・CFN 版で共通の1ファイル。形式ごとの違いは `sources.tf`／`sources.cfn` に書く）。IR の形は [references/ir-schema.md](../../skills/aws-iac-diagram/references/ir-schema.md)。
+正解 IR は `../expected/<名前>.ir.json`（TF 版・CFN 版で共通の1ファイル。形式ごとの違いは `sources.tf`／`sources.cfn` に書く）。IR の形は [docs/spec/ir-schema/](../../docs/spec/ir-schema/README.md)。
 
 ## 自作の構成5種
 
@@ -23,7 +23,7 @@
 
 ## 共通の約束
 
-- リージョンは `ap-northeast-1`、AZ は `ap-northeast-1a` と `ap-northeast-1c` を変数・パラメータで明示している（CFN の `!GetAZs` は静的に AZ 名が決まらないので使っていない。ir-schema.md の未決事項）。
+- リージョンは `ap-northeast-1`、AZ は `ap-northeast-1a` と `ap-northeast-1c` を変数・パラメータで明示している（CFN の `!GetAZs` は静的に AZ 名が決まらないので使っていない。docs/spec/ir-schema/ の未決事項）。
 - 描くリソースにはすべて名前（`Name` タグか名前属性）を付けている。ノード ID は名前から作る（K-NAME）ので、TF 版と CFN 版で名前が同じなら ID も同じになる。
 - **デプロイはしない前提。** S3 バケット名（`shop-orders-archive`、`rag-docs`）は全世界で一意なので、そのままでは取れない可能性が高い。実際にデプロイするときは、名前に変数で接尾辞（アカウントID など）を足すこと。ただし名前を変えるとノード ID も変わる（K-NAME）ので、正解 IR とは別に評価する。
 - デプロイはしない。構文と型・属性の正しさは次で確かめた。terraform は入れていない（`terraform validate` はしていない）。
@@ -32,7 +32,7 @@
 
 ## plan JSON（`tf-plan/`）
 
-TF アダプタの plan JSON の入力（フェーズ2 の手順4。ir-schema.md の 7.2「TF の plan JSON」）の fixture。手で書かず、`tools/make_plan_json.py` で本物の terraform と moto（ローカルの AWS モック）から作った。
+TF アダプタの plan JSON の入力（フェーズ2 の手順4。ir-schema の 7.2「TF の plan JSON」）の fixture。手で書かず、`tools/make_plan_json.py` で本物の terraform と moto（ローカルの AWS モック）から作った。
 
 | ファイル | 元の構成 | 変数 |
 |---|---|---|

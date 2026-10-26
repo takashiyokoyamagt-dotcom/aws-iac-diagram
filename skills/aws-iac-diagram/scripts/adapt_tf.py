@@ -2,7 +2,7 @@
 # requires-python = ">=3.12"
 # dependencies = ["python-hcl2==8.1.4"]
 # ///
-"""Terraform のルートモジュール（.tf のフォルダ）を読み、アダプタの出力（raw IR。references/ir-schema.md の 7章）を作る。
+"""Terraform のルートモジュール（.tf のフォルダ）を読み、アダプタの出力（raw IR。docs/spec/ir-schema/ の 7章）を作る。
 
 いまの範囲（フェーズ2 の手順1〜4）:
   - フォルダ直下の *.tf を python-hcl2 で読み（構文木をそのまま使う）、resource・data・module のブロックを集める。
@@ -19,27 +19,27 @@
     （JSON として読めれば $json）。depends_on は references にだけ
   - 評価できなかった値は $unknown（中の参照は state: "unevaluated"）。条件式の選ばれなかった側、try で使わな
     かった式、選ぶ関数（coalesce・element など）とリストの添字で選ばなかった要素、for 式の if で除いた要素の中の
-    参照は state: "pruned"（決まった count・for_each の式の参照は残さない。ir-schema.md の 7.2）
+    参照は state: "pruned"（決まった count・for_each の式の参照は残さない。ir-schema の 7.2）
   - path.module・path.root・path.cwd はルートからの相対パス（ルートは "."）、terraform.workspace は "default"
     （--workspace で変えられる。使ったとき evaluation.assumptions に書く）
   - provider = aws.<alias> のリソースは provider を書く。region は、リソースの引数 region（AWS provider v6）→
     その provider の region の順で、文字列で決まるときだけ書く
   - heredoc の開始・終端の行の末尾の空白を取ってから読む（python-hcl2 が読めないため。7.4。診断 info）
-  - モジュール（手順3。ir-schema.md の 7.2 の「TF のモジュール」）: ローカルモジュール（./・../）は再帰的に
+  - モジュール（手順3。ir-schema の 7.2 の「TF のモジュール」）: ローカルモジュール（./・../）は再帰的に
     展開する（address は module.x.…、count・for_each の呼び出しはインスタンスごと）。子の変数は呼び出しの引数を
     親の中で評価した値、module.x.y は子の出力 y の値で、たどった経路を参照の through に書く。terraform-aws-modules
     の vpc・alb・rds・eks は A5 の要約表（data/module-summaries/、aws_iac_diagram/adapters/terraform/modules/）で展開する
     （via: module_summary）。それ以外のレジストリ・git などのソースと、読めない・循環する・深すぎるものは黒箱の
     呼び出し1件（type: module、via: module_blackbox）。providers 引数で渡した provider をたどって provider・region
     を書く。terraform_remote_state の出力への参照は attr: "outputs.<名前>"（state は読まない）
-  - plan JSON（手順4。aws_iac_diagram/adapters/terraform/plan/、ir-schema.md の 7.2「TF の plan JSON」と 7.3「plan JSON の参照」）:
+  - plan JSON（手順4。aws_iac_diagram/adapters/terraform/plan/、ir-schema の 7.2「TF の plan JSON」と 7.3「plan JSON の参照」）:
     --input に plan JSON（terraform show -json の出力の .json）を渡すと、plan JSON だけから作る（file は plan JSON
     の名前）。--input にフォルダ、--plan に plan JSON を渡すと、変数の値は plan の variables を使い、address と
     作られるかは plan、file・props・参照の位置は .tf にする（.tf で決まらなかった値は plan の値で埋める）。
     plan の sensitive の値は使わない。.tf.json のブロックは、plan と一緒なら plan から取る
 読まないもの:
   - .tf.json は .tf だけでは読まない（診断 TF-TFJSON-UNSUPPORTED、warn）。JSON の書き方では入れ子のブロックと属性
-    （オブジェクトの値）を区別できず、区別には provider のスキーマが要るため（ir-schema.md の 7.2「TF のそのほかの
+    （オブジェクトの値）を区別できず、区別には provider のスキーマが要るため（ir-schema の 7.2「TF のそのほかの
     ブロック」）。plan JSON と一緒なら plan から取る（上）
 file()・templatefile() などのファイルを読む関数は、ファイルを読まずに $unknown（診断 TF-UNEVALUATED）。
 引数の中の参照は unevaluated で残す。sensitive = true・ephemeral = true の変数と sensitive() の値は使わない

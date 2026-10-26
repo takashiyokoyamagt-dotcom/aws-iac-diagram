@@ -1,4 +1,4 @@
-"""Terraform の組み込み関数（value 型は values.py）。ir-schema.md の 7.2。
+"""Terraform の組み込み関数（value 型は values.py）。docs/spec/ir-schema/ の 7.2。
 
 関数は、値が決まっていれば Terraform と同じ結果を返し、決まらない値（Res・Unknown など）を含むと、
 構造だけで決まるもの（length・concat・merge・lookup など）は印を残したまま、それ以外は Unknown を返す。

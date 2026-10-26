@@ -2,7 +2,7 @@
 # requires-python = ">=3.12"
 # dependencies = ["jsonschema==4.26.0"]
 # ///
-"""IR（references/ir-schema.md、v1.0。正規化後の形）を検証する。
+"""IR（docs/spec/ir-schema/、v1.0。正規化後の形）を検証する。
 
 検証すること:
   1. JSON Schema（data/schemas/ir.schema.json）に合っているか（jsonschema を使う）
@@ -42,7 +42,7 @@ SYNTHETIC_TYPES = {"availability_zone", "external", "bedrock_model"}
 CATALOG = paths.RESOURCE_CATALOG
 INPUT_TYPE = re.compile(r"`((?:aws|awscc|opensearch)_[a-z0-9_]+|AWS::[A-Za-z0-9]+::[A-Za-z0-9]+)`")
 CLASS_PREFIX = {"hidden": ("H-",), "merged_into": ("M-", "R-")}
-# 黒箱のモジュールになれる入力の型（ir-schema.md の 2章）
+# 黒箱のモジュールになれる入力の型（ir-schema の 2章）
 BLACKBOX_TYPES = {"module", "AWS::CloudFormation::Stack", "AWS::Serverless::Application"}
 
 
@@ -219,7 +219,7 @@ def semantic_errors(ir: dict, rules: set[str], drawable: dict[str, set[str]] | N
                         if t in edges and r["rule"] not in evr:
                             errs.append(f"sources.{fmt} {a}: 辺 {t} の根拠の rules に {r['rule']} が無い")
             if r["class"] == "drawn":
-                # 黒箱のモジュール（ir-schema.md の 2章）は入力の型によらず module のノードになり、
+                # 黒箱のモジュール（ir-schema の 2章）は入力の型によらず module のノードになり、
                 # module のノードになれるのは黒箱のモジュールだけ（両方向）
                 if r.get("via") == "module_blackbox":
                     allowed = {"module"}

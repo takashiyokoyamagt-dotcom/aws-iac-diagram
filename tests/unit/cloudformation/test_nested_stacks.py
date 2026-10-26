@@ -1,4 +1,4 @@
-"""CloudFormation アダプタ: ネストスタック（ir-schema.md の 7.2〜7.4。nested.py・stack.py）。"""
+"""CloudFormation アダプタ: ネストスタック（docs/spec/ir-schema/ の 7.2〜7.4。nested.py・stack.py）。"""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from aws_iac_diagram.adapters.cloudformation import build as cfn_build  # noqa: 
 
 
 class NestedStackTest(unittest.TestCase):
-    """フェーズ1 の手順3: ネストスタック（ir-schema.md の 7.2〜7.4）。"""
+    """フェーズ1 の手順3: ネストスタック（ir-schema の 7.2〜7.4）。"""
 
     def test_three_tier_modules(self):
         raw = cfn_build.build_raw(FIXTURES / "three-tier-modules" / "root.yaml", ROOT / "aws-iac-diagram-workspace")

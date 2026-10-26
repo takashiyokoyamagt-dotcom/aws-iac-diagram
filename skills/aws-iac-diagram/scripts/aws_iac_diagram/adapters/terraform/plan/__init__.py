@@ -1,6 +1,6 @@
-"""Terraform の plan JSON（`terraform show -json <plan>` の出力）から raw IR（ir-schema.md の 7章）を作る。
+"""Terraform の plan JSON（`terraform show -json <plan>` の出力）から raw IR（docs/spec/ir-schema/ の 7章）を作る。
 
-フェーズ2 の手順4。標準ライブラリだけで動く（adapt_tf.py から使う）。決まりは ir-schema.md の 7.2「TF の plan JSON」と
+フェーズ2 の手順4。標準ライブラリだけで動く（adapt_tf.py から使う）。決まりは ir-schema の 7.2「TF の plan JSON」と
 7.3「plan JSON の参照」。
 
   - address・count／for_each の展開・作られるか（enabled）は Terraform の結果（planned_values・resource_changes・
