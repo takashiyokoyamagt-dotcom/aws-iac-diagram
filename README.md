@@ -70,6 +70,14 @@ macOS では draw.io を `brew install --cask drawio` で入れ、登録は `ln 
 uv run python -m unittest discover -s tests -v
 ```
 
+テストは `tests/` の下に、`unit/`（1 つの領域につき 1 ファイル。`terraform/`・`cloudformation/`・`core/`・`validate/`・`icons/`・`host/`）、`integration/`（fixture・公開サンプルを入口のスクリプトや CLI から通す）、`golden/`（固定した raw IR との比較）、`architecture/`（構成の決まり）に分けてあります。共有の道具は `tests/support/` です（置き場の決まりは [docs/architecture.md](docs/architecture.md) の 7）。1 つの領域だけ動かすには次のようにします。
+
+```powershell
+uv run python -m unittest discover -s tests/unit/terraform -t tests -v     # 領域
+uv run python -m unittest tests.unit.terraform.test_hcl -v                 # 1 ファイル
+uv run python tests/unit/terraform/test_hcl.py                             # ファイルを直接
+```
+
 CI（[.github/workflows/ci.yml](.github/workflows/ci.yml)）は Ubuntu と Windows で、単体テスト、正解 IR と fixture の検証、日本語とスペースを含むパスに置いた SKILL の起動（Windows は PowerShell 5.1 から）を行います。
 
 ### 構成を守るテスト（フェーズ 2b）
@@ -77,7 +85,7 @@ CI（[.github/workflows/ci.yml](.github/workflows/ci.yml)）は Ubuntu と Windo
 構成の階層化（[PLAN.md](PLAN.md) の 1.4。層の分け方と依存の向きは [docs/architecture.md](docs/architecture.md)）では、中身の動きを変えずにファイルを移します。それを次の 2 つが守ります（どちらも上の単体テストに入っています）。
 
 - **出力の固定（golden）:** アダプタの出力（raw IR）を、自作 fixture・plan JSON・公開サンプルの TF のルート 52・CFN の入力 25 の 101 ケースについて、SHA-256 で `tests/golden/manifest.json` に固定しています。単独で動かすには `uv run python aws-iac-diagram-workspace/tools/golden.py`（`--list`、`--only <接頭辞>`、不一致の調査には `--dump <名前> --out <ファイル>`）。**落ちたらコードを直します。`--update` で通してはいけません**（アダプタの動きを意図して変えたときだけ、理由を書いて使います）。
-- **構成の検査（`tests/test_architecture.py`）:** import を読んで層の依存の向きを、行数（800 行で注意、1,500 行で失敗。免除は今は無い）を確かめます。
+- **構成の検査（`tests/architecture/`）:** import を読んで層の依存の向きを、行数（800 行で注意、1,500 行で失敗。免除は今は無い）を、診断コードの一覧を確かめます。テストのファイルの置き場そのもの（フォルダの名前、行数）も確かめます。
 
 ### アイコン辞書の再生成
 

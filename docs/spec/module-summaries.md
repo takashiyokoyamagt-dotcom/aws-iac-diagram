@@ -54,8 +54,8 @@
 
 1. 本物のソース（タグを付けた版）を `fixtures/public/` に取り、`resource` の count・for_each の式と、図に要る属性（名前・タグ・`vpc_id`・`subnet_id`・ルートの先など）をそのまま写す。変数は、使うものの宣言を本物の `variables.tf` からそのまま写す（トップレベルの `description` だけ除く）。
 2. `data/module-summaries/<モジュール>/v<メジャー>.md` に、`<!-- module-summary source="…" majors="…" -->` の行の直後のコードブロックとして書く（新しい major は新しいファイル。サブモジュールの表は親と同じファイルに入れる）。写していないリソースを作る入力は `# not-covered:` の行に書く。
-3. `tests/test_tf_adapter.py` の `SummaryTest` が、同じ入力で手元のソースを読んだ結果と、要約表で展開した結果を突き合わせる（作られるリソースの address、表のリソースの間の参照、名前とタグ）。版を上げたらソースを取り直してテストを流す。
-4. **ファイルを足す・名前を変えたら**、`scripts/doctor.py` の `REQUIRED_FILES` と `tests/test_doctor_required_files.py` の `RUNTIME_DATA` にも足す（食い違うとテストが落ちる）。選び方（版の制約 → 表）のテストは `tests/test_tf_adapter.py` の `SummaryTest`、読み込みの順序は `tests/test_paths.py` の `SummaryDirectoryTest`。
+3. `tests/unit/terraform/test_module_summaries.py` の `SummaryTest` が、同じ入力で手元のソースを読んだ結果と、要約表で展開した結果を突き合わせる（作られるリソースの address、表のリソースの間の参照、名前とタグ）。版を上げたらソースを取り直してテストを流す。
+4. **ファイルを足す・名前を変えたら**、`scripts/doctor.py` の `REQUIRED_FILES` と `tests/architecture/test_doctor_required_files.py` の `RUNTIME_DATA` にも足す（食い違うとテストが落ちる）。選び方（版の制約 → 表）のテストは `tests/unit/terraform/test_module_summaries.py` の `SummaryTest`、読み込みの順序は `tests/test_paths.py` の `SummaryDirectoryTest`。
 
 ## 6. 表の置き場所（R4）
 

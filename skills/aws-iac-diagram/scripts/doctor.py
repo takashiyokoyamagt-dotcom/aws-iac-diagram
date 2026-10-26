@@ -34,7 +34,7 @@ ORIGINAL_STDOUT_ENCODING = getattr(sys.stdout, "encoding", None)
 
 # SKILL が実行時に使う同梱ファイル（無ければ配布の取り込み方が誤っている）。doctor は PEP 723 の依存を持たず、
 # パッケージが欠けていても動かす（欠けは error にする）ので、ここではファイルの有無だけを見る。実行時のファイル（scripts/ の .py。maintenance/ を除く）と
-# この一覧が食い違うと tests/test_doctor_required_files.py が失敗する（モジュールを足したら、ここにも足す）
+# この一覧が食い違うと tests/architecture/test_doctor_required_files.py が失敗する（モジュールを足したら、ここにも足す）
 REQUIRED_FILES = [
     "SKILL.md",
     # 実行時に読むデータ（スキーマ、アイコンの辞書、TF のモジュールの要約表。規則表は references/ にある）

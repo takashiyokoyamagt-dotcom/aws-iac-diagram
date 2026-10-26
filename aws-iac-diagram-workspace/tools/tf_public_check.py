@@ -2,7 +2,7 @@
 # requires-python = ">=3.12"
 # dependencies = ["python-hcl2==8.1.4", "PyYAML==6.0.3", "jsonschema==4.26.0"]
 # ///
-"""TF アダプタの公開サンプルでの確認（フェーズ2 の手順5）。tests/test_tf_public.py も同じ関数を使う。
+"""TF アダプタの公開サンプルでの確認（フェーズ2 の手順5）。tests/integration/terraform/test_public_samples.py も同じ関数を使う。
 
 1. 読めること: 公開サンプル（fixtures/public）の TF を TF アダプタで読み、例外が出ない・raw IR が検査（スキーマと
    参照の整合）を通る・error の診断が 0 であることを調べる。

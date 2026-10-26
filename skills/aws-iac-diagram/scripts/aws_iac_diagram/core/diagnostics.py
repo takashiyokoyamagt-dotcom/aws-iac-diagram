@@ -2,8 +2,8 @@
 
 - **単一の一覧。** アダプタ（Terraform の `TF-…`、CloudFormation の `CFN-…`）が出すコードはすべてここにある。
   コードを足す・消すときは、この一覧と `references/ir-schema.md` の 7.5 の一覧を同じコミットで直す。
-  `tests/test_architecture.py`（アダプタのコードにある `TF-…`・`CFN-…` の文字列がこの一覧に無いと失敗。この一覧にあって
-  使われていないコードも失敗）と `tests/test_diagnostics.py`（この一覧と ir-schema.md が同じ）が守る。
+  `tests/architecture/test_diagnostics_registry.py`（アダプタのコードにある `TF-…`・`CFN-…` の文字列がこの一覧に無いと失敗。この一覧にあって
+  使われていないコードも失敗）と `tests/architecture/test_diagnostics.py`（この一覧と ir-schema.md が同じ）が守る。
 - **実行時には読まない。** アダプタはこのモジュールを import せず、コードを文字列のまま書く（出力のバイト列を変えないため。
   フェーズ 2b の決まり）。この一覧は検査と文書のための表。
 - `levels` は、そのコードが出うる level（`error`＞`warn`＞`info`）。同じコードが場所によって level を変えるものがある
@@ -23,7 +23,7 @@ LEVELS = (ERROR, WARN, INFO)  # 重い順
 
 # コードの接頭辞 → アダプタ（層）の名前
 PREFIXES = {"TF": "terraform", "CFN": "cloudformation"}
-# 診断コードとして扱う接頭辞。検査（tests/test_architecture.py）はこの接頭辞のコードだけを数える（"UTF-8" のような別の文字列で
+# 診断コードとして扱う接頭辞。検査（tests/architecture/test_diagnostics_registry.py）はこの接頭辞のコードだけを数える（"UTF-8" のような別の文字列で
 # 誤って落ちないため）。NORM- など新しい接頭辞は、ここに意図して足す（PREFIXES と同じ）
 ALLOWED_PREFIXES = tuple(PREFIXES)
 CODE_PATTERN = re.compile(r"^[A-Z][A-Z0-9]*(-[A-Z0-9]+)+$")

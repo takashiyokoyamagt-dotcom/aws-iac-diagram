@@ -71,7 +71,7 @@ jobs:
 
       # TF アダプタ（フェーズ2 の手順5）: 公開サンプルの `.tf` のあるフォルダすべて（205）が、例外なく読めて
       # raw IR の検査を通り、error の診断が 0。T01〜T20、P01〜P04 のルートと TF／SAM の対は、単体テスト
-      # （tests/test_tf_public.py）で確かめている。全フォルダは時間がかかるので並列にする（約 30 秒）
+      # （tests/integration/terraform/test_public_samples.py）で確かめている。全フォルダは時間がかかるので並列にする（約 30 秒）
       - name: TF アダプタ（公開サンプルの全フォルダ）
         run: uv run python aws-iac-diagram-workspace/tools/tf_public_check.py --all --jobs 4
 

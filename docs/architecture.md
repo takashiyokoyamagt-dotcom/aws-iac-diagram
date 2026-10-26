@@ -1,6 +1,6 @@
 # 構成（層・依存の向き・拡張のしかた）
 
-開発者向けの文書です（SKILL の外。配りません）。決めた経緯は [PLAN.md](../PLAN.md) の 1.4。**この文書は階層化の途中（フェーズ 2b）で書いています。** 「R4」「R5」のように印を付けた所は、その手順で中身が変わるので、そのとき書き直します（印は最後の R6 で全部消す）。Terraform の側は R2、CloudFormation の側は R3 で分け終えました（2 の下の「Terraform アダプタの中身」「CloudFormation アダプタの中身」）。スクリプトが読むデータは R4 で `data/` に移しました（1 の図と「データ（`data/`）」）。
+開発者向けの文書です（SKILL の外。配りません）。決めた経緯は [PLAN.md](../PLAN.md) の 1.4。**この文書は階層化の途中（フェーズ 2b）で書いています。** 「R4」「R5」のように印を付けた所は、その手順で中身が変わるので、そのとき書き直します（印は最後の R6 で全部消す）。Terraform の側は R2、CloudFormation の側は R3 で分け終えました（2 の下の「Terraform アダプタの中身」「CloudFormation アダプタの中身」）。スクリプトが読むデータは R4 で `data/` に移しました（1 の図と「データ（`data/`）」）。テストは R5 で `tests/` の下を `unit/`・`integration/`・`golden/`・`architecture/` と共有の道具 `support/` に分けました（7 の「テストの置き場」）。
 
 ## 1. 全体の形
 
@@ -23,7 +23,7 @@ skills/aws-iac-diagram/
 - **入口のスクリプト**は引数の処理（終了コードとエラーの文言も）と、パッケージの関数の呼び出しだけをする。PEP 723 の宣言を持ち、`uv run <パス>` の 1 行で動く（どのフォルダからでも、日本語やスペースを含むパスに置いても）。
 - **パッケージ `aws_iac_diagram`** は入口からだけ読まれる。入口は先頭で、自分の場所から `scripts/` を `sys.path` の先頭に入れる（`sys.path.insert(0, str(Path(__file__).resolve().parent...))`。`scripts/` の直下の入口（`adapt_tf.py`・`adapt_cfn.py` を含む）は `.parent`、`maintenance/` の入口は `.parent.parent`）。この 1 行だけが入口とパッケージの接点で、ほかの方法（ヘルパーの import、`PYTHONPATH`、`pip install`）は使わない。
 - パッケージの中の import は絶対名（`from aws_iac_diagram.core import ir_raw`）で書く。
-- **`aws_iac_diagram/` のフォルダ自体を `sys.path` に入れない（その中で `python` を動かさない、`python -m` の作業フォルダにしない）。** 層の名前 `platform` が標準ライブラリの `platform` を隠すため（PLAN の 1.4 の層の名前なので残してある）。`sys.path` に入れるのは `scripts/` だけ。テスト（`tests/test_architecture.py` の `STDLIB_ALLOW`）は、標準ライブラリと同じ名前を許すのを `platform` の 1 つだけにし、新しいフォルダ・モジュールの名前が標準ライブラリと重なると失敗する。
+- **`aws_iac_diagram/` のフォルダ自体を `sys.path` に入れない（その中で `python` を動かさない、`python -m` の作業フォルダにしない）。** 層の名前 `platform` が標準ライブラリの `platform` を隠すため（PLAN の 1.4 の層の名前なので残してある）。`sys.path` に入れるのは `scripts/` だけ。テスト（`tests/architecture/test_dependency_direction.py`。許す名前の表は `tests/support/arch_layers.py` の `STDLIB_ALLOW`）は、標準ライブラリと同じ名前を許すのを `platform` の 1 つだけにし、新しいフォルダ・モジュールの名前が標準ライブラリと重なると失敗する。
 
 ## 2. 層
 
@@ -64,7 +64,7 @@ skills/aws-iac-diagram/
 | `plan/values.py`・`addresses.py`・`masking.py`・`consistency.py`・`diagnostics.py`・`raw.py`・`combine.py` | 183・65・72・59・10・78・273 | unknown・sensitive の印を持つ値／plan の address／sensitive の伏せ字／props と参照の整合／診断の部品／plan だけから raw IR／`.tf` と合わせる |
 
 - **ミックスインは状態を持たない。** `ModuleEval` の属性はすべて `module_eval.py` の `__init__` に書く（ミックスインのメソッドは `self.xxx` で互いを呼ぶ）。ミックスインは `module_eval.py` を実行時には import しない（子のモジュールは `type(self)(…)` で作る。型の注釈のためだけに `TYPE_CHECKING` で import する）。
-- **adapters/terraform の中の順序**（`tests/test_architecture.py` の `TERRAFORM_GROUPS`・`INTRA_TERRAFORM`。下の表と同じで、食い違うとテストが落ちる）: ファイルを次のグループに分け、**グループのあいだでは表の「import してよいグループ」にある向きだけ**を許す（同じグループの中は常に可。グループの中のファイルの順序は見ない）。表に無いファイルを足すと失敗する（グループを決める）。`if TYPE_CHECKING:` の中の import は実行されないので数えない（型の注釈のために `module_eval` を読むものがある）。今の実際の import と同じ最小の辺だけを書いてある。
+- **adapters/terraform の中の順序**（`tests/support/arch_layers.py` の `TERRAFORM_GROUPS`・`INTRA_TERRAFORM`。テストは `tests/architecture/test_adapter_order.py`。下の表と同じで、食い違うとテストが落ちる）: ファイルを次のグループに分け、**グループのあいだでは表の「import してよいグループ」にある向きだけ**を許す（同じグループの中は常に可。グループの中のファイルの順序は見ない）。表に無いファイルを足すと失敗する（グループを決める）。`if TYPE_CHECKING:` の中の import は実行されないので数えない（型の注釈のために `module_eval` を読むものがある）。今の実際の import と同じ最小の辺だけを書いてある。
 
 <!-- terraform-order:begin -->
 | グループ | 中身 | import してよいグループ |
@@ -104,7 +104,7 @@ skills/aws-iac-diagram/
 | `model.py` | 64 | 定数（印・関数の名前の集合・正規表現）と `Context` |
 
 - **ミックスインは状態を持たない。** 評価の状態は `Evaluator.__init__`（テンプレート 1 つ分）と `StackEval.__init__`（スタックの入れ物: `ctx`・`children`・`outputs` など）に書く。ミックスインのメソッドは `self.xxx` で互いを呼ぶ。`StackEval(NestedMixin, OutputsMixin, Evaluator)` の順は意味がある（`Evaluator` の `stack_output`・`import_value` を上書きするため。`NestedMixin.stack_output` の `super()` は `Evaluator` に届く）。ミックスインは `stack.py` を実行時には import しない（子のスタックは `type(self)(…)` で作る。型の注釈のためだけに `TYPE_CHECKING` で import する）。
-- **adapters/cloudformation の中の順序**（`tests/test_architecture.py` の `CLOUDFORMATION_GROUPS`・`INTRA_CLOUDFORMATION`。下の表と同じで、食い違うとテストが落ちる）: Terraform と同じ決まり。グループのあいだでは「import してよいグループ」の向きだけを許し（同じグループの中は常に可）、表に無いファイルを足すと失敗する（グループを決める）。`if TYPE_CHECKING:` の中の import は数えない。今の実際の import と同じ最小の辺だけを書いてある。
+- **adapters/cloudformation の中の順序**（`tests/support/arch_layers.py` の `CLOUDFORMATION_GROUPS`・`INTRA_CLOUDFORMATION`。テストは `tests/architecture/test_adapter_order.py`。下の表と同じで、食い違うとテストが落ちる）: Terraform と同じ決まり。グループのあいだでは「import してよいグループ」の向きだけを許し（同じグループの中は常に可）、表に無いファイルを足すと失敗する（グループを決める）。`if TYPE_CHECKING:` の中の import は数えない。今の実際の import と同じ最小の辺だけを書いてある。
 
 <!-- cloudformation-order:begin -->
 | グループ | 中身 | import してよいグループ |
@@ -123,7 +123,7 @@ skills/aws-iac-diagram/
 
 ## 3. 依存の向き
 
-`tests/test_architecture.py` が、`ast` で import を読んで確かめます（実行しません）。下の表が許す向きのすべてで、**表と `ALLOWED`（テスト）は同じでなければならず**、食い違うとテストが落ちます。自分の層の中の import は常に可。入口のスクリプトだけが、どの層でも import できます。
+`tests/architecture/test_dependency_direction.py` が、`ast` で import を読んで確かめます（実行しません）。下の表が許す向きのすべてで、**表と `ALLOWED`（`tests/support/arch_layers.py`）は同じでなければならず**、食い違うとテストが落ちます。自分の層の中の import は常に可。入口のスクリプトだけが、どの層でも import できます。
 
 <!-- allowed-edges:begin -->
 | 層 | import してよい層 |
@@ -145,7 +145,7 @@ skills/aws-iac-diagram/
 - `core` はほかの層を読み込まない。
 - `adapters/terraform` と `adapters/cloudformation` は読み込み合わない。アダプタは `emit`・`layout`・`normalize`・`validate` を読まない（アダプタの出力は raw IR という JSON で、次の段は JSON を読む）。
 - `platform`・`icons` は `adapters` を読まない。
-- パッケージの中から入口のスクリプトを読まない。入口どうしも読み合わない（`scripts/` の直下と `maintenance/` のすべての入口の名前が対象。共通の処理はパッケージに置く。無くなった入口のフォルダ `adapters`・`lib` の名前の import も入口の import と数える）。例外は `tests/test_architecture.py` の `ENTRY_IMPORT_ALLOW` に理由を付けて書いたものだけで、今は `maintenance/check_icons.py` → `build_icon_catalog`（辞書の書き出しの共有）の 1 つ。辞書の読み書きを `icons` 層に移すときに外す。
+- パッケージの中から入口のスクリプトを読まない。入口どうしも読み合わない（`scripts/` の直下と `maintenance/` のすべての入口の名前が対象。共通の処理はパッケージに置く。無くなった入口のフォルダ `adapters`・`lib` の名前の import も入口の import と数える）。例外は `tests/support/arch_layers.py` の `ENTRY_IMPORT_ALLOW` に理由を付けて書いたものだけで、今は `maintenance/check_icons.py` → `build_icon_catalog`（辞書の書き出しの共有）の 1 つ。辞書の読み書きを `icons` 層に移すときに外す。
 - パッケージの中で動的な import（`importlib`、`__import__`）と `exec`・`eval` の呼び出しをしない（静的な import の検査をすり抜けるため）。
 - 層どうしが循環しない。
 
@@ -156,9 +156,9 @@ skills/aws-iac-diagram/
 アダプタが出す診断コード（raw IR の `diagnostics[].code`。Terraform の `TF-…` 43 個、CloudFormation の `CFN-…` 19 個）は、`core/diagnostics.py` の 1 つの表にある。コードごとに、出うる level（`error`＞`warn`＞`info`。場所によって level を変えるコードがある）と短い説明を持つ。データだけで、アダプタは実行時には読まない（出力のバイト列を変えないため。コードは各アダプタが文字列で書いたまま）。
 
 - **コードを足すとき:** `core/diagnostics.py` の表に 1 行、`references/ir-schema.md` の 7.5 の一覧に 1 項目（CFN は「`コード`（level。説明）」の形）を、同じコミットで足す。コードは 1 つの文字列で書く（`"TF-" + 名前` や `f"TF-{x}"` のように組み立てない）。
-- **テストが守ること**（`tests/test_architecture.py` の `DiagnosticRegistryRuleTest`）: ① `scripts/adapt_*.py` と `aws_iac_diagram/adapters/` の下の `TF-…`・`CFN-…`（`ALLOWED_PREFIXES` の接頭辞）の文字列（`^[A-Z][A-Z0-9]*(-[A-Z0-9]+)+$`）がすべて表にある、② 接頭辞で始まるのにコードの形でない文字列（組み立て、打ち間違い）が無い、③ 表のコードは、どこかで出されている（コードの集合 `{…}` や比較 `== "…"`・`in (…)` だけの位置は数えない）。使われないコードを残すときは `UNUSED_ALLOW` に理由を書く（今は空）、④ コードのそばに `"warn"` などの level が直接書いてあれば、表の levels にある。
-- `tests/test_diagnostics.py` が守ること: 表の形（コードの形、接頭辞、重い順の levels、説明、並び）、表と ir-schema.md の 7.5 が TF・CFN の両方で同じ、アダプタを実際に動かして出た (code, level) が表にある（fixture と、error になる入力）。
-- **静的な検査は最善の努力（best-effort）です。** すり抜けるもの: ① `"TF" + "-X"` のように接頭辞が単独の文字列になっていない組み立て、② level を変数や既定の引数で渡すところ（`Unknown` の既定の level など）の level（呼び出しの近くに文字列で書いた level だけを比べる）、③ 範囲の外（`adapt_*.py` と `adapters/` の下以外）で診断を出すコード、④ 接頭辞が `ALLOWED_PREFIXES` に無く、診断を出す位置（`diag`・`Unknown` などの引数、辞書の `"code"`、level つきのタプル）の外にあるコードの形の文字列（`"UTF-8"` などを誤検出しないために数えない。診断を出す位置にあれば、接頭辞が未登録だと失敗する）。範囲は入口のアダプタと `adapters/` の下だけ（`NORM-…` は正規化の層ができるときに範囲を広げ、`ALLOWED_PREFIXES` と `PREFIXES` に足す）。**動的な安全網:** `tests/test_diagnostics.py` の `EmittedLevelsTest`（fixture と、error や info になる小さな入力を動かして、出た (code, level) を一覧と比べる。ir-schema.md の 7.5 の level も一覧と同じことを確かめる）と、旧コードとの CLI・変異入力の差分比較（WORKLOG の「確かめたこと」）、golden。
+- **テストが守ること**（`tests/architecture/test_diagnostics_registry.py` の `DiagnosticRegistryRuleTest`）: ① `scripts/adapt_*.py` と `aws_iac_diagram/adapters/` の下の `TF-…`・`CFN-…`（`ALLOWED_PREFIXES` の接頭辞）の文字列（`^[A-Z][A-Z0-9]*(-[A-Z0-9]+)+$`）がすべて表にある、② 接頭辞で始まるのにコードの形でない文字列（組み立て、打ち間違い）が無い、③ 表のコードは、どこかで出されている（コードの集合 `{…}` や比較 `== "…"`・`in (…)` だけの位置は数えない）。使われないコードを残すときは `UNUSED_ALLOW` に理由を書く（今は空）、④ コードのそばに `"warn"` などの level が直接書いてあれば、表の levels にある。
+- `tests/architecture/test_diagnostics.py` が守ること: 表の形（コードの形、接頭辞、重い順の levels、説明、並び）、表と ir-schema.md の 7.5 が TF・CFN の両方で同じ、アダプタを実際に動かして出た (code, level) が表にある（fixture と、error になる入力）。
+- **静的な検査は最善の努力（best-effort）です。** すり抜けるもの: ① `"TF" + "-X"` のように接頭辞が単独の文字列になっていない組み立て、② level を変数や既定の引数で渡すところ（`Unknown` の既定の level など）の level（呼び出しの近くに文字列で書いた level だけを比べる）、③ 範囲の外（`adapt_*.py` と `adapters/` の下以外）で診断を出すコード、④ 接頭辞が `ALLOWED_PREFIXES` に無く、診断を出す位置（`diag`・`Unknown` などの引数、辞書の `"code"`、level つきのタプル）の外にあるコードの形の文字列（`"UTF-8"` などを誤検出しないために数えない。診断を出す位置にあれば、接頭辞が未登録だと失敗する）。範囲は入口のアダプタと `adapters/` の下だけ（`NORM-…` は正規化の層ができるときに範囲を広げ、`ALLOWED_PREFIXES` と `PREFIXES` に足す）。**動的な安全網:** `tests/architecture/test_diagnostics.py` の `EmittedLevelsTest`（fixture と、error や info になる小さな入力を動かして、出た (code, level) を一覧と比べる。ir-schema.md の 7.5 の level も一覧と同じことを確かめる）と、旧コードとの CLI・変異入力の差分比較（WORKLOG の「確かめたこと」）、golden。
 
 ### データ（`data/`。R4 で作った）
 
@@ -171,20 +171,20 @@ skills/aws-iac-diagram/
 | `data/module-summaries/<モジュール>/v<major>.md` | A5 の要約表（HCL）。サブモジュールの表は親と同じファイル。`iam-only-sources.md` は H-IAM の source の一覧 | `adapters/terraform/modules/summaries.py` |
 | `data/rules/` | （フェーズ 3 で、型の扱い・関係リソース・辺の規則を表にして置く。今は `references/` の 3 つの規則表を `validate_ir.py` が読む） | — |
 
-- **場所の決め方は `aws_iac_diagram/core/paths.py` の 1 か所**（`SKILL_DIR`＝自分の場所から 3 つ上。`IR_SCHEMA`・`IR_RAW_SCHEMA`・`ICON_CATALOG`・`MODULE_SUMMARIES_DIR` など）。読む側は定数を使い、`parents[N]` や `"data" / …` を直接書かない（`tests/test_doctor_required_files.py` が、スクリプトの `"references" / "…"`・`"data" / "…"` の連なりを見つけて失敗にする）。標準ライブラリだけを使い、ほかの層を読まない（core の決まり）。`doctor.py` だけは、パッケージが欠けていても動くために、自分で `SKILL_DIR` を決める。
-- **`tests/test_paths.py`**: `paths.py` の定数がすべて実在する／SKILL を日本語・スペースを含む別の深さにコピーしても定数がコピーの中を指す／要約表のフォルダの読み込み（`v6` は `v10` の前。フォルダとファイル 1 つが同じ結果。無い・空のフォルダは「表が無い」）。
-- **配るファイルの一覧は `doctor.py` の `REQUIRED_FILES`**。実行時のデータを足す・移すと、`tests/test_doctor_required_files.py`（`RUNTIME_DATA` と `core/paths.py` と実際のファイルの 3 つが同じ）が落ちる。
-- **要約表のファイルは名前で決まる**: ローダーが読むのは `<モジュール>/v<数字>.md`（1 階層下）と直下の `iam-only-sources.md` だけ（大文字小文字を区別して完全一致。並べ方は (モジュールのフォルダ名, major の数, パス)。ディレクトリの列挙の順や OS に依らない）。`NOTICE.md`（Apache-2.0 のソースを写した表の出典とライセンスの表示。実行時には読まないが配る物なので、doctor の一覧と `RUNTIME_DATA` に入れてある。読まれない .md を許すのはこれだけ: `summaries.DOC_FILES`）や、綴りの違う .md は、中にマーカーがあっても読まない。`summaries.problems()` が、読まれない .md、空のファイル、コードブロックの無いマーカー、ファイル名の major と `majors` のずれ、フォルダ名と source のずれ、同じ (source, major) の表が複数あること、`v06.md` のような正規でない名前を知らせる（`tests/test_paths.py` が出荷した表を調べる。doctor は `summaries` を import できるときだけ調べ、`skill.table_problems` に出して error にする。パッケージが欠けていれば調べない）。
+- **場所の決め方は `aws_iac_diagram/core/paths.py` の 1 か所**（`SKILL_DIR`＝自分の場所から 3 つ上。`IR_SCHEMA`・`IR_RAW_SCHEMA`・`ICON_CATALOG`・`MODULE_SUMMARIES_DIR` など）。読む側は定数を使い、`parents[N]` や `"data" / …` を直接書かない（`tests/architecture/test_doctor_required_files.py` が、スクリプトの `"references" / "…"`・`"data" / "…"` の連なりを見つけて失敗にする）。標準ライブラリだけを使い、ほかの層を読まない（core の決まり）。`doctor.py` だけは、パッケージが欠けていても動くために、自分で `SKILL_DIR` を決める。
+- **`tests/unit/core/test_paths.py`**: `paths.py` の定数がすべて実在する／SKILL を日本語・スペースを含む別の深さにコピーしても定数がコピーの中を指す／要約表のフォルダの読み込み（`v6` は `v10` の前。フォルダとファイル 1 つが同じ結果。無い・空のフォルダは「表が無い」）。
+- **配るファイルの一覧は `doctor.py` の `REQUIRED_FILES`**。実行時のデータを足す・移すと、`tests/architecture/test_doctor_required_files.py`（`RUNTIME_DATA` と `core/paths.py` と実際のファイルの 3 つが同じ）が落ちる。
+- **要約表のファイルは名前で決まる**: ローダーが読むのは `<モジュール>/v<数字>.md`（1 階層下）と直下の `iam-only-sources.md` だけ（大文字小文字を区別して完全一致。並べ方は (モジュールのフォルダ名, major の数, パス)。ディレクトリの列挙の順や OS に依らない）。`NOTICE.md`（Apache-2.0 のソースを写した表の出典とライセンスの表示。実行時には読まないが配る物なので、doctor の一覧と `RUNTIME_DATA` に入れてある。読まれない .md を許すのはこれだけ: `summaries.DOC_FILES`）や、綴りの違う .md は、中にマーカーがあっても読まない。`summaries.problems()` が、読まれない .md、空のファイル、コードブロックの無いマーカー、ファイル名の major と `majors` のずれ、フォルダ名と source のずれ、同じ (source, major) の表が複数あること、`v06.md` のような正規でない名前を知らせる（`tests/unit/core/test_paths.py` が出荷した表を調べる。doctor は `summaries` を import できるときだけ調べ、`skill.table_problems` に出して error にする。パッケージが欠けていれば調べない）。
 - **欠けの扱い**: 要約表が 1 つも読めないとき、または `summaries.KNOWN_MODULES`（vpc・alb・rds・eks。出荷した表の最上位の source と同じことをテストが確かめる）の表がフォルダに 1 つも無いとき（モジュールのフォルダごと欠けた）は、レジストリモジュールの呼び出しが `TF-MODULE-SUMMARY-TABLE-MISSING`（warn）になる（`resolve.blackbox_plan`）。**限界:** モジュールの表はあるが、呼び出しの版の major のファイルだけが無いときは、これまでどおり黒箱の info（`TF-MODULE-BLACKBOX`）で、欠けは doctor の `REQUIRED_FILES` が知らせる。表を足したら（別のモジュール）`KNOWN_MODULES` にも足す。
 - 要約表の診断の文言に入るパスは `data/module-summaries/`（R4 で `references/module-summaries.md` から変えた。5 の golden の 14 ケース）。
 
 ## 4. 1 ファイルの大きさ
 
-`scripts/` の下の `.py` は、800 行を超えたら注意（テストが印字するだけ）、1,500 行を超えたら失敗です。超えるファイルは、`tests/test_architecture.py` の `EXEMPT` に日付・理由・外す手順を付けて書けます（決めた日の行数を超えて増えたら失敗、1,500 行以内になった免除は消さないと失敗）が、**今の `EXEMPT` は空です（R2 で `adapters/tf.py` と `tf_plan.py` の免除を外した。R3 の `adapters/cfn.py` は免除を作らずに分けた。空であることも `test_no_exemptions_remain` が確かめる）**。800 行を超えるファイルは R3 の後は無く、最大は `adapters/terraform/evaluator/functions.py` の 763 行です。
+`scripts/` の下の `.py` は、800 行を超えたら注意（テストが印字するだけ）、1,500 行を超えたら失敗です。超えるファイルは、`tests/support/arch_size.py` の `EXEMPT` に日付・理由・外す手順を付けて書けます（決めた日の行数を超えて増えたら失敗、1,500 行以内になった免除は消さないと失敗）が、**今の `EXEMPT` は空です（R2 で `adapters/tf.py` と `tf_plan.py` の免除を外した。R3 の `adapters/cfn.py` は免除を作らずに分けた。空であることも `test_no_exemptions_remain` が確かめる）**。800 行を超えるファイルは R3 の後は無く、最大は `adapters/terraform/evaluator/functions.py` の 763 行です。
 
 ## 5. 出力の固定（golden）
 
-構成を動かす手順（R1〜R6）は、中身の動きを変えません。`tests/golden/manifest.json` が、アダプタの CLI の出力（raw IR）101 ケースの SHA-256 を固定していて、`tests/test_golden.py` と `aws-iac-diagram-workspace/tools/golden.py` が比べます（自作の fixture、plan JSON、公開サンプルの TF のルート 52、CFN の入力 25）。
+構成を動かす手順（R1〜R6）は、中身の動きを変えません。`tests/golden/manifest.json` が、アダプタの CLI の出力（raw IR）101 ケースの SHA-256 を固定していて、`tests/golden/test_golden.py` と `aws-iac-diagram-workspace/tools/golden.py` が比べます（自作の fixture、plan JSON、公開サンプルの TF のルート 52、CFN の入力 25）。
 
 - 落ちたら、コードを直します。**`golden.py --update` で通してはいけません。** 調べるには `golden.py --dump <名前> --out <ファイル>` で今の出力を書き、移す前のコミット（`git worktree add` か `git archive`）の同じケースの出力と比べます（名前の一覧は `golden.py --list`）。
 - `--update` は、アダプタの動きを意図して変えたとき（フェーズ 3 以降の仕様変更や fixture の追加）だけ、理由をコミットメッセージに書いて使います。既存のケースの hash が変わるとき、ケースが減るときは `--accept-changes` が要ります。`--only` に合うケースが無いと失敗します。
@@ -195,15 +195,60 @@ skills/aws-iac-diagram/
 
 | やりたいこと | すること |
 |---|---|
-| Terraform の組み込み関数を足す | `evaluator/functions.py` に `@fn("名前")` で足す（構造だけで決まる関数は `structural=True`）。`NOT_EVALUATED` にある名前は評価しない関数。単体テストは `tests/test_tf_adapter.py` の `EvaluatorTest` |
+| Terraform の組み込み関数を足す | `evaluator/functions.py` に `@fn("名前")` で足す（構造だけで決まる関数は `structural=True`）。`NOT_EVALUATED` にある名前は評価しない関数。単体テストは `tests/unit/terraform/test_evaluator.py` の `EvaluatorTest` |
 | Terraform の式・メタ引数・リソースの出し方を変える | 式は `module_expr.py`、`count`・`for_each`・モジュールの展開は `module_expand.py`、変数と型は `module_vars.py`、props の印は `module_props.py`、リソースの出力・provider・depends_on は `module_emit.py`。診断コードは `references/ir-schema.md` の 7.5 に書く |
 | Terraform の plan JSON の扱いを変える | `plan/`（読み込みは `read.py`、インスタンスの集め方は `reader.py`、`.tf` と合わせるのは `combine.py`） |
-| CloudFormation の組み込み関数・Conditions・SAM・ネストスタックの扱いを変える | 関数は `intrinsics.py`（Ref・Sub など）か `conditions.py`、Parameters は `params.py`、Fn::ForEach は `foreach.py`、SAM は `sam.py` と `stack.py` の `run`、ネストスタックは `nested.py`、Outputs・Export は `outputs.py`、cdk.out は `cdk.py`、raw IR のまとめ方は `build.py`。新しいファイルを足したら `CLOUDFORMATION_GROUPS`（テスト）とこの文書の表と `doctor.py` の `REQUIRED_FILES` に足す。診断コードは `core/diagnostics.py` と `references/ir-schema.md` に書く。単体テストは `tests/test_cfn_adapter.py` |
+| CloudFormation の組み込み関数・Conditions・SAM・ネストスタックの扱いを変える | 関数は `intrinsics.py`（Ref・Sub など）か `conditions.py`、Parameters は `params.py`、Fn::ForEach は `foreach.py`、SAM は `sam.py` と `stack.py` の `run`、ネストスタックは `nested.py`、Outputs・Export は `outputs.py`、cdk.out は `cdk.py`、raw IR のまとめ方は `build.py`。新しいファイルを足したら `CLOUDFORMATION_GROUPS`（テスト）とこの文書の表と `doctor.py` の `REQUIRED_FILES` に足す。診断コードは `core/diagnostics.py` と `references/ir-schema.md` に書く。単体テストは `tests/unit/cloudformation/`（領域ごとのファイル）、fixture は `tests/integration/cloudformation/` |
 | 入力の形式を足す | `adapters/<名前>/` を作り（`__init__.py` と本体）、`scripts/adapt_<名前>.py`（入口）を足し、`adapters/registry.py` の表に書く。`ALLOWED` とこの文書の表に層を足す。golden にケースを足す（`golden.py --update`。理由を書く） |
 | 出力の形式を足す | `emit/<名前>.py` を足す（フェーズ 4・5 から） |
-| モジュールの要約表を足す | `data/module-summaries/<モジュール>/v<メジャー>.md` を足す（形式は `docs/spec/module-summaries.md`。サブモジュールの表は親と同じファイル）。`doctor.py` の `REQUIRED_FILES` と `tests/test_doctor_required_files.py` の `RUNTIME_DATA` にも足す。コードは変えない（`<モジュール>/v<数字>.md` を決まった順序で全部読む） |
+| モジュールの要約表を足す | `data/module-summaries/<モジュール>/v<メジャー>.md` を足す（形式は `docs/spec/module-summaries.md`。サブモジュールの表は親と同じファイル）。`doctor.py` の `REQUIRED_FILES` と `tests/architecture/test_doctor_required_files.py` の `RUNTIME_DATA` にも足す。コードは変えない（`<モジュール>/v<数字>.md` を決まった順序で全部読む） |
 | 型の扱いを足す | **R4 以降（フェーズ 3 で表にする）:** `data/rules/` に行を足す |
 | 辞書を作り直す | `scripts/maintenance/build_icon_catalog.py`、`check_icons.py`（README の「アイコン辞書」）。出力は `data/icons/`。作り直しても `catalog.json` の場所と形が同じなら、コードは変えない |
-| スキーマを直す | `data/schemas/ir.schema.json`・`ir-raw.schema.json`（読むのは `validate_ir.py`）。説明の `references/ir-schema.md` と同じコミットで直し、`tests/test_ir_schema_v1.py` を流す |
-| 同梱のデータを足す・動かす | `core/paths.py` に定数を足し（読む側は定数を使う。`parents[N]` や `"data" / …` を直接書かない）、`doctor.py` の `REQUIRED_FILES` と `tests/test_doctor_required_files.py` の `RUNTIME_DATA` に足す。`tests/test_paths.py` が、定数がすべて実在することを確かめる |
-| 診断コードを足す | `core/diagnostics.py` の表に足し、`references/ir-schema.md` の 7.5 にも書く（一覧に無いコードを使う・一覧のコードを使わないとテストが落ちる。`tests/test_architecture.py` と `tests/test_diagnostics.py`）。出力が変わるときは golden も更新する |
+| スキーマを直す | `data/schemas/ir.schema.json`・`ir-raw.schema.json`（読むのは `validate_ir.py`）。説明の `references/ir-schema.md` と同じコミットで直し、`tests/unit/validate/test_ir_schema_v1.py` を流す |
+| 同梱のデータを足す・動かす | `core/paths.py` に定数を足し（読む側は定数を使う。`parents[N]` や `"data" / …` を直接書かない）、`doctor.py` の `REQUIRED_FILES` と `tests/architecture/test_doctor_required_files.py` の `RUNTIME_DATA` に足す。`tests/unit/core/test_paths.py` が、定数がすべて実在することを確かめる |
+| 診断コードを足す | `core/diagnostics.py` の表に足し、`references/ir-schema.md` の 7.5 にも書く（一覧に無いコードを使う・一覧のコードを使わないとテストが落ちる。`tests/architecture/test_diagnostics_registry.py` と `tests/architecture/test_diagnostics.py`）。出力が変わるときは golden も更新する |
+
+## 7. テストの置き場（R5 で分けた）
+
+CI・README・この文書の 1 行 `uv run python -m unittest discover -s tests -v` が、下のテストのすべてを見つけます（`unittest discover` は `__init__.py` のあるフォルダしか見ないので、`tests/` の下のフォルダのすべてに `__init__.py` を置く）。
+
+```
+tests/
+├── support/        共有の道具（テストは置かない）
+│   ├── paths.py            リポジトリの場所の定数。import すると scripts/ と tools/ が sys.path に入る（sys.path をいじるのはここだけ）
+│   ├── tools.py            tools/ の道具を別名で読む（load_tool）
+│   ├── builders.py  terraform.py  cloudformation.py  tf_plan.py  ir.py     文字列から raw IR を作る、plan JSON を組み立てる、検査する
+│   └── arch_layers.py  arch_size.py  arch_diagnostics.py                   構成の検査（architecture/）のやり方と、許す向きの表
+├── unit/           1 つの領域につき 1 つのファイル。入力は文字列や一時フォルダで作る
+│   ├── terraform/ （plan/）  cloudformation/  core/  validate/  icons/  host/
+├── integration/    自作 fixture・plan JSON の fixture・公開サンプルを、入口のスクリプトや CLI（adapt_tf.py など）から通す
+│   ├── test_cli_paths.py（日本語とスペースを含むパス）  terraform/  cloudformation/
+├── golden/         manifest.json と test_golden.py（5 の、固定した raw IR とのバイト単位の比較）
+└── architecture/   依存の向き、アダプタの中の順序、診断コードの一覧、行数、doctor の同梱ファイル、tests/ 自体の置き場
+```
+
+| 書きたいテスト | 置く所 |
+|---|---|
+| パッケージの 1 つの領域（Terraform の式、CloudFormation の組み込み関数、`core/paths.py` など）の動き | `unit/<領域>/test_<名前>.py`。アダプタの領域は `unit/terraform/`・`unit/cloudformation/`（plan JSON は `unit/terraform/plan/`）、`core` は `unit/core/`、`validate` と `validate_ir.py` は `unit/validate/`、アイコンの辞書は `unit/icons/`、`platform`（draw.io）は `unit/host/` |
+| コミットした fixture（`aws-iac-diagram-workspace/fixtures/`）・公開サンプル・正解 IR を主役にするもの、入口のスクリプトを動かすもの | `integration/` |
+| 出力（raw IR）が変わらないこと | 新しいケースは `aws-iac-diagram-workspace/tools/golden.py` の対象に足し、`golden/manifest.json` を更新する（5） |
+| 構成の決まり（import の向き、行数、診断コードの一覧、同梱ファイル、テストの置き場） | `architecture/` |
+| 複数のファイルが使う道具 | `support/` に 1 つだけ置く（ファイルに写さない。同じ関数が 2 つのファイルにあると `architecture/test_test_layout.py` が落ちる） |
+
+**決まり（`tests/architecture/test_test_layout.py` が守る）**
+
+- **`test_*.py` は `unit/`・`integration/`・`golden/`・`architecture/` のどれかの下に置き、そこまでのフォルダのすべてに `__init__.py` を置く。** 置き忘れると discover が黙って見ない（テストが走らないのに通る）ので、テストが失敗にする。`support/` にテストは置かない。
+- **フォルダの名前は、標準ライブラリのモジュールと、`scripts/`・`tools/` の最上位の名前（`doctor`・`validate_ir`・`maintenance`・`aws_iac_diagram` など）にしない。** `discover -s tests` は `tests/` を import の先頭に入れ（`unit`・`integration`・`golden`・`architecture`・`support` が最上位の名前になる）、`python tests/…/test_x.py` はそのファイルのフォルダを先頭に入れる。そこに `platform/` や `doctor/` のフォルダ（`__init__.py` つき）があると、`import platform`・`import doctor` がテストのフォルダを読んでしまう。`platform` 層（draw.io）の単体テストを `unit/host/` に置くのはそのため。`unit/core/`・`unit/icons/` のように、層の名前でも最上位に出ない名前はそのまま使ってよい。
+- **例外は `golden/` だけ。** `tests/golden/` は PLAN の置き場の名前で、`tools/golden.py` と同じ名前になる。`import golden` と書くとテストのパッケージを読んでしまうので、テストは `support.tools.load_tool("golden", alias="golden_tool")` で別名で読む（`import golden` を書くと `test_test_layout.py` が失敗にする）。
+- **テストのファイルの先頭の 2 行は同じ**（`tests/` を `sys.path` の先頭に入れる。discover では要らないが、直接実行や `python -m unittest tests.…` のために入れる）。その後に `from support.… import …` を書く。`support` を import すると scripts/ と tools/ が `sys.path` に入るので、`import validate_ir`・`from aws_iac_diagram… import …` は support の後に書く。テストが自分で `sys.path.insert` をしない。
+- **`tests/` の下の `.py` は 1,500 行以下**（800 行を超えたら注意を印字する）。最大は 565 行。
+- **クラスは分けずに移した。** 1 つの領域の中の大きなクラスは、テストのクラスの本文が移す前と同じであることを AST で確かめられるようにするため、そのまま 1 つのファイルに入れた。`unit/` と `integration/` の境目は、クラスの主役が「文字列で作った入力」か「コミットした fixture・入口のスクリプト」かで決めた。主役が混ざるクラスは、中の割合の多い方に置いた（例: 要約表の `SummaryTest` は、公開サンプルと突き合わせる 4 件を含むが `unit/`）。
+
+**1 つの領域だけ動かす**（リポジトリのルートで。`uv run` は省ける）
+
+```
+uv run python -m unittest discover -s tests/unit/terraform -t tests -v          # 領域（サブフォルダごと）
+uv run python -m unittest tests.unit.terraform.test_hcl -v                      # 1 ファイル
+uv run python -m unittest tests.unit.terraform.test_hcl.RobustnessTest.test_crlf   # 1 件
+uv run python tests/unit/terraform/test_hcl.py                                  # ファイルを直接
+```

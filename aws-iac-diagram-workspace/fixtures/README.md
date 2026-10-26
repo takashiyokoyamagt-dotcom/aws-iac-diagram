@@ -51,7 +51,7 @@ uv run --group fixtures python aws-iac-diagram-workspace\tools\make_plan_json.py
 ```
 
 - **本物の AWS には接続しない。** moto のサーバーを 127.0.0.1 で起動し、`%TEMP%\tfp\<名前>` に構成をコピーして `moto_override.tf`（AWS provider の endpoints をすべて moto に向け、`skip_credentials_validation`・`skip_requesting_account_id`・`skip_metadata_api_check` などを付ける）を置き、`terraform init`・`plan -out`・`show -json` を流す。fixture の .tf は変えない。環境変数は必要なものだけから作り直し、偽の認証情報（`testing`）だけを渡し、`USERPROFILE`・`HOME`・`APPDATA`・`AWS_CONFIG_FILE`・`AWS_SHARED_CREDENTIALS_FILE`・`TF_CLI_CONFIG_FILE` を作業用のフォルダに向けて、手元の `~/.aws` と Terraform の設定を読ませない。ネットワークは provider とレジストリモジュールの取得だけに使う。`.terraform`・provider・plan のファイルは `%TEMP%\tfp` に残り、リポジトリには入らない。
-- 出来た plan JSON からは、override で足した provider の設定（`configuration.provider_config` の endpoints・skip_* など）を取り除く。偽の認証情報・moto の URL・作業用のフォルダの絶対パス・ユーザー名が残っていれば失敗にする（`tests/test_tf_plan.py` でも調べる）。
+- 出来た plan JSON からは、override で足した provider の設定（`configuration.provider_config` の endpoints・skip_* など）を取り除く。偽の認証情報・moto の URL・作業用のフォルダの絶対パス・ユーザー名が残っていれば失敗にする（`tests/integration/terraform/test_plan_fixtures.py` でも調べる）。
 - moto が返した値が入る: アカウント ID `123456789012`（`data.aws_caller_identity`。ARN は `arn:aws:sts::123456789012:user/moto`）、AZ の名前、SSM の AMI のパラメータの ARN など。plan JSON の `timestamp` は作った日時。
 - 作り直すと、`timestamp` と、moto・provider の版によっては値が変わりうる（テストは address・型・参照・主な値だけを見る）。
 
