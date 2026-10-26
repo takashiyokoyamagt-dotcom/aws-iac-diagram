@@ -964,3 +964,76 @@ golden は 4 つのコミットのそれぞれで 101/101 一致、単体テス�
 3. **m1: 静的な検査は最善の努力であることを書いた。** `diagnostic_scan_files` の docstring と docs/architecture.md に、すり抜けるもの（接頭辞が単独の文字列になっていない組み立て、変数・既定の引数で渡す level、範囲の外で診断を出すコード、接頭辞が未登録で出す位置の外のコードの形の文字列）と、動的な安全網（`EmittedLevelsTest`、旧コードとの差分比較、golden）を書いた。
 4. **n2: `DIAGNOSTICS` を読み取り専用にした**（`types.MappingProxyType`。書き換えている呼び出しは無いことを grep で確かめた: `lookup`・`codes`・テストの読み取りだけ）。代入と削除が `TypeError` になることをテストする。
 5. **n3: CI の Linux の「日本語とスペースを含むパス」の手順に、`adapt_tf.py`（`--var-file env/dev.tfvars --var project=demo`）と `adapt_cfn.py`（`--param EnvType=prod`）と、それぞれの `validate_ir.py` を足した**（PowerShell の手順と同じ fixture）。手順の `run:` をそのまま取り出して Git Bash（`bash -e`）で通し、WSL でも通した。GitHub の Actions ではまだ動かしていない。
+
+## 2026-10-26 フェーズ2b の R4: スクリプトが読むデータを `data/` へ
+
+### 概要
+構成の階層化（PLAN の 1.4）の 4 番目。**スクリプトが実行時に読むファイルを `references/` から `skills/aws-iac-diagram/data/` に移した**（1 ファイル 1 単位）。R1〜R3 と違い、**出力のバイト列が変わる手順**: 診断の文言に入っていた要約表のパスが変わるため（golden の 14 ケース）。それ以外の動きは変えていない。ブランチ `phase2b-r4`（main の `6a6839c` から）。
+
+### コミット
+| # | 内容 |
+|---|---|
+| 1 `9fbcd1f` | ファイルの移動と、ローダー・doctor・テストの直し。golden 101/101（診断の文言はまだ旧パス）。`core/paths.py`、要約表のフォルダ読み込み、`tests/test_paths.py` |
+| 2 `f0a1bbe` | 診断の文言 3 つのパスを直し、golden の 14 ケースを `--update --accept-changes` で更新（理由と証明はコミットメッセージと下の「golden の更新」） |
+| 3 `c14a8f8` | README・NOTICE・ir-schema.md・architecture.md の直し |
+| 4 | HANDOFF・WORKLOG（この節）・PLAN の状態 |
+
+### 何がどこへ移ったか
+| 元（`skills/aws-iac-diagram/`） | 先 | 方法 |
+|---|---|---|
+| `references/ir.schema.json`・`ir-raw.schema.json` | `data/schemas/` | `git mv` |
+| `references/icons/`（`catalog.json`・`broken.json`・カテゴリ別 `.md` 31 個） | `data/icons/` | `git mv`（中身は同じ。再生成してもバイト単位で同じ） |
+| `references/module-summaries.md`（4,826 行） | `data/module-summaries/terraform-aws-vpc/v6.md`（1,057 行）・`terraform-aws-alb/v10.md`（997）・`terraform-aws-rds/v7.md`（1,421。本体 + サブモジュール 5）・`terraform-aws-eks/v21.md`（1,302。本体 + サブモジュール 3）・`iam-only-sources.md`（H-IAM の一覧）。説明の部分は `docs/spec/module-summaries.md` | 分割（一回限りの Python。`git mv` では履歴は付かない） |
+| （新規） | `scripts/aws_iac_diagram/core/paths.py`、`tests/test_paths.py`、`docs/spec/` | |
+| 動かさないもの | `references/ir-schema.md`・`resource-catalog.md`・`relation-resources.md`・`edge-rules.md`（R6・フェーズ 3） | |
+
+### ローダーの変更
+- `core/paths.py`: `SKILL_DIR = Path(__file__).resolve().parents[3]`（core → aws_iac_diagram → scripts → SKILL）と、`IR_SCHEMA`・`IR_RAW_SCHEMA`・`ICON_CATALOG`・`ICON_BROKEN`・`MODULE_SUMMARIES_DIR`・`ASSETS_DIR`・`RULE_DOCS`・`RESOURCE_CATALOG`。標準ライブラリだけ。`validate_ir.py`・`find_aws_icon.py`（`sys.path` への 1 行を足して import）・`maintenance/` の 2 つ・`summaries.py` が使う。`doctor.py` だけは自分で `SKILL_DIR` を決める（パッケージが欠けていても動くため）。
+- `modules/summaries.py`: `SUMMARY_FILE`（`parents[5]`）→ `SUMMARY_DIR`（`paths.MODULE_SUMMARIES_DIR`）。`load(path)` はフォルダの下の `.md` を「文字と数を分けた順序」（`v6` は `v10` の前）で読む。ファイルを渡すとそのファイル 1 つ。パースの規則（マーカー、コードブロック、`# not-covered:`、H-IAM）はそのまま。`Summary` に `file` を足した（`module_load.summary_tree` のキャッシュのキーに入れる。`line` はファイル内の行になったため、別ファイルの同じ行と衝突しない）。
+- doctor の `REQUIRED_FILES`: `data/` の 8 ファイル（`catalog.json`、スキーマ 2、要約表 4 + `iam-only-sources.md`）と `core/paths.py` を足し、旧 `references/` の 3 つ（`icons/catalog.json`・スキーマ 2・`module-summaries.md`）を外した。ディレクトリのパターンにはしなかった（下の「決めたこと」）。
+
+### golden の更新（意図した変更）
+診断の文言 3 つの `references/module-summaries.md` を `data/module-summaries/` にした: `TF-MODULE-BLACKBOX`（"not in the summary table (…)"）、`TF-MODULE-SUMMARY-TABLE-MISSING`（"the summary table (…) is missing or empty"）、`TF-MODULE-SUMMARY`（"expanded from the summary table (…; …)"）。他の文言（`TF-MODULE-SUMMARY-INPUT` など）にパスは入っていない。
+
+変わった 14 ケース（件数は同じで、hash と bytes だけ）: `tf/custom/three-tier-modules`、`tf/public/` の `aws-transit-gateway-vpc-terraform`・`hub-and-spoke-with-shared-services-vpc-terraform`・`learn-terraform-provision-eks-cluster`・`learn-terraform-rds`・`terraform-aws-bedrock/examples/agent-with-knowledge-base`・`terraform-aws-cloudfront/examples/complete`・`terraform-aws-ecs/examples/fargate`・`terraform-aws-eks-blueprints/patterns/blue-green-upgrade/{eks-blue,eks-green,environment}`・`terraform-aws-eks/examples/eks-managed-node-group`・`terraform-aws-rds-aurora/examples/postgresql`・`terraform-aws-vpc/examples/complete`。
+
+**機械的な証明**（`golden.py --dump` で 1/4 のコミットの 101 件を書き、文言を直した後の 101 件と比べた）: 14 件は、旧い出力の `references/module-summaries.md` を `data/module-summaries/` に置換すると新しい出力とバイト単位で一致する（置換は全部で 49 か所）。残りの 87 件は置換前から新しい出力と同じで、旧パスを含まない。ほかの差は無い。更新は `golden.py --update --accept-changes`（manifest の差分は 14 ケースの `sha256`・`bytes` の 28 行だけ）。
+
+### 決めたこと
+| 決めたこと | 理由 |
+|---|---|
+| 要約表は「1 モジュールの 1 major につき 1 ファイル」。サブモジュールの表は親と同じファイル（rds v7 に 6 つ、eks v21 に 4 つ） | サブモジュールの版は親と一緒に上がる。`module_expand` が親の `majors` でサブモジュールの表を選ぶので、ファイルを分けると選び方が変わる |
+| H-IAM の一覧は `data/module-summaries/iam-only-sources.md`（フォルダの直下） | 版を持たない。ローダーはフォルダの下の `.md` をすべて同じ規則で読むので、置き場所でコードを分けない |
+| ローダーは「フォルダの下の `.md` をすべて」読む。doctor の一覧は明示のファイル名のまま | doctor は「足りないファイル名を出す」ために明示の一覧を持つ（パッケージが欠けても動かす。一覧と実際のファイルの一致は `test_doctor_required_files` が確かめる）。パターンにすると、ファイルが 1 つ欠けても気づけない |
+| ファイルを足したときの doctor と `RUNTIME_DATA` の更新は手作業のまま（テストが落ちて気づく） | 同上 |
+| `SUMMARY_FILE` の名前は残さず `SUMMARY_DIR` にした。ファイルを渡す `load(path)` は残した | 互換の shim を置かない方針（R2・R3）。テストは無い・空のフォルダに差し替える |
+| 文言のパスは、実際に読んだファイル名でなく静的に `data/module-summaries/` にした | 変える範囲を「パスの文字列」だけに絞る（機械的に証明できる）。ファイル名を入れると文言が表ごとに変わる |
+| ファイル先頭の見出しと説明の行（`# …`・`> …`）、表ごとの見出し（`### …`）は残す | パースは `<!-- module-summary … -->` の行と直後のコードブロックしか見ない（旧ローダーで読んだ結果が同じことで確認） |
+| 説明（考え方・版の選び方・直し方・本物と突き合わせた結果）は `docs/spec/module-summaries.md`。表の置き場所の節を足した | 説明は開発者向け（SKILL の外）。R6 で `docs/spec/` の残りを作る |
+| `find_aws_icon.py` は `core/paths.py` を import する（`sys.path` に `scripts/` を入れる 1 行を足した） | 場所の決め方を 1 か所にするため。パッケージが欠けた取り込みでは import で落ちるが、その前に doctor が欠けを報告する。`maintenance/` の 2 つも同様 |
+| `data/icons/broken.json` は doctor の一覧に入れない | 実行時には読まない（保守用の出力。`catalog.json` に `broken` として反映済み） |
+| PLAN は状態の行・2b の行・1.4 の「状況」に R4 を足しただけ（構成図は元から `data/` を書いてあった） | |
+
+### 確かめたこと
+- **golden**: 1/4 のコミットで 101/101。2/4 で 14 ケースを意図して更新し、その後 101/101（Windows と WSL）。
+- **単体テスト 381 件**（372 + `tests/test_paths.py` の 9）: Windows の通常の TEMP、別のドライブの TEMP（`subst Y:`）、8.3 の短い名前の TEMP（`...\Temp\R4-LON~1`）のそれぞれで OK（約 90 秒）。WSL（Ubuntu、`git archive HEAD` の複製を `/tmp` に展開、`uv sync --locked`）でも OK（47 秒）。
+- `uv lock --check` OK（66 パッケージ）。pyflakes は、この変更の前からある `test_tf_adapter.py` の `v` の 1 件だけ（ほかの触ったファイルは 0）。
+- **アイコン辞書の再生成**: `build_icon_catalog.py` と `check_icons.py`（draw.io 32.4.1 で 1032 件を判定、壊れ 0、対照 9 件）を実行しても、`data/icons/` のファイルに差が無い（生成されるヘッダにパスの文字列は入っていないので、差はゼロ）。
+- **要約表の分割の照合**: 旧ファイルを旧ローダー（`6a6839c`）で読んだ結果と、フォルダを新ローダーで読んだ結果で、12 の source の `(source, majors, text, uncovered)` と H-IAM の一覧が同じ。違うのは `dict` の並び順だけ（並び順に依存する所は無い。`load()[0]` は `.get` と真偽値でしか使わない）。
+- **旧コード（`6a6839c` の `git archive`）との CLI の比較 665 通り**（終了コード・標準出力・標準エラー・書かれたファイルのバイト列。許した差は `references/module-summaries.md` → `data/module-summaries/`、SKILL・出力先のパスの読み替え、トレースバックの行番号だけ）:
+  - golden の 101 ケース: 差 0（14 ケース 49 か所が置換）。
+  - `fixtures/public` の `.tf` のあるフォルダ 205: 差 0（60 件 178 か所が置換）。
+  - モジュールの source × 版の制約の合成 285: 差 0（117 件 126 か所が置換）。vpc・alb・rds・eks・rds の db_instance・eks の fargate-profile・ホスト名つき vpc に `None`・`~> 5.0`・`6.6.0`・`>= 6`・`>= 6.0, < 7.0`・`< 6`・`!= 6.0`・`garbage`・`>= 100`・`~> 10.0`・`~> 21.0`・`~> 20.0`・`v6.7.3`・空文字など 32 通り、IAM・aws-ia・git・存在しないローカル・kms に 4 通り、`fixtures/public` にある terraform-aws-modules の (source, version) 34 組。出力は 285 通りすべて違い、`module_summary` のリソースが 436、`module_blackbox` が 217。
+  - ツール 74: 差 0。`validate_ir.py`（正解 IR、golden の出力 34 件、改変した入力、存在しないファイル、引数なし）48、`find_aws_icon.py` 20、`doctor.py` 2、入口の誤用 4。許した差は、存在しないファイルを渡したときの未捕捉の例外のトレースバックの行番号だけ（元からの動き）。
+  - **要約表が無いとき**（旧は `references/module-summaries.md` を、新は `data/module-summaries/` を消した複製）の `TF-MODULE-SUMMARY-TABLE-MISSING` の出力は、パスの文字列だけが違う。同じ条件で `find_aws_icon.py` の「辞書がありません」の文もパスだけが違い、doctor はどちらも error（終了コード 2）で欠けたファイルの名前を挙げる。
+- **自己完結**: SKILL のフォルダだけを `%TEMP%\日本語 パス\深い\a\b\スキル copy\aws-iac-diagram` に複製（深さも名前も変えた）し、上の golden 101・ツール 74・合成 285 を複製に対して動かして、旧コードと比べた（差は、doctor の `skill.dir` と `non_ascii_path` だけ）。`uv run`（PEP 723）で `adapt_tf.py`（three-tier-modules。要約表が要る）・`adapt_cfn.py`・`validate_ir.py`（スキーマが要る）・`find_aws_icon.py`・`doctor.py`（missing_files が空）を動かし、リポジトリの中の出力とバイト単位で同じ。WSL（`/tmp/r4wsl/日本語 パス/深い/a/b/`）でも同じ。
+- **CI の手順を手元で**: Git Bash — `validate_ir.py`（正解 IR 5）、`check_coverage.py --lint`、`c1_check.py`（入力 25・辺 513・対応の無い辺 0）、TF 5 構成・CFN 5 構成・plan JSON 14 の起動と `validate_ir.py`（すべて OK）、`tf_public_check.py --all --jobs 4`（205 フォルダ、リソース 11,621、error 0）。PowerShell 5.1 — CI の Windows の手順（日本語のパスに SKILL を複製）を取り出して実行（doctor ok、`adapt_tf`・`--plan`・`adapt_cfn` と `validate_ir.py` が通る）。WSL — `unittest`・golden・`tf_public_check.py --all`・`c1_check.py`・`validate_ir.py`・`check_coverage.py --lint`（Windows と同じ数字）。
+- 変異で検査が落ちること: `paths.py` の `parents[3]` を `[2]` に（18 件失敗）、`summaries.py` が `SUMMARY_DIR` を無視する（`SummaryTableFileTest` が失敗）、要約表のファイルを 1 つ消す（`SummaryTest`・doctor・`test_paths` が失敗）、ファイルの並べ方を自然順から外す（`test_paths` が失敗）。
+
+### 残したこと・リスク
+- **R5**: テストの分け直し。**R6**: `references/`（`ir-schema.md` と規則表 3 つ）の整理、`docs/spec/` の残り。`data/rules/` はフェーズ 3。`validate_ir.py` は規則表 3 つを今も `references/` から読む（`paths.RULE_DOCS`）。
+- 要約表のファイルが**1 つだけ**欠けたとき（例: `terraform-aws-rds/v7.md`）、アダプタは黙ってそのモジュールを黒箱にする（info の `TF-MODULE-BLACKBOX`）。旧は 1 ファイルなので全部が欠けるか全部あるかだった。`TF-MODULE-SUMMARY-TABLE-MISSING`（warn）はフォルダが空のときだけ。欠けは doctor が名前を挙げる（`REQUIRED_FILES`）。ローダーは読めないファイル（`OSError`）を黙って飛ばす（旧と同じ）。
+- 要約表のファイル名と `majors` の整合（`v6.md` に `majors="7"` を書く、など）は、テスト（`test_real_tables_are_one_file_per_module_and_major`）が今ある表について確かめるだけで、ローダーは検査しない。
+- `find_aws_icon.py` は、パッケージ `aws_iac_diagram` が欠けた取り込みでは import で落ちる（以前は単独で動いた）。doctor の一覧にパッケージが入っているので、その場合は doctor が error にする。
+- 差分比較は Windows の venv の Python で行った（`uv run` の経路は複製の 5 本と CI の手順だけ）。Linux は golden と `tf_public_check` と単体テストで同じ結果を確かめたが、旧コードとの CLI 比較は Windows だけ。
+- 分割は `git mv` でないので、`git log --follow` で要約表の履歴は追えない（`references/module-summaries.md` の履歴はそのまま残る）。
