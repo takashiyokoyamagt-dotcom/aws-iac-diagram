@@ -37,7 +37,7 @@ description: Terraform（.tf、plan JSON）や CloudFormation（YAML／JSON、SA
 |---|---|---|
 | Terraform を読む | `uv run "<SKILL>/scripts/adapt_tf.py" --input "<.tf のフォルダ>" --out "<出力先>/tf.raw.json"` | 0 = 書けた、2 = 読めなかった |
 | CloudFormation を読む | `uv run "<SKILL>/scripts/adapt_cfn.py" --input "<テンプレートか cdk.out のフォルダ>" --out "<出力先>/cfn.raw.json"` | 同上 |
-| raw IR を検査する | `uv run "<SKILL>/scripts/validate_ir.py" "<出力先>/tf.raw.json"` | 0 = 問題なし、1 = 問題あり（検査に通らない IR。ファイルが無い・読めないときも、エラーの表示つきで 1）、2 = パスを渡していない。**1 だけでは「IR の問題」とは決めつけず、表示を読むこと** |
+| raw IR を検査する | `uv run "<SKILL>/scripts/validate_ir.py" "<出力先>/tf.raw.json"` | 0 = 問題なし、1 = 問題あり（検査に通らない IR。ファイルが無い・読めないときも、エラーの表示つきで 1）、2 = パスを渡していない・規則表（`data/rules/`）が壊れている（`doctor.py` で欠けたファイルが分かる）。**1 だけでは「IR の問題」とは決めつけず、表示を読むこと** |
 | アイコンを探す | `uv run "<SKILL>/scripts/find_aws_icon.py" lambda` | 標準出力に1行1件 |
 
 - アダプタの終了コードは、`diagnostics` に warn や error があっても 0 です。出力の JSON の `diagnostics` を読んで報告してください。`level` の意味は、`error` = そのリソースかファイルを読めなかった、`warn` = 評価できなかった値があり図が不完全になりうる、`info` = 結果に影響しない読み替え、です。
@@ -48,8 +48,8 @@ description: Terraform（.tf、plan JSON）や CloudFormation（YAML／JSON、SA
 
 # 参照できるもの
 
-- `<SKILL>/data/`: スクリプトが読むデータ（`schemas/` の IR のスキーマ、`icons/` のアイコンの辞書、`module-summaries/` の公開モジュールの要約表）。エージェントが直接読む必要はありません。
-- `<SKILL>/references/`: 規則表（`resource-catalog.md`・`relation-resources.md`・`edge-rules.md`）。`validate_ir.py` が読みます。正規化の草案で、まだ変わります。
+- `<SKILL>/data/`: スクリプトが読むデータ（`schemas/` の IR のスキーマ、`icons/` のアイコンの辞書、`module-summaries/` の公開モジュールの要約表、`rules/` の規則表）。エージェントが直接読む必要はありません。`rules/` は型の扱い・関係リソース・辺の規則の TOML で、`validate_ir.py` が読みます（正規化のためのもので、まだ増えます）。
+- `<SKILL>/references/`: エージェントが読む手順書の置き場です（いまは README.md だけ）。
 - IR の仕様（章ごとの文書）は、SKILL に含まれません。このリポジトリの `docs/spec/ir-schema/` にあります（SKILL だけを取り込んだ環境には無い）。
 
 # 実行環境ごとの違い

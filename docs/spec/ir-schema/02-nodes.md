@@ -8,7 +8,7 @@
 | フィールド | 必須 | 内容 |
 |---|---|---|
 | `id` | ○ | `<type>/<key>`。下の「ID の作り方」 |
-| `type` | ○ | 正規の型名（`resource-catalog.md`）。TF の `aws_lb`（application）も CFN の `AWS::ElasticLoadBalancingV2::LoadBalancer`（Type: application）も `alb` |
+| `type` | ○ | 正規の型名（規則表の描く型。`data/rules/types/`。説明は [types.md](../rules/types.md)）。TF の `aws_lb`（application）も CFN の `AWS::ElasticLoadBalancingV2::LoadBalancer`（Type: application）も `alb` |
 | `category` | ○ | `group`（枠: vpc・availability_zone・subnet）／`resource`／`external`（AWS の外: internet）。黒箱のモジュール（下の「黒箱のモジュール」）は `resource` |
 | `name` | ○ | B3 の採用順（`Name` タグ → 型ごとの名前属性 → 論理名）で決めた **名前**。評価後の値で、省略や言い換えをしない。`id` の key はここから作る |
 | `label` | ○ | **表示名**。いまは `name` と同じ（合成ノードを除く）。B3 の省略規則・日本語ラベルは `label` だけを変え、`name` と `id` は変えない |
@@ -37,7 +37,7 @@
 - **対象:**
   - TF: レジストリモジュールのうち、A5 の要約表（[data/module-summaries/](../../../skills/aws-iac-diagram/data/module-summaries/)）に無いもの（aws-ia のモジュールなど）と、要約表はあるが版（major）が合わないもの（vpc の 5.x など）。`git::` などのリモートのソースも同じ。ローカルモジュールのうち、フォルダに `.tf` が無くて読めないもの・自分を呼ぶもの（循環）・入れ子が深すぎるもの（7.2）
   - CFN: ネストスタックのうち、子テンプレートを読めないもの（`TemplateURL` を手元のファイルに読み替えられない。7.4）。`AWS::Serverless::Application`（SAR）
-- **対象から外すもの:** source が IAM だけを作るモジュール（`terraform-aws-modules/iam/aws` とその下のサブモジュール。一覧は `data/module-summaries/iam-only-sources.md`（説明は docs/spec/module-summaries.md の 4章）、判定は `scripts/aws_iac_diagram/adapters/terraform/modules/summaries.py` の `iam_only()`。source の前方一致）は、黒箱のノードにせず `hidden`（規則 `H-IAM`。IAM のリソースを描かないのと同じ）。raw IR では黒箱の呼び出しのまま出す（中身を読まないので、IAM だけかは source で決める）。中身を読むローカルモジュールには使わない（中のリソースが型ごとに `H-IAM` になる）
+- **対象から外すもの:** source が IAM だけを作るモジュール（`terraform-aws-modules/iam/aws` とその下のサブモジュール。一覧は `data/module-summaries/iam-only-sources.md`（説明は docs/spec/module-summaries.md の 4章）、判定は `scripts/aws_iac_diagram/core/module_sources.py` の `iam_only()`（アダプタの診断の文言と正規化が同じ判定を使うので core にある）。source の前方一致）は、黒箱のノードにせず `hidden`（規則 `H-IAM`。IAM のリソースを描かないのと同じ）。raw IR では黒箱の呼び出しのまま出す（中身を読まないので、IAM だけかは source で決める）。中身を読むローカルモジュールには使わない（中のリソースが型ごとに `H-IAM` になる）
 - **id と名前:** `name` はモジュール呼び出しの名前（TF: モジュールのパスを `.` でつないだもの。CFN: ネストスタックの論理ID を `.` でつないだもの）。id は `module/<key>`
 - **入れ子:** モジュールの入力（TF の引数、CFN の `Parameters`）が、ほかのノードのサブネットを指していれば `spans`／`parent` を P-SUBNET・P-SPANS で、VPC だけを指していれば `parent` を VPC にする。どちらも無ければ `parent: null`
 - **辺:** 中身が分からないので、確信度はどれも `inferred`（破線。CRITERIA の X2・X3 の対象にならない）。
@@ -62,7 +62,7 @@
 
 - `key` = `name` を小文字にし、`[a-z0-9._-]` 以外の文字を `-` にしたもの（表示用の `label` からは作らない。省略や日本語化で ID が変わると C5 と採点が壊れるため）。`name` は B3 の順で決める:
   1. `Name` タグ（TF の `tags.Name`、CFN の `Tags` の `Key: Name`）
-  2. 型ごとの名前属性（`function_name`／`FunctionName`、`bucket`／`BucketName`、`identifier`／`DBInstanceIdentifier`、`name`／`Name` など。`resource-catalog.md` の「名前属性」列）
+  2. 型ごとの名前属性（`function_name`／`FunctionName`、`bucket`／`BucketName`、`identifier`／`DBInstanceIdentifier`、`name`／`Name` など。規則表の描く型の `name_attr`。`data/rules/types/`）
   3. 論理名（TF: モジュールのパスを `.` でつないだもの＋リソース名、CFN: ネストスタックの論理ID を `.` でつないだもの＋論理ID）。インデックスは `-0` のように付ける
 - 名前は A4 で評価した後の値を使う（`"${local.name}-alb"` → `demo-alb`）。評価できなければ 3 に落ちる。
 - 同じ型で key が重なったら、重なったリソースを入力のアドレス（TF）／論理ID（CFN）の辞書順に並べ、2つ目以降の key の末尾に `.<論理名の key>`（論理名は上の 3 の形）を付ける。論理名は TF と CFN で違うので、**この場合は canonical 部が TF 版と CFN 版で一致しない**（フェーズ2 の比較では、重なりを解いたノードを対応表で突き合わせる）。自作の fixture には重なりは無い。

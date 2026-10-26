@@ -15,14 +15,14 @@ Terraform（`.tf` と plan JSON）や CloudFormation（YAML／JSON、SAM、CDK �
 ## リポジトリの構成
 
 ```
-skills/aws-iac-diagram/   配る SKILL（SKILL.md、scripts/ の入口とパッケージ、data/、references/、assets/）
-docs/                     開発者向け（配らない）: architecture.md（層・依存の向き・拡張のしかた）、spec/（IR スキーマを章ごとに）、dev-notes/
+skills/aws-iac-diagram/   配る SKILL（SKILL.md、scripts/ の入口とパッケージ、data/〈スキーマ・アイコン・モジュールの要約表・規則表〉、references/、assets/）
+docs/                     開発者向け（配らない）: architecture.md（層・依存の向き・拡張のしかた）、spec/（IR スキーマを章ごとに、規則表の説明）、dev-notes/
 tests/                    unit/ integration/ golden/ architecture/ と共有の道具 support/
 aws-iac-diagram-workspace/  fixtures/（自作の入力と公開サンプル）、expected/（正解 IR）、tools/（開発用の道具）、evals/（評価基準）
 PLAN.md                   計画（決めたこと、フェーズ、リポジトリ構成の図）
 ```
 
-SKILL の中身の分け方は [docs/architecture.md](docs/architecture.md) の 1 に、IR の形は [docs/spec/ir-schema/](docs/spec/ir-schema/README.md) にあります。
+SKILL の中身の分け方は [docs/architecture.md](docs/architecture.md) の 1 に、IR の形は [docs/spec/ir-schema/](docs/spec/ir-schema/README.md)、型の扱い・辺の規則（規則表。データは `skills/aws-iac-diagram/data/rules/`）の説明は [docs/spec/rules/](docs/spec/rules/README.md) にあります。
 
 ## SKILL を使う
 
@@ -177,6 +177,15 @@ uv run python aws-iac-diagram-workspace\tools\check_coverage.py --lint
 ```
 
 `check_coverage.py` は開発用の環境（`uv run python ...`）で動かしてください。`uv run check_coverage.py` だと、Windows では uv のキャッシュの中の cfn-lint のパスが 260 文字を超えて `--lint` が落ちることがあります。
+
+### 規則表
+
+型の扱い・関係リソース・辺の規則（正規化で使う規則表）は、データ（TOML）が `skills/aws-iac-diagram/data/rules/` にあり、説明は [docs/spec/rules/](docs/spec/rules/README.md) にあります。説明の中の表は、データから作った生成物です。データを直したら作り直し、食い違いがないかを調べます。
+
+```powershell
+uv run python aws-iac-diagram-workspace\tools\render_rules.py --write
+uv run python aws-iac-diagram-workspace\tools\render_rules.py --check
+```
 
 fixture の説明は [aws-iac-diagram-workspace/fixtures/README.md](aws-iac-diagram-workspace/fixtures/README.md)、IR の形は [docs/spec/ir-schema/](docs/spec/ir-schema/README.md) にあります。
 

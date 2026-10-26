@@ -27,7 +27,7 @@
 | `drawn` | `node` | そのリソースがノードになった |
 | `merged_into` | `into`、`rule` | ほかのノードに統合された（M-*）か、辺に変換された（R-*。このとき `into` は辺の id） |
 | `hidden` | `rule` | 図に描かない（H-*）。count が 0・Condition が偽のものも `H-COND-FALSE` でここに入る |
-| `unknown` | （なし） | 型が `resource-catalog.md` に無い。分類としては正しく、検証エラーにはしない（終了コードは 0 のまま）。件数と型を `result.json` と `coverage.md` に出す。検証エラー（終了コード 1）になるのは、分類の漏れと重複。主セットで 0 件にするのは評価の基準（[CRITERIA.md](../../../aws-iac-diagram-workspace/evals/CRITERIA.md) の 1.2） |
+| `unknown` | （なし） | 型が規則表の型の行（`data/rules/types/` と `relations.toml`。[types.md](../rules/types.md)）に無い。分類としては正しく、検証エラーにはしない（終了コードは 0 のまま）。件数と型を `result.json` と `coverage.md` に出す。検証エラー（終了コード 1）になるのは、分類の漏れと重複。主セットで 0 件にするのは評価の基準（[CRITERIA.md](../../../aws-iac-diagram-workspace/evals/CRITERIA.md) の 1.2） |
 
 - `address`: TF は plan と同じ形のインスタンスアドレス（`aws_subnet.public[0]`、`module.vpc.aws_vpc.this[0]`、`data.aws_iam_policy_document.x`、for_each は `aws_vpc_endpoint.interface["ssm"]`）。count が 0 に評価されたブロックはインデックスなし（`aws_instance.bastion`）で1件。CFN は論理ID で、ネストスタックの中は `<親の論理ID>/<論理ID>`（`NetworkStack/Vpc`）。
 - `type`: 入力のままの型（`aws_vpc`、`AWS::EC2::VPC`）。

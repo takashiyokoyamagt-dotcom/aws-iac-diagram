@@ -1,6 +1,6 @@
 ## 7. アダプタの出力（`stage: "raw"`）
 
-アダプタは、入力（CFN のテンプレート、cdk.out、TF の .tf／plan JSON）を読み、A4 の評価を済ませた後のリソースと参照の一覧を出す。**図の形（ノード・辺・入れ子・網羅分類）にはしない。** それは正規化（フェーズ3）の仕事で、規則表（resource-catalog.md・relation-resources.md・edge-rules.md）を使うのも正規化だけにする。ただし、A5 の要約表（読まないレジストリモジュールの中身を作る表）はアダプタが使う（中身のリソースを `resources` に載せるため）。CFN と TF で同じ形にし、正規化を1つにする。
+アダプタは、入力（CFN のテンプレート、cdk.out、TF の .tf／plan JSON）を読み、A4 の評価を済ませた後のリソースと参照の一覧を出す。**図の形（ノード・辺・入れ子・網羅分類）にはしない。** それは正規化（フェーズ3）の仕事で、規則表（`data/rules/`。説明は [../rules/README.md](../rules/README.md)）を使うのも正規化だけにする。ただし、A5 の要約表（読まないレジストリモジュールの中身を作る表）はアダプタが使う（中身のリソースを `resources` に載せるため）。CFN と TF で同じ形にし、正規化を1つにする。
 
 この章の形は、CFN アダプタ（`scripts/adapt_cfn.py` と `scripts/aws_iac_diagram/adapters/cloudformation/`。フェーズ1 の手順2〜4）の実装で確かめ、手順5 で確定した（2026-10-17）。CFN では、自作 fixture と公開サンプルの CFN（入力 25、cfn-lint の辺 513 本）で、cfn-lint のグラフの辺のすべてに参照が対応した（CRITERIA の 1.6）。TF アダプタ（`scripts/adapt_tf.py`、`scripts/aws_iac_diagram/adapters/terraform/`。フェーズ2）でも同じ形で足りた。足りなかったもの（TF だけのフィールド `provider`・`region`、TF の props・参照・値の書き方、モジュールの展開、plan JSON の入力）は、7.1〜7.5 の該当のところに書いてあり、フェーズ2 の手順5 で確定した（2026-10-26）。公開サンプルの TF のルート 52 フォルダと `.tf` のあるフォルダすべて（205）が、検査を通る raw IR になる（`aws-iac-diagram-workspace/tools/tf_public_check.py`）。
 
@@ -134,7 +134,7 @@
 |---|---|
 | CFN の `TemplateURL` が S3 の URL（C04、C05） | URL のパスと、`root` のディレクトリの下のファイルの相対パスを、末尾から `/` 区切りの要素ごとに比べ、一致する要素が最も多いファイルを子テンプレートとして読む（`infrastructure/vpc.yaml` と `vpc.yaml` があり、URL が `…/infrastructure/vpc.yaml` なら前者）。最も多いものが2つ以上あるか、1要素も一致しないときは黒箱のモジュール（2章）にし、`diagnostics` に書く。読み替えたことは `evaluation.assumptions` に書く |
 | TF のローカルモジュールがルートの外（T04、T14、T15 の `../../`） | そのまま読む。`file` は `../` 付きの相対パス（4章） |
-| AWS 以外のプロバイダの型（T15 の awscc、T18 の kubernetes、T09 の opensearch など） | アダプタはそのまま `resources` に載せる。扱いは正規化の規則表（resource-catalog.md）で決める。方針: awscc の型は同じ名前の CFN の型（`awscc_ec2_vpc` → `AWS::EC2::VPC`）として扱う。random、null、time などクラウド上の実体が無いものは既存の `H-UTILITY`。それ以外のプロバイダ（kubernetes、helm、tls、local など）は非表示（規則 `H-NONAWS`）。opensearch の index のように AWS のリソースの中身を作る型は、そのリソースに統合する（既存の `M-AOSS-INDEX`）。個々の型の行は、フェーズ3 で公開サンプルの型を足すときに書く |
+| AWS 以外のプロバイダの型（T15 の awscc、T18 の kubernetes、T09 の opensearch など） | アダプタはそのまま `resources` に載せる。扱いは正規化の規則表（`data/rules/types/`）で決める。方針: awscc の型は同じ名前の CFN の型（`awscc_ec2_vpc` → `AWS::EC2::VPC`）として扱う。random、null、time などクラウド上の実体が無いものは既存の `H-UTILITY`。それ以外のプロバイダ（kubernetes、helm、tls、local など）は非表示（規則 `H-NONAWS`）。opensearch の index のように AWS のリソースの中身を作る型は、そのリソースに統合する（既存の `M-AOSS-INDEX`）。個々の型の行は、フェーズ3 で公開サンプルの型を足すときに書く |
 | 既存のインフラを指す TF の `data`（T20 は 413 件） | `data` も `resources` に載せる（address は `data.` 付き）。描くか非表示にするかは正規化で決める。方針: 描く型の `data`（`data.aws_vpc`、`data.aws_subnet` など）が、描くリソースから参照されていれば、既存のノードとして描く。それ以外は `H-DATA`。`terraform_remote_state` は state を読まずに data として載せ、出力への参照は `attr: "outputs.<名前>"`（7.2。フェーズ2 の手順3 で決めた）。正規化では `H-DATA` |
 | python-hcl2 が heredoc の終端の空白で読めない（T06） | TF アダプタで、heredoc の開始（`<<EOF`）と終端の行の末尾の空白を取ってから読む（開始の行の後ろの空白でも読めないため）。取ったことを `diagnostics`（level `info`、`TF-HEREDOC-TRAILING-SPACE`）に書く |
 
@@ -145,7 +145,7 @@
 ```
 
 - `level` は `info`（読み替えなど、結果に影響しない）／`warn`（評価できなかった値があり、図が不完全になりうる）／`error`（そのリソースか、ファイルを読めなかった）。
-- `code` は大文字で、raw では `CFN-…`／`TF-…`。正規化後の IR にも同じ形の `diagnostics` を持たせ、そこでは `NORM-…`（「使わなかった参照」、「条件が決まらない」など。edge-rules.md）。一覧は各段階の実装と一緒に決める。
+- `code` は大文字で、raw では `CFN-…`／`TF-…`。正規化後の IR にも同じ形の `diagnostics` を持たせ、そこでは `NORM-…`（「使わなかった参照」、「条件が決まらない」など。[refs.md](../rules/refs.md)）。一覧は各段階の実装と一緒に決める。
 - **診断コードの一覧の正は `scripts/aws_iac_diagram/core/diagnostics.py`**（コードごとの level と短い説明。アダプタのコードにある `TF-…`・`CFN-…` の文字列がそこに無いと、そこにあって使われていないと、`tests/architecture/test_diagnostics_registry.py` が落ちる。この章の一覧と同じであることは `tests/architecture/test_diagnostics.py` が確かめる）。コードを足す・level を変えるときは、両方と `tests/golden/`（出力が変わるとき）を同じコミットで直す。同じコードが場所によって level を変えるものがある（下の「warn／info」などの書き方）。
 - TF アダプタの `code` の一覧（43 個。CFN と同じく「`コード`（level。説明）」の形。level は `diagnostics.py` と同じであることをテストが確かめる）:
   - 読み込み: `TF-PARSE-ERROR`（error。.tf を読めない（ほかのファイルは読む））、`TF-HEREDOC-TRAILING-SPACE`（info。heredoc の開始・終端の行の末尾の空白を取ってから読んだ（python-hcl2 が読めないため））、`TF-DUPLICATE-BLOCK`（warn。同じ名前の変数・local・output・リソースが複数ある。最初のものを使う）、`TF-MALFORMED-BLOCK`（warn。ブロックの形が誤り（provider の指定、providers、dynamic ブロック、モジュールの source など））、`TF-OVERRIDE-UNMATCHED`（warn。*_override.tf のブロックに対応する元のブロックが無い）、`TF-TFJSON-UNSUPPORTED`（warn／info。.tf.json は .tf だけでは読まない（warn）。plan JSON と一緒のときは plan から取る（info））、`TF-ROOT-OTHER-DRIVE`（info。root が別のドライブにあり、ファイル名・フォルダ名だけを書いた（Windows））、`TF-VARFILE-OTHER-DRIVE`（info。変数のファイルが別のドライブにあり、相対パスにできないので名前だけを書いた（Windows））。

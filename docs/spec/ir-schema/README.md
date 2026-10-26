@@ -3,7 +3,7 @@
 - 状態: **v1.0 確定**（2026-10-17）。正規化後の形（1〜6章）はフェーズ1 の手順1 で、アダプタの出力（7章）は CFN アダプタの実装（手順2〜4）で確かめて手順5 で確定した。TF アダプタ（フェーズ2）の実装で足りなかったものは、7章に足して確定した（2026-10-26。リソースの `provider`・`region`、TF の props・参照・値の書き方、モジュールの展開・A5 の要約表・`terraform_remote_state`・モジュールに渡した provider、plan JSON の入力）。v0.1 草案（フェーズ0）からの変更点は 9章
 - 機械可読な定義: 正規化後は [ir.schema.json](../../../skills/aws-iac-diagram/data/schemas/ir.schema.json)、アダプタの出力は [ir-raw.schema.json](../../../skills/aws-iac-diagram/data/schemas/ir-raw.schema.json)（どちらも JSON Schema 2020-12）
 - 検証: `scripts/validate_ir.py`（スキーマ＋参照の整合＋出力形式）
-- 関連する規則表: [resource-catalog.md](../../../skills/aws-iac-diagram/references/resource-catalog.md)（型ごとの扱い・入れ子）、[relation-resources.md](../../../skills/aws-iac-diagram/references/relation-resources.md)（A1）、[edge-rules.md](../../../skills/aws-iac-diagram/references/edge-rules.md)（A2・A3・SG・IAM・合成ノード・辺にしない参照）
+- 関連する規則表（データは `skills/aws-iac-diagram/data/rules/`。説明は [docs/spec/rules/](../rules/README.md)）: [types.md](../rules/types.md)（型ごとの扱い）、[placement.md](../rules/placement.md)（入れ子・attrs）、[relations.md](../rules/relations.md)（A1）、[edges.md](../rules/edges.md)（A2・A3・SG・IAM・合成ノード・ラベル）、[refs.md](../rules/refs.md)（辺にしない参照）
 
 IR には2つの段階がある。
 

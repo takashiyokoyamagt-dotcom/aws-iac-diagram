@@ -46,9 +46,6 @@ RUNTIME_DATA = {
     "data/rules/types/integration.toml",
     "data/rules/types/merged-and-hidden.toml",
     "data/rules/types/network.toml",
-    "references/resource-catalog.md",                   # （移行前の草案。次のコミットで消す）
-    "references/relation-resources.md",                 # validate_ir.py
-    "references/edge-rules.md",                         # validate_ir.py
 }
 
 

@@ -56,7 +56,7 @@
 
 ## 4. IAM だけを作るモジュール（H-IAM）
 
-次の source（サブモジュールを含む）は、IAM のリソースだけを作る。アダプタは黒箱の呼び出し（`via: module_blackbox`）として出し、正規化が `hidden`（規則 `H-IAM`。ir-schema の 2章）にする。判定は `scripts/aws_iac_diagram/adapters/terraform/modules/summaries.py` の `iam_only()`（source の前方一致。ホスト名 `registry.terraform.io/` は除く）。ローカルモジュールは中身を読むので、リソースの型ごとに `H-IAM` になる（この一覧は使わない）。
+次の source（サブモジュールを含む）は、IAM のリソースだけを作る。アダプタは黒箱の呼び出し（`via: module_blackbox`）として出し、正規化が `hidden`（規則 `H-IAM`。ir-schema の 2章）にする。判定は `scripts/aws_iac_diagram/core/module_sources.py` の `iam_only()`（source の前方一致。ホスト名 `registry.terraform.io/` は除く。フェーズ 3 の手順 1 で TF アダプタの中から core へ移した。正規化は core しか import できないので、アダプタの診断の文言と正規化が同じ判定を使えるようにするため。一覧の読み込みもここ）。ローカルモジュールは中身を読むので、リソースの型ごとに `H-IAM` になる（この一覧は使わない）。
 
 一覧は `data/module-summaries/iam-only-sources.md`（今は `terraform-aws-modules/iam/aws` の 1 行）。
 

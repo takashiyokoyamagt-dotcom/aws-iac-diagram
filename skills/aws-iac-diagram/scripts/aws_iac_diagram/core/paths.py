@@ -5,7 +5,7 @@
 （作業ディレクトリや環境変数に依らない。SKILL のフォルダを日本語やスペースを含む場所に、別の深さに置いても同じ）。
 
 - `data/` : スクリプトが読むデータ（スキーマ、アイコンの辞書、モジュールの要約表）。1 ファイル 1 単位。
-- `references/` : エージェントが読む文書。今は移行前の規則表の草案 3 つ（`data/rules/` に移した後、手順 1 の次のコミットで消す）。
+- `references/` : エージェントが読む文書（手順書）の置き場。今は README.md だけ（規則表はスクリプトが読むデータなので `data/rules/` にある）。
 
 標準ライブラリだけを使い、ほかの層を import しない（core の決まり）。
 """
@@ -36,7 +36,3 @@ IAM_ONLY_SOURCES = MODULE_SUMMARIES_DIR / "iam-only-sources.md"
 # types/*.toml と relations.toml・edges.toml・refs.toml・placement.toml（README.md は読まない）
 RULES_DIR = DATA_DIR / "rules"
 RULES_TYPES_DIR = RULES_DIR / "types"
-
-# 移行前の規則表の草案（手順 1 の途中。次のコミットで消す）
-RULE_DOCS = tuple(REFERENCES_DIR / n for n in ("resource-catalog.md", "relation-resources.md", "edge-rules.md"))
-RESOURCE_CATALOG = REFERENCES_DIR / "resource-catalog.md"

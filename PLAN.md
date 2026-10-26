@@ -1,7 +1,7 @@
 # aws-iac-diagram 計画書
 
 - 作成日: 2026-10-14
-- 状態: **フェーズ2 完了**（2026-10-26。完了基準の「TF 版と CFN 版が同じ IR」は、ユーザーの決定でフェーズ3 の基準に分けた）。**フェーズ1 完了**（2026-10-17）。CloudFormation アダプタ（入口 `scripts/adapt_cfn.py`、本体 `scripts/aws_iac_diagram/adapters/cloudformation/`）が raw IR を出し、C1（cfn-lint のグラフとの照合、`aws-iac-diagram-workspace/tools/c1_check.py`）は対応の無い辺 0。Terraform アダプタ（入口 `scripts/adapt_tf.py`、本体 `scripts/aws_iac_diagram/adapters/terraform/`。.tf と plan JSON、A4、A5）は、公開サンプルの `.tf` のあるフォルダすべて（248）で error の診断 0（`aws-iac-diagram-workspace/tools/tf_public_check.py`）、自作5構成では正解 IR の TF 側の網羅分類と一致（`ExpectedIrTest`）。評価基準値は [evals/CRITERIA.md](aws-iac-diagram-workspace/evals/CRITERIA.md)。**フェーズ 2b（構成の階層化）は完了**（2026-10-26。R1: 出力の固定、骨組み、`lib/` の移動、依存の向きのテスト。R2: Terraform の分割、行数の免除を空に。R3: CloudFormation の分割、診断コードの一覧 `core/diagnostics.py`。R4: スクリプトが読むデータを `data/`（`schemas/`・`icons/`・`module-summaries/<モジュール>/v<major>.md`）へ、同梱ファイルの場所は `core/paths.py` の 1 か所。R5: テストを `tests/` の `unit/`・`integration/`・`golden/`・`architecture/` と共有の道具 `support/` に分け、置き場の決まりをテストで守る。R6: `SKILL.md` を入口だけにし、`ir-schema.md` を SKILL の外の `docs/spec/ir-schema/` に章ごとに分け、`references/` は規則表 3 つだけにし、`docs/architecture.md` と下の構成図を今の姿に直し、SKILL.md と文書のリンクを守るテストを足した）。層と拡張のしかたは [docs/architecture.md](docs/architecture.md)。**vpc 5.x・eks 20.x の要約表（A5）も完了**（2026-10-26。`data/module-summaries/` にファイルを足しただけで、ローダーと版の選び方のコードは変えていない。T16 の vpc 5.8.1・eks 20.8.5 と T18 の vpc `~> 5.0` は黒箱でなくなった。T18 の eks `~> 19.15.2` は 19.x の表を作らないので黒箱のまま）。次はフェーズ 3（正規化）。実行環境の方針は 1.2、**共通 Agent Skill の方針は 1.3**（1.1・1.2 より優先する）。**WSL での開発と使う環境は 1.5**、構成の階層化は 1.4（2026-10-24）。再開時は [docs/dev-notes/HANDOFF.md](docs/dev-notes/HANDOFF.md) から読むこと
+- 状態: **フェーズ 3（正規化）は手順 1（規則データ化。動きを変えない）まで実装済み**（2026-10-26。ブランチ `phase3-s1-rules`。草案の規則表 3 つを `skills/aws-iac-diagram/data/rules/` の TOML にし、`core/rules.py` で読み、`validate_ir.py` を付け替えた。golden 101/101 は不変。次は手順 2＝規則表の拡張〈約 40 型〉と凍結。設計案は [docs/dev-notes/phase3-design-draft.md](docs/dev-notes/phase3-design-draft.md)、経緯は WORKLOG の「フェーズ3 の手順1」）。**フェーズ2 完了**（2026-10-26。完了基準の「TF 版と CFN 版が同じ IR」は、ユーザーの決定でフェーズ3 の基準に分けた）。**フェーズ1 完了**（2026-10-17）。CloudFormation アダプタ（入口 `scripts/adapt_cfn.py`、本体 `scripts/aws_iac_diagram/adapters/cloudformation/`）が raw IR を出し、C1（cfn-lint のグラフとの照合、`aws-iac-diagram-workspace/tools/c1_check.py`）は対応の無い辺 0。Terraform アダプタ（入口 `scripts/adapt_tf.py`、本体 `scripts/aws_iac_diagram/adapters/terraform/`。.tf と plan JSON、A4、A5）は、公開サンプルの `.tf` のあるフォルダすべて（248）で error の診断 0（`aws-iac-diagram-workspace/tools/tf_public_check.py`）、自作5構成では正解 IR の TF 側の網羅分類と一致（`ExpectedIrTest`）。評価基準値は [evals/CRITERIA.md](aws-iac-diagram-workspace/evals/CRITERIA.md)。**フェーズ 2b（構成の階層化）は完了**（2026-10-26。R1: 出力の固定、骨組み、`lib/` の移動、依存の向きのテスト。R2: Terraform の分割、行数の免除を空に。R3: CloudFormation の分割、診断コードの一覧 `core/diagnostics.py`。R4: スクリプトが読むデータを `data/`（`schemas/`・`icons/`・`module-summaries/<モジュール>/v<major>.md`）へ、同梱ファイルの場所は `core/paths.py` の 1 か所。R5: テストを `tests/` の `unit/`・`integration/`・`golden/`・`architecture/` と共有の道具 `support/` に分け、置き場の決まりをテストで守る。R6: `SKILL.md` を入口だけにし、`ir-schema.md` を SKILL の外の `docs/spec/ir-schema/` に章ごとに分け、`references/` は規則表 3 つだけにし、`docs/architecture.md` と下の構成図を今の姿に直し、SKILL.md と文書のリンクを守るテストを足した）。層と拡張のしかたは [docs/architecture.md](docs/architecture.md)。**vpc 5.x・eks 20.x の要約表（A5）も完了**（2026-10-26。`data/module-summaries/` にファイルを足しただけで、ローダーと版の選び方のコードは変えていない。T16 の vpc 5.8.1・eks 20.8.5 と T18 の vpc `~> 5.0` は黒箱でなくなった。T18 の eks `~> 19.15.2` は 19.x の表を作らないので黒箱のまま）。次はフェーズ 3（正規化）。実行環境の方針は 1.2、**共通 Agent Skill の方針は 1.3**（1.1・1.2 より優先する）。**WSL での開発と使う環境は 1.5**、構成の階層化は 1.4（2026-10-24）。再開時は [docs/dev-notes/HANDOFF.md](docs/dev-notes/HANDOFF.md) から読むこと
 - 目的: Terraform と CloudFormation のコードを読み込み、AWS 構成図を draw.io・Mermaid・PNG の3形式で出力する Agent Skill を作る。1つの SKILL を Claude Code、VS Code + GitHub Copilot、GitHub Agentic Workflows（gh-aw）で共通に使う（1.3）
 
 ---
@@ -265,6 +265,7 @@ aws-iac-diagram/                     ← Skill 専用リポジトリ（正本）
 │   ├── skill-cross-platform-guide.md          # 共通 Agent Skill のガイド（1.3）
 │   ├── spec/
 │   │   ├── ir-schema/               # IR スキーマ。章ごとの 9 ファイル（01-overview.md … 09-changes-from-v0.1.md）と目次 README.md
+│   │   ├── rules/                   # 規則表（data/rules/）の説明。表は tools/render_rules.py がデータから生成
 │   │   └── module-summaries.md      # 要約表（data/module-summaries/）の説明
 │   └── dev-notes/                   # HANDOFF.md（再開用）・WORKLOG.md（作業の経緯）
 ├── .github/workflows/
@@ -278,13 +279,13 @@ aws-iac-diagram/                     ← Skill 専用リポジトリ（正本）
 │   └── architecture/                # 依存の向き・行数・診断コードの一覧・SKILL.md・文書のリンク・テストの置き場の検査（1.4 の 4）
 ├── skills/aws-iac-diagram/          ← 配布する SKILL。手元では ~/.claude/skills と ~/.copilot/skills からジャンクション
 │   ├── SKILL.md                     # 入口だけ（状態、コマンドの書き方、環境の確認、動くスクリプト）
-│   ├── references/                  # エージェントが読む文書。今は README.md と規則表 3 つ（resource-catalog.md・relation-resources.md・edge-rules.md。validate_ir.py が読む。フェーズ 3 で data/rules/ へ）
+│   ├── references/                  # エージェントが読む文書（手順書）。今は README.md だけ（規則表は手順 1 で data/rules/ へ移した）
 │   │                                #   【予定】workflow/（図を作る手順、あいまいな点の確かめ方、失敗したとき）、result-json.md（結果の読み方）はフェーズ 6
 │   ├── data/                        # スクリプトが読むデータ（1ファイル1単位）
 │   │   ├── schemas/                 #   ir.schema.json、ir-raw.schema.json
 │   │   ├── module-summaries/        #   terraform-aws-vpc/v5.md・v6.md、alb/v10.md、rds/v7.md、eks/v20.md・v21.md、iam-only-sources.md、NOTICE.md（A5）
 │   │   ├── icons/                   #   catalog.json、broken.json、カテゴリ別の一覧（生成物）
-│   │   └── rules/                   #   【予定・フェーズ3】型の扱い・関係リソース・辺の規則（A1〜A3）を表にする
+│   │   └── rules/                   #   型の扱い・関係リソース・辺の規則（A1〜A3）の表（TOML。types/*.toml、relations.toml、edges.toml、refs.toml、placement.toml）。説明は docs/spec/rules/、表の拡張は手順 2
 │   ├── assets/                      # vendor（draw.io の Sidebar-AWS4.js）など。Mermaid 用のアイコン JSON は同梱しない
 │   └── scripts/
 │       ├── doctor.py  validate_ir.py  adapt_tf.py  adapt_cfn.py  find_aws_icon.py
@@ -306,7 +307,7 @@ aws-iac-diagram/                     ← Skill 専用リポジトリ（正本）
 │           └── icons/               #   【予定・空】辞書の読み込みと検索。今の検索は scripts/find_aws_icon.py
 └── aws-iac-diagram-workspace/
     ├── fixtures/{tf,tf-plan,cfn,public}/…  expected/*.ir.json
-    ├── tools/                       # c1_check・check_coverage・golden・tf_public_check・make_plan_json など
+    ├── tools/                       # c1_check・check_coverage・golden・render_rules（規則表から docs/spec/rules/ の表を作る）・tf_public_check・make_plan_json など
     └── evals/                       # CRITERIA.md
 ```
 

@@ -1,11 +1,7 @@
 # references/
 
-ここにあるのは、正規化（フェーズ 3）で使う規則表の草案 3 つだけです。`scripts/validate_ir.py` が、規則の ID の照合のために読みます（場所は `scripts/aws_iac_diagram/core/paths.py` の `RULE_DOCS`）。フェーズ 3 で表にして `data/rules/` に移します。それまで、動かしたり消したりしないでください（`doctor.py` の必須ファイルの一覧にも入っています）。
+エージェントが読む手順書の置き場です。いまはまだ手順書がありません（フェーズ 6 で `workflow/` の手順書ができるまで、この案内だけです）。
 
-| ファイル | 内容 |
-|---|---|
-| [resource-catalog.md](resource-catalog.md) | 型ごとの扱い（描く・統合する・辺にする・非表示）と入れ子 |
-| [relation-resources.md](relation-resources.md) | 関係リソースを辺に変える規則（A1） |
-| [edge-rules.md](edge-rules.md) | 辺の向き・確信度（A2・A3）、SG・IAM・合成ノード、辺にしない参照 |
+規則表（型の扱い・関係リソース・辺の規則）は、スクリプトが読むデータなので `data/rules/` にあります（TOML。エージェントが直接読む必要はありません）。
 
-IR の仕様（スキーマの説明）と、モジュールの要約表の説明は、開発者向けの文書なので SKILL に含めていません。このリポジトリの `docs/spec/`（`ir-schema/` と `module-summaries.md`）にあります。
+IR の仕様（スキーマの説明）、規則表の説明、モジュールの要約表の説明は、開発者向けの文書なので SKILL に含めていません。このリポジトリの `docs/spec/`（`ir-schema/`、`rules/`、`module-summaries.md`）にあります。

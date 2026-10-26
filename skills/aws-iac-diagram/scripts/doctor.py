@@ -61,9 +61,6 @@ REQUIRED_FILES = [
     "data/rules/types/integration.toml",
     "data/rules/types/merged-and-hidden.toml",
     "data/rules/types/network.toml",
-    "references/edge-rules.md",
-    "references/relation-resources.md",
-    "references/resource-catalog.md",
     # scripts/ の .py（入口、パッケージ aws_iac_diagram/ のすべて）
     "scripts/adapt_cfn.py",
     "scripts/adapt_tf.py",

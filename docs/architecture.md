@@ -10,9 +10,9 @@
 aws-iac-diagram/
 ├── skills/aws-iac-diagram/        配る SKILL（これだけを取り込めば動く）
 │   ├── SKILL.md                   入口だけ（状態、コマンドの書き方、動くスクリプト）
-│   ├── references/                規則表 3 つ（resource-catalog.md・relation-resources.md・edge-rules.md）と README.md。validate_ir.py が読む。フェーズ 3 で data/rules/ へ
+│   ├── references/                エージェントが読む手順書の置き場。今は README.md だけ（フェーズ 6 で workflow/ が入る）
 │   ├── data/                      スクリプトが実行時に読むデータ（1 ファイル 1 単位）
-│   │   ├── schemas/  icons/  module-summaries/<モジュール>/v<major>.md      （rules/ はフェーズ 3）
+│   │   ├── schemas/  icons/  module-summaries/<モジュール>/v<major>.md  rules/（規則表。TOML）
 │   ├── assets/                    vendor（draw.io の Sidebar-AWS4.js）
 │   └── scripts/
 │       ├── doctor.py  validate_ir.py  find_aws_icon.py     入口（直下）
@@ -23,7 +23,7 @@ aws-iac-diagram/
 │           ├── core/  adapters/{terraform,cloudformation}/  normalize/  layout/  emit/  validate/  icons/  platform/
 ├── docs/                          開発者向け（配らない）
 │   ├── architecture.md            この文書
-│   ├── spec/                      仕様: ir-schema/（章ごと。README.md が目次）、module-summaries.md（要約表の説明）
+│   ├── spec/                      仕様: ir-schema/（章ごと。README.md が目次）、rules/（規則表の説明。表は data/rules/ から生成）、module-summaries.md（要約表の説明）
 │   ├── skill-cross-platform-guide.md   共通 Agent Skill のガイド（PLAN の 1.3）
 │   └── dev-notes/                 HANDOFF.md（再開用）・WORKLOG.md（作業の経緯）
 ├── tests/                         unit/ integration/ golden/ architecture/ と共有の道具 support/（7）
@@ -41,11 +41,11 @@ aws-iac-diagram/
 
 | 層 | 中身 | 状態 |
 |---|---|---|
-| `core` | raw IR の部品（印・パス・正規化の共通処理）`ir_raw.py`、診断コードの一覧 `diagnostics.py`（3 の「診断コードの一覧」）、同梱ファイルの場所 `paths.py`（3 の「データ（`data/`）」） | 3 ファイル |
+| `core` | raw IR の部品（印・パス・正規化の共通処理）`ir_raw.py`、診断コードの一覧 `diagnostics.py`（3 の「診断コードの一覧」）、同梱ファイルの場所 `paths.py`（3 の「データ（`data/`）」）、規則表の読み込みと検査 `rules.py`（3 の「規則表（`data/rules/`）」）、正規化後の IR の出力の形 `ir_norm.py`、TF のモジュールの source の見分けと IAM だけのモジュールの判定 `module_sources.py`。標準ライブラリだけを import する（`tests/architecture/test_core_isolation.py`） | 6 ファイル |
 | `adapters/terraform` | Terraform アダプタの中身（下の「Terraform アダプタの中身」）。入口は `scripts/adapt_tf.py` | 26 ファイル（`__init__.py` を除く） |
 | `adapters/cloudformation` | CloudFormation アダプタの中身（下の「CloudFormation アダプタの中身」）。入口は `scripts/adapt_cfn.py` | 15 ファイル（同上） |
 | `adapters`（`registry.py`） | 入力の形式 → アダプタのパッケージ名の表。形式を見分けて振り分ける処理は、入口 `diagram.py` を作るときに足す | 名前の表だけ |
-| `normalize` | 正規化（型別の表、A1〜A3、AZ の挿入、SG を辺に変換） | 空。フェーズ 3 |
+| `normalize` | 正規化（型別の表、A1〜A3、AZ の挿入、SG を辺に変換） | 空。フェーズ 3（規則表のデータ化〈手順 1〉は済み。`normalize` は `core/rules.py` の読み込みを使う） |
 | `layout` | 配置（枠と階層のグリッド計算、候補のスコア） | 空。フェーズ 4 |
 | `emit` | 出力（`drawio.py`・`mermaid.py`・`png.py`） | 空。フェーズ 4・5 |
 | `validate` | 検証（IR、`.drawio` の重なり・貫通） | 空。今の IR の検査は `scripts/validate_ir.py` にある（中身を移すのはフェーズ 4・5） |
@@ -174,19 +174,37 @@ aws-iac-diagram/
 
 ### データ（`data/`）
 
-スクリプトが実行時に開くファイルは、SKILL の `data/` に 1 ファイル 1 単位で置く。エージェントが読む文書は SKILL の `references/`（今は `validate_ir.py` が読む規則表 3 つと README.md だけ。フェーズ 3 で `data/rules/` に表にして移すまで、動かさない）。開発者向けの仕様は SKILL の外の `docs/spec/`（`ir-schema/` は章ごとの 9 ファイルと目次、`module-summaries.md` は要約表の説明）。
+スクリプトが実行時に開くファイルは、SKILL の `data/` に 1 ファイル 1 単位で置く。エージェントが読む文書（手順書）は SKILL の `references/`（今は README.md だけ。フェーズ 6 で `workflow/` が入る）。開発者向けの仕様は SKILL の外の `docs/spec/`（`ir-schema/` は章ごとの 9 ファイルと目次、`rules/` は規則表の説明、`module-summaries.md` は要約表の説明）。
 
 | 場所 | 中身 | 読むもの |
 |---|---|---|
 | `data/schemas/` | `ir.schema.json`・`ir-raw.schema.json` | `scripts/validate_ir.py` |
 | `data/icons/` | `catalog.json`（機械用の辞書）、カテゴリ別の `.md`、`broken.json`（`check_icons.py` の出力）。生成物 | `scripts/find_aws_icon.py`（`catalog.json` だけ）。`maintenance/` の 2 つが書く |
 | `data/module-summaries/<モジュール>/v<major>.md` | A5 の要約表（HCL）。サブモジュールの表は親と同じファイル。`iam-only-sources.md` は H-IAM の source の一覧 | `adapters/terraform/modules/summaries.py` |
-| `data/rules/` | （フェーズ 3 で、型の扱い・関係リソース・辺の規則を表にして置く。今は `references/` の 3 つの規則表を `validate_ir.py` が読む） | — |
+| `data/rules/` | 規則表（TOML）: `types/*.toml`（型の扱い）・`relations.toml`・`edges.toml`・`refs.toml`・`placement.toml`。下の「規則表（`data/rules/`）」 | `core/rules.py`（`scripts/validate_ir.py` が使う。フェーズ 3 の `normalize/` も） |
 
-- **場所の決め方は `aws_iac_diagram/core/paths.py` の 1 か所**（`SKILL_DIR`＝自分の場所から 3 つ上。`IR_SCHEMA`・`IR_RAW_SCHEMA`・`ICON_CATALOG`・`MODULE_SUMMARIES_DIR`・`RULE_DOCS` など）。読む側は定数を使い、`parents[N]` や `"data" / …` を直接書かない（`tests/architecture/test_doctor_required_files.py` が、スクリプトの `"references" / "…"`・`"data" / "…"` の連なりを見つけて失敗にする）。標準ライブラリだけを使い、ほかの層を読まない（core の決まり）。`doctor.py` だけは、パッケージが欠けていても動くために、自分で `SKILL_DIR` を決める。
+- **場所の決め方は `aws_iac_diagram/core/paths.py` の 1 か所**（`SKILL_DIR`＝自分の場所から 3 つ上。`IR_SCHEMA`・`IR_RAW_SCHEMA`・`ICON_CATALOG`・`MODULE_SUMMARIES_DIR`・`IAM_ONLY_SOURCES`・`RULES_DIR` など）。読む側は定数を使い、`parents[N]` や `"data" / …` を直接書かない（`tests/architecture/test_doctor_required_files.py` が、スクリプトの `"references" / "…"`・`"data" / "…"` の連なりを見つけて失敗にする）。標準ライブラリだけを使い、ほかの層を読まない（core の決まり）。`doctor.py` だけは、パッケージが欠けていても動くために、自分で `SKILL_DIR` を決める。
+### 規則表（`data/rules/`）
+
+型の扱い・関係リソース・辺の規則（草案の Markdown の表 3 つを、フェーズ 3 の手順 1 で意味を変えずにデータにしたもの）。TOML で、標準ライブラリの `tomllib` だけで読む（PEP 723 の依存は増えない）。説明の文章（なぜそうするか）は SKILL の外の `docs/spec/rules/`。
+
+| ファイル | 表 | 中身 |
+|---|---|---|
+| `types/*.toml`（名前の昇順） | `[[type]]` | 描く型 22（`network`・`compute`・`data-stores`・`integration`・`ai-analytics`）、統合 M-* 9 と非表示 H-* 12（`merged-and-hidden`）。TF と CFN の型を 1 行に並べる |
+| `relations.toml` | `[[relation]]` | R-* 13（関係リソース → 辺） |
+| `edges.toml` | `[[confidence]]` `[[edge]]` `[[kind_by_target]]` `[[iam_action_kind]]` `[[merge_priority]]` `[[synthetic]]` `[[label_format]]` | 確信度、辺の規則 E-*、kind の対応表、まとめ方の優先順、合成ノード N-*、ラベルの書式 |
+| `refs.toml` | `[[noedge]]` `[[nonode]]` | E-NOEDGE-* 7、E-REF-NONODE |
+| `placement.toml` | `[[placement]]` `[[attr]]` | 入れ子 N-AZ・P-*、attrs の取り方 |
+
+- **読むのは `core/rules.py` の 1 か所**（`rules.default()` が読んで検査した結果を 1 回だけ作る）。`validate_ir.py` は規則 ID の集合・入力の型 → 正規の型名の対応・合成ノードの型・`class` と接頭辞の対応をここから取り、表を自分では読まない。フェーズ 3 の `normalize/` も同じ関数を使う。
+- **読み込みの検査**: 構造（未知の列・必須の列・列の型）、ID の形・重複・接頭辞と `class`（`H-` は hidden、`M-`・`R-` は merged_into、描く型は接頭辞なし）、同じ入力の型が複数の行に当たるのは `when`（同じ属性の `in` が重ならない、`via` と `via_not`）で同時に成り立たないときだけ、参照先の存在（`into.node_types`・`placement.types` は描く型、`fallback` は H-*、`use`・`except_rules`・優先順は規則 ID）、確信度の表と各規則の確信度が合う、辺にしない参照の属性名の中立キー（小文字にして `_` を除く。`vpc_id` と `VpcId` は同じ）が重ならない。問題はすべて集めて `RulesError` にする（`validate_ir.py` は終了コード 2）。読む順は名前の昇順で、ディレクトリの列挙の順や OS に依らない。
+- **規則を足す・直す**: データの該当のファイルに行を足す（上の表。コードは変えない）→ `uv run python aws-iac-diagram-workspace/tools/render_rules.py --write` で `docs/spec/rules/` の表を作り直す（生成物は `<!-- rules-table: … -->` の間。直接直さない）→ 理由を `docs/spec/rules/` の文書に書く → テストを流す。規則 ID は、正解 IR・golden・文書が参照するので、名前も意味も変えない・消さない・使い回さない。ファイルを足したら（`types/` の新しい領域など）`doctor.py` の `REQUIRED_FILES` と `tests/architecture/test_doctor_required_files.py` の `RUNTIME_DATA` にも足す。列を足したら `core/rules.py` の列の定義と `render_rules.py` の `COLUMN_DOC` を直す。
+- **テスト**: `tests/unit/core/test_rules.py`（出荷した表の不変量、わざと壊した表のコピーがはっきりしたエラーになる変異テスト、読む順が列挙の順に依らない）、`tests/architecture/test_rules_docs.py`（`render_rules.py --check` と同じ。データと文書の生成部分が食い違わない）、`tests/architecture/test_core_isolation.py`（core は標準ライブラリと core だけを import）、`tests/architecture/test_doctor_required_files.py`（規則表のどのファイルが欠けても doctor は終了コード 2）。
+- **手順 1 で決めたこと**: `H-IAM` の「IAM だけのモジュール」の判定 `iam_only()` と一覧の読み込みは、TF アダプタの中から `core/module_sources.py` に移した（正規化は core しか import できないので、アダプタの診断の文言と正規化が同じ判定を使えるようにするため。一覧のファイル `data/module-summaries/iam-only-sources.md` は動かしていない）。`data = true` の行（`vpc`・`subnet`・`s3_bucket`）は、既存インフラを指す `data` を描く方針をデータに持たせたもので、使うのは手順 3 以降（`validate_ir.py` は読まない）。
+
 - **`tests/unit/core/test_paths.py`**: `paths.py` の定数がすべて実在する／SKILL を日本語・スペースを含む別の深さにコピーしても定数がコピーの中を指す／要約表のフォルダの読み込み（`v6` は `v10` の前。フォルダとファイル 1 つが同じ結果。無い・空のフォルダは「表が無い」）。
-- **配るファイルの一覧は `doctor.py` の `REQUIRED_FILES`**。実行時のデータを足す・移すと、`tests/architecture/test_doctor_required_files.py`（`RUNTIME_DATA` と `core/paths.py` と実際のファイルの 3 つが同じ）が落ちる。`references/README.md` は実行時に読まないので、一覧に入れない。
-- **SKILL.md を直したら** `tests/architecture/test_skill_entry.py` を流す（書いてあるスクリプトとオプションが実在する、コマンドが 1 行でシェルの機能を使わない、入口のスクリプトがすべて書いてある、`references/` が規則表と README.md だけ、など）。
+- **配るファイルの一覧は `doctor.py` の `REQUIRED_FILES`**。実行時のデータを足す・移すと、`tests/architecture/test_doctor_required_files.py`（`RUNTIME_DATA` と `core/paths.py` と実際のファイルの 3 つが同じ）が落ちる。`references/README.md`・`data/rules/README.md` は実行時に読まないので、一覧に入れない（規則表は `data/rules/` の `.toml` だけが一覧とテストの対象）。
+- **SKILL.md を直したら** `tests/architecture/test_skill_entry.py` を流す（書いてあるスクリプトとオプションが実在する、コマンドが 1 行でシェルの機能を使わない、入口のスクリプトがすべて書いてある、`references/` が README.md だけ、など）。
 - **要約表のファイルは名前で決まる**: ローダーが読むのは `<モジュール>/v<数字>.md`（1 階層下）と直下の `iam-only-sources.md` だけ（大文字小文字を区別して完全一致。並べ方は (モジュールのフォルダ名, major の数, パス)。ディレクトリの列挙の順や OS に依らない）。`NOTICE.md`（Apache-2.0 のソースを写した表の出典とライセンスの表示。実行時には読まないが配る物なので、doctor の一覧と `RUNTIME_DATA` に入れてある。読まれない .md を許すのはこれだけ: `summaries.DOC_FILES`）や、綴りの違う .md は、中にマーカーがあっても読まない。`summaries.problems()` が、読まれない .md、空のファイル、コードブロックの無いマーカー、ファイル名の major と `majors` のずれ、フォルダ名と source のずれ、同じ (source, major) の表が複数あること、`v06.md` のような正規でない名前を知らせる（`tests/unit/core/test_paths.py` が出荷した表を調べる。doctor は `summaries` を import できるときだけ調べ、`skill.table_problems` に出して error にする。パッケージが欠けていれば調べない）。
 - **欠けの扱い**: 要約表が 1 つも読めないとき、または `summaries.KNOWN_MODULES`（vpc・alb・rds・eks。出荷した表の最上位の source と同じことをテストが確かめる）の表がフォルダに 1 つも無いとき（モジュールのフォルダごと欠けた）は、レジストリモジュールの呼び出しが `TF-MODULE-SUMMARY-TABLE-MISSING`（warn）になる（`resolve.blackbox_plan`）。**限界:** モジュールの表はあるが、呼び出しの版の major のファイルだけが無いときは、黒箱の info（`TF-MODULE-BLACKBOX`）で、欠けは doctor の `REQUIRED_FILES` が知らせる。表を足したら（別のモジュール）`KNOWN_MODULES` にも足す。
 - 要約表の診断の文言に入るパスは `data/module-summaries/`（golden の 14 ケースがこのパスを含む。5 の最後から 2 つ目）。
@@ -216,7 +234,7 @@ aws-iac-diagram/
 | 入力の形式を足す | `adapters/<名前>/` を作り（`__init__.py` と本体）、`scripts/adapt_<名前>.py`（入口）を足し、`adapters/registry.py` の表に書く。`ALLOWED` とこの文書の表（3 の表と、`adapters/<名前>` のグループの表）に層を足す。`doctor.py` の `REQUIRED_FILES` に新しいファイルを足す。`SKILL.md` の「動くスクリプト」に 1 行足す（`tests/architecture/test_skill_entry.py` が、入口のスクリプトの書き忘れを失敗にする）。golden にケースを足す（5 の手順） |
 | 出力の形式を足す | `emit/<名前>.py` を足す（`emit` は `core`・`layout`・`icons`・`platform` を読んでよい。3 の表）。入口 `diagram.py`（フェーズ 5〜6）から呼ぶ。`doctor.py` の `REQUIRED_FILES` に足す |
 | モジュールの要約表を足す | `data/module-summaries/<モジュール>/v<メジャー>.md` を足す（形式は `docs/spec/module-summaries.md`。サブモジュールの表は親と同じファイル）。`doctor.py` の `REQUIRED_FILES` と `tests/architecture/test_doctor_required_files.py` の `RUNTIME_DATA` と、新しいモジュールのときは `summaries.KNOWN_MODULES` にも足す。コードは変えない（`<モジュール>/v<数字>.md` を決まった順序で全部読む） |
-| 型の扱いを足す | フェーズ 3 で `data/rules/` を作る。それまでは `references/` の規則表（`validate_ir.py` が規則の ID の照合に読む）に行を足す |
+| 型の扱い・関係リソース・辺の規則を足す | `data/rules/` の該当のファイルに行（`[[type]]` など）を足す（コードは変えない。ID は既存の名前を変えない・消さない）。`render_rules.py --write` で `docs/spec/rules/` の表を作り直し、理由を該当の文書に書く。下の「規則表（`data/rules/`）」 |
 | 診断コードを足す | `core/diagnostics.py` の表に足し、`docs/spec/ir-schema/07-raw-output.md` の 7.5 にも書く（一覧に無いコードを使う・一覧のコードを使わないとテストが落ちる。`tests/architecture/test_diagnostics_registry.py` と `tests/architecture/test_diagnostics.py`）。出力が変わるときは golden も更新する（5） |
 | 辞書を作り直す | `scripts/maintenance/build_icon_catalog.py`、`check_icons.py`（README の「アイコン辞書」）。出力は `data/icons/`。作り直しても `catalog.json` の場所と形が同じなら、コードは変えない |
 | スキーマ・仕様を直す | `data/schemas/ir.schema.json`・`ir-raw.schema.json`（読むのは `validate_ir.py`）。説明の `docs/spec/ir-schema/` の該当の章と同じコミットで直し、`tests/unit/validate/test_ir_schema_v1.py` を流す。章・節の番号は変えない（`docs/spec/ir-schema/README.md`） |
@@ -241,7 +259,7 @@ tests/
 ├── integration/    自作 fixture・plan JSON の fixture・公開サンプルを、入口のスクリプトや CLI（adapt_tf.py など）から通す
 │   ├── test_cli_paths.py（日本語とスペースを含むパス）  terraform/  cloudformation/
 ├── golden/         manifest.json と test_golden.py（5 の、固定した raw IR とのバイト単位の比較）
-└── architecture/   依存の向き、アダプタの中の順序、診断コードの一覧、行数、doctor の同梱ファイル、SKILL.md、文書のリンクとパス、tests/ 自体の置き場
+└── architecture/   依存の向き、core の import（標準ライブラリだけ）、アダプタの中の順序、診断コードの一覧、行数、doctor の同梱ファイル、規則表と文書の一致、SKILL.md、文書のリンクとパス、tests/ 自体の置き場
 ```
 
 | 書きたいテスト | 置く所 |

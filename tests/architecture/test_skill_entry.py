@@ -74,12 +74,14 @@ class SkillEntryTest(unittest.TestCase):
         self.assertEqual(problems_in(text, entry_scripts(), self.sources()), [])
         self.assertGreaterEqual(len(commands(text)), 5)  # 空振りの防止
 
-    def test_references_hold_only_the_runtime_rule_docs(self):
-        # references/ は、validate_ir.py が読む規則表 3 つ（core/paths.py の RULE_DOCS）と、その説明の README.md だけ。
-        # 開発者向けの仕様（ir-schema など）は SKILL の外の docs/spec/ に置く（PLAN の 1.4 の 2）
-        from aws_iac_diagram.core import paths
+    def test_references_hold_only_the_readme(self):
+        # references/ は、エージェントが読む手順書の置き場で、手順書ができる（フェーズ 6）まで README.md だけ。
+        # スクリプトが読むものは data/（規則表は data/rules/）、開発者向けの仕様（ir-schema・rules など）は SKILL の外の docs/spec/ に置く（PLAN の 1.4 の 2）
         on_disk = {p.name for p in (SKILL / "references").iterdir()}
-        self.assertEqual(on_disk, {p.name for p in paths.RULE_DOCS} | {"README.md"})
+        self.assertEqual(on_disk, {"README.md"})
+        # 規則表は references/ ではなく data/rules/ にある（旧い 3 つの草案が戻っていない）
+        self.assertFalse(any((SKILL / "references" / n).exists() for n in ("resource-catalog.md", "relation-resources.md", "edge-rules.md")))
+        self.assertTrue((SKILL / "data" / "rules" / "relations.toml").is_file())
 
     def test_states_what_is_not_available(self):
         body = SKILL_MD.read_text(encoding="utf-8")

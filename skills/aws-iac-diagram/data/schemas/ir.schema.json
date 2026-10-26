@@ -70,7 +70,7 @@
       "required": ["id", "type", "category", "name", "label", "parent"],
       "properties": {
         "id": {"$ref": "#/$defs/node_id"},
-        "type": {"type": "string", "pattern": "^[a-z0-9_]+$", "description": "resource-catalog.md の正規の型名"},
+        "type": {"type": "string", "pattern": "^[a-z0-9_]+$", "description": "規則表（data/rules/types/）の正規の型名"},
         "category": {"enum": ["resource", "group", "external"]},
         "name": {"type": "string", "minLength": 1, "description": "B3 の採用順で決めた名前（評価後の値）。合成ノード以外は id の key = name を小文字にして [a-z0-9._-] 以外を - にしたもの"},
         "label": {"type": "string", "minLength": 1, "description": "表示名。v0.1 は合成ノード以外 name と同じ。省略・日本語化は label だけを変える"},
