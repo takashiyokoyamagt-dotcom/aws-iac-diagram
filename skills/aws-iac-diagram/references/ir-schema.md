@@ -353,12 +353,19 @@ canonical 部の **すべての辺** について、形式ごとに1件ずつ、
 
 - `level` は `info`（読み替えなど、結果に影響しない）／`warn`（評価できなかった値があり、図が不完全になりうる）／`error`（そのリソースか、ファイルを読めなかった）。
 - `code` は大文字で、raw では `CFN-…`／`TF-…`。正規化後の IR にも同じ形の `diagnostics` を持たせ、そこでは `NORM-…`（「使わなかった参照」、「条件が決まらない」など。edge-rules.md）。一覧は各段階の実装と一緒に決める。
-- TF アダプタの `code` の一覧（43 個。テスト `tests/test_tf_public.py` の `test_diagnostic_codes_are_documented` が、コードとこの一覧が食い違わないことを確かめる）:
+- **診断コードの一覧の正は `scripts/aws_iac_diagram/core/diagnostics.py`**（コードごとの level と短い説明。アダプタのコードにある `TF-…`・`CFN-…` の文字列がそこに無いと、そこにあって使われていないと、`tests/test_architecture.py` が落ちる。この章の一覧と同じであることは `tests/test_diagnostics.py` が確かめる）。コードを足す・level を変えるときは、両方と `tests/golden/`（出力が変わるとき）を同じコミットで直す。同じコードが場所によって level を変えるものがある（下の「warn／info」などの書き方）。
+- TF アダプタの `code` の一覧（43 個）:
   - 読み込み: `TF-PARSE-ERROR`（error。ファイルを読めない。ほかのファイルは読む）、`TF-HEREDOC-TRAILING-SPACE`（info）、`TF-DUPLICATE-BLOCK`・`TF-MALFORMED-BLOCK`・`TF-OVERRIDE-UNMATCHED`・`TF-TFJSON-UNSUPPORTED`（warn。`.tf.json` は .tf だけでは読まない。plan JSON と一緒のときは info）、`TF-ROOT-OTHER-DRIVE`（`root` が別のドライブで、名前だけを書いた）・`TF-VARFILE-OTHER-DRIVE`（どちらも info）。
   - 変数と評価: `TF-UNRESOLVED-VAR`（値の無い変数。使ったところごと）・`TF-UNRESOLVED-VARS`（info。値の無い変数と `*.tfvars` の候補のまとめ）、`TF-SENSITIVE-VAR`（info）、`TF-VAR-UNDECLARED`・`TF-VAR-INVALID`（warn。変数の値の渡し方）、`TF-UNEVALUATED`（決まらない値を含む演算・関数、ファイルを読む関数など。`self`・要約表の `path.module` などは info）、`TF-UNSUPPORTED-FUNCTION`、`TF-EVAL-ERROR`（Terraform なら誤りになる式）、`TF-UNDEFINED-REF`、`TF-CYCLE`、`TF-EPHEMERAL`（info）。
   - count・for_each: `TF-COUNT-UNRESOLVED`（warn。×N）、`TF-COUNT-INDEX`（info。×N と作られないブロックの `count.index`・`each.*`）。
   - モジュールとプロバイダ（7.2 の「TF のモジュール」。モジュールの呼び出しの診断の `address` は呼び出しのインスタンスの address で、リソースではない）: `TF-MODULE-BLACKBOX`・`TF-MODULE-SUMMARY`・`TF-MODULE-SUMMARY-INPUT`・`TF-MODULE-NOT-CREATED`（info）、`TF-MODULE-UNREADABLE`・`TF-MODULE-CYCLE`・`TF-MODULE-DEPTH`・`TF-MODULE-SUMMARY-OUTPUT`・`TF-MODULE-SUMMARY-TABLE-MISSING`（warn。要約表 `references/module-summaries.md` が無い・読めないのに、レジストリモジュールの呼び出しがある。取り込みの不備なので、`TF-MODULE-BLACKBOX` ではなくこちらを出す）、`TF-PROVIDER-UNCONFIGURED`（info）。
   - plan JSON（7.2 の「TF の plan JSON」）: `TF-PLAN-UNKNOWN`・`TF-PLAN-SENSITIVE`・`TF-PLAN-DYNAMIC-BLOCK`・`TF-PLAN-LOCALS`・`TF-PLAN-NOT-PLANNED`・`TF-PLAN-EXTRA-REF`・`TF-PLAN-PATH-OUTSIDE`・`TF-PLAN-LITERAL-ONLY`（info）、`TF-PLAN-ERRORED`・`TF-PLAN-INCOMPLETE`・`TF-PLAN-MISMATCH`（warn）、`TF-PLAN-DESTROY`（destroy の plan は warn、一部だけなら info）。
+- CFN アダプタの `code` の一覧（19 個。TF と同じく、`diagnostics.py` と同じであることをテストが確かめる。書き方は「`コード`（level。説明）」）:
+  - 読み込みと入力: `CFN-ABSOLUTE-ROOT`（info。`root` が `--root-base` と別のドライブで、絶対パスで書いた）、`CFN-CDK-STACKNAME-DUPLICATE`（info。cdk.out で同じ stackName が複数あり、address には artifact の ID を使った）、`CFN-MALFORMED-RESOURCE`（error。リソースの形が誤り: 本体がオブジェクトでない、Type が無い、Fn::ForEach の形が誤り）、`CFN-NESTED-UNREADABLE`（error／warn。ネストスタックの子テンプレートを読めない（error）、見つからない（warn。黒箱のモジュールにする。7.4））、`CFN-NESTED-CYCLE`（error／warn。ネストスタックが自分自身を含む。子の展開で見つけたら error、出力をたどる途中なら warn）。
+  - パラメータ: `CFN-UNRESOLVED-PARAM`（warn。値も Default も無い。使ったところごと）、`CFN-SSM-PARAM`（warn。SSM のパラメータ型。値は決まらない）、`CFN-PARAM-NOT-ALLOWED`（warn。渡した値が AllowedValues に無い）、`CFN-PARAM-UNUSED`（info。`--param`・`--param-file` で渡した名前が Parameters に無い）。
+  - 評価: `CFN-UNEVALUATED`（warn。Fn::Base64・Fn::Cidr・Fn::Transform など評価しない値、決まらない式。値は `$unknown`）、`CFN-DYNAMIC-REF`（warn。`{{resolve:…}}`）、`CFN-UNDEFINED-REF`（warn。定義の無い名前への Ref・GetAtt・Sub・DependsOn、子に無い出力への参照）、`CFN-MAPPING-MISSING`（warn。Fn::FindInMap の引く先が Mappings に無い）。
+  - 条件と ForEach（A4）: `CFN-CONDITION-UNKNOWN`（warn／info。条件の値が決まらない。Fn::If は warn、リソース・Export の Condition は info）、`CFN-UNDEFINED-CONDITION`（warn）、`CFN-CONDITION-CYCLE`（error）、`CFN-FOREACH-UNRESOLVED`（warn。Fn::ForEach の集まりが決まらない。×N で出す）、`CFN-FOREACH-DUPLICATE`（error。展開した名前が重なった。後のものは無視する）。
+  - Export: `CFN-EXPORT-CONFLICT`（warn。同じ Export の名前が複数。最初のものを使う）。
 - `diagnostics` は `result.json` にそのまま載せる。`error` があっても、読めた分の IR は出す（終了コードは PLAN 1.3 の 4 に従う）。
 
 ## 8. 決めなかったこと（後のフェーズで決める）

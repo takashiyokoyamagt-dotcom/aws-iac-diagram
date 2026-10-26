@@ -18,12 +18,17 @@ import shutil
 import sys
 import tempfile
 import unittest
+from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS = ROOT / "skills" / "aws-iac-diagram" / "scripts"
 PACKAGE = "aws_iac_diagram"
 ARCH_DOC = ROOT / "docs" / "architecture.md"
+
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))
+from aws_iac_diagram.core import diagnostics  # noqa: E402
 
 # --------------------------------------------------------------------------------------------------------------
 # 設定
@@ -346,6 +351,103 @@ def violations_in_size(scripts: Path, exempt: dict[str, dict] = EXEMPT, warn: li
             problems.append(f"EXEMPT の {rel} が存在しない。免除を消す")
         if not all(k in ex for k in ("since", "ceiling", "remove_in", "reason")) or not re.fullmatch(r"\d{4}-\d\d-\d\d", ex["since"]):
             problems.append(f"EXEMPT の {rel}: since（日付）・ceiling・remove_in・reason が要る")
+    return problems
+
+
+# --------------------------------------------------------------------------------------------------------------
+# 診断コードの一覧（core/diagnostics.py）の検査（PLAN の 1.4 の 4）
+# --------------------------------------------------------------------------------------------------------------
+
+# 一覧にあって、アダプタのコードで使われていないことを許すコード（コード → 理由）。増やさない（空）。
+# 古い許可は残らない（使われている・一覧に無いコードの許可は失敗する）。
+UNUSED_ALLOW: dict[str, str] = {}
+
+DIAG_LEVELS = set(diagnostics.LEVELS)
+DIAG_PREFIXES = tuple(p + "-" for p in diagnostics.PREFIXES)
+
+
+@dataclass(frozen=True)
+class CodeSite:
+    rel: str
+    line: int
+    code: str
+    use: bool  # 出すか渡す位置にある（比較の右辺や、コードの集合の中は False）
+    levels: tuple[str, ...]  # 同じ呼び出し・タプル・辞書に、level の文字列が直接書いてあれば、それ
+
+
+def diagnostic_scan_files(scripts: Path) -> list[Path]:
+    """診断コードを書くコードの範囲: アダプタの入口（scripts/adapt_*.py）と aws_iac_diagram/adapters/ の下のすべて。
+    正規化の NORM-…（フェーズ 3 以降）は、その層が育つとき、この範囲を広げて一覧に足す。"""
+    files = sorted(scripts.glob("adapt_*.py"))
+    files += sorted(p for p in (scripts / PACKAGE / "adapters").rglob("*.py") if "__pycache__" not in p.parts)
+    return files
+
+
+def _literal_levels(nodes) -> tuple[str, ...]:
+    return tuple(n.value for n in nodes if isinstance(n, ast.Constant) and isinstance(n.value, str) and n.value in DIAG_LEVELS)
+
+
+def scan_diagnostic_codes(scripts: Path) -> tuple[list[CodeSite], list[str]]:
+    """範囲のコードにある診断コードの文字列（`^[A-Z][A-Z0-9]*(-[A-Z0-9]+)+$`）の位置と、
+    接頭辞（TF-・CFN-）で始まるのにコードの形でない文字列（"TF-" + 名前、f"TF-{x}" などの組み立て、打ち間違い）の問題。"""
+    sites: list[CodeSite] = []
+    problems: list[str] = []
+    for path in diagnostic_scan_files(scripts):
+        rel = path.relative_to(scripts).as_posix()
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        parent: dict[ast.AST, ast.AST] = {}
+        for n in ast.walk(tree):
+            for c in ast.iter_child_nodes(n):
+                parent[c] = n
+        for n in ast.walk(tree):
+            if not (isinstance(n, ast.Constant) and isinstance(n.value, str)):
+                continue
+            if not diagnostics.CODE_PATTERN.match(n.value):
+                if n.value.startswith(DIAG_PREFIXES):
+                    problems.append(f"{rel}:{n.lineno}: {n.value!r} は診断コードの形でないのに、コードの接頭辞で始まる"
+                                    "（コードは 1 つの文字列で書く。組み立てない）")
+                continue
+            p = parent.get(n)
+            levels: tuple[str, ...] = ()
+            if isinstance(p, ast.keyword):
+                p = parent.get(p)
+            if isinstance(p, ast.Call):
+                levels = _literal_levels([*p.args, *(k.value for k in p.keywords)])
+            elif isinstance(p, (ast.Tuple, ast.List)):
+                levels = _literal_levels(p.elts)
+            elif isinstance(p, ast.Dict):
+                levels = _literal_levels(v for k, v in zip(p.keys, p.values)
+                                         if isinstance(k, ast.Constant) and k.value == "level")
+            # 比較の相手（`d["code"] == "TF-X"`、`in ("TF-X", …)`）とコードの集合（{"TF-X", …}）は、コードを出す位置ではない
+            holder = parent.get(p) if isinstance(p, (ast.Tuple, ast.List, ast.Set)) else p
+            use = not (isinstance(p, (ast.Set, ast.Compare)) or isinstance(holder, ast.Compare))
+            sites.append(CodeSite(rel, n.lineno, n.value, use, levels))
+    return sites, problems
+
+
+def violations_in_diagnostics(scripts: Path, registry: dict[str, tuple[str, ...]],
+                              unused_allow: dict[str, str] = UNUSED_ALLOW) -> list[str]:
+    """registry = コード → 出うる level。範囲のコードのコードが一覧に無い、一覧のコードが使われていない、
+    コードのそばに書いた level が一覧に無い、を返す。"""
+    sites, problems = scan_diagnostic_codes(scripts)
+    for s in sites:
+        if s.code not in registry:
+            problems.append(f"{s.rel}:{s.line}: 診断コード {s.code} が core/diagnostics.py の一覧に無い（一覧と ir-schema.md の 7.5 に足す）")
+        else:
+            for lv in s.levels:
+                if lv not in registry[s.code]:
+                    problems.append(f"{s.rel}:{s.line}: {s.code} を level {lv} で出している（一覧の levels は {'/'.join(registry[s.code])}）")
+    used = {s.code for s in sites if s.use}
+    for code in sorted(registry):
+        if code not in used and code not in unused_allow:
+            problems.append(f"診断コード {code} は一覧にあるが、アダプタのコードのどこでも出していない（一覧から消す。残すなら UNUSED_ALLOW に理由を書く）")
+    for code, why in unused_allow.items():
+        if code not in registry:
+            problems.append(f"UNUSED_ALLOW の {code} が一覧に無い。許可を消す")
+        elif code in used:
+            problems.append(f"UNUSED_ALLOW の {code} は使われている。許可を消す")
+        elif not why.strip():
+            problems.append(f"UNUSED_ALLOW の {code} に理由が無い")
     return problems
 
 
@@ -749,6 +851,133 @@ class CloudFormationOrderTest(unittest.TestCase):
         f.write_text(f.read_text(encoding="utf-8") + "\nfrom aws_iac_diagram.adapters import registry\n", encoding="utf-8", newline="\n")
         problems, _ = violations_in_dependencies(s)
         self.assertTrue(any("層 adapters/cloudformation は層 adapters" in p for p in problems), problems)
+
+
+class DiagnosticRegistryRuleTest(unittest.TestCase):
+    """アダプタが出す診断コードは、すべて core/diagnostics.py の一覧にある（逆も）。PLAN の 1.4 の 4。"""
+
+    REGISTRY = {c: d.levels for c, d in diagnostics.DIAGNOSTICS.items()}
+
+    def copy_tree(self) -> Path:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        dst = Path(tmp.name) / "scripts"
+        shutil.copytree(SCRIPTS, dst, ignore=shutil.ignore_patterns("__pycache__"))
+        return dst
+
+    def append(self, scripts: Path, relpath: str, text: str) -> None:
+        f = scripts / relpath
+        f.write_text(f.read_text(encoding="utf-8") + "\n" + text + "\n", encoding="utf-8", newline="\n")
+
+    def problems(self, scripts: Path, registry=None, unused_allow=None) -> list[str]:
+        return violations_in_diagnostics(scripts, self.REGISTRY if registry is None else registry,
+                                         UNUSED_ALLOW if unused_allow is None else unused_allow)
+
+    def test_real_tree_matches_the_registry(self):
+        self.assertEqual(self.problems(SCRIPTS), [])
+        sites, bad = scan_diagnostic_codes(SCRIPTS)
+        self.assertEqual(bad, [])
+        # 空振りの防止: 実際のコードの文字列を見つけている。TF と CFN の両方、集合・比較の位置と、level を書いた位置も
+        self.assertEqual({s.code for s in sites}, set(self.REGISTRY))
+        self.assertTrue(any(s.code.startswith("TF-") and s.use for s in sites))
+        self.assertTrue(any(s.code.startswith("CFN-") and s.use for s in sites))
+        self.assertTrue(any(not s.use for s in sites))
+        self.assertTrue(any(s.levels for s in sites))
+        # 入口の adapt_cfn.py・adapt_tf.py も範囲に入っている
+        files = {p.name for p in diagnostic_scan_files(SCRIPTS)}
+        self.assertTrue({"adapt_cfn.py", "adapt_tf.py", "build.py", "stack.py", "module_expr.py"} <= files)
+
+    def test_unused_allowlist_is_empty(self):
+        self.assertEqual(UNUSED_ALLOW, {})
+
+    def test_scan_copy_is_clean_before_mutation(self):
+        self.assertEqual(self.problems(self.copy_tree()), [])
+
+    def test_mutation_unregistered_code_fails(self):
+        cases = (
+            ("aws_iac_diagram/adapters/terraform/module_load.py", 'self.diag("warn", "TF-NEW-THING", "", "x", "")'),
+            ("aws_iac_diagram/adapters/cloudformation/build.py", 'X = {"level": "info", "code": "CFN-NEW-THING"}'),
+            ("aws_iac_diagram/adapters/cloudformation/params.py", 'def f(self, code="CFN-NEW-DEFAULT"):\n    return code'),
+            ("aws_iac_diagram/adapters/terraform/plan/combine.py", 'Y = ("blackbox", "warn", "TF-NEW-TUPLE", "m")'),
+            ("aws_iac_diagram/adapters/terraform/evaluator/values.py", 'Z = {"TF-NEW-IN-SET"}'),
+            ("adapt_cfn.py", 'W = "CFN-NEW-IN-ENTRY"'),
+            ("adapt_tf.py", 'W = "TF-NEW-IN-ENTRY"'),
+        )
+        for relpath, text in cases:
+            s = self.copy_tree()
+            self.append(s, relpath, text)
+            problems = self.problems(s)
+            self.assertTrue(any("が core/diagnostics.py の一覧に無い" in p and p.startswith(relpath + ":") for p in problems),
+                            (relpath, text, problems))
+
+    def test_mutation_typo_in_a_real_code_fails(self):
+        for rel, old, new in (("aws_iac_diagram/adapters/cloudformation/build.py", '"CFN-PARAM-UNUSED"', '"CFN-PARAM-UNUSD"'),
+                              ("aws_iac_diagram/adapters/terraform/build.py", '"TF-ROOT-OTHER-DRIVE"', '"TF-ROOT-OTHER-DRIV"')):
+            s = self.copy_tree()
+            f = s / rel
+            text = f.read_text(encoding="utf-8")
+            self.assertEqual(text.count(old), 1)
+            f.write_text(text.replace(old, new), encoding="utf-8", newline="\n")
+            problems = self.problems(s)
+            self.assertTrue(any(new.strip('"') in p and "一覧に無い" in p for p in problems), problems)
+            # 打ち間違えると、元のコードを出すところが（ほかに無ければ）無くなるので、一覧のコードは使われていない扱いにもなる
+            if rel.endswith("cloudformation/build.py"):
+                self.assertTrue(any(old.strip('"') in p and "どこでも出していない" in p for p in problems), problems)
+
+    def test_mutation_built_codes_fail(self):
+        for text in ('name = "x"\ncode = "TF-" + name', 'name = "x"\ncode = f"TF-{name}"', 'name = "x"\ncode = "TF-%s" % name',
+                     'code = "TF-unevaluated"'):
+            s = self.copy_tree()
+            self.append(s, "aws_iac_diagram/adapters/terraform/refs.py", text)
+            problems = self.problems(s)
+            self.assertTrue(any("診断コードの形でないのに" in p for p in problems), (text, problems))
+
+    def test_mutation_unused_registry_code_fails(self):
+        # 一覧にだけあるコード
+        registry = {**self.REGISTRY, "TF-NEVER-USED": ("warn",)}
+        problems = self.problems(SCRIPTS, registry=registry)
+        self.assertEqual(len(problems), 1, problems)
+        self.assertIn("TF-NEVER-USED は一覧にあるが", problems[0])
+        # コードの集合・比較にだけ書いてあるものは、出していない扱い
+        s = self.copy_tree()
+        self.append(s, "aws_iac_diagram/adapters/terraform/refs.py",
+                    'ONLY_SET = {"TF-NEVER-USED"}\nONLY_CMP = ("a" == "TF-NEVER-USED")\nONLY_IN = ("a" in ("TF-NEVER-USED", "TF-UNEVALUATED"))')
+        problems = self.problems(s, registry=registry)
+        self.assertTrue(any("TF-NEVER-USED は一覧にあるが" in p for p in problems), problems)
+        # 本物のコードを使っている全部の位置から消すと、そのコードは使われていない扱い
+        s = self.copy_tree()
+        f = s / "aws_iac_diagram/adapters/cloudformation/build.py"
+        f.write_text(f.read_text(encoding="utf-8").replace('"CFN-ABSOLUTE-ROOT"', '"CFN-PARAM-UNUSED"'), encoding="utf-8", newline="\n")
+        problems = self.problems(s)
+        self.assertEqual(len([p for p in problems if "CFN-ABSOLUTE-ROOT" in p]), 1, problems)
+        self.assertEqual(len([p for p in problems if "どこでも出していない" in p]), 1, problems)
+
+    def test_unused_allowlist_is_checked(self):
+        registry = {**self.REGISTRY, "TF-NEVER-USED": ("warn",)}
+        self.assertEqual(self.problems(SCRIPTS, registry=registry, unused_allow={"TF-NEVER-USED": "理由"}), [])
+        # 理由が無い・一覧に無い・使われているコードの許可は、古い許可として失敗する
+        self.assertTrue(self.problems(SCRIPTS, registry=registry, unused_allow={"TF-NEVER-USED": " "}))
+        self.assertTrue(any("が一覧に無い" in p for p in self.problems(SCRIPTS, unused_allow={"TF-NOT-IN-REGISTRY": "x"})))
+        self.assertTrue(any("使われている" in p for p in self.problems(SCRIPTS, unused_allow={"TF-UNEVALUATED": "x"})))
+
+    def test_mutation_level_not_in_the_registry_fails(self):
+        for code, level, call in (("TF-COUNT-INDEX", "error", 'self.diag("error", "TF-COUNT-INDEX", "", "x", "")'),
+                                  ("CFN-ABSOLUTE-ROOT", "warn", 'D = {"level": "warn", "code": "CFN-ABSOLUTE-ROOT"}'),
+                                  ("TF-PARSE-ERROR", "info", 'T = ("a", "info", "TF-PARSE-ERROR")')):
+            s = self.copy_tree()
+            self.append(s, "aws_iac_diagram/adapters/terraform/refs.py", call)
+            problems = self.problems(s)
+            self.assertTrue(any(f"{code} を level {level} で出している" in p for p in problems), (call, problems))
+        # 一覧にある level なら、問題にならない
+        s = self.copy_tree()
+        self.append(s, "aws_iac_diagram/adapters/terraform/refs.py", 'self.diag("info", "TF-UNEVALUATED", "", "x", "")')
+        self.assertEqual(self.problems(s), [])
+
+    def test_scanner_does_not_look_outside_the_adapters(self):
+        # 範囲は入口のアダプタと adapters/ の下だけ（NORM-… などほかの層のコードは、その層が育つとき範囲に足す）
+        s = self.copy_tree()
+        self.append(s, "aws_iac_diagram/core/ir_raw.py", 'X = "E-NOEDGE-SOMETHING"')
+        self.assertEqual(self.problems(s), [])
 
 
 class FileSizeTest(unittest.TestCase):

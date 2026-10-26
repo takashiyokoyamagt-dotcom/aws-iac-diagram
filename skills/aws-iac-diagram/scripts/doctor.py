@@ -98,6 +98,7 @@ REQUIRED_FILES = [
     "scripts/aws_iac_diagram/adapters/terraform/plan/values.py",
     "scripts/aws_iac_diagram/adapters/terraform/refs.py",
     "scripts/aws_iac_diagram/core/__init__.py",
+    "scripts/aws_iac_diagram/core/diagnostics.py",
     "scripts/aws_iac_diagram/core/ir_raw.py",
     "scripts/aws_iac_diagram/emit/__init__.py",
     "scripts/aws_iac_diagram/icons/__init__.py",

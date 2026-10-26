@@ -27,7 +27,7 @@ skills/aws-iac-diagram/
 
 | 層 | 中身 | 状態 |
 |---|---|---|
-| `core` | raw IR の部品（印・パス・正規化の共通処理）`ir_raw.py`。診断コードの一覧は R3 で `diagnostics.py` に置く | `ir_raw.py` のみ |
+| `core` | raw IR の部品（印・パス・正規化の共通処理）`ir_raw.py`、診断コードの一覧 `diagnostics.py`（下の「診断コードの一覧」） | `ir_raw.py`・`diagnostics.py`（R3） |
 | `adapters/terraform` | Terraform アダプタの中身（下の「Terraform アダプタの中身」）。入口は `scripts/adapt_tf.py` | 済み（R2） |
 | `adapters/cloudformation` | CloudFormation アダプタの中身（下の「CloudFormation アダプタの中身」）。入口は `scripts/adapt_cfn.py` | 済み（R3） |
 | `adapters`（`registry.py`） | 入力の形式 → アダプタのパッケージ名の表。形式を見分けて振り分ける処理は後で足す | 名前の表だけ |
@@ -149,6 +149,15 @@ skills/aws-iac-diagram/
 
 向きを変える・層を足すときは、テストの `ALLOWED` とこの表を同じコミットで直し、理由をコミットメッセージに書きます。
 
+### 診断コードの一覧（`core/diagnostics.py`。R3 で作った）
+
+アダプタが出す診断コード（raw IR の `diagnostics[].code`。Terraform の `TF-…` 43 個、CloudFormation の `CFN-…` 19 個）は、`core/diagnostics.py` の 1 つの表にある。コードごとに、出うる level（`error`＞`warn`＞`info`。場所によって level を変えるコードがある）と短い説明を持つ。データだけで、アダプタは実行時には読まない（出力のバイト列を変えないため。コードは各アダプタが文字列で書いたまま）。
+
+- **コードを足すとき:** `core/diagnostics.py` の表に 1 行、`references/ir-schema.md` の 7.5 の一覧に 1 項目（CFN は「`コード`（level。説明）」の形）を、同じコミットで足す。コードは 1 つの文字列で書く（`"TF-" + 名前` や `f"TF-{x}"` のように組み立てない）。
+- **テストが守ること**（`tests/test_architecture.py` の `DiagnosticRegistryRuleTest`）: ① `scripts/adapt_*.py` と `aws_iac_diagram/adapters/` の下の `TF-…`・`CFN-…` の文字列（`^[A-Z][A-Z0-9]*(-[A-Z0-9]+)+$`）がすべて表にある、② 接頭辞で始まるのにコードの形でない文字列（組み立て、打ち間違い）が無い、③ 表のコードは、どこかで出されている（コードの集合 `{…}` や比較 `== "…"`・`in (…)` だけの位置は数えない）。使われないコードを残すときは `UNUSED_ALLOW` に理由を書く（今は空）、④ コードのそばに `"warn"` などの level が直接書いてあれば、表の levels にある。
+- `tests/test_diagnostics.py` が守ること: 表の形（コードの形、接頭辞、重い順の levels、説明、並び）、表と ir-schema.md の 7.5 が TF・CFN の両方で同じ、アダプタを実際に動かして出た (code, level) が表にある（fixture と、error になる入力）。
+- 限界: 範囲は入口のアダプタと `adapters/` の下だけ（`NORM-…` は正規化の層ができるときに範囲を広げる）。level を変数で渡すところ（`Unknown` の既定の level など）の level は静的には見られないので、動かして確かめるテストが受け持つ。`"TF" + "-X"` のような、接頭辞が単独の文字列になっていない組み立ては見つけられない。
+
 ## 4. 1 ファイルの大きさ
 
 `scripts/` の下の `.py` は、800 行を超えたら注意（テストが印字するだけ）、1,500 行を超えたら失敗です。超えるファイルは、`tests/test_architecture.py` の `EXEMPT` に日付・理由・外す手順を付けて書けます（決めた日の行数を超えて増えたら失敗、1,500 行以内になった免除は消さないと失敗）が、**今の `EXEMPT` は空です（R2 で `adapters/tf.py` と `tf_plan.py` の免除を外した。R3 の `adapters/cfn.py` は免除を作らずに分けた。空であることも `test_no_exemptions_remain` が確かめる）**。800 行を超えるファイルは R3 の後は無く、最大は `adapters/terraform/evaluator/functions.py` の 763 行です。
@@ -174,4 +183,4 @@ skills/aws-iac-diagram/
 | モジュールの要約表を足す | **R4 以降:** `data/module-summaries/<モジュール>/v<メジャー>.md` を足すだけ。今（R1〜R3）は `references/module-summaries.md` に書く |
 | 型の扱いを足す | **R4 以降（フェーズ 3 で表にする）:** `data/rules/` に行を足す |
 | 辞書を作り直す | `scripts/maintenance/build_icon_catalog.py`、`check_icons.py`（README の「アイコン辞書」） |
-| 診断コードを足す | **R3 以降:** `core/diagnostics.py` の一覧に足す（一覧に無いコードを使うとテストが落ちる）。今は `references/ir-schema.md` の 7.5 に書く（`tests/test_tf_public.py` が照合する） |
+| 診断コードを足す | `core/diagnostics.py` の表に足し、`references/ir-schema.md` の 7.5 にも書く（一覧に無いコードを使う・一覧のコードを使わないとテストが落ちる。`tests/test_architecture.py` と `tests/test_diagnostics.py`）。出力が変わるときは golden も更新する |

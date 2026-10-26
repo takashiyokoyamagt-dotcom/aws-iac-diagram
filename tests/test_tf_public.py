@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 import os
-import re
 import subprocess
 import sys
 import tempfile
@@ -95,22 +94,7 @@ class PublicFoldersTest(unittest.TestCase):
         self.assertEqual(res["folders"], 4)
 
 
-class DiagnosticCodesTest(unittest.TestCase):
-    def test_diagnostic_codes_are_documented(self):
-        # コードに出てくる TF-… の code と、ir-schema.md の 7.5 の一覧が食い違わない（7.6 の注記を消したあとも、一覧を正にする）
-        scripts = ROOT / "skills" / "aws-iac-diagram" / "scripts"
-        in_code = set()
-        for f in [scripts / "adapt_tf.py", *sorted((scripts / "aws_iac_diagram" / "adapters" / "terraform").rglob("*.py"))]:
-            in_code |= set(re.findall(r'"(TF-[A-Z0-9]+(?:-[A-Z0-9]+)*)"', f.read_text(encoding="utf-8")))
-        doc = (scripts.parent / "references" / "ir-schema.md").read_text(encoding="utf-8")
-        a = doc.index("### 7.5 診断")
-        b = doc.index(chr(10) + "## 8.", a)
-        in_doc = set(re.findall(r"`(TF-[A-Z0-9]+(?:-[A-Z0-9]+)*)`", doc[a:b]))
-        self.assertEqual(sorted(in_code - in_doc), [])
-        self.assertEqual(sorted(in_doc - in_code), [])
-        self.assertEqual(len(in_code), 43)
-        # 見出しの 7.6 は無い（フェーズ2 の間だけの注記だった）
-        self.assertNotIn("### 7.6", doc)
+# 診断コードの一覧と ir-schema.md の照合（TF と CFN）は tests/test_diagnostics.py の DiagnosticCodesTest（R3 で移した）
 
 
 # 対の比較で、正規化のあとに TF と SAM の両方にある型（件数つき）。違いだけでなく、一致した側も固定する
