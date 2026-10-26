@@ -2,20 +2,26 @@
 
 実行: uv run python -m unittest discover -s tests -v
 """
+
 from __future__ import annotations
 
 import sys
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "skills" / "aws-iac-diagram" / "scripts"))
+from PIL import Image, ImageDraw
 
-from PIL import Image, ImageDraw  # noqa: E402
-
+# tests/ を import の道に入れる（`python tests/.../test_x.py` で直接動かすときのため。discover では要らないが害は無い）
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "support").is_dir())))
+import support  # noqa: E402
+support.ensure_paths()  # scripts/ と tools/ を sys.path に入れる（import だけでも入る。明示する）
 from maintenance import check_icons as ci  # noqa: E402
 
+
 WHITE = (255, 255, 255)
+
 PURPLE = (140, 79, 255)
+
 NAVY = (30, 38, 46)
 
 

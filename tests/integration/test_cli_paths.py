@@ -2,6 +2,7 @@
 
 Windows（cp932 のコンソール）で文字コードやパスの扱いが崩れないかを確かめる。
 """
+
 from __future__ import annotations
 
 import json
@@ -12,9 +13,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-SCRIPTS = ROOT / "skills" / "aws-iac-diagram" / "scripts"
-EXPECTED = ROOT / "aws-iac-diagram-workspace" / "expected"
+# tests/ を import の道に入れる（`python tests/.../test_x.py` で直接動かすときのため。discover では要らないが害は無い）
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "support").is_dir())))
+from support.paths import EXPECTED, ROOT, SCRIPTS
 
 
 def run(*args: str) -> subprocess.CompletedProcess:

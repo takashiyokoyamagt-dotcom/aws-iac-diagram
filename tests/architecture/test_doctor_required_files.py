@@ -3,6 +3,7 @@
 doctor は PEP 723 の依存を持たず、パッケージを import できない取り込みでも動かすので、ファイルの有無だけを見る。
 そのため一覧は手で持つ。モジュールを足して一覧に足し忘れる／消したファイルを一覧に残す、を失敗にする。
 """
+
 from __future__ import annotations
 
 import re
@@ -13,11 +14,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-SKILL = ROOT / "skills" / "aws-iac-diagram"
-SCRIPTS = SKILL / "scripts"
-sys.path.insert(0, str(SCRIPTS))
+# tests/ を import の道に入れる（`python tests/.../test_x.py` で直接動かすときのため。discover では要らないが害は無い）
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "support").is_dir())))
+from support.paths import SCRIPTS, SKILL
 import doctor  # noqa: E402
+
 
 # 配る同梱ファイルのうち、スクリプトが開くデータ。scripts/ の .py と SKILL.md 以外はここに書く。
 # 規則: 実行時に読まなくても、配布に必須のもの（ライセンス表示の data/module-summaries/NOTICE.md）は、ここに書いて doctor の一覧にも入れる

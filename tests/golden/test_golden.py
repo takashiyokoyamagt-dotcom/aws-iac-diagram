@@ -7,6 +7,7 @@
 
 このテストが落ちたら、構成の移動・分割が出力を変えたということ。`golden.py --update` で通さずに、コードを直す。
 """
+
 from __future__ import annotations
 
 import copy
@@ -17,9 +18,11 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "aws-iac-diagram-workspace" / "tools"))
-import golden  # noqa: E402
+# tests/ を import の道に入れる（`python tests/.../test_x.py` で直接動かすときのため。discover では要らないが害は無い）
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "support").is_dir())))
+from support.tools import load_tool  # noqa: E402
+
+golden = load_tool("golden", alias="golden_tool")  # tests/golden/ のパッケージ名と衝突するので、別名で読む
 
 
 class GoldenOutputsTest(unittest.TestCase):

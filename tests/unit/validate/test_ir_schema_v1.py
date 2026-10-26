@@ -1,4 +1,5 @@
 """IR v1.0 のテスト。raw（ir-raw.schema.json と aws_iac_diagram/core/ir_raw.py の決まり）と、正規化後の attrs・黒箱のモジュール。"""
+
 from __future__ import annotations
 
 import copy
@@ -10,13 +11,13 @@ from pathlib import Path
 
 import jsonschema
 
-ROOT = Path(__file__).resolve().parent.parent
-SCRIPTS = ROOT / "skills" / "aws-iac-diagram" / "scripts"
-DATA = ROOT / "skills" / "aws-iac-diagram" / "data"
-EXPECTED = ROOT / "aws-iac-diagram-workspace" / "expected"
-sys.path.insert(0, str(SCRIPTS))
+# tests/ を import の道に入れる（`python tests/.../test_x.py` で直接動かすときのため。discover では要らないが害は無い）
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "support").is_dir())))
+from support.ir import load
+from support.paths import DATA, EXPECTED
 import validate_ir as v  # noqa: E402
 from aws_iac_diagram.core import ir_raw  # noqa: E402
+
 
 RAW = jsonschema.Draft202012Validator(json.loads((DATA / "schemas" / "ir-raw.schema.json").read_text(encoding="utf-8")))
 
@@ -234,10 +235,6 @@ class RawSemanticTest(unittest.TestCase):
             errs = v.validate_file(p, write=True, rules=v.defined_rules())
             self.assertEqual(errs, [])
             self.assertEqual(v.validate_file(p, write=False, rules=v.defined_rules()), [])
-
-
-def load(name="three-tier"):
-    return json.loads((EXPECTED / f"{name}.ir.json").read_text(encoding="utf-8"))
 
 
 def add_blackbox(ir, tf_type="module", cfn_type="AWS::CloudFormation::Stack", via=True, node_type="module"):

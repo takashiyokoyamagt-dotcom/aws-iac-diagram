@@ -1,4 +1,9 @@
-"""drawio_cli の起動コマンドの組み立て（Linux の --no-sandbox と xvfb-run）のテスト。draw.io は不要。"""
+"""aws_iac_diagram/platform/drawio_cli.py（draw.io の探索と呼び出し）のテスト。
+
+フォルダの名前が `host` なのは、標準ライブラリの `platform` を隠さないため（tests/ の下に `platform` のフォルダを置かない決まり。
+docs/architecture.md の「テストの置き場」）。
+"""
+
 from __future__ import annotations
 
 import sys
@@ -6,9 +11,12 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "skills" / "aws-iac-diagram" / "scripts"))
-
+# tests/ を import の道に入れる（`python tests/.../test_x.py` で直接動かすときのため。discover では要らないが害は無い）
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "support").is_dir())))
+import support  # noqa: E402
+support.ensure_paths()  # scripts/ と tools/ を sys.path に入れる（import だけでも入る。明示する）
 from aws_iac_diagram.platform import drawio_cli as dc  # noqa: E402
+
 
 EXE = Path("drawio")
 

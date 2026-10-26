@@ -2,6 +2,7 @@
 
 実行: uv run python -m unittest discover -s tests -v
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -13,10 +14,12 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "skills" / "aws-iac-diagram" / "scripts"))
-
-from maintenance import build_icon_catalog as bic  # noqa: E402
+# tests/ を import の道に入れる（`python tests/.../test_x.py` で直接動かすときのため。discover では要らないが害は無い）
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "support").is_dir())))
+import support  # noqa: E402
+support.ensure_paths()  # scripts/ と tools/ を sys.path に入れる（import だけでも入る。明示する）
 import find_aws_icon as fai  # noqa: E402
+from maintenance import build_icon_catalog as bic  # noqa: E402
 
 
 def entry(icon_id, title):

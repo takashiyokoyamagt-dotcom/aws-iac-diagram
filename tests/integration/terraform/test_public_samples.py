@@ -4,6 +4,7 @@
   `.tf` のあるフォルダすべて（205）は、時間がかかる（直列で約 70 秒）ので CI の手順で流す（`tf_public_check.py --all`）。
 - TF／SAM の対（T01、T05、T06、T07、T11）のリソースの型の多重集合の違いが、PAIR_EXPECTED（理由つき）と一致する。
 """
+
 from __future__ import annotations
 
 import os
@@ -14,14 +15,11 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-ROOT = Path(__file__).resolve().parent.parent
-WS = ROOT / "aws-iac-diagram-workspace"
-sys.path.insert(0, str(ROOT / "skills" / "aws-iac-diagram" / "scripts"))
-sys.path.insert(0, str(WS / "tools"))
+# tests/ を import の道に入れる（`python tests/.../test_x.py` で直接動かすときのため。discover では要らないが害は無い）
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "support").is_dir())))
+from support.paths import PUBLIC, ROOT, WS
 import tf_public_check as chk  # noqa: E402
 from aws_iac_diagram.adapters.terraform import build as tf_build  # noqa: E402
-
-PUBLIC = WS / "fixtures" / "public"
 
 
 class PublicFoldersTest(unittest.TestCase):
@@ -106,6 +104,7 @@ PAIR_COMMON = {
     "T11": {"AWS::ApiGateway::RestApi": 1, "AWS::DynamoDB::Table": 1, "AWS::IAM::Role": 1, "AWS::Logs::LogGroup": 2,
             "AWS::StepFunctions::StateMachine": 1},
 }
+
 # 対の診断（評価できなかった値。どれもファイルを読む関数か Fn::Transform で、アダプタの不具合ではない）
 PAIR_CODES = {
     "T01": ([], []), "T05": ([], []),

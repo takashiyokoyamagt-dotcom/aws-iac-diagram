@@ -1,20 +1,16 @@
 """validate_ir.py のテスト。正解 IR（aws-iac-diagram-workspace/expected）が通ることと、壊した IR を検出すること。"""
+
 import copy
 import json
 import sys
 import unittest
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-SCRIPTS = ROOT / "skills" / "aws-iac-diagram" / "scripts"
-sys.path.insert(0, str(SCRIPTS))
+# tests/ を import の道に入れる（`python tests/.../test_x.py` で直接動かすときのため。discover では要らないが害は無い）
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "support").is_dir())))
+from support.ir import load
+from support.paths import EXPECTED
 import validate_ir as v  # noqa: E402
-
-EXPECTED = ROOT / "aws-iac-diagram-workspace" / "expected"
-
-
-def load(name="three-tier"):
-    return json.loads((EXPECTED / f"{name}.ir.json").read_text(encoding="utf-8"))
 
 
 def errors(ir):

@@ -3,8 +3,9 @@
 - 一覧の形（コードの形、接頭辞、level、説明、並び順）。
 - 一覧と references/ir-schema.md の 7.5 が、TF と CFN の両方で同じ（コードが足りない・余っていると失敗）。
 - アダプタを実際に動かして出た (code, level) が、一覧にある（level の組み合わせも）。
-- アダプタのコードにある文字列と一覧の照合（足りない・余っている）は tests/test_architecture.py の DiagnosticRegistryRuleTest。
+- アダプタのコードにある文字列と一覧の照合（足りない・余っている）は tests/architecture/test_diagnostics_registry.py の DiagnosticRegistryRuleTest。
 """
+
 from __future__ import annotations
 
 import json
@@ -15,18 +16,19 @@ import textwrap
 import unittest
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-SCRIPTS = ROOT / "skills" / "aws-iac-diagram" / "scripts"
-WS = ROOT / "aws-iac-diagram-workspace"
-sys.path.insert(0, str(SCRIPTS))
+# tests/ を import の道に入れる（`python tests/.../test_x.py` で直接動かすときのため。discover では要らないが害は無い）
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "support").is_dir())))
+from support.paths import SCRIPTS, WS
 from aws_iac_diagram.adapters.cloudformation import build as cfn_build  # noqa: E402
 from aws_iac_diagram.adapters.terraform import build as tf_build  # noqa: E402
 from aws_iac_diagram.core import diagnostics as D  # noqa: E402
+
 
 SCHEMA_DOC = SCRIPTS.parent / "references" / "ir-schema.md"
 
 # 子テンプレートが YAML として読めない／親が読めない子と、見つからない子を持つ入力（CFN-NESTED-UNREADABLE の error と warn）
 BAD_CHILD = "Resources: [" + chr(10) + "  a: b" + chr(10)
+
 ROOT_WITH_CHILDREN = textwrap.dedent("""    Resources:
       Child:
         Type: AWS::CloudFormation::Stack
@@ -37,6 +39,7 @@ ROOT_WITH_CHILDREN = textwrap.dedent("""    Resources:
         Properties:
           TemplateURL: ./nowhere.yaml
     """)
+
 # 未対応の関数を呼ぶリソース（count = 0 なら作られないので TF-UNSUPPORTED-FUNCTION は info）
 TF_UNSUPPORTED = textwrap.dedent("""    resource "aws_s3_bucket" "b" {{
       count  = {count}

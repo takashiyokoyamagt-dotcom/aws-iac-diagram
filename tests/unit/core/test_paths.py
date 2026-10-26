@@ -4,6 +4,7 @@
 - SKILL のフォルダを日本語・スペースを含む別の深さに置いても、定数が複製の中を指す（`parents[N]` の深さの誤りを見つける）。
 - 要約表のフォルダの並べ方（v6 は v10 の前）と、複数のファイルにまたがる読み込み。
 """
+
 from __future__ import annotations
 
 import subprocess
@@ -12,11 +13,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-SKILL = ROOT / "skills" / "aws-iac-diagram"
-SCRIPTS = SKILL / "scripts"
-sys.path.insert(0, str(SCRIPTS))
-
+# tests/ を import の道に入れる（`python tests/.../test_x.py` で直接動かすときのため。discover では要らないが害は無い）
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "support").is_dir())))
+from support.paths import SKILL
 from aws_iac_diagram.adapters.terraform.modules import summaries as MS  # noqa: E402
 from aws_iac_diagram.core import paths  # noqa: E402
 
