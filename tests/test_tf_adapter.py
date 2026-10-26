@@ -2383,7 +2383,7 @@ class SummaryTableFileTest(unittest.TestCase):
     CALL = 'module "vpc" {\n  source = "terraform-aws-modules/vpc/aws"\n  version = "~> 6.0"\n  cidr = "10.0.0.0/16"\n}\n'
 
     def test_summary_file_exists_and_is_loaded(self):
-        from aws_iac_diagram.adapters.terraform import tf_modules as M
+        from aws_iac_diagram.adapters.terraform.modules import summaries as M
         self.assertTrue(M.SUMMARY_FILE.is_file(), M.SUMMARY_FILE)
         self.assertEqual(M.SUMMARY_FILE.name, "module-summaries.md")
         summaries, iam = M.load()
@@ -2398,7 +2398,7 @@ class SummaryTableFileTest(unittest.TestCase):
 
     def test_missing_table_warns_for_registry_modules(self):
         from unittest import mock
-        from aws_iac_diagram.adapters.terraform import tf_modules as M
+        from aws_iac_diagram.adapters.terraform.modules import summaries as M
         raw = build(self.CALL)
         codes = [d["code"] for d in raw["diagnostics"] if d["code"].startswith("TF-MODULE")]
         self.assertEqual(codes, ["TF-MODULE-SUMMARY"])
@@ -2411,7 +2411,7 @@ class SummaryTableFileTest(unittest.TestCase):
 
     def test_missing_table_does_not_warn_without_registry_modules(self):
         from unittest import mock
-        from aws_iac_diagram.adapters.terraform import tf_modules as M
+        from aws_iac_diagram.adapters.terraform.modules import summaries as M
         files = {"main.tf": 'module "a" {\n  source = "./mod"\n}\nmodule "g" {\n  source = "git::https://example.com/x.git"\n}\n',
                  "mod/main.tf": 'resource "aws_sqs_queue" "q" {\n  name = "q"\n}\n'}
         with tempfile.TemporaryDirectory() as t, mock.patch.object(M, "SUMMARY_FILE", Path(t) / "nope.md"):

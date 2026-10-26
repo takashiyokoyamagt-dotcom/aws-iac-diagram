@@ -20,8 +20,8 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-# SKILL のフォルダ（このファイルの 4 つ上: terraform → adapters → aws_iac_diagram → scripts → SKILL）。R4 で data/ に移す
-SUMMARY_FILE = Path(__file__).resolve().parents[4] / "references" / "module-summaries.md"
+# SKILL のフォルダ（このファイルの 5 つ上: modules → terraform → adapters → aws_iac_diagram → scripts → SKILL）。R4 で data/ に移す
+SUMMARY_FILE = Path(__file__).resolve().parents[5] / "references" / "module-summaries.md"
 
 _MARK = re.compile(r'<!--\s*module-summary\s+source="([^"]+)"\s+majors="([0-9, ]+)"\s*-->')
 _IAM_MARK = re.compile(r"<!--\s*iam-only-sources\s*-->")

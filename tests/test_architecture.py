@@ -71,11 +71,14 @@ EXEMPT: dict[str, dict] = {
         "reason": "TF アダプタの入口と本体が 1 ファイル（2613 行）。R2 で adapt_tf.py（入口）と adapters/terraform/ の"
                   "モジュール（hcl・参照・evaluator・modules・plan）に分ける",
     },
-    "aws_iac_diagram/adapters/terraform/tf_plan.py": {
+    "aws_iac_diagram/adapters/terraform/plan/reader.py": {
         "since": "2026-10-26", "ceiling": 1558, "remove_in": "R2",
         "reason": "plan JSON の読み込みと .tf との結合が 1 ファイル（1558 行）。R2 で adapters/terraform/plan/ に分ける",
     },
 }
+
+# サブパッケージ（フォルダ）を持ってよい層。層の表の外に新しい層が増えないように、ここに書いたものの直下だけ許す
+SUBPACKAGE_PARENTS = {"adapters/terraform", "adapters/cloudformation"}
 
 LAYER_DIRS = {"core", "normalize", "layout", "emit", "validate", "icons", "platform"}
 ENTRY_DIRS = {"adapters", "maintenance", "lib"}  # scripts/ の直下の入口のフォルダ（lib は R1 で無くなった。戻さない）
@@ -306,7 +309,7 @@ class DependencyDirectionTest(unittest.TestCase):
         }
         for line, expect in cases.items():
             s = self.copy_tree()
-            f = s / PACKAGE / "adapters" / "terraform" / "tf_modules.py"
+            f = s / PACKAGE / "adapters" / "terraform" / "modules" / "summaries.py"
             f.write_text(f.read_text(encoding="utf-8") + "\n" + line + "\n", encoding="utf-8", newline="\n")
             problems = violations_in_dynamic_imports(s)
             self.assertTrue(any(expect in p for p in problems), (line, problems))
@@ -342,8 +345,11 @@ class DependencyDirectionTest(unittest.TestCase):
         pkg = SCRIPTS / PACKAGE
         dirs = {p.parent.relative_to(pkg).as_posix() for p in pkg.rglob("__init__.py") if p.parent != pkg}
         known = set(ALLOWED) | {"adapters/terraform", "adapters/cloudformation"}
-        self.assertEqual(sorted(dirs - known), [], "表に無い層のフォルダがある")
+        # アダプタのパッケージの下のサブパッケージ（adapters/terraform/evaluator など）は、アダプタの層の一部
+        subpackages = {d for d in dirs - known if d.rsplit("/", 1)[0] in SUBPACKAGE_PARENTS}
+        self.assertEqual(sorted(dirs - known - subpackages), [], "表に無い層のフォルダがある")
         self.assertEqual(sorted(known - dirs), [], "表にあるが無い層（空でも __init__.py を置く）")
+        self.assertTrue({"adapters/terraform/evaluator", "adapters/terraform/modules", "adapters/terraform/plan"} <= subpackages)
         for p in pkg.rglob("*.py"):
             self.assertNotEqual(source_layer(p, SCRIPTS)[:1], "?", p)
 
@@ -400,28 +406,28 @@ class DependencyDirectionTest(unittest.TestCase):
     def test_mutation_adapters_importing_each_other_fails(self):
         s = self.copy_tree()
         (s / "aws_iac_diagram/adapters/cloudformation/x.py").write_text("X = 1\n", encoding="utf-8")
-        problems = self.inject(s, "aws_iac_diagram/adapters/terraform/tf_eval.py",
+        problems = self.inject(s, "aws_iac_diagram/adapters/terraform/evaluator/functions.py",
                                "from aws_iac_diagram.adapters.cloudformation import x")
         self.assertTrue(any("層 adapters/terraform は層 adapters/cloudformation" in p for p in problems), problems)
 
     def test_mutation_relative_import_is_resolved(self):
         s = self.copy_tree()
-        problems = self.inject(s, "aws_iac_diagram/adapters/terraform/tf_modules.py", "from ...emit import something")
+        problems = self.inject(s, "aws_iac_diagram/adapters/terraform/modules/summaries.py", "from ....emit import something")
         self.assertTrue(any("層 adapters/terraform は層 emit" in p for p in problems), problems)
         s2 = self.copy_tree()
-        problems = self.inject(s2, "aws_iac_diagram/adapters/terraform/tf_modules.py", "from .. import cloudformation")
+        problems = self.inject(s2, "aws_iac_diagram/adapters/terraform/modules/summaries.py", "from ... import cloudformation")
         self.assertTrue(any("層 adapters/terraform は層 adapters/cloudformation" in p for p in problems), problems)
 
     def test_mutation_adapters_importing_emit_layout_normalize_validate_fails(self):
         for layer in ("emit", "layout", "normalize", "validate"):
             s = self.copy_tree()
-            problems = self.inject(s, "aws_iac_diagram/adapters/terraform/tf_eval.py", f"import aws_iac_diagram.{layer}")
+            problems = self.inject(s, "aws_iac_diagram/adapters/terraform/evaluator/functions.py", f"import aws_iac_diagram.{layer}")
             self.assertTrue(any(f"層 adapters/terraform は層 {layer}" in p for p in problems), (layer, problems))
 
     def test_mutation_platform_and_icons_importing_adapters_fails(self):
         for layer in ("platform", "icons"):
             s = self.copy_tree()
-            problems = self.inject(s, f"aws_iac_diagram/{layer}/__init__.py", "from aws_iac_diagram.adapters.terraform import tf_eval")
+            problems = self.inject(s, f"aws_iac_diagram/{layer}/__init__.py", "from aws_iac_diagram.adapters.terraform.evaluator import functions")
             self.assertTrue(any(f"層 {layer} は層 adapters/terraform" in p for p in problems), (layer, problems))
 
     def test_mutation_package_importing_an_entry_script_fails(self):
@@ -429,12 +435,12 @@ class DependencyDirectionTest(unittest.TestCase):
         problems = self.inject(s, "aws_iac_diagram/core/ir_raw.py", "import validate_ir")
         self.assertTrue(any("入口のスクリプト validate_ir" in p for p in problems), problems)
         s = self.copy_tree()
-        problems = self.inject(s, "aws_iac_diagram/adapters/terraform/tf_plan.py", "from adapters import tf")
+        problems = self.inject(s, "aws_iac_diagram/adapters/terraform/plan/reader.py", "from adapters import tf")
         self.assertTrue(any("入口のスクリプト adapters" in p for p in problems), problems)
 
     def test_mutation_entry_importing_entry_fails_but_entry_importing_layers_is_fine(self):
         s = self.copy_tree()
-        self.assertEqual(self.inject(s, "doctor.py", "from aws_iac_diagram.adapters.terraform import tf_eval"), [])
+        self.assertEqual(self.inject(s, "doctor.py", "from aws_iac_diagram.adapters.terraform.evaluator import functions"), [])
         s = self.copy_tree()
         problems = self.inject(s, "doctor.py", "import validate_ir")
         self.assertTrue(any("入口のスクリプト validate_ir" in p for p in problems), problems)

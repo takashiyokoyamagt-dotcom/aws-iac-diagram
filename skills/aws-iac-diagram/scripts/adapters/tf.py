@@ -77,10 +77,10 @@ from lark import Token, Tree
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from aws_iac_diagram.adapters.terraform import tf_eval as E  # noqa: E402
-from aws_iac_diagram.adapters.terraform import tf_modules as M  # noqa: E402
-from aws_iac_diagram.adapters.terraform import tf_plan as P  # noqa: E402
-from aws_iac_diagram.adapters.terraform.tf_eval import Az, Concat, EvalError, Json, Pseudo, Res, Unknown, ZeroColl  # noqa: E402
+from aws_iac_diagram.adapters.terraform.evaluator import functions as E  # noqa: E402
+from aws_iac_diagram.adapters.terraform.modules import summaries as M  # noqa: E402
+from aws_iac_diagram.adapters.terraform.plan import reader as P  # noqa: E402
+from aws_iac_diagram.adapters.terraform.evaluator.functions import Az, Concat, EvalError, Json, Pseudo, Res, Unknown, ZeroColl  # noqa: E402
 from aws_iac_diagram.core import ir_raw  # noqa: E402
 
 # 読み飛ばす記号の字句（構文木の中で意味を持たないもの）

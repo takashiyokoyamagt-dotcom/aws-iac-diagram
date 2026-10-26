@@ -25,7 +25,7 @@ PLANS = WS / "fixtures" / "tf-plan"
 sys.path.insert(0, str(SCRIPTS))
 import validate_ir as v  # noqa: E402
 from adapters import tf  # noqa: E402
-from aws_iac_diagram.adapters.terraform import tf_plan as P  # noqa: E402
+from aws_iac_diagram.adapters.terraform.plan import reader as P  # noqa: E402
 from aws_iac_diagram.core import ir_raw  # noqa: E402
 
 # plan JSON → (.tf のフォルダ, 正解 IR, plan を作ったときの変数のファイル)
