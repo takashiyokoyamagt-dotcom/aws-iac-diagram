@@ -27,8 +27,10 @@ from aws_iac_diagram.adapters.terraform.modules import resolve as MR, summaries 
 from aws_iac_diagram.adapters.terraform.modules.sources import is_local, join_summary_source, registry_key  # noqa: E402
 
 
-def build_module_call(source: str, body: str, version: str | None = None) -> dict:
-    """モジュールの呼び出し1つのルートを作って読む（source はルートからの相対パスかレジストリの source）。"""
+def build_module_call(source: str, body: str, version: str | None = None, extra: str = "") -> dict:
+    """モジュールの呼び出し1つのルートを作って読む（source はルートからの相対パスかレジストリの source）。
+
+    extra は呼び出しの後ろに足す HCL（モジュールの出力を読むリソースなど）。"""
     local = not registry_key(source) and not source.startswith(".")
     # ルートからの相対パスで書くので、一時フォルダは source と同じドライブに置く
     # （Windows の CI はリポジトリが D:、既定の一時フォルダが C: で、相対パスが作れない）
@@ -37,7 +39,7 @@ def build_module_call(source: str, body: str, version: str | None = None) -> dic
             source = os.path.relpath(source, tmp).replace("\\", "/")
         ver = f'  version = "{version}"\n' if version else ""
         Path(tmp, "main.tf").write_text(f'module "m" {{\n  source = "{source}"\n{ver}{body}\n}}\n'
-                                        'data "aws_availability_zones" "available" {}\n', encoding="utf-8")
+                                        'data "aws_availability_zones" "available" {}\n' + extra, encoding="utf-8")
         return tf_build.build_raw(Path(tmp), Path(tmp))
 
 
@@ -164,7 +166,9 @@ class SummaryTest(unittest.TestCase):
                        "registry.terraform.io/terraform-aws-modules/vpc/aws", "foo/bar/aws"]
             versions = [None, "", "~> foo"] + [f"{op}{m}{rest}" for op in ("", "= ", "~> ", ">= ", "> ", "< ", "<= ", "!= ")
                                                 for m in (0, 2, 4, 5, 6, 7, 10, 11, 19, 20, 21, 22)
-                                                for rest in ("", ".0", ".8.1", ".7.3")]                 + [f">= {a}, < {b}" for a in (4, 5, 6, 7, 10, 19, 20, 21) for b in (6, 7, 8, 11, 21, 22)]                 + ["~> 6.7", "6.6.0", "~> 21.0", "21.29.0", "~> 10.0", "~> 7.0", ">= 5.0, < 7.0", ">= 20.0, < 22.0"]
+                                                for rest in ("", ".0", ".8.1", ".7.3")]
+            versions += [f">= {a}, < {b}" for a in (4, 5, 6, 7, 10, 19, 20, 21) for b in (6, 7, 8, 11, 21, 22)]
+            versions += ["~> 6.7", "6.6.0", "~> 21.0", "21.29.0", "~> 10.0", "~> 7.0", ">= 5.0, < 7.0", ">= 20.0, < 22.0"]
             none_both, same, newly = 0, 0, []
             for src in sources:
                 for ver in versions:
@@ -252,16 +256,21 @@ class SummaryTest(unittest.TestCase):
         self.assertIn("TF-MODULE-SUMMARY-OUTPUT", codes(raw, "aws_instance.x"))
         self.assertFalse([k for k in raw["evaluation"]["vars"] if k.startswith("module.")])  # 要約表の変数は書かない
 
-    def compare_with_source(self, real_dir: Path, source: str, version: str, body: str, allowed: set):
-        """同じ入力で、手元の本物のソースと要約表を展開し、address と、要約表のリソースの間の参照を比べる。"""
-        real = build_module_call(str(real_dir), body)
-        summ = build_module_call(source, body, version)
+    def compare_with_source(self, real_dir: Path, source: str, version: str, body: str, allowed: set,
+                            extra: str = "", ignore: str = ""):
+        """同じ入力で、手元の本物のソースと要約表を展開し、address と、要約表のリソースの間の参照を比べる。
+
+        extra は呼び出しの後ろに足す HCL。ignore は、その文字列で終わる address を両方から除く（本物にだけある検査用の
+        `null_resource` など、入力に依って有る・無いが変わるものを、`allowed` に 1 つずつ書かずに済ませる）。"""
+        real = build_module_call(str(real_dir), body, extra=extra)
+        summ = build_module_call(source, body, version, extra=extra)
         for raw in (real, summ):
             assert_valid(self, raw)
 
         def made(raw):
             return {r["address"]: r for r in raw["resources"] if r["enabled"] is not False
-                    and not r["address"].startswith("data.") and ".data." not in r["address"]}
+                    and not r["address"].startswith("data.") and ".data." not in r["address"]
+                    and not (ignore and r["address"].endswith(ignore))}
         a, b = made(real), made(summ)
         self.assertEqual(set(a) ^ set(b), allowed)
         def act(raw, keep):
@@ -862,6 +871,205 @@ class SummaryTest(unittest.TestCase):
             self.assertEqual(bb["module.eks_cluster.module.eks"]["version"], "~> 19.15.2")
             why = next(d["message"] for d in raw["diagnostics"] if d.get("address") == "module.eks_cluster.module.eks")
             self.assertIn("it has 20.x, 21.x", why)
+
+    # --- レビュー対応: 入力で有る・無いが変わるリソースと、出力の値（変異を殺す）
+
+    EKS20_PROBES = """
+resource "aws_ssm_parameter" "probe_oidc_arn" {
+  name  = "a"
+  type  = "String"
+  value = module.m.oidc_provider_arn
+}
+resource "aws_ssm_parameter" "probe_cluster_name" {
+  name  = "b"
+  type  = "String"
+  value = module.m.cluster_name
+}
+"""
+
+    EKS_SWITCH_BASE = '''
+  cluster_name = "c"
+  vpc_id       = "vpc-1"
+  subnet_ids   = ["s-1", "s-2"]
+  cluster_addons = { coredns = {} }
+  eks_managed_node_groups  = { a = {} }
+  self_managed_node_groups = { s = {} }
+  fargate_profiles         = { f = { selectors = [{ namespace = "x" }] } }'''
+
+    # (名前, 足す入力)。create・create_iam_role・enable_irsa・ログ・SG・KMS の切り替えと、その組み合わせ
+    EKS_SWITCHES = [
+        ("default", ""),
+        ("create=false", "\n  create = false"),
+        ("create_iam_role=false", '\n  create_iam_role = false\n  iam_role_arn = "arn:aws:iam::111122223333:role/c"'),
+        ("enable_irsa=false", "\n  enable_irsa = false"),
+        ("log group off", "\n  create_cloudwatch_log_group = false"),
+        ("cluster SG off", '\n  create_cluster_security_group = false\n  cluster_security_group_id = "sg-c"'),
+        ("node SG off", '\n  create_node_security_group = false\n  node_security_group_id = "sg-n"'),
+        ("own kms key", '\n  create_kms_key = false\n  cluster_encryption_config = { resources = ["secrets"], provider_key_arn = "arn:aws:kms:us-east-1:111122223333:key/k" }'),
+        ("encryption policy off", "\n  attach_cluster_encryption_policy = false"),
+        ("iam off + irsa off + log off", '\n  create_iam_role = false\n  iam_role_arn = "arn:aws:iam::111122223333:role/c"\n  enable_irsa = false\n  create_cloudwatch_log_group = false'),
+        ("everything off", '\n  create_iam_role = false\n  iam_role_arn = "arn:aws:iam::111122223333:role/c"\n  enable_irsa = false\n  create_cloudwatch_log_group = false\n  create_node_security_group = false\n  node_security_group_id = "sg-n"\n  create_cluster_security_group = false\n  cluster_security_group_id = "sg-c"'),
+    ]
+
+    def probe_values(self, raw) -> dict:
+        return {r["address"]: r["props"].get("value") for r in raw["resources"]
+                if r["address"].startswith("aws_ssm_parameter.")}
+
+    def test_eks20_switches_match_source(self):
+        # create・create_iam_role・enable_irsa・ログ・SG の切り替えで、作られるリソースが本物と同じ（count が 0 になるものを含む）。
+        # あわせて、出力（oidc_provider_arn・cluster_name）を読む probe の値が本物と同じ（出力の名前や式が変わると、$unknown になって落ちる）
+        src = PUBLIC / "terraform-aws-eks-v20.8.5"
+        suffix = ".module.user_data.null_resource.validate_cluster_service_cidr"
+        sizes = {}
+        for name, extra_input in self.EKS_SWITCHES:
+            with self.subTest(name):
+                body = self.EKS_SWITCH_BASE + extra_input
+                got = self.compare_with_source(src, "terraform-aws-modules/eks/aws", "20.8.5", body, set(),
+                                               extra=self.EKS20_PROBES, ignore=suffix)
+                sizes[name] = len(got)
+                real = build_module_call(str(src), body, extra=self.EKS20_PROBES)
+                summ = build_module_call("terraform-aws-modules/eks/aws", body, "20.8.5", extra=self.EKS20_PROBES)
+                self.assertEqual(self.probe_values(summ), self.probe_values(real))
+                self.assertNotIn("TF-MODULE-SUMMARY-OUTPUT", codes(summ, "aws_ssm_parameter.probe_oidc_arn"))
+                self.assertNotIn("TF-MODULE-SUMMARY-OUTPUT", codes(summ, "aws_ssm_parameter.probe_cluster_name"))
+        # スイッチが効いている（件数が変わる）ことの確認
+        self.assertEqual(sizes["create=false"], 2)  # 何も作らない。残るのは probe の 2 件だけ
+        self.assertGreater(sizes["default"], sizes["enable_irsa=false"])
+        self.assertGreater(sizes["default"], sizes["log group off"])
+        self.assertGreater(sizes["default"], sizes["create_iam_role=false"])
+        self.assertGreater(sizes["default"], sizes["everything off"])
+        # probe の値の形（既定では出力は実在のリソースへの参照。enable_irsa=false では null）
+        summ = build_module_call("terraform-aws-modules/eks/aws", self.EKS_SWITCH_BASE, "20.8.5", extra=self.EKS20_PROBES)
+        v = self.probe_values(summ)
+        self.assertEqual(v["aws_ssm_parameter.probe_oidc_arn"], res("module.m.aws_iam_openid_connect_provider.oidc_provider[0]", "arn"))
+        self.assertEqual(v["aws_ssm_parameter.probe_cluster_name"], res("module.m.aws_eks_cluster.this[0]", "name"))
+        off = build_module_call("terraform-aws-modules/eks/aws", self.EKS_SWITCH_BASE + "\n  enable_irsa = false", "20.8.5",
+                                extra=self.EKS20_PROBES)
+        self.assertIsNone(self.probe_values(off)["aws_ssm_parameter.probe_oidc_arn"])
+
+    def test_eks21_switches_match_source(self):
+        # v21 の表にも同じ確認（既存の表。変更は無い。切り替えの組み合わせと、出力の probe が本物と同じ）
+        src = PUBLIC / "terraform-aws-eks"
+        base = '''
+  name       = "c"
+  vpc_id     = "vpc-1"
+  subnet_ids = ["s-1", "s-2"]
+  addons = { coredns = {} }
+  eks_managed_node_groups  = { a = {} }
+  self_managed_node_groups = { s = {} }
+  fargate_profiles         = { f = { selectors = [{ namespace = "x" }] } }'''
+        role = '\n  create_iam_role = false\n  iam_role_arn = "arn:aws:iam::111122223333:role/c"'
+        cases = {"default": "", "create=false": "\n  create = false", "iam off": role, "irsa off": "\n  enable_irsa = false",
+                 "log off": "\n  create_cloudwatch_log_group = false",
+                 "all": role + "\n  enable_irsa = false\n  create_cloudwatch_log_group = false"}
+        for name, extra_input in cases.items():
+            with self.subTest(name):
+                self.compare_with_source(src, "terraform-aws-modules/eks/aws", "~> 21.0", base + extra_input, set(),
+                                         extra=self.EKS20_PROBES,
+                                         ignore=".module.user_data.null_resource.validate_cluster_service_cidr")
+                real = build_module_call(str(src), base + extra_input, extra=self.EKS20_PROBES)
+                summ = build_module_call("terraform-aws-modules/eks/aws", base + extra_input, "~> 21.0", extra=self.EKS20_PROBES)
+                self.assertEqual(self.probe_values(summ), self.probe_values(real))
+
+    # --- vpc 5.x・6.x の切り替え
+
+    VPC_SWITCH_CASES = [
+        # database のサブネットグループを作らない（create_database_subnet_group = false）
+        ("db subnet group off", """
+  name = "db"
+  azs  = ["us-east-1a", "us-east-1b"]
+  database_subnets = ["10.0.20.0/24", "10.0.21.0/24"]
+  create_database_subnet_route_table = true
+  create_database_subnet_group = false""", True),
+        # one_nat_gateway_per_az は既定のまま（false）。NAT の数は AZ の数ではなく、サブネットの数（2）
+        ("nat default one_nat_gateway_per_az", """
+  name = "nat"
+  azs  = ["us-east-1a", "us-east-1b", "us-east-1c"]
+  public_subnets  = ["10.0.0.0/24", "10.0.1.0/24"]
+  private_subnets = ["10.0.10.0/24", "10.0.11.0/24"]
+  enable_nat_gateway = true""", True),
+        ("create_vpc off", """
+  name = "off"
+  azs  = ["us-east-1a"]
+  public_subnets = ["10.0.0.0/24"]
+  create_vpc = false""", False),
+        ("igw off", """
+  name = "noigw"
+  azs  = ["us-east-1a", "us-east-1b"]
+  public_subnets  = ["10.0.0.0/24", "10.0.1.0/24"]
+  private_subnets = ["10.0.10.0/24", "10.0.11.0/24"]
+  create_igw = false
+  enable_nat_gateway = true
+  single_nat_gateway = true""", False),
+    ]
+
+    def test_vpc_switches_match_source(self):
+        trees = [("5.8.1", "terraform-aws-vpc-v5.8.1"), ("~> 5.0", "terraform-aws-vpc-v5.21.0"), ("~> 6.0", "terraform-aws-vpc")]
+        for version, folder in trees:
+            for name, body, _ in self.VPC_SWITCH_CASES:
+                with self.subTest(f"{folder} {name}"):
+                    got = self.compare_with_source(PUBLIC / folder, "terraform-aws-modules/vpc/aws", version, body, set())
+                    if name == "db subnet group off":
+                        self.assertFalse([a for a in got if "aws_db_subnet_group" in a])
+                        self.assertEqual(len([a for a in got if "aws_subnet.database" in a]), 2)
+                    if name == "nat default one_nat_gateway_per_az":
+                        self.assertEqual(len([a for a in got if "aws_nat_gateway.this" in a]), 2)  # AZ は 3 つだが NAT は 2 つ
+                    if name == "create_vpc off":
+                        self.assertEqual(got, {})
+                    if name == "igw off":
+                        self.assertFalse([a for a in got if "internet_gateway" in a or "public_internet_gateway" in a])
+
+    # --- 親が子のモジュールに渡す入力が、子の表で宣言されている（宣言が無いと、使っていない入力が「表に無い入力」と通知される）
+
+    def test_every_input_a_table_passes_to_a_submodule_is_declared_there(self):
+        import re
+        summaries, _ = MS.load()
+        checked = 0
+        for source, items in summaries.items():
+            if "//" in source:
+                continue
+            for s in items:
+                parent = module_eval.ModuleEval(model.Context(Path(".")), None)
+                parent.summary = s
+                parent.collect(module_load.summary_tree(s), "main.tf")
+                for blk in parent.blocks.values():
+                    if blk.kind != "module":
+                        continue
+                    m = re.search(r'module\s+"%s"\s*\{\s*source\s*=\s*"([^"]+)"' % re.escape(blk.name), s.text)
+                    if not m or not is_local(m.group(1)):
+                        continue  # 表の外のモジュール（kms）は黒箱。宣言を持たない
+                    sub_source = join_summary_source(s.source, m.group(1))
+                    sub = next(x for x in summaries[sub_source] if x.majors == s.majors)
+                    child = module_eval.ModuleEval(model.Context(Path(".")), None)
+                    child.summary = sub
+                    child.collect(module_load.summary_tree(sub), "main.tf")
+                    passed = set(blk.attrs) - {"source", "version", "for_each", "count", "depends_on", "providers"}
+                    with self.subTest(f"{s.file} {blk.name}"):
+                        self.assertEqual(sorted(passed - set(child.variables)), [])
+                    checked += 1
+        self.assertGreaterEqual(checked, 11)  # eks 20・21 の 3 つずつ、rds 5
+
+    def test_eks20_empty_node_groups_report_no_uncovered_inputs(self):
+        # 子の表に launch_template_tags の宣言が無く、セルフマネージドのグループごとに TF-MODULE-SUMMARY-INPUT が出ていた（回帰）
+        for version in ("20.8.5", "~> 21.0"):
+            body = {"20.8.5": '''
+  cluster_name = "c"
+  vpc_id       = "vpc-1"
+  subnet_ids   = ["s-1"]
+  self_managed_node_groups = { s = {} }
+  eks_managed_node_groups  = { m = {} }
+  fargate_profiles         = { f = { selectors = [{ namespace = "x" }] } }''',
+                    "~> 21.0": '''
+  name       = "c"
+  vpc_id     = "vpc-1"
+  subnet_ids = ["s-1"]
+  self_managed_node_groups = { s = {} }
+  eks_managed_node_groups  = { m = {} }
+  fargate_profiles         = { f = { selectors = [{ namespace = "x" }] } }'''}[version]
+            with self.subTest(version):
+                raw = build_module_call("terraform-aws-modules/eks/aws", body, version)
+                assert_valid(self, raw)
+                self.assertEqual([d["message"] for d in raw["diagnostics"] if d["code"] == "TF-MODULE-SUMMARY-INPUT"], [])
 
 
 class SummaryTableFileTest(unittest.TestCase):

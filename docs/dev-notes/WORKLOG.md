@@ -1366,7 +1366,7 @@ tests/ 平ら 10 ファイル、最大 2,381 行（281 件）            tests/ 
   FAILED: 0
   ```
 - 型 B の 3 ケースは、vpc 5.x・eks 20.x を使わない（`learn-terraform-aws-asg` は vpc 2.77.0、eks-blue・eks-green は eks 19.15.2）が、黒箱の診断の文が「表にある major」を列挙するので、表が増えると文だけが変わる。指示（vpc 5.x・eks 20.x を使わないケースはバイト単位で同じ）の例外で、構造の違いは無い（文の置換で旧と新が一致することを上の規則 B で確かめた）。
-- **T16 の `module.irsa-ebs-csi`** の違い: `provider_url = module.eks.oidc_provider` は、旧は `module.eks` への参照、新は `$unknown`（`replace()` の引数のクラスタの issuer が apply 前に決まらない）と `TF-UNEVALUATED` 1 件。`role_name` の `module.eks.cluster_name` は `module.eks.aws_eks_cluster.this[0].name` への参照。**`provider_url` を通る「IRSA のロール → OIDC プロバイダ」の辺は、表の展開では付かない**（`role_name` を通るクラスタへの辺は付く）。v21 の表でも同じ（出力 `oidc_provider` の式が本物と同じで、評価器が未知の値への `replace()` を未知にするため）。
+- **T16 の `module.irsa-ebs-csi`** の違い: `provider_url = module.eks.oidc_provider` は、旧は `module.eks` への参照、新は `$unknown`（`replace()` の引数のクラスタの issuer が apply 前に決まらない）と `TF-UNEVALUATED` 1 件。`role_name` の `module.eks.cluster_name` は `module.eks.aws_eks_cluster.this[0].name` への参照。**`provider_url` を通る参照は、OIDC プロバイダのリソースではなく `module.eks.aws_eks_cluster.this[0]`（`attr: identity`）への `state: unevaluated` の参照として残り、`through: ["module.eks.output.oidc_provider"]` が付く**（`role_name` を通るクラスタへの active な参照も付く。フェーズ 3 の H-IAM が `through` で OIDC プロバイダに結べる。下の「レビュー対応」の 5）。v21 の表でも同じ（出力 `oidc_provider` の式が本物と同じで、評価器が未知の値への `replace()` を未知にするため）。
 - T18 `environment` の vpc は、`azs` が `length(data.aws_availability_zones…names)` に依って apply 前に決まらないので、サブネット・ルートテーブル・NAT などが「×N」の 1 ブロックで出る（`TF-COUNT-UNRESOLVED`）。評価器の既存の扱い（A4）で、今回の変更ではない。
 
 ### 確かめたこと
@@ -1383,3 +1383,30 @@ tests/ 平ら 10 ファイル、最大 2,381 行（281 件）            tests/ 
 - T18 の eks `~> 19.15.2` は黒箱のまま（19.x の表は作らない）。
 - `aws_ec2_tag.cluster_primary_security_group` は、20.x では `tags` の `Name` 以外ごとに 1 件の `aws_ec2_tag` として raw IR に出る（本物と同じ。正規化（フェーズ 3）で扱いを決める）。
 - CI（GitHub Actions）は実行していない（push していない）。
+
+### レビュー対応（follow-ups。第三者レビュー: APPROVE WITH CHANGES。1 つのコミットで直した）
+表の忠実度は、レビューが vpc 126 件・eks 92 件の差分実行で確かめた。指摘は MINOR 3 件と NIT。出力（golden）は変わらない（101/101）。
+1. **MINOR 1: `launch_template_tags` の宣言漏れ**（eks 20.x の self-managed の表）。親の呼び出しが渡す入力に、子の表に宣言が無いものがあり、セルフマネージドのグループごとに `TF-MODULE-SUMMARY-INPUT` が出ていた。本物の `modules/self-managed-node-group/variables.tf` の宣言（`type = map(string)`、`default = {}`）を写して足した。**同じ種類の欠けの点検**: 表の中の親の `module` ブロックが渡す入力と、子の表が宣言する変数を、すべての子の表（eks 20 の 3、eks 21 の 3、rds 7 の 5。計 11）で突き合わせた。欠けは `launch_template_tags` の 1 件だけ（ほかの 10 は 0 件）。`module.kms` は表の外（黒箱）で宣言を持たないので対象外。回帰テスト: `test_every_input_a_table_passes_to_a_submodule_is_declared_there`（上の突き合わせを全表に対して永続化。修正を戻すと落ちることを確かめた）、`test_eks20_empty_node_groups_report_no_uncovered_inputs`（`self_managed_node_groups = { s = {} }` などで `TF-MODULE-SUMMARY-INPUT` が 0 件。v21 の表も同じ形で確かめる）。
+2. **MINOR 2: 生き残った変異を殺すテスト**。`compare_with_source` に `extra`（呼び出しの後ろの HCL）と `ignore`（入力に依って有る・無いが変わる検査用の `null_resource` を除く）を足し、次を足した: `test_eks20_switches_match_source`（`create = false`、`create_iam_role = false`、`enable_irsa = false`、ログのグループを作らない、クラスタ／node の SG を作らない、自分の KMS キー、暗号化のポリシーなし、と組み合わせ 2 つ。11 通りを本物と突き合わせ、あわせて出力 `oidc_provider_arn`・`cluster_name` を読む `aws_ssm_parameter` の probe の値が本物と同じ）、`test_eks21_switches_match_source`（v21 の既存の表にも同じ 6 通り。表は変更なし）、`test_vpc_switches_match_source`（5.8.1・5.21.0・6.7.3 × `create_database_subnet_group = false`、`one_nat_gateway_per_az` は既定のまま（AZ 3、サブネット 2 で NAT が 2 つ）、`create_vpc = false`、`create_igw = false`）。
+3. **MINOR 3: 通知されない欠けの文書化**。`docs/spec/module-summaries.md` の 3 に「まだ写していないもの（通知されない欠け）」を足し（`aws_route.private_dns64_nat_gateway`・`database_dns64_nat_gateway`・`database_ipv6_egress`、本物にあって表に無い出力 vpc 68・eks 20 は 4・eks 21 は 16 を名前で）、`v5.md`・`v6.md` の先頭の `#` の行にも書いた（ローダーは `# not-covered:` の行しか読まない。v6 の表の動きは変えていない。golden 101/101 で確認）。
+4. **NIT**: `test_module_summaries.py` の 314 文字の行（空白が潰れていた）を複数行に戻した。変数の説明（`NOTICE.md`・`docs/spec/module-summaries.md` の 1）を、「表の本文が使う変数の宣言だけを写す」に直し、宣言した数を本物の数と並べた: vpc 5.x 82 / 234、vpc 6.x 83 / 236、eks 20.x 72 / 88、eks 21.x 62 / 108。残りは `TF-MODULE-SUMMARY-INPUT` で通知される。HANDOFF の現在の状態の行の数は 248 フォルダ・437 件に直した（205 は履歴の文だけ）。
+5. **T16 の IRSA の文書**: `docs/spec/module-summaries.md` の 3 に段落を足した。`module.eks.output.oidc_provider` は `replace(issuer, "https://", "")` なので、`provider_url` は値が決まらない参照のまま残り、参照 `module.irsa-ebs-csi → module.eks.aws_eks_cluster.this[0]`（`attr: identity`、`state: unevaluated`）に `through: ["module.eks.output.oidc_provider"]` が付く。フェーズ 3 の H-IAM は `through` で IRSA のロールと `aws_iam_openid_connect_provider` を結べる。評価器と表は意図して変えていない。**上の golden の節の「IRSA のロール → OIDC プロバイダの辺は付かない」は不正確だった**: 参照（unevaluated）は付く。付かないのは active な辺と、OIDC プロバイダのリソースそのものへの参照。
+
+#### 変異の殺し方（表の変異 10 件。表を一時的に書き換え、`tests.unit.terraform.test_module_summaries` だけを流した。使い捨てのスクリプト）
+| 変異 | 対象 | 追加前の単体テスト | 追加後に落ちるテスト |
+|---|---|---|---|
+| M1 `aws_db_subnet_group` の count から `var.create_database_subnet_group` を外す | vpc v5・v6 | 生き残る（2 件とも） | `test_vpc_switches_match_source` |
+| M2 `one_nat_gateway_per_az` の既定を true にする | vpc v5・v6 | 生き残る | `test_vpc_switches_match_source` |
+| M3 `aws_eks_cluster` の count を 1 に固定 | eks v20 | 生き残る | `test_eks20_switches_match_source` |
+| M4 `create_oidc_provider` から `enable_irsa` を外す | eks v20 | 生き残る | `test_eks20_switches_match_source` |
+| M5 `create_iam_role` を無視する | eks v20 | 生き残る | `test_eks20_switches_match_source` |
+| M6 ログのグループの count を 1 に固定 | eks v20 | 生き残る | `test_eks20_switches_match_source` |
+| M7 出力 `oidc_provider_arn` の名前を変える | eks v20 | 生き残る | `test_eks20_switches_match_source` |
+| M8 出力 `cluster_name` の名前を変える | eks v20 | 生き残る | `test_eks20_switches_match_source` |
+
+「追加前」は、追加前のテストファイル（コミット済みの `19722ab` の版）で同じ変異を当てた結果（10 件すべて生き残り、golden でしか見つからない状態）。「追加後」は 10 件すべて、単体テストで落ちる（golden に頼らない）。
+
+#### 数字
+- 単体テスト **437 件**（432 + 新規 5: `test_eks20_switches_match_source`、`test_eks21_switches_match_source`、`test_vpc_switches_match_source`、`test_every_input_a_table_passes_to_a_submodule_is_declared_there`、`test_eks20_empty_node_groups_report_no_uncovered_inputs`）。
+- `tf_public_check.py --all`: 248 フォルダ、リソース **16898**、warn 2582、info 22063、error 0（`launch_template_tags` の修正では変わらない: 公開サンプルに、親の表で展開される self-managed のグループは無い）。golden 101/101。
+- 確認（レビュー対応のコミット）: Windows の通常の TEMP（164 秒）と `subst Y:` の TEMP（167 秒）で 437 件 OK、`uv lock --check` OK、golden 101/101、pyflakes 0 件。WSL（`git archive HEAD` を WSL の中で展開）は 437 件 OK（98 秒）、golden 101/101、`tf_public_check.py --all --jobs 4` は 248 フォルダ・16898 リソース・error 0、`c1_check.py` は 25・513・0、SKILL だけのコピー（日本語とスペースのパス）の T16・T18 の出力は在リポジトリの出力とバイト単位で同じ（88,078・24,291 バイト。manifest と一致）。
