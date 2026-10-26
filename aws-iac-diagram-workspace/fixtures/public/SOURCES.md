@@ -69,6 +69,22 @@ P01〜P04 は、公開モジュールの「中身の要約表」（PLAN.md の A
 - 取得日: 2026-10-17。取得方法: `git ls-remote --tags` で major の最新のタグを選び、`git clone --depth 1 --branch <タグ>` で一時フォルダに取り、`.git` を削除してこのフォルダに置いた（terraform-aws-vpc・terraform-aws-eks と同じく、リポジトリの中身をそのまま。LICENSE は取得元のものを保持）。削除したファイル: `terraform-aws-rds/examples/s3-import-mysql/backup.zip`（zip は除外の決まり）。
 - 読むだけ（`tests/test_tf_adapter.py` の `SummaryTest` が、TF アダプタで手元のモジュールとして読む）。`terraform init`・plan・apply は行わない。
 
+### vpc の 5.x・eks の 20.x（2026-10-26 に追加。ユーザーの 2026-10-24 の決定で取得）
+
+要約表 `terraform-aws-modules/vpc/aws` の 5.x（`data/module-summaries/terraform-aws-vpc/v5.md`）と `terraform-aws-modules/eks/aws` の 20.x（`terraform-aws-eks/v20.md`）の照合用。既存の `terraform-aws-vpc/`（6.7.3）・`terraform-aws-eks/`（21.29.0）とは別のフォルダに、版の名前を付けて置いた。
+
+| ID | 内容 | ディレクトリ | 取得元 | タグ | コミット | タグのコミット日 | ライセンス |
+|---|---|---|---|---|---|---|---|
+| M03 | terraform-aws-modules/vpc の 5.x の T16 の版（`version = "5.8.1"`） | `terraform-aws-vpc-v5.8.1/` | https://github.com/terraform-aws-modules/terraform-aws-vpc | v5.8.1 | 25322b6b6be69db6cca7f167d7b0e5327156a595 | 2024-04-26 | Apache-2.0 |
+| M04 | terraform-aws-modules/vpc の 5.x の最新（T18 の `~> 5.0` が選ぶ版。`git ls-remote --tags` で v5.x.y の最大） | `terraform-aws-vpc-v5.21.0/` | 同上 | v5.21.0 | 7c1f791efd61f326ed6102d564d1a65d1eceedf0 | 2025-04-21 | Apache-2.0 |
+| M05 | terraform-aws-modules/eks の 20.x の T16 の版（`version = "20.8.5"`） | `terraform-aws-eks-v20.8.5/` | https://github.com/terraform-aws-modules/terraform-aws-eks | v20.8.5 | afadb14e44d1cdbd852dbae815be377c4034e82a | 2024-04-08 | Apache-2.0 |
+
+- 取得方法は M01・M02 と同じ（`git ls-remote --tags` でタグを確かめ、`git clone --depth 1 --branch <タグ>` で一時フォルダに取り、`.git` を削除してこのフォルダに置いた。LICENSE は取得元のものを保持）。タグは軽量タグなので、コミットはタグが指すコミット。取得元はこの 2 つのリポジトリだけ。
+- 削除したファイル: `terraform-aws-eks-v20.8.5/.github/images/security_groups.svg`・`user_data.svg`（画像は除外の決まり）。そのほかはリポジトリの中身のまま。
+- 版を選んだ理由: T16（`learn-terraform-provision-eks-cluster/main.tf`）が vpc `5.8.1`・eks `20.8.5` を固定している。T18（`terraform-aws-eks-blueprints/patterns/blue-green-upgrade/environment/main.tf`）の vpc は `~> 5.0` で、5.x の最新 v5.21.0 が当たる（T18 の eks は `~> 19.15.2` で、要約表は作らない）。eks の 20.x の最新（v20.37.2）は取り込んでいない。
+- 読むだけ（`tests/unit/terraform/test_module_summaries.py` の `SummaryTest` が、TF アダプタで手元のモジュールとして読む）。`terraform init`・plan・apply は行わない。`tf_public_check.py --all` の対象に、これらの中の `.tf` のあるフォルダ（43）が加わる。
+
+
 ## CloudFormation のみの参考
 
 | ID | 内容 | ディレクトリ | 取得元 | コミット | ライセンス |
