@@ -6,8 +6,10 @@
 1. `test_*.py` は `unit/`・`integration/`・`golden/`・`architecture/` のどれかの下にある。そこまでのフォルダのすべてに
    `__init__.py` がある（`unittest discover -s tests` は `__init__.py` の無いフォルダを見ない）。
 2. `support/`（共有の道具）にはテストを置かない。
-3. tests/ の下のフォルダの名前は、標準ライブラリのモジュール・`scripts/` や `tools/` の最上位の名前と同じにしない
-   （`python tests/…/test_x.py` で動かすと、そのフォルダが import の先頭に来て `import platform` や `import doctor` を隠す）。
+3. tests/ の下のフォルダの名前と、フォルダの直下のテストでない `.py` の名前（`__init__.py` を除く）は、標準ライブラリのモジュール・
+   インストール済みのパッケージ（`yaml`・`jsonschema`・`hcl2` など）・`scripts/` や `tools/` の最上位の名前と同じにしない
+   （`python tests/…/test_x.py` や `discover -s tests/unit` で動かすと、そのフォルダが import の先頭に来て `import platform`・
+   `import yaml`・`import doctor` を隠す。`unit/core/json.py` のような補助のファイルも同じ）。
    例外は `golden/`（tools/golden.py と同じ名前。PLAN の置き場の名前。テストは support.tools.load_tool で別名で読み、
    `import golden` と書かない）。
 4. テストのファイルは、先頭で tests/ を sys.path に入れる同じ 2 行を持つ（直接実行と `python -m unittest tests.…` のため）。
@@ -18,6 +20,7 @@ from __future__ import annotations
 
 import ast
 import hashlib
+import importlib.metadata
 import sys
 import tempfile
 import unittest
@@ -63,6 +66,15 @@ def top_level_names() -> set[str]:
     return names
 
 
+# 開発用の環境の依存（pyproject.toml）の最上位の名前。環境に入っていなくても、隠してはいけない名前として数える
+THIRD_PARTY_FLOOR = {"PIL", "hcl2", "yaml", "jsonschema", "lark", "cfnlint", "defusedxml", "moto"}
+
+
+def third_party_names() -> set[str]:
+    """インストール済みの配布物（依存の依存も）が持ち込む import の最上位の名前。"""
+    return set(importlib.metadata.packages_distributions()) | THIRD_PARTY_FLOOR
+
+
 def violations_in_layout(root: Path, shadow: set[str]) -> list[str]:
     problems: list[str] = []
     for f in test_files(root):
@@ -75,10 +87,15 @@ def violations_in_layout(root: Path, shadow: set[str]) -> list[str]:
             if not (d / "__init__.py").is_file():
                 problems.append(f"{d.relative_to(root).as_posix()}/: __init__.py が無い（discover が見つけない）")
             d = d.parent
-    for d in directories(root):
-        rel = d.relative_to(root).as_posix()
-        if d.name in shadow and d.name not in SHADOW_ALLOW:
-            problems.append(f"{rel}/: フォルダの名前 {d.name} が標準ライブラリか scripts/・tools/ の名前と同じ（import を隠す）")
+    for d in [root, *directories(root)]:
+        for p in sorted(d.iterdir()):
+            if p.name.startswith(("test_", "__")):
+                continue
+            rel = p.relative_to(root).as_posix()
+            if p.is_dir() and p.name in shadow and p.name not in SHADOW_ALLOW:
+                problems.append(f"{rel}/: フォルダの名前 {p.name} が標準ライブラリ・インストール済みのパッケージ・scripts/・tools/ の名前と同じ（import を隠す）")
+            elif p.is_file() and p.suffix == ".py" and p.stem in shadow and p.stem not in SHADOW_ALLOW:
+                problems.append(f"{rel}: モジュールの名前 {p.stem} が標準ライブラリ・インストール済みのパッケージ・scripts/・tools/ の名前と同じ（import を隠す）")
     support = root / "support"
     if support.is_dir():
         problems += [f"support/ にテスト: {p.relative_to(root).as_posix()}" for p in test_files(support)]
@@ -102,7 +119,7 @@ def copied_functions(root: Path) -> dict[str, list[str]]:
 
 class TestLayoutTest(unittest.TestCase):
     def test_real_tree(self):
-        shadow = set(sys.stdlib_module_names) | top_level_names() | {"tests"}
+        shadow = set(sys.stdlib_module_names) | third_party_names() | top_level_names() | {"tests"}
         problems = violations_in_layout(TESTS, shadow)
         self.assertEqual(problems, [], "\n".join(problems))
 
@@ -113,22 +130,29 @@ class TestLayoutTest(unittest.TestCase):
         names = top_level_names()
         self.assertTrue({"doctor", "validate_ir", "adapt_tf", "aws_iac_diagram", "maintenance", "golden"} <= names)
         self.assertIn("platform", sys.stdlib_module_names)
+        self.assertTrue({"PIL", "hcl2", "yaml", "jsonschema", "lark", "cfnlint"} <= third_party_names())
 
     def test_mutations_are_found(self):
         with tempfile.TemporaryDirectory() as t:
             root = Path(t)
-            for rel in ("unit/a", "unit/platform", "support", "stray"):
+            for rel in ("unit/a", "unit/platform", "unit/yaml", "unit/core", "support", "stray"):
                 (root / rel).mkdir(parents=True)
             (root / "unit" / "__init__.py").write_text("", encoding="utf-8")
             (root / "unit" / "a" / "test_x.py").write_text("", encoding="utf-8")        # a/ に __init__.py が無い
             (root / "unit" / "platform" / "__init__.py").write_text("", encoding="utf-8")
             (root / "unit" / "platform" / "test_y.py").write_text("", encoding="utf-8")  # 標準ライブラリを隠す名前
+            (root / "unit" / "yaml" / "__init__.py").write_text("", encoding="utf-8")    # インストール済みのパッケージを隠す名前
+            (root / "unit" / "core" / "__init__.py").write_text("", encoding="utf-8")
+            (root / "unit" / "core" / "json.py").write_text("", encoding="utf-8")        # 補助のファイルが標準ライブラリを隠す
+            (root / "unit" / "core" / "hcl2.py").write_text("", encoding="utf-8")        # 補助のファイルがインストール済みのパッケージを隠す
             (root / "support" / "test_z.py").write_text("", encoding="utf-8")            # support/ にテスト
             (root / "stray" / "test_w.py").write_text("", encoding="utf-8")              # 置き場の外
-            problems = violations_in_layout(root, set(sys.stdlib_module_names))
+            problems = violations_in_layout(root, set(sys.stdlib_module_names) | third_party_names())
             text = "\n".join(problems)
-            for expect in ("unit/a/: __init__.py が無い", "フォルダの名前 platform", "support/ にテスト", "stray/test_w.py"):
+            for expect in ("unit/a/: __init__.py が無い", "フォルダの名前 platform", "フォルダの名前 yaml",
+                           "モジュールの名前 json", "モジュールの名前 hcl2", "support/ にテスト", "stray/test_w.py"):
                 self.assertIn(expect, text)
+            self.assertEqual(len(problems), 8, problems)  # 上の 7 つ + support/test_z.py の置き場。unit/core/ のフォルダ自体などは咎めない
 
     def test_every_test_file_bootstraps_the_tests_directory(self):
         for f in test_files():

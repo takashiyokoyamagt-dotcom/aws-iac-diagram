@@ -156,5 +156,33 @@ class GoldenToolTest(unittest.TestCase):
                                  self.results["tf/custom/vpc-endpoints"]["sha256"])
 
 
+class GoldenAbsolutePathTest(unittest.TestCase):
+    """hash が一致していても、出力に絶対パスが入っていれば compare が失敗にする（R5 のレビューの指摘）。
+
+    GoldenToolTest.test_absolute_paths_are_detected は検出関数 absolute_path_hits だけを見ていて、compare が
+    その結果（abs_paths）を使っていることは確かめていなかった。ここは、実行せずに作った結果で compare を直接呼ぶ。
+    """
+
+    SHA = "ab" * 32
+
+    def compare(self, abs_paths: list):
+        cases = {"tf/custom/x": {"adapter": "tf", "args": ["--input", "a", "--root-base", "b"]}}
+        manifest = {"cases": {"tf/custom/x": {"adapter": "tf", "args": ["--input", "a", "--root-base", "b"],
+                                              "sha256": self.SHA, "bytes": 3, "resources": 1, "references": 0,
+                                              "diagnostics": 0}}}
+        results = {"tf/custom/x": {"code": 0, "stderr": "", "sha256": self.SHA, "bytes": b"{}",
+                                   "summary": {"resources": 1, "references": 0, "diagnostics": 0},
+                                   "abs_paths": abs_paths}}
+        return golden.compare(cases, results, manifest, partial=False)
+
+    def test_matching_hash_with_an_absolute_path_fails(self):
+        self.assertEqual(self.compare([]), [])  # 前提: 絶対パスが無く hash が一致すれば問題なし
+        for path in (str(golden.ROOT), str(Path.home()), tempfile.gettempdir()):
+            with self.subTest(path):
+                problems = self.compare([path])
+                self.assertEqual(len(problems), 1, problems)
+                self.assertTrue(problems[0].startswith("ABSPATH  tf/custom/x"), problems)
+
+
 if __name__ == "__main__":
     unittest.main()

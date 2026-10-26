@@ -1180,3 +1180,27 @@ golden は 4 つのコミットのそれぞれで 101/101 一致、単体テス�
 - 変異の比較は（クラス名, メソッド名）で行った。名前が同じクラスが 2 つのファイルにある（`RobustnessTest`・`ExpectedIrTest`・`FixtureTest`）ので、片方が落ちてもう片方が落ちないという差は見分けられない（落ちた件数の合計は一致した）。
 - Windows で長いパスに `git archive` を展開すると、公開サンプルの深いパスのファイルが欠けて `tf_public_check` 系のテストが落ちる（`tests/` の構成とは無関係。変異の比較では、短いパス `%TEMP%\r5` に展開して避けた）。リポジトリを深い場所に clone する人は MAX_PATH に注意。
 - CI（GitHub Actions）は実行していない（push していない）。
+
+### レビューの指摘への対応（R5 の第三者レビュー: APPROVE WITH CHANGES。1 つのコミットで直した）
+単体テストは 398 → 412 件（新規 14: `DocumentedPathsTest` 3、`LiteralOnlyTest` 2、`SelfLoopTest` 1、`GoldenAbsolutePathTest` 1、`ConditionLogicTest` 5、`CidrSubnetBoundaryTest` 2）。移す前の 391 件の本文は変えていない（同じ AST の表で、足りない 0・変わったもの 0）。アダプタの出力は変わらない（golden 101/101）。
+1. **MINOR-1（フォルダの名前が隠すもの）。** `test_test_layout.py` の検査に、インストール済みのパッケージ（`importlib.metadata.packages_distributions()` の最上位の名前。環境に無くても隠してはいけない `yaml`・`jsonschema`・`hcl2`・`PIL`・`lark`・`cfnlint`・`defusedxml`・`moto` を下限に足した）を足した。対象はフォルダの名前に加えて、フォルダの直下のテストでない `.py`（`unit/core/json.py` のような補助のファイル。`__init__.py` を除く）。一時フォルダの複製に `unit/yaml/`・`unit/core/json.py`・`unit/core/hcl2.py` を置くと失敗することを `test_mutations_are_found` が確かめる（本物のツリーに置いても失敗することも手で確かめた）。docs/architecture.md の 7 に決まりを書いた。
+2. **MINOR-2/3（古いパス）。** `docs/spec/module-summaries.md` の `tests/test_paths.py` と PLAN の R1 の段落の `tests/test_architecture.py` を直した（`docs/dev-notes/` 以外の `tests/test_` は 0）。`architecture/test_documented_paths.py`（3 件）が、README・PLAN・docs（`dev-notes/` を除く）・ir-schema.md・ci.yml・fixtures/README.md・`scripts/` と `tools/` の `.py` に書いた `tests/….py|json` のパスの実在を確かめる（古いパスを戻すと失敗することを確かめた）。
+3. **移す前も生き残っていた変異を殺すテスト。** 次の変異は、移す前と移した後の既存のテストのどちらでも見つからなかった（全体 398 件が OK）。新しいテストは、それぞれの変異で失敗し、変異なしでは通る（`git archive` の複製に変異を入れて確かめた）。
+
+| 変異 | 既存の 398 件 | 新しいテスト（変異で落ちたもの） |
+|---|---|---|
+| A1 `plan/masking.py` の `literal_only`: 値の比較（`tv == pv`）を外す（M02） | 生き残る | `LiteralOnlyTest`（2 件。count 0 のリソースで .tf のリテラルが plan の constant と違えば残さない、同じなら残す） |
+| A2 同: 型の比較を外す（`1` と `True` は `==`） | 生き残る | `LiteralOnlyTest.test_literal_that_differs_from_the_plan_constant_is_not_kept` |
+| B `validate_ir.py`: 自己ループの検査を `if False:` に（M18） | 生き残る | `SelfLoopTest`（自己参照の辺の IR が「自己ループ」で落ちる） |
+| C `golden.py`: `compare` の絶対パスの検査を `if False:` に（M27） | 生き残る | `GoldenAbsolutePathTest`（hash が一致していても `ABSPATH` を返す） |
+| D2 `cloudformation/conditions.py` の `stronger`: 決まらない（None）を false に | 生き残る | `ConditionLogicTest`（`stronger` の真理値表、SAM の暗黙の API の enabled） |
+| E1 `cidrsubnet`: netnum の上限が 1 ずれる（`<=`）（M07） | 生き残る | `CidrSubnetBoundaryTest.test_netnum_range_…` |
+| E2 同: 下限が無い | 生き残る | 同上（netnum = -1） |
+| E3 同: `/32` の上限が 1 ずれる | 生き残る | `CidrSubnetBoundaryTest.test_newbits_limit` |
+| E4 同: 負の newbits を許す | 生き残る | 同上 |
+
+- M27 が生き残った理由: 既存の `test_absolute_paths_are_detected` は検出関数 `absolute_path_hits` だけを見て、実際の出力は絶対パスが無い（`abs_paths` が空）ので、`compare` がその結果を使っているかは誰も確かめていなかった。
+- M10（レビューの番号。Conditions の And／Or）: 本物の生き残りは `stronger`／`weaker`（`enabled` の合わせ方）の決まらない値の扱いだった。`cond_eval` の And／Or の変異（D1「決まらないものを決まったことにする」、D3 `weaker` の None → True、D4 「最初の被演算子で止める」）は、既存の `test_logic_and_pseudo`・golden・`IntrinsicTest`・`NestedStackTest` が見つけていた（確認した）ので、`ConditionLogicTest` は And／Or の3つ以上の被演算子・全部が決まる場合も足した。D1・D3・D4 でも新しいテストは落ちる。
+- 同値な変異は無かった（A1〜E4 はすべて新しいテストが落とせた）。
+- 新しいテストは、元のテストの本文を変えずに、同じ領域のファイルの末尾に新しいクラスとして足した（`test_masking.py`・`test_validate_ir.py`・`test_golden.py`・`test_evaluator.py`）か、新しいファイルにした（`unit/cloudformation/test_conditions.py`・`architecture/test_documented_paths.py`）。
+- **確かめたこと（レビュー対応）**: 単体テスト 412 件が Windows の通常の TEMP と別のドライブの TEMP（`subst Y:`）で OK、`uv run python -m unittest discover -s tests -v` も OK。WSL（`git archive` のツリー）でも OK。golden 101/101、`uv lock --check` OK、pyflakes は既存の 1 件（`pw`）だけ。

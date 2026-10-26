@@ -85,5 +85,30 @@ class EvaluatorTest(unittest.TestCase):
         self.assertEqual(V.convert(3, ("string",)), "3")
 
 
+class CidrSubnetBoundaryTest(unittest.TestCase):
+    """cidrsubnet の netnum と newbits の境目（R5 のレビューの指摘: netnum の上限が 1 ずれても落ちるテストが無かった）。"""
+
+    def call(self, *args):
+        return F.call_function("cidrsubnet", list(args))
+
+    def test_netnum_range_is_zero_to_two_pow_newbits_minus_one(self):
+        self.assertEqual(self.call("10.0.0.0/16", 8, 0), "10.0.0.0/24")
+        self.assertEqual(self.call("10.0.0.0/16", 8, 255), "10.0.255.0/24")  # 2**8 - 1 は最後のサブネット
+        self.assertEqual(self.call("10.0.0.0/24", 1, 1), "10.0.0.128/25")
+        self.assertEqual(self.call("10.0.0.0/24", 0, 0), "10.0.0.0/24")      # newbits 0 の netnum は 0 だけ
+        for netnum in (256, 257, -1):
+            with self.subTest(netnum), self.assertRaises(V.EvalError):
+                self.call("10.0.0.0/16", 8, netnum)
+        for newbits, netnum in ((1, 2), (0, 1), (4, 16)):
+            with self.subTest((newbits, netnum)), self.assertRaises(V.EvalError):
+                self.call("10.0.0.0/16", newbits, netnum)
+
+    def test_newbits_limit(self):
+        self.assertEqual(self.call("10.0.0.0/24", 8, 255), "10.0.0.255/32")  # ちょうど /32
+        for newbits in (9, -1):
+            with self.subTest(newbits), self.assertRaises(V.EvalError):
+                self.call("10.0.0.0/24", newbits, 0)
+
+
 if __name__ == "__main__":
     unittest.main()

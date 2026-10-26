@@ -469,5 +469,42 @@ resource "aws_x" "a" {
                 self.assertIn("unexpected structure at " + path, err)
 
 
+class LiteralOnlyTest(TempTestCase):
+    """作られない（count 0）リソースは、.tf の値のうち plan の constant_value と同じリテラルだけを残す（masking.literal_only）。
+
+    SensitiveEdgeCasesTest.test_count_zero_resource_does_not_take_plan_variables は「同じ値は残る」だけを確かめていた。
+    .tf と plan の値が食い違うもの（値が違う、型が違う）を残さないことは、ここで確かめる（R5 のレビューの指摘）。
+    """
+
+    def test_literal_that_differs_from_the_plan_constant_is_not_kept(self):
+        folder = write_files(self.tmp / "tf", {"main.tf": '''
+resource "aws_x" "off" {
+  count = 0
+  same  = "lit"
+  diff  = "tf-side"
+  num   = 7
+  flag  = 1
+}
+'''})
+        plan = mkplan([], [cfg("aws_x.off", {"same": const("lit"), "diff": const("plan-side"), "num": const(7),
+                                             "flag": const(True)},
+                           count_expression=refs("local.zero"))])
+        comb = tf_build.build_raw(folder, self.tmp, plan=write_json(self.tmp / "o.json", plan))
+        r = res_of(comb, "aws_x.off")
+        self.assertFalse(r["enabled"])
+        why = {"$unknown": PM.NOT_CREATED_REASON}
+        # 同じ値と同じ型は残る。値が違うもの、型が違うもの（1 と True は == だが別の型）は残さない
+        self.assertEqual(r["props"], {"same": "lit", "diff": why, "num": 7, "flag": why})
+        self.assertEqual(sorted(p for _, p, _ in diag_codes(comb, "TF-PLAN-LITERAL-ONLY")), ["diff", "flag"])
+
+    def test_literal_only_directly(self):
+        found: list = []
+        out = PM.literal_only({"a": "x", "b": "y", "c": [1, 2], "d": {"k": "v"}},
+                              {"a": "x", "b": "z", "c": [1, 3], "d": {"k": "v"}}, "", found)
+        why = {"$unknown": PM.NOT_CREATED_REASON}
+        self.assertEqual(out, {"a": "x", "b": why, "c": [1, why], "d": {"k": "v"}})
+        self.assertEqual(sorted(found), ["b", "c[1]"])
+
+
 if __name__ == "__main__":
     unittest.main()

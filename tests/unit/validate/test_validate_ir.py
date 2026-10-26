@@ -137,5 +137,19 @@ class BrokenTest(unittest.TestCase):
         self.assertNotEqual(json.dumps(ir, ensure_ascii=False, indent=2, sort_keys=True) + "\n", v.canonical_dump(ir))
 
 
+class SelfLoopTest(unittest.TestCase):
+    """自己ループの辺は検査で落ちる（validate_ir.semantic_errors。R5 のレビューの指摘: この検査を外しても落ちるテストが無かった）。"""
+
+    def test_self_referencing_edge_is_rejected(self):
+        ir = load()
+        self.assertEqual(errors(ir), [])
+        edge = ir["edges"][0]
+        edge["to"] = edge["from"]
+        edge["id"] = f"{edge['from']}->{edge['to']}"  # id は from->to と合わせる（id の誤りでなく、自己ループだけを見る）
+        errs = errors(ir)
+        self.assertTrue(any(e == f"edge {edge['id']}: 自己ループ" for e in errs), errs)
+        self.assertFalse(any("id が from->to と違う" in e for e in errs), errs)
+
+
 if __name__ == "__main__":
     unittest.main()
