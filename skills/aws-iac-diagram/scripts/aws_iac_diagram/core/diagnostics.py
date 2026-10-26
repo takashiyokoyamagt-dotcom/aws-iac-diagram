@@ -86,7 +86,7 @@ _ROWS = (
     _row("TF-MODULE-SUMMARY", "info", "要約表（A5）でモジュールを展開した。主要なリソースだけを書いている"),
     _row("TF-MODULE-SUMMARY-INPUT", "info", "要約表が扱わないモジュールの入力を渡している（その入力が作るリソースは書かない）"),
     _row("TF-MODULE-SUMMARY-OUTPUT", "warn", "要約表に無いモジュールの出力を参照している"),
-    _row("TF-MODULE-SUMMARY-TABLE-MISSING", "warn", "要約表 references/module-summaries.md が無い・読めないのにレジストリモジュールの呼び出しがある"),
+    _row("TF-MODULE-SUMMARY-TABLE-MISSING", "warn", "要約表 data/module-summaries/ が無い・読めないのにレジストリモジュールの呼び出しがある"),
     _row("TF-MODULE-UNREADABLE", "warn", "ローカルモジュールのフォルダを読めない。黒箱にする"),
     _row("TF-OVERRIDE-UNMATCHED", "warn", "*_override.tf のブロックに対応する元のブロックが無い"),
     _row("TF-PARSE-ERROR", "error", ".tf を読めない（ほかのファイルは読む）"),

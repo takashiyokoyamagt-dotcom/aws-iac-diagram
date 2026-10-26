@@ -19,7 +19,7 @@ def blackbox_plan(source: str, why: str) -> tuple:
     要約表のファイル自体が無い・読めない（取り込みの不備）ときは、「表に無い」(info) とは別の warn にする。"""
     if registry_key(source) and not load()[0]:
         return ("blackbox", "warn", "TF-MODULE-SUMMARY-TABLE-MISSING",
-                f"module {source} is not read: the summary table (references/module-summaries.md) is missing or empty")
+                f"module {source} is not read: the summary table (data/module-summaries/) is missing or empty")
     iam = " (it makes IAM resources only: H-IAM)" if iam_only(source) else ""
     return ("blackbox", "info", "TF-MODULE-BLACKBOX", f"module {source} is not read: {why}{iam}")
 
@@ -60,7 +60,7 @@ def choose(source: str, version: str | None, path: Path | None = None):
     key = registry_key(source)
     cands = load(path)[0].get(key or "", [])
     if not cands:
-        return None, "not in the summary table (references/module-summaries.md)", None
+        return None, "not in the summary table (data/module-summaries/)", None
     majors = sorted({mj for s in cands for mj in s.majors})
     if version is None:
         pick = majors[-1]

@@ -213,7 +213,7 @@ class VariablesMixin:
                 s = self.summary
                 self.diag("info", "TF-MODULE-SUMMARY", "",
                           f"expanded from the summary table ({s.source}, {'/'.join(f'{m}.x' for m in s.majors)}; "
-                          "references/module-summaries.md); only the main resources are written",
+                          "data/module-summaries/); only the main resources are written",
                           self.call_address)
             return
         for name in undeclared:

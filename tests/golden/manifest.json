@@ -544,11 +544,11 @@
     "--root-base",
     "aws-iac-diagram-workspace"
    ],
-   "bytes": 55299,
+   "bytes": 55275,
    "diagnostics": 3,
    "references": 119,
    "resources": 42,
-   "sha256": "fd270200b4ff5c2e30b4f969f63c09b6203ca3e768f08da4a888662c5b4975c2"
+   "sha256": "f99c17f20b23674aaf76e4fee95f792f96776fa6c37597bf5ebf9515d7a63467"
   },
   "tf/custom/three-tier.redact-workspace": {
    "adapter": "tf",
@@ -752,11 +752,11 @@
     "--root-base",
     "aws-iac-diagram-workspace"
    ],
-   "bytes": 29679,
+   "bytes": 29663,
    "diagnostics": 38,
    "references": 43,
    "resources": 14,
-   "sha256": "53b6a401680cadd401ed69475d4ef2b53c07bf10c0739f719e6d427c9b209ac8"
+   "sha256": "4edae9265beac248b58eb1fd152a4757c534880554885844d22aaf6b6d9c3eed"
   },
   "tf/public/hub-and-spoke-with-shared-services-vpc-terraform": {
    "adapter": "tf",
@@ -766,11 +766,11 @@
     "--root-base",
     "aws-iac-diagram-workspace"
    ],
-   "bytes": 66387,
+   "bytes": 66363,
    "diagnostics": 13,
    "references": 84,
    "resources": 46,
-   "sha256": "5f7ba3ff4554c8940fb6e947004531ed822edd21c5e1cb7574469ff851b74478"
+   "sha256": "b6fd606191427a8cb4a23cd3c293a93a6d911ed257e9fc182ed7037435c51bc0"
   },
   "tf/public/learn-terraform-aws-asg": {
    "adapter": "tf",
@@ -794,11 +794,11 @@
     "--root-base",
     "aws-iac-diagram-workspace"
    ],
-   "bytes": 6751,
+   "bytes": 6743,
    "diagnostics": 3,
    "references": 7,
    "resources": 6,
-   "sha256": "a9f8cc0961f783b43ea6be7f678d4495878576c5f9af62ff47fe7dc075f5a63d"
+   "sha256": "6858f2c778fe5e364ca2ed2549c62a4d13c30a00062aa791b44a02875697c105"
   },
   "tf/public/learn-terraform-rds": {
    "adapter": "tf",
@@ -808,11 +808,11 @@
     "--root-base",
     "aws-iac-diagram-workspace"
    ],
-   "bytes": 15429,
+   "bytes": 15421,
    "diagnostics": 2,
    "references": 23,
    "resources": 18,
-   "sha256": "a61a5b02555d53a41536c5cb102134849835a967b3e1d5afb4d56f8f7a6637a6"
+   "sha256": "aacc333da924b2c513a583daa0c0ae3ba2cba3d76f4a42ee0a83762b45c741b0"
   },
   "tf/public/sample-bedrock-knowledge-base-terraform": {
    "adapter": "tf",
@@ -1298,11 +1298,11 @@
     "--root-base",
     "aws-iac-diagram-workspace"
    ],
-   "bytes": 159743,
+   "bytes": 159735,
    "diagnostics": 24,
    "references": 157,
    "resources": 90,
-   "sha256": "3f9326a8b3236029b89965276d9302cfd3284cdc8fe9bbd771b7e0e1b0258fb9"
+   "sha256": "4c027cf564e7e40625132f4f6548fc4eafd885142044cb966014228a2a34f891"
   },
   "tf/public/terraform-aws-cloudfront/examples/complete": {
    "adapter": "tf",
@@ -1312,11 +1312,11 @@
     "--root-base",
     "aws-iac-diagram-workspace"
    ],
-   "bytes": 81764,
+   "bytes": 81708,
    "diagnostics": 17,
    "references": 109,
    "resources": 55,
-   "sha256": "d111c9cd2cca22b300e63840b2beabe45f0e67b634ab88b3d8c148341d30272e"
+   "sha256": "ed30f450b2fcf95138f09b82b17a0c5037d61d077bb1e66843b43a95ef7ce590"
   },
   "tf/public/terraform-aws-ecs/examples/fargate": {
    "adapter": "tf",
@@ -1326,11 +1326,11 @@
     "--root-base",
     "aws-iac-diagram-workspace"
    ],
-   "bytes": 295609,
+   "bytes": 295593,
    "diagnostics": 76,
    "references": 328,
    "resources": 145,
-   "sha256": "fd5d2df92eada384014cb3ab62df7e5c0d86bd992bea1b8752c759348d5c2208"
+   "sha256": "1a22187613d4dc235a3b9d70200ec96389708b5aaecfa6c8f9c9ffd41ecaf365"
   },
   "tf/public/terraform-aws-eks-blueprints/patterns/blue-green-upgrade/eks-blue": {
    "adapter": "tf",
@@ -1340,11 +1340,11 @@
     "--root-base",
     "aws-iac-diagram-workspace"
    ],
-   "bytes": 54746,
+   "bytes": 54666,
    "diagnostics": 20,
    "references": 56,
    "resources": 26,
-   "sha256": "275d1aa8b2b36ede715f7a56ef907dda7651df39ec8400ab9572974593945ce3"
+   "sha256": "3e7e8271f1262a5a64f0cf38f2f4324b8a543160cf0c7af508691af9b9472e38"
   },
   "tf/public/terraform-aws-eks-blueprints/patterns/blue-green-upgrade/eks-green": {
    "adapter": "tf",
@@ -1354,11 +1354,11 @@
     "--root-base",
     "aws-iac-diagram-workspace"
    ],
-   "bytes": 54761,
+   "bytes": 54681,
    "diagnostics": 20,
    "references": 56,
    "resources": 26,
-   "sha256": "35ac577319fd560ac10345fcf27f1a9732e3d5b15f60ff7c8b024d84a5033b00"
+   "sha256": "707b5b315b892e650c6e525c498df88fa7276f48c5c2e10161cfbc10f51b419a"
   },
   "tf/public/terraform-aws-eks-blueprints/patterns/blue-green-upgrade/environment": {
    "adapter": "tf",
@@ -1368,11 +1368,11 @@
     "--root-base",
     "aws-iac-diagram-workspace"
    ],
-   "bytes": 6486,
+   "bytes": 6478,
    "diagnostics": 5,
    "references": 5,
    "resources": 9,
-   "sha256": "5f2f7a4fcb39eb54d810462fad558771f76d95d1c92c816d21c00cf26885dd44"
+   "sha256": "e8bd4ca1bb90d617dfab1d7f16a680413f2d8693aa1457bd1053d31c9364daf3"
   },
   "tf/public/terraform-aws-eks/examples/eks-managed-node-group": {
    "adapter": "tf",
@@ -1382,11 +1382,11 @@
     "--root-base",
     "aws-iac-diagram-workspace"
    ],
-   "bytes": 133087,
+   "bytes": 133047,
    "diagnostics": 5,
    "references": 218,
    "resources": 97,
-   "sha256": "f68fa5f2a6ddb41a35b1d13a68b5f75c92f3710e3002b03f78d6d3440cae28e6"
+   "sha256": "4d2d8ae39901ad553ac873e6dec8c14a2c6a503e7e51d91357950b7cba519703"
   },
   "tf/public/terraform-aws-rds-aurora/examples/postgresql": {
    "adapter": "tf",
@@ -1396,11 +1396,11 @@
     "--root-base",
     "aws-iac-diagram-workspace"
    ],
-   "bytes": 77592,
+   "bytes": 77576,
    "diagnostics": 20,
    "references": 96,
    "resources": 57,
-   "sha256": "00015fe714a4edeeb22266d13b96021445341b879c1cd5fd16cf204e6bfeee93"
+   "sha256": "7d40e73261545febd96f436333fcfd591440d0f6356bbd6c8813dbad2a26aa3e"
   },
   "tf/public/terraform-aws-static-website-s3-cloudfront-acm/examples/custom-error-response-and-bucket": {
    "adapter": "tf",
@@ -1424,11 +1424,11 @@
     "--root-base",
     "aws-iac-diagram-workspace"
    ],
-   "bytes": 395724,
+   "bytes": 395716,
    "diagnostics": 405,
    "references": 425,
    "resources": 220,
-   "sha256": "bd6a54b328f0d30aad30a87e50a1bd0d48d33bd6f5405d5d405c8a84f356c3e6"
+   "sha256": "4123c3ab5c5f4004c32eb3129622adb04c6f595b23184bffb15b53bbd73c7045"
   },
   "tf/public/terraform-aws-vpc/examples/simple": {
    "adapter": "tf",
