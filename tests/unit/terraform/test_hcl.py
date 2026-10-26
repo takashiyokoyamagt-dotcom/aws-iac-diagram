@@ -156,7 +156,7 @@ class RobustnessTest(unittest.TestCase):
     def test_tf_json_is_not_read_without_a_plan(self):
         # .tf.json を .tf だけで読むか（フェーズ2 の手順5 で「読まない」と決めた）。JSON の書き方では入れ子のブロックと
         # 属性（オブジェクトの値）を区別できない（provider のスキーマが要る）ので、リソースは載せず warn を出す。
-        # ほかの .tf は読む。plan JSON と一緒のときの扱いは tests/test_tf_plan.py
+        # ほかの .tf は読む。plan JSON と一緒のときの扱いは tests/unit/terraform/plan/test_plan_diagnostics.py
         tfjson = json.dumps({"resource": {"aws_security_group": {"web": {
             "name": "web", "ingress": {"from_port": 80, "to_port": 80}, "tags": {"Name": "web"}}}}})
         raw = build({"main.tf": 'resource "aws_vpc" "a" {}', "extra.tf.json": tfjson,

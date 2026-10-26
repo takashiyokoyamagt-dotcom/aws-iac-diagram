@@ -43,7 +43,7 @@ def diagnostic_scan_files(scripts: Path) -> list[Path]:
     （`"TF" + "-X"`、`"-".join(...)`）、② level を変数や既定の引数で渡すところの level（呼び出しの近くに文字列で書いた level
     だけを一覧と比べる）、③ 範囲の外（adapters/ と adapt_*.py 以外）で診断を出すコード、④ 接頭辞が ALLOWED_PREFIXES に無く、
     診断を出す位置（EMIT_CALLS の引数、辞書の "code"、level つきのタプル）の外にあるコードの形の文字列。
-    動的な安全網は tests/test_diagnostics.py の EmittedLevelsTest（実際に動かして出た (code, level) を一覧と比べる）と、
+    動的な安全網は tests/architecture/test_diagnostics.py の EmittedLevelsTest（実際に動かして出た (code, level) を一覧と比べる）と、
     旧コードとの比較（CLI と変異した入力の差分、WORKLOG の「確かめたこと」）、golden。"""
     files = sorted(scripts.glob("adapt_*.py"))
     files += sorted(p for p in (scripts / PACKAGE / "adapters").rglob("*.py") if "__pycache__" not in p.parts)

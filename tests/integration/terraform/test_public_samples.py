@@ -92,7 +92,7 @@ class PublicFoldersTest(unittest.TestCase):
         self.assertEqual(res["folders"], 4)
 
 
-# 診断コードの一覧と ir-schema.md の照合（TF と CFN）は tests/test_diagnostics.py の DiagnosticCodesTest（R3 で移した）
+# 診断コードの一覧と ir-schema.md の照合（TF と CFN）は tests/architecture/test_diagnostics.py の DiagnosticCodesTest（R3 で移した）
 
 
 # 対の比較で、正規化のあとに TF と SAM の両方にある型（件数つき）。違いだけでなく、一致した側も固定する

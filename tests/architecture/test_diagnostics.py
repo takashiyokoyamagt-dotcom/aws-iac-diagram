@@ -96,7 +96,7 @@ class RegistryShapeTest(unittest.TestCase):
         self.assertIsNone(D.lookup("TF-NOT-A-CODE"))
 
     def test_core_has_no_imports_of_other_layers(self):
-        # core は静的な import の検査（tests/test_architecture.py）の対象。ここでは標準ライブラリだけを使うことも確かめる
+        # core は静的な import の検査（tests/architecture/test_dependency_direction.py）の対象。ここでは標準ライブラリだけを使うことも確かめる
         text = (SCRIPTS / "aws_iac_diagram" / "core" / "diagnostics.py").read_text(encoding="utf-8")
         imports = set(re.findall(r"^(?:from|import)\s+([A-Za-z_][\w.]*)", text, flags=re.M))
         self.assertEqual(imports, {"__future__", "re", "collections.abc", "dataclasses", "types"})

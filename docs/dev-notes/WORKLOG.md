@@ -1049,3 +1049,134 @@ golden は 4 つのコミットのそれぞれで 101/101 一致、単体テス�
 4. **NIT。** 読むファイルを `<モジュール>/v[0-9]{1,9}.md`（1 階層下）と直下の `iam-only-sources.md` の**完全一致**にした（大文字小文字を区別するので、Windows と Linux で同じ。`V6.md`・`v6.MD`・`v6.md.bak`・`v1²2.md`・深い階層・直下の `v6.md` は読まれず、`problems()` が `.md` のものを知らせる）。並べ方のキーを (モジュールのフォルダ名, major の数, 相対パス) にして、`iterdir` の順に依らない（逆順・並べ替えた順の `iterdir` でも同じことをテスト）。`int()` は桁数を `{1,9}` に絞った名前にしか使わないので、例外にならない（100 桁の名前のファイルと、5,000 桁の文字列での正規表現のテスト）。`v06.md` と `v6.md` が並ぶときはパスの順で決まり、`problems()` が知らせる。
 - **確かめたこと（レビュー対応）**: 単体テスト 391 件が Windows の通常の TEMP と別のドライブの TEMP（`subst Y:`）で OK、WSL（`git archive` のツリー）でも OK。golden 101/101（Windows・WSL）。`uv lock --check` OK、pyflakes は既存の 1 件だけ。旧コードとの CLI の比較をやり直した: golden 101・合成 285 は差 0（許した差は旧パスの置換だけ）、ツール 74 は doctor の JSON に `skill.table_problems: []` が増えた 2 件以外は差 0。変異で落ちること: ファイル名を大文字小文字無視で照合する、`KNOWN_MODULES` の分岐を外す、`KNOWN_MODULES` から eks を外す、`NOTICE.md` を例外にしない、のそれぞれでテストが落ちる。SKILL だけを日本語とスペースを含む別の深さに複製（WSL）: `adapt_tf.py` の three-tier-modules が複製とリポジトリでバイト単位で同じ、doctor はファイルを 1 つ消すと終了コード 2（`missing_files` に名前）、`NOTICE.md` を消しても 2、`terraform-aws-vpc/` をフォルダごと消すと `adapt_tf.py` が `TF-MODULE-SUMMARY-TABLE-MISSING`（warn）を出して doctor も 2、綴りの違う `V7.md` を足すと doctor が 2 で `table_problems` に出る。
 - **残るリスク**: 要約表のファイルの中身の整合（HCL として読めること）は `problems()` でなく既存の `SummaryTest` が確かめる（doctor は hcl2 を使わない）。`KNOWN_MODULES` は手で持つ（別のモジュールの表を足したら足す。文書に書いた）。`NOTICE.md` の「ファイル名は別の Apache-2.0 の成果物のものだが本文は標準」という書き方は、全文を別に置くより簡潔にしたもの（ライセンス全文を各所に複製しない）。
+
+## 2026-10-26 フェーズ2b の R5: テストを `unit/`・`integration/`・`golden/`・`architecture/` に分ける
+
+### 概要
+構成の階層化（PLAN の 1.4）の 5 番目。**`tests/` の直下に平らに置いた 15 ファイル（391 件）を、`tests/unit/`・`integration/`・`golden/`・`architecture/` の 39 ファイルと、共有の道具 `tests/support/` に分けた。** 何を確かめるか（テストの本文）は 1 文字も変えていない。足したのは `tests/architecture/test_test_layout.py`（7 件。置き場の決まりを守る）だけで、計 398 件。アダプタの出力は変わらない（golden 101/101）。
+
+### コミット
+| # | 内容 |
+|---|---|
+| 1 `6762917` | `tests/support/`（paths・tools・arch_*・ir）を作り、architecture／golden／validate／core／icons／host／integration の小さいテスト 12 ファイルを移す |
+| 2 `4b271b9` | tf_adapter・tf_plan・cfn_adapter の 3 ファイルを unit/ と integration/ に分け、共有の道具を support/ に出す |
+| 3 `9bdc4a4` | `test_test_layout.py`（7 件）、文書・コメントのテストのパスを新しい場所に直す、architecture.md の 7 |
+| 4 | HANDOFF・WORKLOG（この節）・PLAN の状態 |
+
+### 旧ファイル → 新ファイル（件数は静的に数えたテストの数。合計 391 + 新規 7 = 398）
+| 元（行数・件数） | 先 | 件数 | 行数 | クラス |
+|---|---|---|---|---|
+| `tests/test_tf_adapter.py`（2465 行・78 件） | `tests/unit/terraform/test_references.py` | 4 | 143 | PseudoTest・ReferenceTest |
+|  | `tests/unit/terraform/test_expressions.py` | 10 | 343 | ExpressionTest・ValueTest |
+|  | `tests/unit/terraform/test_evaluator.py` | 3 | 89 | EvaluatorTest |
+|  | `tests/unit/terraform/test_instances.py` | 6 | 250 | CountAndModuleTest・InstanceTest |
+|  | `tests/unit/terraform/test_modules.py` | 10 | 400 | ModuleTest |
+|  | `tests/unit/terraform/test_module_summaries.py` | 16 | 565 | SummaryTableFileTest・SummaryTest |
+|  | `tests/unit/terraform/test_providers.py` | 2 | 86 | ProviderTest |
+|  | `tests/unit/terraform/test_module_vars.py` | 4 | 141 | VariableTest |
+|  | `tests/unit/terraform/test_hcl.py` | 11 | 199 | BlockKindTest・RobustnessTest |
+|  | `tests/unit/terraform/test_review_fixes.py` | 7 | 182 | ReviewFixTest |
+|  | `tests/integration/terraform/test_expected_ir.py` | 5 | 207 | ExpectedIrTest・FixtureTest |
+| `tests/test_tf_plan.py`（1227 行・61 件） | `tests/unit/terraform/plan/test_addresses.py` | 3 | 72 | AddressAndCollapseTest |
+|  | `tests/unit/terraform/plan/test_masking.py` | 21 | 473 | CombinedSensitiveTest・SensitiveEdgeCasesTest・SensitivePlanOnlyTest |
+|  | `tests/unit/terraform/plan/test_plan_diagnostics.py` | 9 | 177 | PlanDiagnosticsTest |
+|  | `tests/unit/terraform/plan/test_hostile.py` | 12 | 194 | HostilePlanTest・PlanPerformanceTest |
+|  | `tests/integration/terraform/test_plan_fixtures.py` | 16 | 323 | CliTest・EdgeCaseTest・PlanFixtureTest |
+| `tests/test_cfn_adapter.py`（1131 行・50 件） | `tests/unit/cloudformation/test_intrinsics.py` | 8 | 186 | IntrinsicTest・ShortTagTest・SplitConcatTest |
+|  | `tests/unit/cloudformation/test_robustness.py` | 5 | 94 | RobustnessTest |
+|  | `tests/unit/cloudformation/test_nested_stacks.py` | 6 | 194 | NestedStackTest |
+|  | `tests/unit/cloudformation/test_sam.py` | 3 | 91 | SamTest |
+|  | `tests/unit/cloudformation/test_cdk_out.py` | 3 | 121 | CdkOutTest |
+|  | `tests/unit/cloudformation/test_evaluation.py` | 15 | 331 | EvaluationReviewTest・EvaluationTest |
+|  | `tests/integration/cloudformation/test_cfn_lint_graph.py` | 8 | 125 | CfnLintGraphTest |
+|  | `tests/integration/cloudformation/test_expected_ir.py` | 2 | 74 | ExpectedIrTest・FixtureTest |
+| `tests/test_architecture.py`（1124 行・54 件） | `tests/architecture/test_dependency_direction.py` | 19 | 237 | DependencyDirectionTest |
+|  | `tests/architecture/test_adapter_order.py` | 15 | 237 | CloudFormationOrderTest・TerraformOrderTest |
+|  | `tests/architecture/test_diagnostics_registry.py` | 12 | 193 | DiagnosticRegistryRuleTest |
+|  | `tests/architecture/test_file_size.py` | 8 | 95 | FileSizeTest |
+| `tests/test_diagnostics.py`（265 行・13 件） | `tests/architecture/test_diagnostics.py` | 13 | 268 | DiagnosticCodesTest・EmittedLevelsTest・RegistryShapeTest |
+| `tests/test_doctor_required_files.py`（158 行・6 件） | `tests/architecture/test_doctor_required_files.py` | 6 | 159 | RequiredFilesTest |
+| `tests/test_golden.py`（157 行・12 件） | `tests/golden/test_golden.py` | 12 | 160 | GoldenOutputsTest・GoldenToolTest |
+| `tests/test_paths.py`（216 行・16 件） | `tests/unit/core/test_paths.py` | 16 | 215 | PathsTest・SummaryDirectoryTest |
+| `tests/test_validate_ir.py`（145 行・19 件） | `tests/unit/validate/test_validate_ir.py` | 19 | 141 | BrokenTest・ExpectedTest |
+| `tests/test_ir_schema_v1.py`（289 行・22 件） | `tests/unit/validate/test_ir_schema_v1.py` | 22 | 286 | NormalizedV1Test・RawSchemaTest・RawSemanticTest |
+| `tests/test_check_icons.py`（206 行・24 件） | `tests/unit/icons/test_check_icons.py` | 24 | 212 | ClassifyTest・GeometryTest・GroupDiffTest・LayoutTest・StencilTest |
+| `tests/test_broken_merge.py`（105 行・7 件） | `tests/unit/icons/test_broken_merge.py` | 7 | 108 | FindTest・MergeTest |
+| `tests/test_drawio_cli.py`（54 行・8 件） | `tests/unit/host/test_drawio_cli.py` | 8 | 62 | DrawioCommandTest・NeedsXvfbTest |
+| `tests/test_cli_paths.py`（132 行・9 件） | `tests/integration/test_cli_paths.py` | 9 | 133 | JapanesePathTest |
+| `tests/test_tf_public.py`（187 行・12 件） | `tests/integration/terraform/test_public_samples.py` | 12 | 186 | PairTest・PublicFoldersTest |
+| （新規） | `tests/architecture/test_test_layout.py` | 7 | 171 | TestLayoutTest |
+
+`tests/` の下の `.py` は最大 565 行（`unit/terraform/test_module_summaries.py`）。800 行を超えるものも、免除も無い。support/ は 11 ファイル（`paths.py` 34 行、`tf_plan.py` 135、`arch_layers.py` 299 など）。
+
+### 共有の道具（`tests/support/`）に出したもの
+| 道具 | 元 | 備考 |
+|---|---|---|
+| `paths.py`（`ROOT`・`SCRIPTS`・`WS`・`TOOLS`・`EXPECTED`・`FIXTURES_TF`・`FIXTURES_CFN`・`PLANS`・`PUBLIC`・`DATA`・`SKILL`・`ARCH_DOC`） | 12 ファイルが書いていた `ROOT = Path(__file__).resolve().parent.parent` 以下 | import すると `scripts/` と `tools/` を `sys.path` の先頭に入れる。`sys.path` をいじるのはここだけ（以前は 14 ファイルが `sys.path.insert` を書いていた） |
+| `tools.py`（`load_tool`） | （新規） | `tools/golden.py` を別名 `golden_tool` で読む（下の「決めたこと」） |
+| `builders.py`（`refs`・`res_of`・`props`・`assert_valid`） | tf_adapter | cfn_adapter の `refs`・`assert_valid`、tf_plan の `res_of` は AST が同じ（検査した）ので写しをやめた。cfn の `props` は `res_of` を展開した書き方だったが、結果は同じなので tf の `props` に揃えた |
+| `terraform.py`（`write_files`・`build`・`codes`・`res`・`NETWORK`） | tf_adapter | |
+| `cloudformation.py`（`build`・`BASE`・`write_files`・`ref_by`） | cfn_adapter | |
+| `tf_plan.py`（`CASES`・`EDGE`・`EDGE_PLAN`・`combined_raw`・`assert_valid_no_errors`・`rc`・`cfg`・`mkplan`・`TempTestCase` ほか） | tf_plan | tf_plan の `assert_valid` は「error の診断が無い」検査が 1 行多いので、別の名前（`assert_valid_no_errors`）にした。テストのファイルでは `assert_valid_no_errors as assert_valid` で読むので、本文は変わらない |
+| `ir.py`（`load`） | validate_ir・ir_schema_v1 | AST が同じ（検査した） |
+| `arch_layers.py`・`arch_size.py`・`arch_diagnostics.py` | test_architecture の表と関数 | 検査の「やり方」と許す向きの表。テストのクラスは `architecture/` に残した |
+
+### 決めたこと
+| 決めたこと | 理由 |
+|---|---|
+| クラスは分けない。1 つのクラスは 1 つのファイルに丸ごと移す | 「テストの本文が同じ」を AST の hash で証明できるようにする。大きなクラスも 441 行（`SummaryTest`）で、ファイルは最大 565 行 |
+| `unit/` は領域ごと、`integration/` は「コミットした fixture・公開サンプル・正解 IR が主役」か「入口のスクリプトを動かす」もの | PLAN の 1.4。`ExpectedIrTest`・`FixtureTest`（TF・CFN）、`CfnLintGraphTest`、`PlanFixtureTest`・`EdgeCaseTest`・`CliTest`、`PublicFoldersTest`・`PairTest`、`JapanesePathTest` が `integration/`。主役が混ざるクラス（`SummaryTest` は公開サンプルと突き合わせる 4 件を含む、`EvaluationTest` は fixture を使う）は割合の多い方 |
+| フォルダの名前は標準ライブラリ・`scripts/`・`tools/` の最上位の名前にしない。`platform` 層の単体テストは `unit/host/`（`tests/unit/platform/` にしない） | `discover -s tests` は `tests/` を、`python tests/…/test_x.py` はそのファイルのフォルダを `sys.path` の先頭に入れる。そこに `platform/` や `doctor/` の（`__init__.py` つきの）フォルダがあると `import platform`・`import doctor` を隠す。`-s tests/unit` と指定した場合も同じ。`test_test_layout.py` が、標準ライブラリ（`sys.stdlib_module_names`）と `scripts/`・`tools/` の名前との重なりを失敗にする |
+| 例外は `tests/golden/`。`tools/golden.py` は `support.tools.load_tool("golden", alias="golden_tool")` で別名で読む | `golden/` は PLAN の置き場の名前。`import golden` と書くと `discover -s tests` では最上位の `golden`（テストのパッケージ）を読んでしまう。`import golden` を書くとテストが失敗にする。`golden.py` の中身は変えず、`mock.patch.object(golden, …)` の本文も同じ |
+| `tools/` を `sys.path` に入れるのは `support/paths.py` だけ。すべてのテストで `scripts/` と `tools/` の両方が入る | 以前は tf_adapter・tf_public・golden だけが `tools/` を入れた。`tools/` に `golden.py`・`c1_check.py` などがあるが、テストが `import` する名前（`tf_public_check`）と重ならず、`golden` は上の別名で避けた |
+| 各テストのファイルの先頭に、`tests/` を `sys.path` に入れる同じ 2 行を書く（`test_test_layout.py` が全ファイルで確かめる） | `python tests/…/test_x.py` と `python -m unittest tests.…`（`tests/` が最上位にならない）で `from support… import` が通るため。`discover -s tests` では要らないが害は無い |
+| `support` の道具を使わず `import support` だけのファイル（4 ファイル）は `support.ensure_paths()` を呼ぶ | pyflakes は `# noqa` を見ないので、使っていない import にならないようにした |
+| `tests/__init__.py` と各フォルダの `__init__.py` を置いた。`test_test_layout.py` が置き忘れを失敗にする | `unittest discover` は `__init__.py` の無いフォルダを見ない（テストが黙って走らない）ので、これが一番怖い |
+| `test_architecture.py` は検査の「やり方」（表と関数）を `support/arch_*.py` に、テストのクラスを `architecture/` の 4 ファイルに分けた。`test_diagnostics.py`・`test_doctor_required_files.py` は `architecture/` | PLAN の「依存の向き・行数・診断コードの一覧の検査」。`test_paths.py` は `unit/core/`（定数の検査と要約表のフォルダの読み込みで、構成の決まりではない） |
+| 旧 `test_tf_public.py` は `integration/terraform/test_public_samples.py` に改名した | 公開サンプルの確認（`tf_public_check.py`）を通すので。クラス名は同じ |
+| 新しいテスト 7 件（`TestLayoutTest`）は、置き場の決まりの検査と、わざと崩した入力で失敗することの確認 | 分けたことで起きやすい失敗（見つからない、名前が隠す、道具が写される）を防ぐ |
+
+### 同一性の証明（テストを弱めていない）
+道具は WORKLOG に載せない一時のスクリプト（`ast` で `tests/` を読む）。移す前の `cc58446` の 15 ファイルと、各コミットの後の `tests/` を同じ方法で数えて比べた。
+- **テストの数・本文**: 391 件。（クラス名、メソッド名、`self.assert*` の呼び出しの数、`subTest` の数、`mock.patch` の対象、デコレータ、**メソッド全体の AST の hash**）の組の多重集合が、移す前と**完全に同じ**（足りない 0、余り 0）。`self.assert*` の呼び出し 1,400、`subTest` 40 も同じ。
+- **クラス**: クラス名、基底クラス、クラスのデコレータ、クラス直下の代入の hash、`setUp`・`tearDown` などテストでないメソッドの hash が、移す前の全クラス（`TempTestCase`・`CodeSite`・`_DropTypeChecking` を含む）と同じ。
+- **モジュール直下の関数・定数**: 移す前の（名前, hash）がすべて、新しい `tests/` にある。違うのは次の説明のつくものだけ: 場所の定数（`ROOT`・`SCRIPTS`・`WS`・`SKILL`・`DATA`・`EXPECTED`・`FIXTURES`）は `support/paths.py` の式になった、tf_plan の `assert_valid` は `assert_valid_no_errors`、cfn の `props` は tf の `props` に統合。
+- **`unittest` の発見**: `discover -s tests` が見つけた id 391 件が、すべて異なり、（クラス, メソッド）の多重集合が移す前と同じ。足した 7 件を除くと 398 − 7 = 391。
+- 各テストのファイルに `if __name__ == "__main__": unittest.main()` が 1 つ。`@unittest.skip`・`expectedFailure` は無い（`-v` の出力に skipped 0）。
+- 各コミットの後も同じ表で確かめた（1/4 の後と 2/4 の後は 391、3/4 の後は 398）。
+
+### 確かめたこと
+- **単体テスト 398 件**が、Windows の通常の TEMP（約 90〜96 秒。移す前の同じ環境の 391 件は約 90 秒）、別のドライブの TEMP（`subst Y:`。93 秒）、8.3 の短い名前の TEMP（`...\Temp\R5-LON~1`。91 秒）のそれぞれで OK。CI と同じ `uv sync --locked` → `uv run python -m unittest discover -s tests -v` も OK（398 件、skipped 0）。`python -m unittest discover tests` と `python -m unittest discover`（引数なし）も 398 件 OK。
+- **起動のしかた**: 1 件（`python -m unittest tests.unit.terraform.test_hcl.RobustnessTest.test_crlf`）、1 ファイル（`python -m unittest tests.unit.validate.test_ir_schema_v1`）、領域（`discover -s tests/unit/host -t tests`、`-t` なしでも）、直接（`python tests/unit/terraform/test_hcl.py`、`tests/golden/test_golden.py`、別の作業フォルダから `…/tests/unit/icons/test_broken_merge.py`）がすべて通る。
+- **golden** 101/101（Windows と WSL）。`uv lock --check` OK（66 パッケージ）。
+- **WSL（Ubuntu、`git archive 9bdc4a4` を `/tmp` に展開、`uv sync --locked`）**: `uv run python -m unittest discover -s tests -v` 398 件 OK（約 49 秒）、golden OK。
+- **pyflakes**（`uv run --with pyflakes python -m pyflakes tests`）: `unit/terraform/plan/test_masking.py:69` の `pw`（未使用の変数。移す前の `test_tf_plan.py:524` と同じもの）の 1 件だけ。移す前にあった `test_tf_adapter.py:924` の「`v` が for 文の変数に隠される」は、`SummaryTest` が入るファイルが `validate_ir as v` を import しなくなった（`v` はそのクラスの中のループ変数だった）ので消えた。新しい警告は 0。
+- **処理時間**: 移す前 89.6 秒・90.6 秒（2 回）、移した後 90.7 秒・95.6 秒（2 回。398 件）。差は +1〜5%（上限の +10% 以内。2 回目は同じ環境でも揺れる）。
+- **変異（本番のコードを 1 か所だけ壊して、全体を移す前と移した後で動かした。壊れるテストの名前の集合を比べた）**: 14 通りのうち 13 通りが 1 件以上のテストを落とし、**落ちたテストの（クラス, メソッド）の集合は 14 通りすべてで移す前と同じ**（移した後は `TestLayoutTest` を除く）。コントロール（変異なし）は両方 0 件。移した後の側は `4b271b9`（2/4）の `git archive` で、移す前は `cc58446`（短いパスに展開）。
+
+| 変異 | 落ちたテスト（移す前＝移した後） |
+|---|---|
+| M01 `plan/masking.py` の `mask_props`: すべて sensitive のとき `True` → `False` | 1 件: `SensitiveEdgeCasesTest.test_root_after_sensitive_true` |
+| M02 `plan/masking.py` の `literal_only`: `tv == pv` の比較を外す | **0 件（生き残った）**。現在のテストでは見つからない変異（移す前も同じ）。今回の範囲外 |
+| M03 `hcl.py`: `HEREDOC` から `heredoc_template_trim` を外す | 3 件: `ExpressionTest.test_locals_templates_and_for`、`ValueTest.test_jsonencode_and_heredoc_json`、`GoldenOutputsTest.test_all_outputs_are_byte_identical_to_the_manifest` |
+| M04 `cloudformation/conditions.py`: `Fn::Or` と `Fn::And` の入れ替え | 1 件: `EvaluationTest.test_logic_and_pseudo` |
+| M05 `doctor.py`: `REQUIRED_FILES` から `data/icons/catalog.json` を消す | 1 件: `RequiredFilesTest.test_list_equals_the_runtime_files_on_disk` |
+| M06 `core/paths.py`: `IR_RAW_SCHEMA` のファイル名を変える | 112 件（スキーマを読むテストのほぼすべて） |
+| M07 `core/paths.py`: `parents[3]` → `[2]`（SKILL の場所） | 157 件 |
+| M08 `core/ir_raw.py`: 重なった address の検査を反転 | 113 件 |
+| M09 `tools/golden.py`: sha256 の比較を反転 | 3 件: `GoldenOutputsTest.test_all_outputs_are_byte_identical_to_the_manifest`、`GoldenToolTest.test_baseline_has_no_problems`、`test_changed_hash_is_reported` |
+| M10 `core/ir_raw.py` が `platform` 層を import | 5 件（`DependencyDirectionTest` 4、`CloudFormationOrderTest` 1） |
+| M11 `cloudformation/conditions.py` の診断コードを一覧に無い綴りに | 8 件（`DiagnosticRegistryRuleTest` 7、`EmittedLevelsTest` 1） |
+| M12 `cloudformation/intrinsics.py`: `Fn::Join` の区切りの入る位置 | 4 件（`IntrinsicTest`、`NestedStackTest` 2、`GoldenOutputsTest`） |
+| M13 `terraform/evaluator/functions.py`: `lower` → `upper` | 1 件: `GoldenOutputsTest.test_all_outputs_are_byte_identical_to_the_manifest`（単体テストは見つけない。golden が拾う） |
+| M14 `terraform/module_vars.py`: 変数の出どころの名前の入れ替え | 4 件（`EdgeCaseTest` 2、`PlanFixtureTest`、`GoldenOutputsTest`） |
+
+### 残したこと・リスク
+- **R6**: SKILL.md・references・`docs/spec/`・architecture.md の「R〜」の印を消す。PLAN の構成図の `tests/` は今回の形のまま（`support/` が足されている）。
+- 分け方はクラス単位で、`unit/` と `integration/` の境目はクラスの主役で決めたもの。主役が混ざるクラスがある（上の「決めたこと」）。テストの本文を変えない方針を優先した。
+- 各テストのファイルの先頭の 2 行（`sys.path` の設定）は 40 ファイルに写されている。直接実行と `python -m unittest tests.…` を通すために必要で、`test_test_layout.py` が同じであることを確かめる。
+- `tests/` が最上位の名前として `unit`・`integration`・`golden`・`architecture`・`support` を `sys.path` に持ち込む。同じ名前の pip のパッケージが将来入ると隠し合う（今の依存には無い）。`golden` だけは `tools/golden.py` と重なるので別名で読んでいる。
+- 同一性の証明は AST の比較（本文が同じ）と全体の実行で、import の解決の食い違いは全体の実行で確かめている。変異は 14 通りで、網羅ではない。M02 のように現在のテストが拾わない変異がある。
+- 変異の比較は（クラス名, メソッド名）で行った。名前が同じクラスが 2 つのファイルにある（`RobustnessTest`・`ExpectedIrTest`・`FixtureTest`）ので、片方が落ちてもう片方が落ちないという差は見分けられない（落ちた件数の合計は一致した）。
+- Windows で長いパスに `git archive` を展開すると、公開サンプルの深いパスのファイルが欠けて `tf_public_check` 系のテストが落ちる（`tests/` の構成とは無関係。変異の比較では、短いパス `%TEMP%\r5` に展開して避けた）。リポジトリを深い場所に clone する人は MAX_PATH に注意。
+- CI（GitHub Actions）は実行していない（push していない）。
