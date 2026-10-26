@@ -141,3 +141,9 @@ jobs:
           uv run --no-project python -c "import json,sys; r=json.load(open(sys.argv[1],encoding='utf-8')); assert not r['skill']['missing_files'], r; print('doctor:', r['status'])" "$base/out/doctor.json"
           cp "$GITHUB_WORKSPACE/aws-iac-diagram-workspace/expected/three-tier.ir.json" "$base/"
           uv run "$base/aws-iac-diagram/scripts/validate_ir.py" "$base/three-tier.ir.json"
+          # アダプタの入口も、PEP 723 の依存（python-hcl2・PyYAML）を uv が入れる経路で、日本語のパスに出力する（PowerShell の手順と同じ）
+          fx="$GITHUB_WORKSPACE/aws-iac-diagram-workspace/fixtures"
+          uv run "$base/aws-iac-diagram/scripts/adapt_tf.py" --input "$fx/tf/three-tier" --out "$base/out/three-tier.tf.raw.json" --var-file env/dev.tfvars --var project=demo
+          uv run "$base/aws-iac-diagram/scripts/validate_ir.py" "$base/out/three-tier.tf.raw.json"
+          uv run "$base/aws-iac-diagram/scripts/adapt_cfn.py" --input "$fx/cfn/three-tier/template.yaml" --out "$base/out/three-tier.cfn.raw.json" --param EnvType=prod
+          uv run "$base/aws-iac-diagram/scripts/validate_ir.py" "$base/out/three-tier.cfn.raw.json"

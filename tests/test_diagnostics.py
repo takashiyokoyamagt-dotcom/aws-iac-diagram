@@ -25,6 +25,25 @@ from aws_iac_diagram.core import diagnostics as D  # noqa: E402
 
 SCHEMA_DOC = SCRIPTS.parent / "references" / "ir-schema.md"
 
+# 子テンプレートが YAML として読めない／親が読めない子と、見つからない子を持つ入力（CFN-NESTED-UNREADABLE の error と warn）
+BAD_CHILD = "Resources: [" + chr(10) + "  a: b" + chr(10)
+ROOT_WITH_CHILDREN = textwrap.dedent("""    Resources:
+      Child:
+        Type: AWS::CloudFormation::Stack
+        Properties:
+          TemplateURL: ./child.yaml
+      Lost:
+        Type: AWS::CloudFormation::Stack
+        Properties:
+          TemplateURL: ./nowhere.yaml
+    """)
+# 未対応の関数を呼ぶリソース（count = 0 なら作られないので TF-UNSUPPORTED-FUNCTION は info）
+TF_UNSUPPORTED = textwrap.dedent("""    resource "aws_s3_bucket" "b" {{
+      count  = {count}
+      bucket = nosuchfn("x")
+    }}
+    """)
+
 
 def doc_section() -> str:
     doc = SCHEMA_DOC.read_text(encoding="utf-8")
@@ -57,6 +76,17 @@ class RegistryShapeTest(unittest.TestCase):
         self.assertTrue(all(c.startswith("CFN-") for c in D.codes("cloudformation")))
         self.assertTrue(all(c.startswith("TF-") for c in D.codes("terraform")))
 
+    def test_registry_is_read_only(self):
+        with self.assertRaises(TypeError):
+            D.DIAGNOSTICS["TF-NEW"] = D.Diagnostic("TF-NEW", ("info",), "x")  # type: ignore[index]
+        with self.assertRaises(TypeError):
+            del D.DIAGNOSTICS["TF-UNEVALUATED"]  # type: ignore[attr-defined]
+        self.assertIn("TF-UNEVALUATED", D.DIAGNOSTICS)
+
+    def test_allowed_prefixes(self):
+        self.assertEqual(D.ALLOWED_PREFIXES, ("TF", "CFN"))
+        self.assertEqual(set(D.ALLOWED_PREFIXES), set(D.PREFIXES))
+
     def test_lookup(self):
         self.assertEqual(D.lookup("TF-UNEVALUATED").levels, ("warn", "info"))
         self.assertEqual(D.lookup("CFN-CONDITION-CYCLE").levels, ("error",))
@@ -66,7 +96,7 @@ class RegistryShapeTest(unittest.TestCase):
         # core は静的な import の検査（tests/test_architecture.py）の対象。ここでは標準ライブラリだけを使うことも確かめる
         text = (SCRIPTS / "aws_iac_diagram" / "core" / "diagnostics.py").read_text(encoding="utf-8")
         imports = set(re.findall(r"^(?:from|import)\s+([A-Za-z_][\w.]*)", text, flags=re.M))
-        self.assertEqual(imports, {"__future__", "re", "dataclasses"})
+        self.assertEqual(imports, {"__future__", "re", "collections.abc", "dataclasses", "types"})
 
 
 class DiagnosticCodesTest(unittest.TestCase):
@@ -88,14 +118,43 @@ class DiagnosticCodesTest(unittest.TestCase):
         self.assertIn("TF アダプタの `code` の一覧（43 個", section)
         self.assertIn("CFN アダプタの `code` の一覧（19 個", section)
 
-    def test_doc_names_the_levels_of_cfn_codes(self):
-        # CFN の一覧は「`CODE`（level。説明）」の形で level を書く。一覧の levels（のどれか）が書いてある
+    LEVEL_WORDS = "(?:error|warn|info)"
+
+    def doc_level_problems(self, section: str) -> list[str]:
+        """一覧の各コードについて、文書に「`コード`（level。説明）」の形で書いた level が、一覧の levels と同じか（TF と CFN の両方）。"""
+        problems = []
+        for code, d in D.DIAGNOSTICS.items():
+            m = re.search(rf"`{code}`（({self.LEVEL_WORDS}(?:／{self.LEVEL_WORDS})*)[。）]", section)
+            if m is None:
+                problems.append(f"{code}: 文書に「`{code}`（level。…）」の形の項目が無い")
+                continue
+            words = set(m.group(1).split("／"))
+            if words != set(d.levels):
+                problems.append(f"{code}: 文書の level {sorted(words)} と一覧の levels {sorted(d.levels)} が違う")
+        return problems
+
+    def test_doc_names_the_levels_of_all_codes(self):
+        self.assertEqual(self.doc_level_problems(doc_section()), [])
+
+    def test_mutation_doc_levels_that_differ_fail(self):
         section = doc_section()
-        for code in D.codes("cloudformation"):
-            m = re.search(rf"`{code}`（([^）]*)）", section)
-            self.assertIsNotNone(m, code)
-            words = set(re.findall(r"\b(error|warn|info)\b", m.group(1)))
-            self.assertEqual(words, set(D.lookup(code).levels), code)
+        cases = (
+            ("`TF-COUNT-INDEX`（info", "`TF-COUNT-INDEX`（warn", "TF-COUNT-INDEX"),
+            ("`TF-UNEVALUATED`（warn／info", "`TF-UNEVALUATED`（warn", "TF-UNEVALUATED"),
+            ("`TF-PARSE-ERROR`（error", "`TF-PARSE-ERROR`（warn／error", "TF-PARSE-ERROR"),
+            ("`CFN-NESTED-UNREADABLE`（error／warn", "`CFN-NESTED-UNREADABLE`（warn", "CFN-NESTED-UNREADABLE"),
+            ("`CFN-ABSOLUTE-ROOT`（info", "`CFN-ABSOLUTE-ROOT`（error", "CFN-ABSOLUTE-ROOT"),
+        )
+        for old, new, code in cases:
+            self.assertEqual(section.count(old), 1, old)
+            problems = self.doc_level_problems(section.replace(old, new))
+            self.assertEqual(len(problems), 1, problems)
+            self.assertTrue(problems[0].startswith(code + ":"), problems)
+        # 項目を消す（level の書き方を変える）と、項目が無いと失敗する
+        problems = self.doc_level_problems(section.replace("`TF-COUNT-INDEX`（info。", "`TF-COUNT-INDEX`（"))
+        self.assertTrue(any("TF-COUNT-INDEX: 文書に" in p for p in problems), problems)
+        # 書いた level の語を説明の中の語と取り違えない（説明に warn・info が出てくるコード）
+        self.assertEqual(self.doc_level_problems(section), [])
 
 
 class EmittedLevelsTest(unittest.TestCase):
@@ -168,6 +227,21 @@ class EmittedLevelsTest(unittest.TestCase):
                 """,
         }
         with tempfile.TemporaryDirectory() as tmp:
+            # 子テンプレートが YAML として読めない → CFN-NESTED-UNREADABLE は error（見つからないのは warn）
+            nest = Path(tmp) / "nest"
+            nest.mkdir()
+            (nest / "child.yaml").write_text(BAD_CHILD, encoding="utf-8")
+            (nest / "root.yaml").write_text(ROOT_WITH_CHILDREN, encoding="utf-8")
+            seen = self.assert_known(cfn_build.build_raw(nest / "root.yaml", Path(tmp)), "nested-unreadable")
+            self.assertIn(("CFN-NESTED-UNREADABLE", "error"), seen)
+            self.assertIn(("CFN-NESTED-UNREADABLE", "warn"), seen)
+            # count = 0（作られないリソース）の中の未対応の関数 → TF-UNSUPPORTED-FUNCTION は info（作られるなら warn）
+            for count, level in ((0, "info"), (1, "warn")):
+                d = Path(tmp) / f"unsupported{count}"
+                d.mkdir()
+                (d / "main.tf").write_text(TF_UNSUPPORTED.format(count=count), encoding="utf-8")
+                seen = self.assert_known(tf_build.build_raw(d, Path(tmp)), f"tf-unsupported{count}")
+                self.assertIn(("TF-UNSUPPORTED-FUNCTION", level), seen)
             for (code, level), text in want.items():
                 p = Path(tmp) / f"{code}.yaml"
                 p.write_text(textwrap.dedent(text), encoding="utf-8")

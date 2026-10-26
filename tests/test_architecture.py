@@ -20,6 +20,7 @@ import tempfile
 import unittest
 from dataclasses import dataclass
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS = ROOT / "skills" / "aws-iac-diagram" / "scripts"
@@ -363,7 +364,9 @@ def violations_in_size(scripts: Path, exempt: dict[str, dict] = EXEMPT, warn: li
 UNUSED_ALLOW: dict[str, str] = {}
 
 DIAG_LEVELS = set(diagnostics.LEVELS)
-DIAG_PREFIXES = tuple(p + "-" for p in diagnostics.PREFIXES)
+DIAG_PREFIXES = tuple(p + "-" for p in diagnostics.ALLOWED_PREFIXES)
+# 診断を出す呼び出しの名前（これらの引数、辞書の "code"、level つきのタプルにある、コードの形の文字列は、接頭辞が未登録なら失敗する）
+EMIT_CALLS = {"diag", "unknown", "Unknown", "unknown_from"}
 
 
 @dataclass(frozen=True)
@@ -377,7 +380,14 @@ class CodeSite:
 
 def diagnostic_scan_files(scripts: Path) -> list[Path]:
     """診断コードを書くコードの範囲: アダプタの入口（scripts/adapt_*.py）と aws_iac_diagram/adapters/ の下のすべて。
-    正規化の NORM-…（フェーズ 3 以降）は、その層が育つとき、この範囲を広げて一覧に足す。"""
+    正規化の NORM-…（フェーズ 3 以降）は、その層が育つとき、この範囲を広げ、接頭辞を ALLOWED_PREFIXES に足し、一覧に足す。
+
+    **この静的な検査は最善の努力（best-effort）で、すり抜けるものがある:** ① 接頭辞が単独の文字列になっていない組み立て
+    （`"TF" + "-X"`、`"-".join(...)`）、② level を変数や既定の引数で渡すところの level（呼び出しの近くに文字列で書いた level
+    だけを一覧と比べる）、③ 範囲の外（adapters/ と adapt_*.py 以外）で診断を出すコード、④ 接頭辞が ALLOWED_PREFIXES に無く、
+    診断を出す位置（EMIT_CALLS の引数、辞書の "code"、level つきのタプル）の外にあるコードの形の文字列。
+    動的な安全網は tests/test_diagnostics.py の EmittedLevelsTest（実際に動かして出た (code, level) を一覧と比べる）と、
+    旧コードとの比較（CLI と変異した入力の差分、WORKLOG の「確かめたこと」）、golden。"""
     files = sorted(scripts.glob("adapt_*.py"))
     files += sorted(p for p in (scripts / PACKAGE / "adapters").rglob("*.py") if "__pycache__" not in p.parts)
     return files
@@ -387,9 +397,26 @@ def _literal_levels(nodes) -> tuple[str, ...]:
     return tuple(n.value for n in nodes if isinstance(n, ast.Constant) and isinstance(n.value, str) and n.value in DIAG_LEVELS)
 
 
+def _is_emit_position(n: ast.Constant, parent: dict) -> bool:
+    """この文字列が、診断を出す位置（EMIT_CALLS の呼び出しの引数、辞書の "code" の値、level の文字列つきのタプル）にあるか。"""
+    p = parent.get(n)
+    if isinstance(p, ast.keyword):
+        p = parent.get(p)
+    if isinstance(p, ast.Call):
+        f = p.func
+        return (f.id if isinstance(f, ast.Name) else f.attr if isinstance(f, ast.Attribute) else "") in EMIT_CALLS
+    if isinstance(p, ast.Dict):
+        return any(isinstance(k, ast.Constant) and k.value == "code" and v is n for k, v in zip(p.keys, p.values))
+    if isinstance(p, (ast.Tuple, ast.List)):
+        return bool(_literal_levels(p.elts))
+    return False
+
+
 def scan_diagnostic_codes(scripts: Path) -> tuple[list[CodeSite], list[str]]:
-    """範囲のコードにある診断コードの文字列（`^[A-Z][A-Z0-9]*(-[A-Z0-9]+)+$`）の位置と、
-    接頭辞（TF-・CFN-）で始まるのにコードの形でない文字列（"TF-" + 名前、f"TF-{x}" などの組み立て、打ち間違い）の問題。"""
+    """範囲のコードにある診断コードの文字列（`^[A-Z][A-Z0-9]*(-[A-Z0-9]+)+$` で、接頭辞が ALLOWED_PREFIXES のもの）の位置と、
+    問題の一覧: ① 接頭辞（TF-・CFN-）で始まるのにコードの形でない文字列（"TF-" + 名前、f"TF-{x}" などの組み立て、打ち間違い）、
+    ② コードの形で、診断を出す位置にあるのに、接頭辞が未登録のもの。接頭辞が未登録で診断を出す位置の外にある文字列
+    （"UTF-8"、"GET-OBJECT" など）は数えない。"""
     sites: list[CodeSite] = []
     problems: list[str] = []
     for path in diagnostic_scan_files(scripts):
@@ -401,6 +428,12 @@ def scan_diagnostic_codes(scripts: Path) -> tuple[list[CodeSite], list[str]]:
                 parent[c] = n
         for n in ast.walk(tree):
             if not (isinstance(n, ast.Constant) and isinstance(n.value, str)):
+                continue
+            if diagnostics.CODE_PATTERN.match(n.value) and n.value.split("-", 1)[0] not in diagnostics.ALLOWED_PREFIXES:
+                if _is_emit_position(n, parent):
+                    problems.append(f"{rel}:{n.lineno}: {n.value!r} は診断を出す位置にあるコードの形の文字列だが、接頭辞 "
+                                    f"{n.value.split('-', 1)[0]} が core/diagnostics.py の ALLOWED_PREFIXES に無い"
+                                    "（新しい接頭辞なら、そこと PREFIXES に意図して足す）")
                 continue
             if not diagnostics.CODE_PATTERN.match(n.value):
                 if n.value.startswith(DIAG_PREFIXES):
@@ -972,6 +1005,42 @@ class DiagnosticRegistryRuleTest(unittest.TestCase):
         s = self.copy_tree()
         self.append(s, "aws_iac_diagram/adapters/terraform/refs.py", 'self.diag("info", "TF-UNEVALUATED", "", "x", "")')
         self.assertEqual(self.problems(s), [])
+
+    def test_code_looking_strings_with_other_prefixes_are_ignored_outside_emit_positions(self):
+        # "UTF-8"・"GET-OBJECT" のような、コードの形で接頭辞が違う文字列は、診断を出す位置の外なら数えない
+        for text in ('ENC = "UTF-8"', 'open("x", encoding="UTF-8")', 'ACTION = "GET-OBJECT"', 'IS = ("a" == "GET-OBJECT")',
+                     'SET = {"UTF-8", "GET-OBJECT"}', 'D = {"encoding": "UTF-8", "name": "GET-OBJECT"}',
+                     'foo("a", "GET-OBJECT")', 'T = ("a", "GET-OBJECT")'):
+            s = self.copy_tree()
+            self.append(s, "aws_iac_diagram/adapters/terraform/refs.py", text)
+            self.assertEqual(self.problems(s), [], text)
+            sites, _ = scan_diagnostic_codes(s)
+            self.assertFalse({x.code for x in sites} & {"UTF-8", "GET-OBJECT"}, text)
+
+    def test_mutation_unknown_prefix_in_an_emit_position_fails(self):
+        cases = (
+            'self.diag("warn", "NORM-NEW-THING", "", "x", "")',
+            'self.diag("warn", "GET-OBJECT", "", "x", "")',
+            'D = {"level": "info", "code": "FOO-BAR"}',
+            'U = Unknown("m", "XYZ-ABC")',
+            'U = unknown_from([], "m", "XYZ-ABC")',
+            'T = ("blackbox", "warn", "QQ-RR", "m")',
+            'self.diag(level="info", code="ZZ-TOP", path="", message="m")',
+        )
+        for text in cases:
+            s = self.copy_tree()
+            self.append(s, "aws_iac_diagram/adapters/cloudformation/build.py", text)
+            problems = self.problems(s)
+            self.assertTrue(any("ALLOWED_PREFIXES に無い" in p and p.startswith("aws_iac_diagram/adapters/cloudformation/build.py:")
+                                for p in problems), (text, problems))
+        # 接頭辞を ALLOWED_PREFIXES に足す（意図して）と、今度は「一覧に無いコード」として失敗する
+        s = self.copy_tree()
+        self.append(s, "aws_iac_diagram/adapters/cloudformation/build.py", 'self.diag("warn", "NORM-NEW-THING", "", "x", "")')
+        with mock.patch.object(diagnostics, "ALLOWED_PREFIXES", (*diagnostics.ALLOWED_PREFIXES, "NORM")):
+            problems = self.problems(s)
+        self.assertTrue(any("NORM-NEW-THING が core/diagnostics.py の一覧に無い" in p for p in problems), problems)
+        self.assertFalse(any("ALLOWED_PREFIXES に無い" in p for p in problems), problems)
+        self.assertEqual(diagnostics.ALLOWED_PREFIXES, tuple(diagnostics.PREFIXES))
 
     def test_scanner_does_not_look_outside_the_adapters(self):
         # 範囲は入口のアダプタと adapters/ の下だけ（NORM-… などほかの層のコードは、その層が育つとき範囲に足す）

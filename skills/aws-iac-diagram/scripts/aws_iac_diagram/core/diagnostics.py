@@ -14,13 +14,18 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 
 ERROR, WARN, INFO = "error", "warn", "info"
 LEVELS = (ERROR, WARN, INFO)  # 重い順
 
 # コードの接頭辞 → アダプタ（層）の名前
 PREFIXES = {"TF": "terraform", "CFN": "cloudformation"}
+# 診断コードとして扱う接頭辞。検査（tests/test_architecture.py）はこの接頭辞のコードだけを数える（"UTF-8" のような別の文字列で
+# 誤って落ちないため）。NORM- など新しい接頭辞は、ここに意図して足す（PREFIXES と同じ）
+ALLOWED_PREFIXES = tuple(PREFIXES)
 CODE_PATTERN = re.compile(r"^[A-Z][A-Z0-9]*(-[A-Z0-9]+)+$")
 
 
@@ -112,7 +117,7 @@ _ROWS = (
     _row("TF-VARFILE-OTHER-DRIVE", "info", "変数のファイルが別のドライブにあり、相対パスにできないので名前だけを書いた（Windows）"),
 )
 
-DIAGNOSTICS: dict[str, Diagnostic] = {d.code: d for d in _ROWS}
+DIAGNOSTICS: Mapping[str, Diagnostic] = MappingProxyType({d.code: d for d in _ROWS})  # 読み取り専用
 
 
 def lookup(code: str) -> Diagnostic | None:

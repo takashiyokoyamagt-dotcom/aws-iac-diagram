@@ -154,9 +154,9 @@ skills/aws-iac-diagram/
 アダプタが出す診断コード（raw IR の `diagnostics[].code`。Terraform の `TF-…` 43 個、CloudFormation の `CFN-…` 19 個）は、`core/diagnostics.py` の 1 つの表にある。コードごとに、出うる level（`error`＞`warn`＞`info`。場所によって level を変えるコードがある）と短い説明を持つ。データだけで、アダプタは実行時には読まない（出力のバイト列を変えないため。コードは各アダプタが文字列で書いたまま）。
 
 - **コードを足すとき:** `core/diagnostics.py` の表に 1 行、`references/ir-schema.md` の 7.5 の一覧に 1 項目（CFN は「`コード`（level。説明）」の形）を、同じコミットで足す。コードは 1 つの文字列で書く（`"TF-" + 名前` や `f"TF-{x}"` のように組み立てない）。
-- **テストが守ること**（`tests/test_architecture.py` の `DiagnosticRegistryRuleTest`）: ① `scripts/adapt_*.py` と `aws_iac_diagram/adapters/` の下の `TF-…`・`CFN-…` の文字列（`^[A-Z][A-Z0-9]*(-[A-Z0-9]+)+$`）がすべて表にある、② 接頭辞で始まるのにコードの形でない文字列（組み立て、打ち間違い）が無い、③ 表のコードは、どこかで出されている（コードの集合 `{…}` や比較 `== "…"`・`in (…)` だけの位置は数えない）。使われないコードを残すときは `UNUSED_ALLOW` に理由を書く（今は空）、④ コードのそばに `"warn"` などの level が直接書いてあれば、表の levels にある。
+- **テストが守ること**（`tests/test_architecture.py` の `DiagnosticRegistryRuleTest`）: ① `scripts/adapt_*.py` と `aws_iac_diagram/adapters/` の下の `TF-…`・`CFN-…`（`ALLOWED_PREFIXES` の接頭辞）の文字列（`^[A-Z][A-Z0-9]*(-[A-Z0-9]+)+$`）がすべて表にある、② 接頭辞で始まるのにコードの形でない文字列（組み立て、打ち間違い）が無い、③ 表のコードは、どこかで出されている（コードの集合 `{…}` や比較 `== "…"`・`in (…)` だけの位置は数えない）。使われないコードを残すときは `UNUSED_ALLOW` に理由を書く（今は空）、④ コードのそばに `"warn"` などの level が直接書いてあれば、表の levels にある。
 - `tests/test_diagnostics.py` が守ること: 表の形（コードの形、接頭辞、重い順の levels、説明、並び）、表と ir-schema.md の 7.5 が TF・CFN の両方で同じ、アダプタを実際に動かして出た (code, level) が表にある（fixture と、error になる入力）。
-- 限界: 範囲は入口のアダプタと `adapters/` の下だけ（`NORM-…` は正規化の層ができるときに範囲を広げる）。level を変数で渡すところ（`Unknown` の既定の level など）の level は静的には見られないので、動かして確かめるテストが受け持つ。`"TF" + "-X"` のような、接頭辞が単独の文字列になっていない組み立ては見つけられない。
+- **静的な検査は最善の努力（best-effort）です。** すり抜けるもの: ① `"TF" + "-X"` のように接頭辞が単独の文字列になっていない組み立て、② level を変数や既定の引数で渡すところ（`Unknown` の既定の level など）の level（呼び出しの近くに文字列で書いた level だけを比べる）、③ 範囲の外（`adapt_*.py` と `adapters/` の下以外）で診断を出すコード、④ 接頭辞が `ALLOWED_PREFIXES` に無く、診断を出す位置（`diag`・`Unknown` などの引数、辞書の `"code"`、level つきのタプル）の外にあるコードの形の文字列（`"UTF-8"` などを誤検出しないために数えない。診断を出す位置にあれば、接頭辞が未登録だと失敗する）。範囲は入口のアダプタと `adapters/` の下だけ（`NORM-…` は正規化の層ができるときに範囲を広げ、`ALLOWED_PREFIXES` と `PREFIXES` に足す）。**動的な安全網:** `tests/test_diagnostics.py` の `EmittedLevelsTest`（fixture と、error や info になる小さな入力を動かして、出た (code, level) を一覧と比べる。ir-schema.md の 7.5 の level も一覧と同じことを確かめる）と、旧コードとの CLI・変異入力の差分比較（WORKLOG の「確かめたこと」）、golden。
 
 ## 4. 1 ファイルの大きさ
 
