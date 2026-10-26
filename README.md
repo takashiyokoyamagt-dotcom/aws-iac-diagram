@@ -144,7 +144,7 @@ uv run python aws-iac-diagram-workspace\tools\c1_check.py
 
 ### Terraform アダプタ
 
-Terraform のルートモジュール（.tf のフォルダ）から、同じ raw IR を作ります。変数・locals・式を評価し、count・for_each をインスタンスごとに展開します。ローカルモジュール（`./`・`../`）は中身を再帰的に読み、terraform-aws-modules の vpc・alb・rds・eks は要約表（`skills/aws-iac-diagram/data/module-summaries/`。モジュールと major ごとのファイル。説明は [docs/spec/module-summaries.md](docs/spec/module-summaries.md)）で展開します。それ以外のレジストリ・git のモジュールは黒箱の呼び出し1件にします（ネットワークからモジュールを取りに行きません）。`.tf.json` は .tf だけでは読みません（警告 `TF-TFJSON-UNSUPPORTED`。plan JSON と一緒なら plan から取ります）。`terraform.workspace` は `default` で評価し、`--workspace <名前>` で変えられます。
+Terraform のルートモジュール（.tf のフォルダ）から、同じ raw IR を作ります。変数・locals・式を評価し、count・for_each をインスタンスごとに展開します。ローカルモジュール（`./`・`../`）は中身を再帰的に読み、terraform-aws-modules の vpc（5.x・6.x）・alb（10.x）・rds（7.x）・eks（20.x・21.x）は要約表（`skills/aws-iac-diagram/data/module-summaries/`。モジュールと major ごとのファイル。説明は [docs/spec/module-summaries.md](docs/spec/module-summaries.md)）で展開します。呼び出しの `version` の制約が許す major のうち、表のある最も新しいものを使います（`5.8.1`・`~> 5.0` は 5.x、`20.8.5` は 20.x）。表の無い major（vpc の 4.x 以前、eks の 19.x など）・ほかのモジュール・git のモジュールは黒箱の呼び出し1件にします。eks の 20.x の表は v20.8.5 のソースと突き合わせたもので、それより新しい 20.x は確かめていません（docs/spec/module-summaries.md の 3）。どのモジュールも、ネットワークから取りに行きません。`.tf.json` は .tf だけでは読みません（警告 `TF-TFJSON-UNSUPPORTED`。plan JSON と一緒なら plan から取ります）。`terraform.workspace` は `default` で評価し、`--workspace <名前>` で変えられます。
 
 `terraform show -json` の plan JSON も読めます（[ir-schema](docs/spec/ir-schema/07-raw-output.md) の 7.2「TF の plan JSON」）。.tf のフォルダと一緒に渡す（`--plan`）のがおすすめです。address と count・for_each の展開・作られるかは Terraform の結果を使い、ファイル名・値・参照の位置は .tf から読みます（.tf で決まらなかった値は plan の値で埋める）。plan JSON だけ（`--input` に `.json`）でも読めますが、plan JSON は locals・dynamic ブロックの式と .tf のファイル名を持たないので、参照の一部が分からず、`file` は plan JSON の名前になります。
 
@@ -156,7 +156,7 @@ uv run skills\aws-iac-diagram\scripts\adapt_tf.py --input aws-iac-diagram-worksp
 uv run skills\aws-iac-diagram\scripts\adapt_tf.py --input aws-iac-diagram-workspace\fixtures\tf-plan\three-tier.dev.json --out out\three-tier.planonly.raw.json
 ```
 
-公開サンプルでの確認（フェーズ2 の手順5）は、`tf_public_check.py` で行います。T01〜T20、P01〜P04 のルート（52 フォルダ）が読めて raw IR の検査を通ること（error の診断が 0）と、TF／SAM の対（T01、T05、T06、T07、T11）のリソースの型の違いが、理由つきの表（`PAIR_EXPECTED`）と一致することを調べます。`--all` は `.tf` のあるフォルダすべて（205）を読みます。
+公開サンプルでの確認（フェーズ2 の手順5）は、`tf_public_check.py` で行います。T01〜T20、P01〜P04 のルート（52 フォルダ）が読めて raw IR の検査を通ること（error の診断が 0）と、TF／SAM の対（T01、T05、T06、T07、T11）のリソースの型の違いが、理由つきの表（`PAIR_EXPECTED`）と一致することを調べます。`--all` は `.tf` のあるフォルダすべて（248。vpc 5.x・eks 20.x の表の元のソースを足した 2026-10-26 から。それまでは 205）を読みます。
 
 ```powershell
 uv run python aws-iac-diagram-workspace\tools\tf_public_check.py --pairs

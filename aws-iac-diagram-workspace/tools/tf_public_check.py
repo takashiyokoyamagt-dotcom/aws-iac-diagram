@@ -7,7 +7,7 @@
 1. 読めること: 公開サンプル（fixtures/public）の TF を TF アダプタで読み、例外が出ない・raw IR が検査（スキーマと
    参照の整合）を通る・error の診断が 0 であることを調べる。
    - 既定: T01〜T20、P01〜P04 のルート（survey_public.py の一覧。52 フォルダ）
-   - `--all`: `.tf` のあるフォルダすべて（モジュールの中身・examples・wrappers を含む。205 フォルダ）
+   - `--all`: `.tf` のあるフォルダすべて（モジュールの中身・examples・wrappers を含む。248 フォルダ）
 2. TF／SAM の対（T01、T05、T06、T07、T11。SELECTION.md の 3 の 3）: TF アダプタと CFN アダプタの raw IR の
    リソースの型の多重集合を、下の「正規化」のあとで比べ、違いを PAIR_EXPECTED（理由つき）と突き合わせる。
    `--pairs` でこの比較の結果を表で出す。

@@ -1289,3 +1289,97 @@ tests/ 平ら 10 ファイル、最大 2,381 行（281 件）            tests/ 
 5. **テストの強さ（R5）**: 移す前から生き残っていた変異（自己ループの検査、`literal_only` の比較、golden の絶対パス、Conditions の `stronger`、`cidrsubnet` の境目）を殺すテストが無かった。移した後も落ちるテストの集合が同じであることを変異 14 通りで確かめ、生き残りには新しいテスト 14 件（同じ変異を殺す 11 件と、文書のパスの実在 3 件）を足した。
 6. **文書の古い参照（R2・R5）**: 移したあと、`tf_modules.py` や `tests/test_*.py` などの旧いパスが文書に残った。R5 で「文書に書いたテストのパスの実在」をテストにし、R6 で Markdown の相対リンクと `docs/` のパスにも広げた。
 7. 共通する型: 「動かしたあとに壊れるのは、相対パスと文書の参照と、黙って通る欠け」。どれも最後は、壊したら落ちるテストにして固定した。
+
+
+## 2026-10-26 vpc 5.x・eks 20.x の要約表
+
+ユーザーの 2026-10-24 の決定（vpc 5.x・eks 20.x の要約表を作る。そのタグのソースの取り込みも許可）による。ブランチ `summaries-vpc5-eks20`（main の `0652deb` から。ローカル。push はまだ）。「残りの作業の順番」の 5。
+
+### 概要
+- T16（`learn-terraform-provision-eks-cluster`）が vpc `5.8.1`・eks `20.8.5` を固定し、T18 の `environment` が vpc `~> 5.0` を呼ぶので、`data/module-summaries/terraform-aws-vpc/v5.md` と `terraform-aws-eks/v20.md` を足した。**ローダー（`summaries.py`）と版の選び方（`resolve.choose`）のコードは変えていない**（表のデータが増えただけで、5.x の制約は 5、20.x は 20 が選ばれる）。R4〜R6 の「ファイルを足すだけで入る」の確認になった。
+- **T18 の eks は `~> 19.15.2`**（vpc だけが 5.x）。19.x の表は作らない（ユーザーの決定は 20.x まで）ので、T18 の `eks-blue`・`eks-green` の `module.eks_cluster.module.eks` は黒箱のまま（`it has 20.x, 21.x` と理由に書く）。「T16・T18 の vpc・eks の黒箱が無くなる」は、T16 の 2 つと T18 `environment` の vpc で成り立ち、T18 の eks だけは当てはまらない。
+
+### コミット
+| | コミット | 内容 |
+|---|---|---|
+| 1/4 | `a4a71a6` | 照合用のソースの取り込み（310 ファイル、2.44 MB）と SOURCES.md |
+| 2/4 | `19722ab` | `v5.md`・`v20.md`、doctor の一覧、NOTICE.md、テスト 8 件、`docs/spec/module-summaries.md` |
+| 3/4 | `b34a3eb` | golden の固定値を 5 ケース更新（証明はこの節の「golden の更新」） |
+| 4/4 | この節を含むコミット | README・PLAN・HANDOFF・WORKLOG と、数字（205 → 248 フォルダ）の更新 |
+
+### 取り込んだソース（SOURCES.md の M03〜M05）
+取得方法は M01・M02 と同じ（`git ls-remote --tags` → `git clone --depth 1 --branch <タグ>` を一時フォルダに → `.git` を削除 → 画像だけ除く）。取得元は terraform-aws-modules の vpc・eks の 2 リポジトリだけ。タグは軽量タグなので、コミットはタグが指すコミット。
+
+| ID | ディレクトリ | タグ | コミット | タグのコミット日 | ファイル数・大きさ |
+|---|---|---|---|---|---|
+| M03 | `terraform-aws-vpc-v5.8.1/` | v5.8.1（T16 の版） | `25322b6b6be69db6cca7f167d7b0e5327156a595` | 2024-04-26 | 85・0.77 MB |
+| M04 | `terraform-aws-vpc-v5.21.0/` | v5.21.0（5.x の最新。`git ls-remote` で v5.x.y の最大。T18 の `~> 5.0` が選ぶ版） | `7c1f791efd61f326ed6102d564d1a65d1eceedf0` | 2025-04-21 | 90・0.83 MB |
+| M05 | `terraform-aws-eks-v20.8.5/` | v20.8.5（T16 の版） | `afadb14e44d1cdbd852dbae815be377c4034e82a` | 2024-04-08 | 135・0.84 MB |
+
+- 合計 310 ファイル、2,438,412 バイト（2.44 MB）。上限（15 MB・2,000 ファイル）の内側。削除したのは eks の `.github/images/*.svg` の 2 ファイルだけ（画像は除外の決まり）。Apache-2.0。LICENSE は取得元のまま。ルートの NOTICE の 3 は「terraform-aws-modules の各リポジトリ」を Apache-2.0 として挙げ、版を書かない書き方なので、新しいフォルダにそのまま当てはまり、書き換えていない。
+- 取り込みコミットのメッセージに「約 3.1 MB」と書いたのは、作業ツリー（CRLF）のディスク上の大きさ。コミットされる内容（LF）は上の 2.44 MB。
+- eks の 20.x の最新（v20.37.2）は取り込んでいない（指示のとおり）。比較のためだけに一時フォルダ（リポジトリの外）にクローンし、下の「eks 20.x の確かめ」で使った。
+- `tf_public_check.py --all` の対象は、`.tf` のあるフォルダ 205 → **248**（+43）。リソース 11621 → 16706（取り込み直後）→ **16898**（表を足した後。T16・T18 だけでなく、新しいフォルダの `examples/` がレジストリの vpc `~> 5.0` を呼んでいて、5.x の表で展開される）。warn 2582、info 22063、error 0。既定の 52 ルートは、リソース 2480 → **2553**（+73 = T16 の +59 と T18 の `environment` の +14）、warn 381 → 400、info 1027 → 1032。golden の 52 ルートの一覧（`root_folders()`）は変えていないので、新しいフォルダは golden に入らない。
+
+### 表の作り方（決めたこと）
+- **vpc 5.x（`v5.md`）**: v6 の表（v6.7.3）を元に、5.21.0 の本物のソースと突き合わせて直した（変数の宣言 81 件の既定値と型、出力 51 件の式、リソースのブロックの属性を、使い捨ての比較スクリプトで本物と照合。違いは次の 4 つだけ）: ① 6.x で足された `region` の変数と `region = var.region` を除く、② AZ か AZ ID かを見分ける正規表現が 5.x は `^[a-z]{2}-`（6.x は `^[a-z]+-`）、③ `aws_route_table_association.database` の count は 5.x では `local.create_database_subnets ? len : 0`（6.x の「DB のルートテーブルか private のサブネットがあるとき」の条件が無い）、④ 6.x の `# not-covered:` の入力は 5.x でも同じ（elasticache・redshift・outpost のサブネット、専用の NACL、IPv6 のプレフィックス、DHCP オプション、フローログ、VPN の経路の伝播、IPAM、Block Public Access など）。出力の `vgw_id` だけ 5.x は `aws_vpn_gateway_attachment` も見る（`vpn_gateway_id` が not-covered なので同じ値）。
+- **5.8.1 と 5.21.0 の違い**（`diff` で本物の 2 つを比べた。表は 5.21.0 に合わせた。1 つの major に 1 つの表しか持てないため）: ① `create_multiple_public_route_tables = true` のとき、public のルートテーブルから IGW への経路（`aws_route.public_internet_gateway`、IPv6 のときは `…_ipv6`）が、5.8.1 は 1 つ（`aws_route_table.public[0]` だけ）、5.21.0 はテーブルごと。表は後者なので、5.8.1 の呼び出しでこの入力を使うと、表は 2 つ多く出す（意図した違い。テストで固定）。② `create_private_nat_gateway_route`（`aws_route.private_nat_gateway` の count）は 5.21.0 で足された入力で、5.8.1 には無い。既定 true なので、5.8.1 の動きと同じ。③ 5.21.0 で足されたもの（`aws_vpc_block_public_access_*`、DHCP オプションの IPv6 のリース、フローログの IAM の入力、`*_subnet_objects` の出力）は図に出ないか、5.8.1 の呼び出しでは渡せない。T16 の入力（education-vpc、23 件）は両方の版で本物と全部一致。
+- **eks 20.x（`v20.md`）**: v20.8.5 の `main.tf`・`node_groups.tf`・サブモジュール 3 つ（eks-managed-node-group・fargate-profile・self-managed-node-group）から作った。変数の宣言は、本物の `variables.tf` から、表の本文が使うものだけを、`description` を除いて機械的に写した（root 72、managed 35、fargate 15、self-managed 33）。本文は v21 の表と同じ書き方（使い捨てのスクリプトで宣言と本文を組み立てた）。v21 との違い: ① 20.x の名前（`cluster_name`・`cluster_version`・`cluster_addons`・`cluster_endpoint_*`・`cluster_security_group_*`・`cluster_encryption_config`（既定で `{ resources = ["secrets"] }` なので KMS を作る））、② node のグループの引数は、本物の `try(each.value.x, var.<…>_defaults.x, 既定値)` の鎖をそのまま写した（図に要る引数だけ。`eks_managed_node_group_defaults` などが効く）、③ クラスタのタグを primary SG に付ける `aws_ec2_tag.cluster_primary_security_group`（`tags`・`cluster_tags` の `Name` 以外ごとに 1 件）を写した（`tags` は最もよく渡す入力なので、書かないと本物と address がずれる）、④ EFA の SG ルール（root）、IAM ポリシーの追加（`iam_role_additional_policies`）、IPv6 の CNI の attachment を写した、⑤ `module.kms` は表の中の黒箱（20.8.5 の版は 2.1.0。v21 は 4.0.0）、⑥ クラスタ作成者の ARN は v21 と同じ固定の文字列。
+- **eks 20.x の `# not-covered:`**: `outpost_config`、`cluster_identity_providers`（`aws_eks_identity_provider_config`）、`create_cni_ipv6_iam_policy`、node のグループの `enable_efa_support`・`create_placement_group`・`schedules`（`eks_managed_node_groups.*.…`・`self_managed_node_groups.*.…` と、`*_defaults.…`）。`data.tls_certificate`（OIDC のルート CA の thumbprint）・`data.aws_eks_addon_version`・`module.user_data`（`null_resource` の検査）は表に載せない（本物との違い。docs/spec/module-summaries.md の 3）。Karpenter・aws-auth のサブモジュールは表にしない。
+- **版の選び方**: コードは同じ。`5.8.1`・`~> 5.0`・`>= 5, < 6`・`< 6.0` は 5、`20.8.5`・`~> 20.0` は 20、`>= 5.0, < 7.0` は 6（前提に書く）、vpc の `2.77.0`・eks の `~> 19.15.2` は黒箱（理由に `it has 5.x, 6.x`・`it has 20.x, 21.x`）。
+
+### 選び方の確認（これまでの表の選び方が変わっていないこと）
+`SummaryTest.test_choose_is_unchanged_for_every_previous_pair`（永続のテスト）と、使い捨てのスクリプトで確かめた。
+- 旧い表（5・20 を除いたフォルダ）と今の表の `resolve.choose(source, version)` を、9 つの source（vpc・alb・rds・eks、サブモジュール、kms、レジストリのホスト付き、無関係）× 約 440 の版の制約 = **3,987 組**で比べた: 前に表が選ばれていた **1,256 組は、選ばれる表（同じファイルの同じ内容）も前提の文も同じ**。前は「表に無い major」で今は 5 か 20 の表が当たるのが **98 組**（vpc の 5 を許すもの、eks の 20 を許すもの）。前も今も表が無いのが 2,633 組（理由の文の「表にある major」の列挙だけが増える）。
+- fixture（`aws-iac-diagram-workspace/fixtures` の `.tf`）の、レジストリのモジュールの (source, version) の組 46（呼び出し 147）: 前と同じ表が **7 組**、前は表が無く今は当たるのが **3 組**（vpc `5.8.1`、vpc `~> 5.0`、eks `20.8.5`）、表が無いままが 36 組。
+
+### 本物と突き合わせたテスト（`tests/unit/terraform/test_module_summaries.py`、新規 8 件）
+同じ入力で、本物のタグのソース（`fixtures/public/terraform-aws-vpc-v5.8.1` など）をローカルモジュールとして展開した結果と、要約表で展開した結果を、作られるリソースの address・表のリソースの間の参照・名前とタグで突き合わせる（既存の `compare_with_source`）。
+- vpc 5: v5.8.1（制約 `5.8.1`）と v5.21.0（`~> 5.0`、`>= 5, < 6`）× 4 入力（v6 のテストと同じ 3 つ + T16 の education-vpc）が、25・39・17・23 件で全部一致。5.8.1 と 5.21.0 の違い（public の複数ルートテーブル、IPv6 の NAT64 の経路、`create_private_nat_gateway_route`）は、本物の 2 つの版の違いと一致することを固定した（`allowed` に、違う address を 1 つずつ書く）。
+- eks 20: v20.8.5 を、マネージド（`*_defaults`、既存の IAM ロール、起動テンプレートの名前、`attach_cluster_primary_security_group`）・Fargate・セルフマネージド（`create_access_entry = false` など）・アドオン（`before_compute`）・アクセスエントリ・`tags` を渡した入力で展開し、`null_resource`（4 件）を除いて **54 件**の address・参照・名前が一致。最小の入力（23 件）、暗号化なし（`module.kms` が `enabled: false`、暗号化のポリシーが出ない）も確認。参照の形（クラスタ → ロール・kms・SG、node のグループ → ロール・起動テンプレート → node の SG など）を 10 組、期待どおりに固定した。
+- 表を壊すと落ちること（変異）: v5.md の IGW 経路の count を 1 にする → `test_vpc5_differences…` が落ちる、v20.md の node の SG ルールの名前を 1 つ変え・`prefix_list_ids` の既定を変える → `test_eks20_summary_matches_source` が落ちる。
+- T16・T18: `test_t16_and_t18_have_no_blackbox_for_the_summarised_modules`。T16 の黒箱は `module.eks.module.kms`（表の中の黒箱。terraform-aws-modules/kms は 4 つの表の外）と `module.irsa-ebs-csi`（IAM だけ。H-IAM）。T18 `environment` は `module.acm` だけ。T18 `eks-blue`・`eks-green` は 11 件（eks 19.x、eks-blueprints の addons・teams、`gitops_bridge_bootstrap`（git）、IAM の IRSA 2 件）。
+- ほかのテストの変更（弱めていない）: `test_choose_version` の「5.8.1 などは表が無い」の期待を「5 を選ぶ」に（`2.77.0`・`4.0.0`・`7.0.0` などで「表が無い」は残した）、`test_summary_expansion_diagnostics` の黒箱の例を `5.8.1` → `4.0.2` に、`test_summary_file` に版ごとのファイルと majors を確かめる行を足した。doctor の一覧と `RUNTIME_DATA` に 2 ファイルを足した（食い違うとテストが落ちる）。
+
+### eks 20.x の確かめ（取り込まなかった版との比較。リポジトリの外の一時フォルダ）
+`v20.md` はコミットした v20.8.5 でだけ確かめている。20.37.2（最新。2025-07-17）を一時フォルダにクローンし、同じ入力（54 件の入力）で本物と表を突き合わせると、**`aws_iam_policy.custom[0]` と `aws_iam_role_policy_attachment.custom[0]`（`enable_auto_mode_custom_tags` の既定が true。IAM だけ）の 2 つが本物に多い**だけで、残りの address・参照・名前は一致した。20.8.5 と 20.37.2 の `main.tf` の差は 464 行あるが、この入力が通る範囲では表の結果が変わらなかった、という意味で、20.37.2 までのすべてを保証するものではない（`~> 20.0` は 20.8.5 から作った表で展開され、20.2x 以降の追加リソースは出ない）。
+
+### golden の更新（意図した変更）
+`golden.py --update --accept-changes`。101 ケースのうち変わったのは **5 つだけ**（追加・削除なし。`tests/golden/manifest.json` の差は 5 エントリ）。
+- **証明の方法**: 旧（`0652deb`）の SKILL（`git archive` を一時フォルダに）と新で、golden と同じ引数・同じ fixture の `adapt_tf.py` を、`tf/public/` の **52 ルートすべて**で動かし、raw IR を保存した。旧の出力の SHA-256 は manifest の旧の値と 52 件すべて一致（旧の出力を再現できた）。新の出力の SHA-256 は、更新後の manifest と 52 件すべて一致。そのうえで、使い捨てのスクリプト（リポジトリの外。`golden_diff_check.py`）が、旧と新の構造を規則で比べた。規則（どれにも当てはまらなければ失敗）: 変わらない = バイトが同じ / 型 A = ある呼び出し X（vpc 5.x・eks 20.x のレジストリ呼び出し）が黒箱から要約表の展開に変わった: (a) 消えたリソース = 旧の X の黒箱のエントリだけ、(b) 増えたリソース = `X.` の下の `via: module_summary`（と、表の中の `X.module.kms` の黒箱）だけ、(c) 両方にあるリソースの違いは、旧の値が X への `$res` を含む場所だけ、(d) 参照: X に触れない旧の参照はすべて同じ、X に触れる旧の参照は消え、新しい参照は X に触れるものだけ、(e) 診断: X に触れない旧の診断は同じ順序で同じ、X 自身についての旧の診断（黒箱の通知と、呼び出しの引数の TF-UNEVALUATED）は消え、新しい診断は X の下か、(c) で変わったリソースのものだけ、(f) `evaluation`・`format`・`root` などは同じ / 型 B = `TF-MODULE-BLACKBOX` の診断の文の「表にある major」の列挙だけが違う。
+- **結果**（`golden_proof.txt` の抜粋。52 ルート）:
+  ```
+  unchanged (byte-identical old vs new): 47
+  type A (blackbox -> summary expansion): 2
+    learn-terraform-provision-eks-cluster (T16)  S=[module.eks, module.vpc]
+      resources: removed 2 (blackbox calls), added 61, changed-by-reference 1 [module.irsa-ebs-csi]
+      references: old 7 (touching S 6), new 156, new-only 155
+      diagnostics: removed 2, added {TF-MODULE-SUMMARY: 2, TF-UNEVALUATED: 2, TF-MODULE-BLACKBOX: 1 (module.eks.module.kms)}
+    blue-green-upgrade/environment (T18)  S=[module.vpc]
+      resources: removed 1, added 15, changed-by-reference 0
+      references: old 5 (touching S 0), new 25, new-only 20
+      diagnostics: removed 4 (blackbox 1 + 引数の TF-UNEVALUATED 3), added {TF-MODULE-SUMMARY: 1, TF-UNEVALUATED: 12, TF-COUNT-UNRESOLVED: 8, TF-COUNT-INDEX: 4}
+  type B (message text only): 3
+    learn-terraform-aws-asg      vpc 2.77.0:    (it has 6.x)  -> (it has 5.x, 6.x)
+    blue-green-upgrade/eks-blue  eks ~> 19.15.2: (it has 21.x) -> (it has 20.x, 21.x)
+    blue-green-upgrade/eks-green 同上
+  FAILED: 0
+  ```
+- 型 B の 3 ケースは、vpc 5.x・eks 20.x を使わない（`learn-terraform-aws-asg` は vpc 2.77.0、eks-blue・eks-green は eks 19.15.2）が、黒箱の診断の文が「表にある major」を列挙するので、表が増えると文だけが変わる。指示（vpc 5.x・eks 20.x を使わないケースはバイト単位で同じ）の例外で、構造の違いは無い（文の置換で旧と新が一致することを上の規則 B で確かめた）。
+- **T16 の `module.irsa-ebs-csi`** の違い: `provider_url = module.eks.oidc_provider` は、旧は `module.eks` への参照、新は `$unknown`（`replace()` の引数のクラスタの issuer が apply 前に決まらない）と `TF-UNEVALUATED` 1 件。`role_name` の `module.eks.cluster_name` は `module.eks.aws_eks_cluster.this[0].name` への参照。**`provider_url` を通る「IRSA のロール → OIDC プロバイダ」の辺は、表の展開では付かない**（`role_name` を通るクラスタへの辺は付く）。v21 の表でも同じ（出力 `oidc_provider` の式が本物と同じで、評価器が未知の値への `replace()` を未知にするため）。
+- T18 `environment` の vpc は、`azs` が `length(data.aws_availability_zones…names)` に依って apply 前に決まらないので、サブネット・ルートテーブル・NAT などが「×N」の 1 ブロックで出る（`TF-COUNT-UNRESOLVED`）。評価器の既存の扱い（A4）で、今回の変更ではない。
+
+### 確かめたこと
+- 単体テスト **432 件**（424 + 新規 8）が **Windows の通常の TEMP**（114 秒）と **`subst Y:` の別のドライブの TEMP**（`TEMP`・`TMP` を `Y:	mp` に。122 秒）で OK。`uv lock --check` OK、golden 101/101、pyflakes 0 件（触った Python）。新しいテスト 8 件: `test_choose_is_unchanged_for_every_previous_pair`、`test_vpc5_summary_matches_source`、`test_vpc5_differences_between_5_8_1_and_5_21_0`、`test_vpc5_not_covered_inputs_are_reported`、`test_eks20_summary_matches_source`、`test_eks20_references_between_summarised_resources`、`test_eks20_not_covered_inputs_are_reported`、`test_t16_and_t18_have_no_blackbox_for_the_summarised_modules`（`SummaryTest`）。既存のテストの変更は、期待が変わる 2 件と拡張 1 件（`test_choose_version`・`test_summary_expansion_diagnostics`・`test_summary_file`。上）と、`test_folder_lists`（フォルダ数の下限を 200 → 248 にし、新しいフォルダが入っていることの確認を足した）、doctor の一覧 2 か所への 2 行だけで、緩めたものは無い。
+- **WSL（Ubuntu。`git archive HEAD` を WSL の中で展開した 2,132 ファイルのコピー）**: `uv sync --locked`、単体テスト 432 件 OK（72 秒）、golden 101/101、`tf_public_check.py --all --jobs 4` は Windows と同じ **248 フォルダ、リソース 16898、warn 2582、info 22063、error 0**、`c1_check.py` は入力 25・辺 513・対応の無い辺 0（変わらない）、CI の「正解 IR と fixture の検証」の手順（`validate_ir.py`、`check_coverage.py --lint`、自作 TF 5 構成・CFN 5 構成・plan JSON の `adapt_*.py` を PEP 723 の入口で動かして `validate_ir.py`）がすべて OK。
+- **SKILL だけのコピーを日本語とスペースを含むパス（`日本語 パス`）に置いて**（Windows の PowerShell と WSL の両方）、`doctor.py`（Windows は ok、WSL は mmdc・draw.io が無いだけの warn。欠けたファイル 0・表の置き方の誤り 0）と、コピーの `adapt_tf.py` で T16 と T18 `environment`（サンプルのフォルダは SKILL の外なのでリポジトリのパスを `--input` に渡す）を動かした出力が、リポジトリの中のスクリプトの出力と**バイト単位で同じ**（T16 88,078 バイト、T18 24,291 バイト。manifest の SHA-256 とも一致）。コピーで `validate_ir.py` も OK。
+- 変異: 上の「本物と突き合わせたテスト」。
+
+### 残したこと・リスク
+- **eks 20.x の表は v20.8.5 でだけ確かめた**。`~> 20.0` は 20.37.x を指すが、20.37.2 では IAM の 2 件が多い（上）。20.8.5 に無い入力（20.2x〜20.3x で増えた Auto Mode の `compute_config` など）は、変数の宣言が無いので、渡されると `TF-MODULE-SUMMARY-INPUT`（info）に名前が出る（意図した動き）。一方、20.8.5 に有って新しい版で既定の挙動が変わったもの（上の IAM の custom ポリシー）は、入力を渡さなくても本物は作るので、通知は出ない。
+- vpc 5.x の表は 5.21.0 に合わせた。5.8.1 は上の 1 点（public の複数ルートテーブルのときの IGW 経路の数）で表が多く出す。5.9〜5.20 の途中の版は確かめていない（両端の 2 つの版の `main.tf`・`variables.tf`・`outputs.tf` の `diff` で、表が覆う範囲の違いは上の 3 つだけと確かめた）。
+- IPv6 の NAT64 の経路（`private_dns64_nat_gateway`、`database_dns64_nat_gateway`、`database_ipv6_egress`）は、v6 の表と同じく 5 の表にも写していない。`enable_ipv6 = true` と NAT を使うと、表はそれらを出さない（テストで固定。`TF-MODULE-SUMMARY-INPUT` にも出ない: `enable_ipv6` は他の理由で宣言している入力のため）。v6 の表にも同じ欠けがある（今回は直していない）。
+- kms（`module.eks.module.kms`）は表の外のモジュールなので、eks の 20.x・21.x どちらも黒箱のまま（KMS キーのリソースは出ない）。
+- T18 の eks `~> 19.15.2` は黒箱のまま（19.x の表は作らない）。
+- `aws_ec2_tag.cluster_primary_security_group` は、20.x では `tags` の `Name` 以外ごとに 1 件の `aws_ec2_tag` として raw IR に出る（本物と同じ。正規化（フェーズ 3）で扱いを決める）。
+- CI（GitHub Actions）は実行していない（push していない）。

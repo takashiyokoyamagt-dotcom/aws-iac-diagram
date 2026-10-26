@@ -1,7 +1,7 @@
 """TF アダプタの公開サンプルでの確認（フェーズ2 の手順5）。道具は aws-iac-diagram-workspace/tools/tf_public_check.py。
 
 - 公開サンプルの TF のルート 52 フォルダ（T01〜T20、P01〜P04）がすべて読め、raw IR の検査を通り、error の診断が 0。
-  `.tf` のあるフォルダすべて（205）は、時間がかかる（直列で約 70 秒）ので CI の手順で流す（`tf_public_check.py --all`）。
+  `.tf` のあるフォルダすべて（248）は、時間がかかる（直列で約 70 秒）ので CI の手順で流す（`tf_public_check.py --all`）。
 - TF／SAM の対（T01、T05、T06、T07、T11）のリソースの型の多重集合の違いが、PAIR_EXPECTED（理由つき）と一致する。
 """
 
@@ -44,7 +44,11 @@ class PublicFoldersTest(unittest.TestCase):
     def test_folder_lists(self):
         roots, folders = chk.root_folders(), chk.all_folders()
         self.assertTrue(set(roots) <= set(folders))
-        self.assertGreaterEqual(len(folders), 200)
+        self.assertGreaterEqual(len(folders), 248)
+        # vpc 5.x・eks 20.x の要約表の元のソース（2026-10-26 に足した。terraform-aws-vpc-v5.8.1・-v5.21.0、terraform-aws-eks-v20.8.5）も対象
+        for d in ("terraform-aws-vpc-v5.8.1/examples/complete", "terraform-aws-vpc-v5.21.0/modules/vpc-endpoints",
+                  "terraform-aws-eks-v20.8.5/modules/eks-managed-node-group"):
+            self.assertIn(d, folders)
         # すべてのフォルダを読む確認（--all）の対象に、モジュールの中身（要約表の元になったソース）も入っている
         self.assertIn("terraform-aws-vpc/modules/vpc-endpoints", folders)
 
