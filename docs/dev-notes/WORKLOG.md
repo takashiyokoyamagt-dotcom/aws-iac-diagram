@@ -1204,3 +1204,88 @@ golden は 4 つのコミットのそれぞれで 101/101 一致、単体テス�
 - 同値な変異は無かった（A1〜E4 はすべて新しいテストが落とせた）。
 - 新しいテストは、元のテストの本文を変えずに、同じ領域のファイルの末尾に新しいクラスとして足した（`test_masking.py`・`test_validate_ir.py`・`test_golden.py`・`test_evaluator.py`）か、新しいファイルにした（`unit/cloudformation/test_conditions.py`・`architecture/test_documented_paths.py`）。
 - **確かめたこと（レビュー対応）**: 単体テスト 412 件が Windows の通常の TEMP と別のドライブの TEMP（`subst Y:`）で OK、`uv run python -m unittest discover -s tests -v` も OK。WSL（`git archive` のツリー）でも OK。golden 101/101、`uv lock --check` OK、pyflakes は既存の 1 件（`pw`）だけ。
+
+## 2026-10-26 フェーズ2b の R6: SKILL.md・references・`docs/spec/`・architecture.md・PLAN の構成図
+
+### 概要
+構成の階層化（PLAN の 1.4）の最後の手順。**文書と置き場だけを直し、動きは変えていない**（golden 101/101、アダプタの出力はバイト単位で同じ）。やったこと: ① 開発者向けの仕様 `ir-schema.md`（387 行）を SKILL の `references/` から SKILL の外の `docs/spec/ir-schema/` に移し、章ごとの 9 ファイルと目次に分けた、② `SKILL.md` を入口だけの文書に直した（今の実物と食い違わないことをテストで守る）、③ `references/` を、`validate_ir.py` が実行時に読む規則表 3 つ（フェーズ 3 で `data/rules/` へ）と README だけにした、④ `docs/architecture.md` から「R2〜R6」の印と未来形を消し、今の構成に書き直した、⑤ PLAN の「リポジトリ構成（予定）」を実際の木に置き換え、フェーズ 2b を完了にした、⑥ README を直した、⑦ Markdown の相対リンクと文書に書いた `docs/…` のパスの実在、SKILL.md の内容を、テストで守るようにした。
+
+### コミット
+| # | 内容 |
+|---|---|
+| 1 `bcfe81f` | `references/ir-schema.md` → `docs/spec/ir-schema/07-raw-output.md` を `git mv`（中身は同じ。履歴が追えるよう、分割の前に 100% の名前変更だけを 1 つのコミットにした）。ir-schema を読む 2 つのテストの場所を直す |
+| 2 `aa0cd8b` | ir-schema を章ごとに分け（7 章は 1 のファイルに残し、ほかの章を新しいファイルに出した）、コード・テスト・仕様の「`references/ir-schema.md`」を新しい場所に直す |
+| 3 `632fcc8` | SKILL.md・`references/README.md`・architecture.md・README・PLAN と、新しいテスト 2 つ（リンク・SKILL.md） |
+| 4 | HANDOFF・WORKLOG（この節）の状態 |
+
+（1 のコミットメッセージの「(1/5)」は、途中で 4 つに数え直したときの直し忘れ。内容に影響しない。）
+
+### 何がどこへ移ったか（旧 → 新）
+| 旧 | 新 | 行数 |
+|---|---|---|
+| `skills/aws-iac-diagram/references/ir-schema.md`（前書き、1〜9 章） | `docs/spec/ir-schema/README.md`（前書き＋目次＋番号の決まり）、`01-overview.md`（1 章）、`02-nodes.md`（2）、`03-edges.md`（3）、`04-sources.md`（4）、`05-evaluation-units.md`（5）、`06-output-rules.md`（6）、`07-raw-output.md`（7。7.1〜7.5）、`08-undecided.md`（8）、`09-changes-from-v0.1.md`（9） | 387 → 39・25・70・19・43・22・6・162・7・9 |
+| `references/` の中身 | `edge-rules.md`・`relation-resources.md`・`resource-catalog.md`（そのまま）＋ `README.md`（新規） | — |
+| `SKILL.md`（34 行。状態、コマンドの書き方、環境の確認、環境ごとの違い、変数の注意） | `SKILL.md`（63 行。状態の節で動く 5 つの入口とまだ無いものを分け、「動くスクリプト」と「参照できるもの」を足した） | 34 → 63 |
+
+章の見出し・節の見出し・本文は 1 文字も変えていない（分ける前の文書と、章のファイルを連結したものを、リンクの書き換え以外は同一であることを差分で確かめた）。リンクだけを、新しい場所からの相対パスに直した（`../data/schemas/…` → `../../../skills/aws-iac-diagram/data/schemas/…`、規則表へのリンクも同様）。
+
+### 決めたこと
+- **章・節の番号は変わらない識別子。** コード・テスト・診断の説明は「ir-schema の 7.2」「7.5」「2章」のように番号で仕様を指す。そのため章ごとのファイル名は `NN-<名前>.md`（`NN` は章の番号）にし、番号を詰めない・振り直さない・足すなら最後に、を `docs/spec/ir-schema/README.md` に書いた。診断コードの一覧との照合（`tests/architecture/test_diagnostics.py`）は `07-raw-output.md` の `### 7.5 診断` の見出しを探す。
+- **文書への参照の書き方。** 「`references/ir-schema.md`」と書いていた所は `docs/spec/ir-schema/` に直した。1 つのファイルに何度も出てくるときは、最初の 1 回だけパス（`docs/spec/ir-schema/ の 7.2`）にし、2 回目以降は「ir-schema の 7.2」のままにした（目次の README が、「ir-schema の 7.2」はこの仕様の 7.2 だと言っている）。
+- **出力に入る文字列は触らなかった。** ir-schema への参照が出ていたのは docstring・コメント・スキーマの `description`・テストの文言・規則表の本文だけで、アダプタの診断の `message` には 1 つも無かった（grep で確かめた）。golden は 101/101 のまま。
+- **`references/` に README.md を置いた。** doctor の `REQUIRED_FILES` と `test_doctor_required_files.py` は、一覧とディスクの実行時のファイルの等式を比べるが、`references/` の README.md は実行時に読まないので一覧に入れない（等式は崩れない）。代わりに `tests/architecture/test_skill_entry.py` が `references/` の中身を「規則表 3 つ＋README.md」に固定する。
+- **SKILL.md は配るものなので、`docs/` へのクリックできるリンクを張らない。** 仕様の場所は「このリポジトリの `docs/spec/ir-schema/`（SKILL だけを取り込んだ環境には無い）」と文字で書いた。SKILL の下の文書の相対リンクが SKILL の外を指さないことをテストで守る。
+- **SKILL.md で書いたこと。** 動くのは doctor・adapt_tf・adapt_cfn・validate_ir・find_aws_icon の 5 つだけで、図の出力（`diagram.py`、draw.io・Mermaid・PNG）と、正規化・配置は無い、と先頭の「状態」に書いた。`--out` を持たない `validate_ir.py` と `find_aws_icon.py` は標準出力に書く（これまでの「結果は標準出力ではなく `--out`」は、この 2 つに対して正しくなかったので、例外として書いた）。アダプタの終了コードは diagnostics に warn・error があっても 0 であること、level の意味を、ir-schema の 7.5 から写して書いた。`validate_ir.py --write` は渡したファイルを書き換えるので使わない、と書いた。description に「現在は準備中」を足した。
+- **PLAN の木は、実在するものを実在のとおりに書き、無いものだけ「予定」とした**（`render-png.yml`、`diagram.py`、`export_png.py`、`references/workflow/`、`result-json.md`、`data/rules/`、vpc 5.x・eks 20.x の要約表、`normalize/`・`layout/`・`emit/`・`validate/`・`icons/` の中身）。
+- **architecture.md の節の番号は変えない。** `adapt_tf.py`・`adapt_cfn.py` の docstring が「docs/architecture.md の 2 と 6」と書いているため。8「気をつけること」を最後に足した。表の行数は実際の行数に直した（R4 で `modules/summaries.py` が 129 → 222 行に増えていたなど、ずれていた）。
+
+### 新しいテスト（412 → 424 件）
+- `tests/architecture/test_markdown_links.py`（8 件）と道具 `tests/support/md_links.py`: README・PLAN・`docs/`（`dev-notes/` を除く）・SKILL の下の .md・CRITERIA・fixtures の README（60 文書、リンク 71 本）の、相対リンク（`[文字](パス#見出し)` と参照形式）の先と `#見出し`（GitHub の ID の作り方）が実在する。コードブロックとインラインコードの中、外部の URL は読まない。SKILL の下の文書のリンクが SKILL の外を指さない。文書・コード・テストに文字で書いた `docs/…` のパスが実在する（他のリポジトリの `docs/LEARNINGS_DRAWIO_NATIVE.md` を指す PLAN の 1 か所だけ許可）。検査そのものの試験（壊れたリンク、見出し、コードの中、SKILL の閉じ込め、`docs/` のパス）は一時フォルダで行う。
+- `tests/architecture/test_skill_entry.py`（4 件）: SKILL.md の frontmatter が `name` と `description` だけ、90 行以下、書いたスクリプトが実在し `scripts/` の直下の入口がすべて書いてある、`maintenance/` を書かない、コマンドが `uv run "<SKILL>/scripts/…"` の 1 行でシェルの機能を使わない、書いたオプションをどれかの入口が持つ、SKILL の外へのリンクが無い、「準備中」と図の出力がまだ無いことが書いてある、`references/` が規則表 3 つ＋README.md。変異 7 通り（入口の書き忘れ、`>`、無いオプション、保守用、`../docs` のリンク、長さ、frontmatter）が失敗することを、テストの中で確かめる。
+- 既存のテスト 2 つを直した: `test_diagnostics.py`（7 章のファイルを読む。7.5 は 7 章の最後の節なので次の `## ` までを節にする）、`test_documented_paths.py`（`docs/` の下の仕様のファイルは `docs/**` の走査に入る）。
+
+### 確かめたこと
+- **単体テスト 424 件**（412 + 12）が、Windows の通常の TEMP（約 100〜120 秒。skipped 0）、別のドライブの TEMP（`subst Y:`。96 秒）で OK。WSL（Ubuntu、`git archive` を `/tmp` に展開、`uv sync --locked`）で `uv run python -m unittest discover -s tests -v` が 424 件 OK（52 秒、skipped 0）。golden 101/101（Windows・WSL）。`uv lock --check` OK（66 パッケージ）。
+- **README のコマンドを 1 行ずつ実行した**（Windows の PowerShell）: doctor、`uv sync --locked`、`build_icon_catalog.py`（1045 件。`data/icons/` の差分 0）、`find_aws_icon.py`、`adapt_cfn.py`＋`validate_ir.py`、`adapt_tf.py`（`--var-file`、`--plan`、plan JSON だけ）＋`validate_ir.py`、正解 IR の検証、`check_coverage.py --lint`、`c1_check.py`（入力 25・辺 513・対応の無い辺 0）、`tf_public_check.py --pairs` と `--all --jobs 4`（205 フォルダ、error 0）、`check_icons.py`（draw.io 32.4.1。1032 件、壊れ 0、`data/icons/` の差分 0）、テストの 4 通りの起動のしかた（領域、1 ファイル、直接、1 件）、`golden.py`、`golden.py --list`。`winget`・`mklink` だけは実行していない。
+- **SKILL.md のコマンドを実行した**: SKILL のフォルダだけを `…\r6doc 日本語 パス\aws-iac-diagram\`（スペースと日本語を含む。リポジトリの `docs/` は無い）にコピーして、`doctor.py`（終了 0、`missing_files` 0、draw.io と mmdc があるので `ok`）、`adapt_tf.py`（`--var-file env\dev.tfvars`）→`validate_ir.py`、`adapt_cfn.py`（`--param EnvType=prod`）→`validate_ir.py`、`find_aws_icon.py` がすべて終了 0。`skills/` の下に `../docs` のリンクも、`docs/` を開くコードも無いことを grep で確かめた（`docs/` が出てくるのは、コメントと文字のパスだけ）。
+- **リンクの検査**: `test_markdown_links.py` の本物の検査（60 文書、リンク 71 本）に加えて、`docs/…` のパスを 202 ファイル（文書、`ci.yml`、`scripts/`・`tools/`・`tests/` の `.py`）で走査し、実在しないものは他のリポジトリを指す PLAN の 1 か所だけ。
+- **変異（文書を壊すと落ちること）**: ir-schema 7.5 の `TF-PARSE-ERROR` の綴りを変える、`TF-PARSE-ERROR` の level を error→warn に変える、「43 個」を「44 個」に変える → `test_diagnostics.py` が落ちる。README の `07-raw-output.md` へのリンク、README の `#nope` の見出し、`docs/architecture.md` の `docs/spec/ir-schema/07-raw-output.md`、ir-schema の README の目次のリンク、`references/README.md` のリンクを 1 文字変える → `test_markdown_links.py` が落ちる。`docs/architecture.md` の `tests/architecture/test_markdown_links.py` を 1 文字変える → `test_documented_paths.py` が落ちる。SKILL.md のスクリプト名・オプション・`docs/` へのリンクを変える → `test_skill_entry.py` が落ちる。**生き残った変異**: ir-schema の見出し `### 7.5 診断` を `### 7.5 診断書` に変える（照合は見出しの接頭辞 `### 7.5 診断` で探すので）。見出しの語を変える変更は、7.5 の中身と一覧の食い違いを生まないので許した。
+- **pyflakes** は、触った Python（28 ファイル）で 0 件。
+- 動きの確認: R6 でコードの実行される部分は変えていない（変えたのは docstring・コメント・スキーマの `description`・テストの文言だけ）。golden 101/101 と、既存の 412 件が変わらず通ることが証拠。
+
+### 残したこと・リスク
+- コードのコメントの多くは、2 回目以降の参照を「ir-schema の 7.2」のままにしてある（パスは最初の 1 回だけ）。`docs/spec/ir-schema/README.md` が説明している。
+- `references/` の 3 つの規則表は、フェーズ 3 で `data/rules/` に移すまで SKILL の中の文書（本文は「正規化の草案」）。その説明（規則表を読むための `docs/spec/` の文書）は、フェーズ 3 で作る。
+- SKILL.md の「環境が複数あるときはユーザーに確かめる」は PLAN の A4 の方針を書いたもので、スクリプトが検出する機能ではない（アダプタは `evaluation` に使った値を書くだけ）。`GITHUB_ACTIONS` が `true` のときの扱い（確認しない）との関係は、フェーズ 6 の SKILL.md の仕上げで決める。
+- リンクの検査は GitHub の見出しの ID の作り方に近い実装で、完全ではない（`<a name>` のアンカー、HTML は見ない）。いまの文書にはアンカー付きのリンクが少ない。
+- CI（GitHub Actions）は実行していない（push していない）。
+
+## フェーズ2b のまとめ（R1〜R6、2026-10-24 の合意から 2026-10-26）
+
+### 前と後
+```
+前（6587691。フェーズ 2 の完了）                           後（R6 の後）
+skills/aws-iac-diagram/                                    skills/aws-iac-diagram/
+├── SKILL.md                                               ├── SKILL.md                入口だけ（63 行）
+├── references/ 7 文書 + icons/                            ├── references/             規則表 3 つ + README（validate_ir.py が読む）
+│   ir-schema.md(387)  module-summaries.md(4,826)          ├── data/                   schemas/ icons/ module-summaries/<モジュール>/v<major>.md
+│   ir*.schema.json  規則表 3 つ  icons/                   ├── assets/
+├── assets/                                                └── scripts/
+└── scripts/                                                   入口 5（doctor・validate_ir・find_aws_icon・adapt_tf・adapt_cfn）
+    入口 + build_icon_catalog・check_icons                     maintenance/（辞書の保守 2 + sidebar_harness.js）
+    lib/ 6 ファイル                                            aws_iac_diagram/ 層（core・adapters/{terraform,cloudformation}・platform と空の層）
+    adapters/tf.py(2,613) cfn.py(1,327)                    docs/spec/ir-schema/ 9 章 + README、docs/spec/module-summaries.md
+.py 12 ファイル、最大 2,613 行                             docs/architecture.md
+tests/ 平ら 10 ファイル、最大 2,381 行（281 件）            tests/ unit/ integration/ golden/ architecture/ support/（.py 70 ファイル、最大 565 行。424 件）
+```
+- 数字: `scripts/` の `.py` 12 → 67 ファイル（`__init__.py` 14 を含む）、最大 2,613 → 763 行（`evaluator/functions.py`）、1,500 行を超えるファイル 2 → 0、免除 0。`tests/` の `.py` 10 → 70 ファイル、最大 2,381 → 565 行。単体テスト 281 → 424 件。診断コードの一覧 62 個（TF 43・CFN 19）を 1 つの表に。golden 101 ケース（Windows・Linux で同じ SHA-256）。出力が変わったのは R4 の 14 ケース（要約表のパスを含む診断の文言）だけ。
+- 守る決まり（テスト）: 依存の向きと循環、アダプタの中の順序、動的 import の禁止、行数、診断コードの一覧と ir-schema の 7.5、doctor の必須ファイルとディスクの等式、テストの置き場と名前、文書のテストのパス、SKILL.md の内容、Markdown の相対リンクと `docs/` のパス。
+
+### 第三者レビューが見つけたこと（R1〜R5。R6 はこれから）
+1. **黙って劣化する欠け（R1 の MAJOR、R4 の MINOR）**: 要約表の 1 ファイルが無いと、終了コード 0 のまま three-tier-modules が 42 → 13 リソースになり、doctor も ok だった。doctor の必須ファイル、`TF-MODULE-SUMMARY-TABLE-MISSING`、`KNOWN_MODULES`、`summaries.problems()` で「大きな声で失敗」に変えた。**ファイルの位置に依る相対パスは、移動のたびに golden で確かめる**（`SUMMARY_FILE` の深さで実際に起きた）。
+2. **構成のテストの抜け穴（R1）**: `platform` 層が標準ライブラリを隠す、入口どうしの import、`importlib`・`exec`。後の R5 で同じ型の穴（テストのフォルダ・補助のファイルの名前が標準ライブラリやインストール済みのパッケージを隠す）が見つかり、同じ検査を広げた。
+3. **配布物の表示が分割で消える（R4 の MAJOR）**: Apache-2.0 の出典表示が `module-summaries.md` の先頭にしか無く、分割したデータのファイルから消えた。全ファイルの先頭と `NOTICE.md` に戻し、`NOTICE.md` は doctor の一覧に入れた。**ファイルを分けるときは、ライセンス表示と読み込みの前提（ヘッダ）も複製する。**
+4. **動きの同一性は大量の比較で確かめた**: R2 は約 110 万回、R3 は約 6,400 ケースで旧コードと差 0。R3 のレビューは、診断コードの一覧の限界（best-effort）の明記と level の照合を TF にも広げた。
+5. **テストの強さ（R5）**: 移す前から生き残っていた変異（自己ループの検査、`literal_only` の比較、golden の絶対パス、Conditions の `stronger`、`cidrsubnet` の境目）を殺すテストが無かった。移した後も落ちるテストの集合が同じであることを変異 14 通りで確かめ、生き残りには新しいテスト 14 件（同じ変異を殺す 11 件と、文書のパスの実在 3 件）を足した。
+6. **文書の古い参照（R2・R5）**: 移したあと、`tf_modules.py` や `tests/test_*.py` などの旧いパスが文書に残った。R5 で「文書に書いたテストのパスの実在」をテストにし、R6 で Markdown の相対リンクと `docs/` のパスにも広げた。
+7. 共通する型: 「動かしたあとに壊れるのは、相対パスと文書の参照と、黙って通る欠け」。どれも最後は、壊したら落ちるテストにして固定した。
