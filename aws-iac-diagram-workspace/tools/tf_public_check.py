@@ -55,7 +55,7 @@ for p in (str(SCRIPTS), str(TOOLS)):
 
 import survey_public  # noqa: E402
 import validate_ir  # noqa: E402
-from adapters import cfn  # noqa: E402
+from aws_iac_diagram.adapters.cloudformation import evaluator as cfn  # noqa: E402
 from aws_iac_diagram.adapters.terraform import build as tf_build  # noqa: E402
 
 

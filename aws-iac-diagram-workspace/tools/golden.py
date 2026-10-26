@@ -53,10 +53,10 @@ MANIFEST = ROOT / "tests" / "golden" / "manifest.json"
 SCRIPTS = ROOT / "skills" / "aws-iac-diagram" / "scripts"
 MANIFEST_VERSION = 1
 
-# アダプタの入口（R2・R3 で入口を分けたら、ここだけ直す）
+# アダプタの入口（入口の場所を変えたら、ここだけ直す）
 ENTRY = {
     "tf": SCRIPTS / "adapt_tf.py",
-    "cfn": SCRIPTS / "adapters" / "cfn.py",
+    "cfn": SCRIPTS / "adapt_cfn.py",
 }
 
 WSREL = "aws-iac-diagram-workspace"  # --root-base の値。CI と同じ

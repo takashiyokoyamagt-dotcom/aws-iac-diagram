@@ -2,7 +2,7 @@
 
 1. 依存の向き: `skills/aws-iac-diagram/scripts/aws_iac_diagram/` の各層が、どの層を import してよいか。
    import を `ast` で読んで確かめる（実行はしない）。許す向きの表は ALLOWED（docs/architecture.md の表と同じ。
-   食い違えば失敗）。入口のスクリプト（scripts/ の直下、scripts/adapters/、scripts/maintenance/）だけが、どの層でも
+   食い違えば失敗）。入口のスクリプト（scripts/ の直下と scripts/maintenance/）だけが、どの層でも
    import してよい。パッケージの中から入口のスクリプトを import してはいけない。入口どうしも import し合わない。
 2. 1ファイルの行数: 800 行を超えたら注意を印字するだけ、1,500 行を超えたら失敗。超えているファイルは、日付と理由を付けた
    EXEMPT に書く。EXEMPT は増やさない（行数の上限を超えて増えたら失敗）、1,500 行以内に減ったら、免除を消さないと失敗する。
@@ -95,7 +95,8 @@ INTRA_TERRAFORM: dict[str, frozenset[str]] = {
 }
 
 LAYER_DIRS = {"core", "normalize", "layout", "emit", "validate", "icons", "platform"}
-ENTRY_DIRS = {"adapters", "maintenance", "lib"}  # scripts/ の直下の入口のフォルダ（lib は R1 で無くなった。戻さない）
+# scripts/ の直下の入口のフォルダ（lib は R1、adapters は R3 で無くなった。戻さない。adapters という名前の import は入口の import と数える）
+ENTRY_DIRS = {"adapters", "maintenance", "lib"}
 
 
 # --------------------------------------------------------------------------------------------------------------
@@ -124,11 +125,10 @@ def source_layer(path: Path, scripts: Path) -> str:
 
 
 def entry_names(scripts: Path) -> set[str]:
-    """入口のスクリプトの名前（scripts/ の直下、adapters/、maintenance/ の .py と、入口のフォルダ）。
-    アダプタの入口どうし（cfn.py が `import adapt_tf`）や保守用の入口どうしの import も、これで見つける。"""
+    """入口のスクリプトの名前（scripts/ の直下と maintenance/ の .py と、入口のフォルダ）。
+    アダプタの入口どうし（adapt_cfn.py が `import adapt_tf`）や保守用の入口どうしの import も、これで見つける。"""
     stems = {p.stem for p in scripts.glob("*.py")}
-    for d in ("adapters", "maintenance"):
-        stems |= {p.stem for p in (scripts / d).glob("*.py")}
+    stems |= {p.stem for p in (scripts / "maintenance").glob("*.py")}
     return stems | ENTRY_DIRS
 
 
@@ -390,8 +390,8 @@ class DependencyDirectionTest(unittest.TestCase):
         self.assertEqual(list(ENTRY_IMPORT_ALLOW), [("maintenance/check_icons.py", "build_icon_catalog")])
 
     def test_mutation_sibling_entry_imports_fail(self):
-        for relpath, line, expect in (("adapters/cfn.py", "import adapt_tf", "入口のスクリプト adapt_tf"),
-                                      ("adapt_tf.py", "from cfn import build_raw", "入口のスクリプト cfn"),
+        for relpath, line, expect in (("adapt_cfn.py", "import adapt_tf", "入口のスクリプト adapt_tf"),
+                                      ("adapt_tf.py", "from adapt_cfn import main", "入口のスクリプト adapt_cfn"),
                                       ("maintenance/build_icon_catalog.py", "import check_icons",
                                        "入口のスクリプト check_icons"),
                                       ("maintenance/check_icons.py", "import doctor",
@@ -399,7 +399,7 @@ class DependencyDirectionTest(unittest.TestCase):
             s = self.copy_tree()
             problems = self.inject(s, relpath, line)
             self.assertTrue(any(expect in p and p.startswith(relpath) for p in problems), (relpath, problems))
-        self.assertTrue({"adapt_tf", "cfn", "check_icons", "build_icon_catalog", "doctor"} <= entry_names(SCRIPTS))
+        self.assertTrue({"adapt_tf", "adapt_cfn", "check_icons", "build_icon_catalog", "doctor"} <= entry_names(SCRIPTS))
 
     def test_every_package_directory_is_a_known_layer(self):
         pkg = SCRIPTS / PACKAGE

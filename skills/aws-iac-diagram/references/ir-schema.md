@@ -209,7 +209,7 @@ canonical 部の **すべての辺** について、形式ごとに1件ずつ、
 
 アダプタは、入力（CFN のテンプレート、cdk.out、TF の .tf／plan JSON）を読み、A4 の評価を済ませた後のリソースと参照の一覧を出す。**図の形（ノード・辺・入れ子・網羅分類）にはしない。** それは正規化（フェーズ3）の仕事で、規則表（resource-catalog.md・relation-resources.md・edge-rules.md）を使うのも正規化だけにする。ただし、A5 の要約表（読まないレジストリモジュールの中身を作る表）はアダプタが使う（中身のリソースを `resources` に載せるため）。CFN と TF で同じ形にし、正規化を1つにする。
 
-この章の形は、CFN アダプタ（`scripts/adapters/cfn.py`。フェーズ1 の手順2〜4）の実装で確かめ、手順5 で確定した（2026-10-17）。CFN では、自作 fixture と公開サンプルの CFN（入力 25、cfn-lint の辺 513 本）で、cfn-lint のグラフの辺のすべてに参照が対応した（CRITERIA の 1.6）。TF アダプタ（`scripts/adapt_tf.py`、`scripts/aws_iac_diagram/adapters/terraform/`。フェーズ2）でも同じ形で足りた。足りなかったもの（TF だけのフィールド `provider`・`region`、TF の props・参照・値の書き方、モジュールの展開、plan JSON の入力）は、7.1〜7.5 の該当のところに書いてあり、フェーズ2 の手順5 で確定した（2026-10-26）。公開サンプルの TF のルート 52 フォルダと `.tf` のあるフォルダすべて（205）が、検査を通る raw IR になる（`aws-iac-diagram-workspace/tools/tf_public_check.py`）。
+この章の形は、CFN アダプタ（`scripts/adapt_cfn.py` と `scripts/aws_iac_diagram/adapters/cloudformation/`。フェーズ1 の手順2〜4）の実装で確かめ、手順5 で確定した（2026-10-17）。CFN では、自作 fixture と公開サンプルの CFN（入力 25、cfn-lint の辺 513 本）で、cfn-lint のグラフの辺のすべてに参照が対応した（CRITERIA の 1.6）。TF アダプタ（`scripts/adapt_tf.py`、`scripts/aws_iac_diagram/adapters/terraform/`。フェーズ2）でも同じ形で足りた。足りなかったもの（TF だけのフィールド `provider`・`region`、TF の props・参照・値の書き方、モジュールの展開、plan JSON の入力）は、7.1〜7.5 の該当のところに書いてあり、フェーズ2 の手順5 で確定した（2026-10-26）。公開サンプルの TF のルート 52 フォルダと `.tf` のあるフォルダすべて（205）が、検査を通る raw IR になる（`aws-iac-diagram-workspace/tools/tf_public_check.py`）。
 
 ### 7.1 全体の構造
 

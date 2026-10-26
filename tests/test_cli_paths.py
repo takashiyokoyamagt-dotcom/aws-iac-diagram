@@ -98,5 +98,35 @@ class JapanesePathTest(unittest.TestCase):
         self.assertEqual(res.returncode, 2, res.stderr)
 
 
+    def test_adapt_cfn_from_a_copy_of_the_skill_alone(self):
+        # adapt_tf と同じ。入口 adapt_cfn.py は自分の場所から scripts/ を sys.path に入れるので、cwd にも元の場所にも依らない
+        skill = self.dir / "aws-iac-diagram"
+        shutil.copytree(SCRIPTS.parent, skill, ignore=shutil.ignore_patterns("__pycache__"))
+        fixtures = ROOT / "aws-iac-diagram-workspace" / "fixtures" / "cfn"
+        want = self.dir / "from-repo.json"
+        got = self.dir / "from-copy.json"
+        args = ["--input", str(fixtures / "three-tier" / "template.yaml"), "--root-base", str(fixtures.parent),
+                "--param", "EnvType=prod"]
+        res = run(str(SCRIPTS / "adapt_cfn.py"), *args, "--out", str(want))
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+        res = subprocess.run([sys.executable, str(skill / "scripts" / "adapt_cfn.py"), *args, "--out", str(got)],
+                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300, check=False,
+                             cwd=str(self.dir))  # 作業フォルダも別の場所
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+        self.assertTrue(res.stdout.startswith("raw: resources="), res.stdout)
+        self.assertEqual(got.read_bytes(), want.read_bytes())
+
+    def test_adapt_cfn_usage_errors_exit_2(self):
+        self.dir.mkdir(parents=True)
+        res = run(str(SCRIPTS / "adapt_cfn.py"), "--input", str(self.dir), "--out", str(self.dir / "x.json"), "--param", "noequal")
+        self.assertEqual(res.returncode, 2, res.stdout + res.stderr)
+        self.assertIn("KEY=VALUE", res.stderr)
+        res = run(str(SCRIPTS / "adapt_cfn.py"), "--out", str(self.dir / "x.json"))  # --input が無い（argparse）
+        self.assertEqual(res.returncode, 2, res.stderr)
+        res = run(str(SCRIPTS / "adapt_cfn.py"), "--input", str(self.dir / "none.yaml"), "--out", str(self.dir / "x.json"))
+        self.assertEqual(res.returncode, 2, res.stderr)  # 読めない入力
+        self.assertIn("テンプレートを読めませんでした", res.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

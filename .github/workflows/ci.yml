@@ -46,6 +46,16 @@ jobs:
               --out "$RUNNER_TEMP/tf-raw/$(basename "$d").json" --root-base aws-iac-diagram-workspace
           done
           uv run skills/aws-iac-diagram/scripts/validate_ir.py "$RUNNER_TEMP/tf-raw/*.json"
+          # CFN アダプタ: 自作 fixture の5構成を、入口 adapt_cfn.py の PEP 723 の依存（PyYAML）だけで読み、raw IR の検査を通す
+          # （three-tier-modules はネストスタックの root.yaml、vpc-endpoints は JSON と parameters.json）
+          for t in three-tier/template.yaml rag/template.yaml serverless-api/template.yaml three-tier-modules/root.yaml; do
+            uv run skills/aws-iac-diagram/scripts/adapt_cfn.py --input "aws-iac-diagram-workspace/fixtures/cfn/$t" \
+              --out "$RUNNER_TEMP/cfn-raw/$(echo "$t" | cut -d/ -f1).json" --root-base aws-iac-diagram-workspace
+          done
+          uv run skills/aws-iac-diagram/scripts/adapt_cfn.py --input aws-iac-diagram-workspace/fixtures/cfn/vpc-endpoints/template.json \
+            --param-file aws-iac-diagram-workspace/fixtures/cfn/vpc-endpoints/parameters.json \
+            --out "$RUNNER_TEMP/cfn-raw/vpc-endpoints.json" --root-base aws-iac-diagram-workspace
+          uv run skills/aws-iac-diagram/scripts/validate_ir.py "$RUNNER_TEMP/cfn-raw/*.json"
           # plan JSON の入力（フェーズ2 の手順4）。terraform は動かさず、コミットした plan JSON（fixtures/tf-plan）を読む。
           # plan JSON だけのものと、.tf のフォルダと合わせたもの（--plan）の両方
           for f in aws-iac-diagram-workspace/fixtures/tf-plan/*.json; do
@@ -106,6 +116,13 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "adapt_tf.py --plan exit code was $LASTEXITCODE" }
           uv run "$skill\scripts\validate_ir.py" "$planout"
           if ($LASTEXITCODE -ne 0) { throw "validate_ir (tf plan raw) exit code was $LASTEXITCODE" }
+          # CFN アダプタも、PEP 723 の依存（PyYAML）を uv が入れる経路で、日本語のパスに出力する（--param も渡す）
+          $cfnin = Join-Path $env:GITHUB_WORKSPACE 'aws-iac-diagram-workspace\fixtures\cfn\three-tier\template.yaml'
+          $cfnout = Join-Path $base 'out\three-tier.cfn.raw.json'
+          uv run "$skill\scripts\adapt_cfn.py" --input "$cfnin" --out "$cfnout" --param EnvType=prod
+          if ($LASTEXITCODE -ne 0) { throw "adapt_cfn.py exit code was $LASTEXITCODE" }
+          uv run "$skill\scripts\validate_ir.py" "$cfnout"
+          if ($LASTEXITCODE -ne 0) { throw "validate_ir (cfn raw) exit code was $LASTEXITCODE" }
           exit 0
 
       - name: SKILL の起動（bash、日本語とスペースを含むパス）

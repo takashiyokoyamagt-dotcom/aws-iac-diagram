@@ -46,11 +46,12 @@ REQUIRED_FILES = [
     "references/resource-catalog.md",
     "references/module-summaries.md",  # TF アダプタのレジストリモジュールの要約表（無いと黒箱になり、図が欠ける）
     # scripts/ の .py（入口、パッケージ aws_iac_diagram/ のすべて）
+    "scripts/adapt_cfn.py",
     "scripts/adapt_tf.py",
-    "scripts/adapters/cfn.py",
     "scripts/aws_iac_diagram/__init__.py",
     "scripts/aws_iac_diagram/adapters/__init__.py",
     "scripts/aws_iac_diagram/adapters/cloudformation/__init__.py",
+    "scripts/aws_iac_diagram/adapters/cloudformation/evaluator.py",
     "scripts/aws_iac_diagram/adapters/registry.py",
     "scripts/aws_iac_diagram/adapters/terraform/__init__.py",
     "scripts/aws_iac_diagram/adapters/terraform/addresses.py",

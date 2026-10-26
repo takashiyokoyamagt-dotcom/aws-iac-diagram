@@ -31,7 +31,7 @@ WS = Path(__file__).resolve().parent.parent
 SCRIPTS = WS.parent / "skills" / "aws-iac-diagram" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
-from adapters import cfn  # noqa: E402
+from aws_iac_diagram.adapters.cloudformation import evaluator as cfn  # noqa: E402
 from aws_iac_diagram.core import ir_raw  # noqa: E402
 
 TEMPLATE_SUFFIXES = (".yaml", ".yml", ".json", ".template")

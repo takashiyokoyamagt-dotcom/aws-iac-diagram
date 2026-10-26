@@ -108,7 +108,7 @@ uv run skills\aws-iac-diagram\scripts\maintenance\check_icons.py
 CloudFormation のテンプレート（ネストスタック、SAM、cdk.out を含む）から、アダプタの出力（raw IR。[ir-schema.md](skills/aws-iac-diagram/references/ir-schema.md) の 7章）を作ります。
 
 ```powershell
-uv run skills\aws-iac-diagram\scripts\adapters\cfn.py --input aws-iac-diagram-workspace\fixtures\cfn\three-tier\template.yaml --out out\three-tier.raw.json --param EnvType=prod
+uv run skills\aws-iac-diagram\scripts\adapt_cfn.py --input aws-iac-diagram-workspace\fixtures\cfn\three-tier\template.yaml --out out\three-tier.raw.json --param EnvType=prod
 uv run python skills\aws-iac-diagram\scripts\validate_ir.py out\three-tier.raw.json
 ```
 

@@ -152,7 +152,7 @@ class PairTest(unittest.TestCase):
                     self.assertEqual(dict(sorted(merged.items())), total)
 
     def test_pair_diagnostics_are_the_known_ones(self):
-        from adapters import cfn
+        from aws_iac_diagram.adapters.cloudformation import evaluator as cfn
         for pid in chk.PAIRS:
             with self.subTest(pid):
                 tf_raw = tf_build.build_raw(PUBLIC / chk.survey_public.SAMPLES[pid][1][0], WS)

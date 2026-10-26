@@ -1,4 +1,4 @@
-"""CloudFormation アダプタ（scripts/adapters/cfn.py）のテスト。フェーズ1 の手順2（土台）の範囲。"""
+"""CloudFormation アダプタ（scripts/adapt_cfn.py と scripts/aws_iac_diagram/adapters/cloudformation/）のテスト。フェーズ1 の手順2（土台）の範囲。"""
 from __future__ import annotations
 
 import json
@@ -13,7 +13,8 @@ SCRIPTS = ROOT / "skills" / "aws-iac-diagram" / "scripts"
 FIXTURES = ROOT / "aws-iac-diagram-workspace" / "fixtures" / "cfn"
 sys.path.insert(0, str(SCRIPTS))
 import validate_ir as v  # noqa: E402
-from adapters import cfn  # noqa: E402
+import adapt_cfn  # noqa: E402
+from aws_iac_diagram.adapters.cloudformation import evaluator as cfn  # noqa: E402
 from aws_iac_diagram.core import ir_raw  # noqa: E402
 
 
@@ -802,14 +803,14 @@ class EvaluationTest(unittest.TestCase):
             tmp = Path(tmp)
             (tmp / "p.json").write_text(json.dumps({"Parameters": {"EnvType": "prod"}}), encoding="utf-8")
             out = tmp / "raw.json"
-            code = cfn.main(["--input", str(FIXTURES / "three-tier" / "template.yaml"), "--out", str(out),
+            code = adapt_cfn.main(["--input", str(FIXTURES / "three-tier" / "template.yaml"), "--out", str(out),
                              "--param-file", str(tmp / "p.json"), "--param", "ProjectName=x", "--param", "Nope=1"])
             self.assertEqual(code, 0)
             raw = json.loads(out.read_text(encoding="utf-8"))
             self.assertEqual(raw["evaluation"]["conditions"], {"IsProd": True})
             self.assertEqual(raw["evaluation"]["parameters"]["ProjectName"], "x")
             self.assertIn("CFN-PARAM-UNUSED", [d["code"] for d in raw["diagnostics"]])
-            self.assertEqual(cfn.main(["--input", "x", "--out", str(out), "--param", "noequal"]), 2)
+            self.assertEqual(adapt_cfn.main(["--input", "x", "--out", str(out), "--param", "noequal"]), 2)
 
     def test_allowed_values(self):
         raw = self.three_tier("staging")
