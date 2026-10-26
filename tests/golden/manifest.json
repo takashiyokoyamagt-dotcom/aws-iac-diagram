@@ -780,11 +780,11 @@
     "--root-base",
     "aws-iac-diagram-workspace"
    ],
-   "bytes": 9416,
+   "bytes": 9421,
    "diagnostics": 2,
    "references": 14,
    "resources": 11,
-   "sha256": "df7d0a6ff5a1c9f2512a5460e90fbee76528be07fe1ff331045ba187e2e91679"
+   "sha256": "5ecd87937d698f077013c4e471c83911726eb9a83607c96d7186289cbf6b0bb2"
   },
   "tf/public/learn-terraform-provision-eks-cluster": {
    "adapter": "tf",
@@ -794,11 +794,11 @@
     "--root-base",
     "aws-iac-diagram-workspace"
    ],
-   "bytes": 6743,
-   "diagnostics": 3,
-   "references": 7,
-   "resources": 6,
-   "sha256": "6858f2c778fe5e364ca2ed2549c62a4d13c30a00062aa791b44a02875697c105"
+   "bytes": 88078,
+   "diagnostics": 6,
+   "references": 156,
+   "resources": 65,
+   "sha256": "0d29ef4325fa4464b76868507f308b688a83a2b93d737d1ce0d5bd41569b5182"
   },
   "tf/public/learn-terraform-rds": {
    "adapter": "tf",
@@ -1340,11 +1340,11 @@
     "--root-base",
     "aws-iac-diagram-workspace"
    ],
-   "bytes": 54666,
+   "bytes": 54672,
    "diagnostics": 20,
    "references": 56,
    "resources": 26,
-   "sha256": "3e7e8271f1262a5a64f0cf38f2f4324b8a543160cf0c7af508691af9b9472e38"
+   "sha256": "718d808ee561f9195403d4fcf9db89a01c1713b18833b17c0fc287f95e26d5c6"
   },
   "tf/public/terraform-aws-eks-blueprints/patterns/blue-green-upgrade/eks-green": {
    "adapter": "tf",
@@ -1354,11 +1354,11 @@
     "--root-base",
     "aws-iac-diagram-workspace"
    ],
-   "bytes": 54681,
+   "bytes": 54687,
    "diagnostics": 20,
    "references": 56,
    "resources": 26,
-   "sha256": "707b5b315b892e650c6e525c498df88fa7276f48c5c2e10161cfbc10f51b419a"
+   "sha256": "37a71290efaa0481fe5059230ef5adcf7c024df8cbefbe2b272975201b24066b"
   },
   "tf/public/terraform-aws-eks-blueprints/patterns/blue-green-upgrade/environment": {
    "adapter": "tf",
@@ -1368,11 +1368,11 @@
     "--root-base",
     "aws-iac-diagram-workspace"
    ],
-   "bytes": 6478,
-   "diagnostics": 5,
-   "references": 5,
-   "resources": 9,
-   "sha256": "e8bd4ca1bb90d617dfab1d7f16a680413f2d8693aa1457bd1053d31c9364daf3"
+   "bytes": 24291,
+   "diagnostics": 26,
+   "references": 25,
+   "resources": 23,
+   "sha256": "b63cb30372e56a5e0c896741ae1f99b48043c35c9ece0676ee92f912e8725783"
   },
   "tf/public/terraform-aws-eks/examples/eks-managed-node-group": {
    "adapter": "tf",
