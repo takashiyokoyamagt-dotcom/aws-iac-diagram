@@ -28,7 +28,7 @@
   - モジュール（手順3。ir-schema.md の 7.2 の「TF のモジュール」）: ローカルモジュール（./・../）は再帰的に
     展開する（address は module.x.…、count・for_each の呼び出しはインスタンスごと）。子の変数は呼び出しの引数を
     親の中で評価した値、module.x.y は子の出力 y の値で、たどった経路を参照の through に書く。terraform-aws-modules
-    の vpc・alb・rds・eks は A5 の要約表（references/module-summaries.md、aws_iac_diagram/adapters/terraform/modules/）で展開する
+    の vpc・alb・rds・eks は A5 の要約表（data/module-summaries/、aws_iac_diagram/adapters/terraform/modules/）で展開する
     （via: module_summary）。それ以外のレジストリ・git などのソースと、読めない・循環する・深すぎるものは黒箱の
     呼び出し1件（type: module、via: module_blackbox）。providers 引数で渡した provider をたどって provider・region
     を書く。terraform_remote_state の出力への参照は attr: "outputs.<名前>"（state は読まない）
