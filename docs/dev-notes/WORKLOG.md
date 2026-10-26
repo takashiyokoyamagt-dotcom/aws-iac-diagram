@@ -881,3 +881,78 @@ golden は 4 つのコミットのそれぞれで 101/101 一致、単体テス�
 5. 小さな直し: `test_architecture.py` の docstring（`import tf` → `import adapt_tf`）、この節の「コミット 5 つ」。
 
 単体テストは 338 件（326 + doctor 5 + architecture 7）。
+
+## 2026-10-26 フェーズ2b の R3: CloudFormation の分割、診断コードの一覧
+
+### 概要
+構成の階層化（PLAN の 1.4）の 3 番目。**中身の動きは変えずに**、`scripts/adapters/cfn.py`（1,327 行。CLI、`_Loader`、650 行の `Evaluator`、`StackEval`、約 25 の関数）を入口 `scripts/adapt_cfn.py` と `scripts/aws_iac_diagram/adapters/cloudformation/` の 15 ファイル（最大 191 行）に分け、診断コードの一覧 `core/diagnostics.py` を作って、アダプタのコードとの照合をテストにした。旧パス `adapters/cfn.py` と `scripts/adapters/` は無くした（shim なし）。ローカルのブランチ `phase2b-r3`（main の `ed45a31` から。push はしていない）。第三者レビューは別。
+
+### コミット
+| # | 内容 |
+|---|---|
+| 1 `df13268` | `git mv adapters/cfn.py → cloudformation/evaluator.py`（本体をそのまま）。CLI・PEP 723 の宣言を入口 `adapt_cfn.py` へ。golden の `ENTRY`、doctor の `REQUIRED_FILES`、テスト、README、ir-schema.md、CI の参照を直し、CI に `adapt_cfn.py` の起動の手順（bash の 5 構成、PowerShell 5.1 の日本語パス）を足した |
+| 2 `232d3dd` | `evaluator.py` を 15 ファイルに分ける（`evaluator.py` は `Evaluator` を持つファイルとして残る）。`tests/test_architecture.py` に `CLOUDFORMATION_GROUPS`・`INTRA_CLOUDFORMATION` と変異のテスト、architecture.md の表 |
+| 3 `2ff41e7` | `core/diagnostics.py`、`DiagnosticRegistryRuleTest`、`tests/test_diagnostics.py`、ir-schema.md の 7.5 に CFN の一覧 |
+| 4 | HANDOFF・WORKLOG（この節）・PLAN の状態、architecture.md の仕上げ |
+
+依頼の順（1 git mv、2 分割、3 入口と参照と旧パスの削除、4 診断コード、5 文書）のうち、1 と 3 は 1 つのコミットにまとめた。理由: 旧パスを残す shim を作らない方針なので、本体を動かした時点で入口と参照も直さないと、そのコミットで golden が動かない（各コミットで golden 101/101 を守るため）。golden は 3 つのコード上のコミットのそれぞれで 101/101 一致、単体テストは 340 → 348 → 367 件が通った。
+
+### 何がどこへ移ったか（行数は移した直後）
+| 元（`adapters/cfn.py`） | 先（`aws_iac_diagram/adapters/cloudformation/`） | 行 |
+|---|---|---|
+| docstring・`main`（argparse、`--param`、終了コード、文言）・PEP 723 の宣言 | `scripts/adapt_cfn.py`（入口。宣言は変えていない） | 86 |
+| `_Loader`（短縮タグ）・`_intrinsic`・`load_template`・`_bool_name`（→ `bool_name`） | `loader.py` | 82 |
+| 定数（`PSEUDO`・`NO_VALUE`・`UNKNOWN`・`SUB_VAR` など）・`Context` | `model.py` | 64 |
+| `_res_with_fn`・`_walk_res`・`_prepend_through`・`_set_fn`・`_strip_internal`・`split_concat` | `marks.py` | 74 |
+| `_static_refs`・`_collect_active`・`_dedupe`（→ `dedupe_refs`） | `refs.py` | 77 |
+| `Evaluator` の `__init__`・`diag`・`scan_refs`・`unknown`・`eval`・`addr`（と `StackEval` の `where`） | `evaluator.py`（`git mv` の本体。4 つのミックスインを束ねる） | 136 |
+| `Evaluator.ref`・`getatt`・`sub`・`concat`・`join`・`select`・`split`・`find_in_map`・`pseudo`・`is_stack` | `intrinsics.py`（`IntrinsicsMixin`） | 191 |
+| `Evaluator.condition`・`cond_eval`・`cond_value`・`fn_if`・`_cfn_str`・`_stronger`・`_weaker` | `conditions.py`（`ConditionsMixin`） | 102 |
+| `Evaluator.parameter`・`load_parameter_file` | `params.py`（`ParametersMixin`） | 78 |
+| `Evaluator.expand_inline_foreach`・`StackEval.expand_foreach`・`_foreach_subst` | `foreach.py`（`ForEachMixin`） | 92 |
+| `StackEval.output`・`register_exports`・`import_value` | `outputs.py`（`OutputsMixin`） | 61 |
+| `StackEval.stack_output`・`locate`（TemplateURL の読み替え）・`child` | `nested.py`（`NestedMixin`） | 117 |
+| `StackEval.__init__`・`run`（リソースの評価、Condition → enabled、Globals、暗黙の API、DependsOn） | `stack.py` | 116 |
+| `GLOBALS`・`_merge_globals`・`_is_intrinsic`・`_implicit_apis` | `sam.py` | 41 |
+| `_cdk_artifacts`・`_cdk_stacks` | `cdk.py` | 57 |
+| `build_raw`・`dump` | `build.py` | 88 |
+| （新規） | `core/diagnostics.py` | 124 |
+
+800 行を超えるファイルは `scripts/` に無くなった（最大は Terraform 側の `evaluator/functions.py` の 763 行）。1,500 行を超えるものも無い。
+
+### 決めたこと
+| 決めたこと | 理由 |
+|---|---|
+| `Evaluator`（650 行）と `StackEval`（300 行）は、責務ごとのミックスイン（`params`・`conditions`・`intrinsics`・`foreach`・`outputs`・`nested`）に分け、状態は `Evaluator.__init__`（テンプレート 1 つ分）と `StackEval.__init__`（スタックの入れ物）に残す | R2 と同じ方式。メソッドは `self.xxx` で呼び合うまま、動きを変えない。クラスを関数に直すと引数の受け渡しの書き換えが大きい |
+| `StackEval(NestedMixin, OutputsMixin, Evaluator)` の継承の順に意味を持たせた（`Evaluator` の `stack_output`・`import_value` を上書きする）。`NestedMixin.stack_output` の `super()` は MRO で `Evaluator.stack_output` に届く | 元は `StackEval(Evaluator)` の `super()`。順序を入れ替えると黒箱の子の出力が変わる |
+| 子のスタックは `StackEval(…)` でなく `type(self)(…)` で作る | ミックスインから `stack.py` を実行時に import しない（循環を避ける）。`StackEval` を継承するクラスは無いので動きは同じ |
+| `multiplicity`（×N のリソースの印）を `StackEval.__init__` から `Evaluator.__init__` へ移した。どこからも読まれていなかった `foreach_origin` は無くした | `ForEachMixin` が使うので、ミックスインの使う属性は基底の `__init__` に集める。`foreach_origin` は定義だけで読まれていない（grep で確認）。どちらも出力に影響しない |
+| 他のファイルから使う `_` 付きの名前は `_` を外した（`dedupe_refs`・`weaker`・`stronger`・`bool_name` など）。ファイルの中だけのもの（`_walk_res`・`_is_intrinsic`・`_cdk_artifacts`・`_Loader`・`_intrinsic`）は `_` のまま。`_maybe_json`（`= ir_raw.maybe_json` の別名）は使う側が `ir_raw.maybe_json` を直接呼ぶ | R2 と同じ |
+| `where()` は `Evaluator` に置いた（`StackEval` にあったが、`prefix`・`stack_address` だけで決まるため） | `ForEachMixin.expand_foreach` が呼ぶ |
+| 旧パス `adapters/cfn.py`・`scripts/adapters/` の互換は置かない。`tests/test_architecture.py` の `ENTRY_DIRS` には `adapters` を残す（戻さない印。`from adapters import …` は入口の import と数えて失敗する） | 配布したタグが無い。`entry_names` は `scripts/` の直下と `maintenance/` だけを見る |
+| 診断コードの一覧は**データだけ**で、アダプタは実行時に読まない（検査のための表）。level は 1 コードにつき複数を持てる（`levels` は重い順のタプル） | 出力のバイト列を変えないため。実行時の検査（不明なコードで例外）は本番の経路を落としうるので入れない |
+| 検査の範囲は `scripts/adapt_*.py` と `aws_iac_diagram/adapters/` の下。正規化の `NORM-…`（フェーズ 3 以降）は、その層ができるとき範囲を広げる | いまのコードにあるのは TF・CFN だけ。ほかの層に `E-NOEDGE-…` のような規則 ID が出ても誤検出しない |
+| 旧 `DiagnosticCodesTest`（`tests/test_tf_public.py`）は `tests/test_diagnostics.py` に移し、TF と CFN の両方で一覧と ir-schema.md の 7.5 を照合する。ソースの文字列と一覧の照合は `DiagnosticRegistryRuleTest` が受け持つ（ソース ⇄ 一覧 ⇄ 文書で、推移的に同じ）。旧テストの「ソースの TF- の数 43」の固定は、一覧の数の固定（43 + 19 = 62）に変わった | 照合の相手が「ソース」から「一覧」に変わるため |
+| ir-schema.md の 7.5 に CFN の一覧（19 個）を足した。「`コード`（level。説明）」の形にし、level が一覧と同じであることもテストする | それまで CFN のコードは文書に例が 1 つあるだけだった |
+
+### 想定外だったこと・つまずいたこと
+- Bash ツールのヒアドキュメントがバックスラッシュを壊す（`\n` が改行になる、`\c` が消える）。テストの文字列や CI の PowerShell の行（`\scripts\…`）の編集は Edit ツールで行い、テストの SyntaxError で気づいたものは直した。
+- 診断コードの level は、コードの書かれた場所だけでは決まらない（`Unknown(…)` の既定の level は warn、作られないリソースの中では info に下がる、plan JSON と一緒のときは info に上書きされる）。そのため、一覧の `levels` は呼び出しの近くの文字列（静的）と、動かして出た (code, level)（golden の 101 ケースの出力の集計と、fixture と小さな入力で動かすテスト）の両方で確かめた。複数の level で出るコード（一覧の `warn/info` など）: `TF-EVAL-ERROR`・`TF-UNEVALUATED`・`TF-UNRESOLVED-VAR`・`TF-UNSUPPORTED-FUNCTION`・`TF-TFJSON-UNSUPPORTED`・`TF-PLAN-DESTROY`・`CFN-CONDITION-UNKNOWN`・`CFN-NESTED-CYCLE`・`CFN-NESTED-UNREADABLE`（9 個）。
+- ir-schema.md の「43 個」は、旧テストが `"(TF-…)"` の正規表現でソースを数えていた。固定の数の意味は、ソースの文字列を足すたびに変わるので弱かった。
+
+### 確かめたこと
+- **golden**: 101/101 一致（`df13268`・`232d3dd`・`2ff41e7` の各コミット。Windows の通常の TEMP）。
+- **単体テスト 367 件**（338 + `adapt_cfn.py` の CLI 2 + `CloudFormationOrderTest` 8 + `DiagnosticRegistryRuleTest` 10 + `tests/test_diagnostics.py` 10 − 旧 `DiagnosticCodesTest` 1）: Windows の通常の TEMP、別のドライブの TEMP（`subst Y:`）、8.3 の短い名前の TEMP（`...\Temp\R3_LON~1`）のそれぞれで OK（約 84 秒）。
+- `uv lock --check` OK（66 パッケージ）。pyflakes は、この変更の前からある 3 件（`test_tf_adapter.py` の `v`、`test_tf_plan.py` の `pw`、`make_plan_json.py` の `moto`）だけ。
+- **CI の手順を手元で**（Git Bash）: `validate_ir.py` で正解 IR、`check_coverage.py --lint`、`c1_check.py`（入力 25・辺 513・対応の無い辺 0）、TF の 5 構成と plan JSON、足した CFN の 5 構成（`adapt_cfn.py` を `uv run`。PyYAML は PEP 723 の宣言で入る）と `validate_ir.py`、`tf_public_check.py --all --jobs 4`（205 フォルダ、リソース 11,621、error 0。28 秒）。PowerShell 5.1 の「日本語とスペースを含むパスに SKILL を丸ごとコピーして起動」の文（`doctor.py`・`validate_ir.py`・`adapt_tf.py`・`adapt_cfn.py`）を CI と同じ文で通し、コピーからの CFN の出力がリポジトリのものと同じ hash であることを確かめた。
+- **旧 `cfn.py`（`ed45a31` を `git archive` で別の場所に展開）との比較**: ① CLI を 80 通りで動かし、終了コード・標準出力・標準エラー（プログラム名と空白を正規化）・書かれたファイルのバイト列が同じ（`--help`・引数なし・`--input`／`--out` なし・未知のオプション・無い入力・manifest の無いフォルダ・空・リスト・壊れた YAML／JSON・タブの `.template`・自分を指すアンカー（RecursionError → 終了コード 2）・`--param` の誤り・`--param-file` の無い／壊れた／形の違う／正しい／辞書の形・擬似パラメータ・ネストスタック・SAM・JSON・cdk.out（入れ子のアセンブリと Export／ImportValue）・manifest.json を直接・スタックの無い cdk.out・`--out` の親が無い・`--root-base ..`・C1 の 25 入力を `--param` なしと 3 つの `--param` ありで）。② 変異: C1 の 25 入力に、行の削除・ブロックの削除・行の複製・入れ替え・引数の並べ替え・組み込み関数の取り替え（`!Ref`→`!GetAtt` など）・値の差し替え（null・[]・{}・未定義の名前・引数不足の `!If` など）・Condition の差し替え・Conditions への不正な条件（自分を指す、引数の数が違う）・不正な Fn::ForEach（引数の数、入れ子、集まりが決まらない）・`!If` の入れ子（深さ 6 まで）・字下げの崩しを 1〜3 個入れた入力 1,000 通りを、`--param` なし／ありで、計 2,000 回の `main()` を旧・新で比べ、終了コード・標準出力・標準エラー・出力のバイト列が全部同じ（成功 1,420 回、終了コード 2 が 580 回。出力に現れた CFN の診断コードは 13 種）。
+- 構成のテスト（`CloudFormationOrderTest` など）の変異: `loader`／`marks`／`refs`／`model`／`cdk`（base）から上のグループを、ミックスインから `evaluator`／`stack`／`build` を、`evaluator` から `stack`／`build` を、`stack` から `build` を import させると失敗する。相対 import、`TYPE_CHECKING` の中の import（数えない）、表に無い新しいファイル、cloudformation → terraform／registry の import も失敗する。
+- 診断コードの変異（`DiagnosticRegistryRuleTest`）: 一覧に無いコード（`self.diag(…)`・辞書・タプル・既定の引数・集合・入口のスクリプトの中）、打ち間違い、`"TF-" + 名前`・`f"TF-{x}"`・`"TF-%s" % x` の組み立て、一覧にだけあるコード（集合・比較・`in (…)` にだけ書いてあるものも含む）、一覧に無い level で出す、が失敗する。`UNUSED_ALLOW` は空で、古い許可は失敗する。
+
+### 残したこと・リスク
+- **R4**: `data/` への分割。`modules/summaries.py` の `SUMMARY_FILE` の相対の深さ。R5: テストの分け直し（`test_cfn_adapter.py` は 1,100 行を超える）。R6: SKILL.md・references・docs/spec・architecture.md の「R」の印を全部消す。
+- ミックスインが「状態を持たない」ことはテストで守っていない（R2 と同じ）。`StackEval` の継承の順（`NestedMixin`・`OutputsMixin` が `Evaluator` の前）を入れ替えると、`super()` の行き先が変わる。コメントと docs/architecture.md に書いたが、テストは黒箱の子の出力を見る既存のものに頼っている。
+- `type(self)(…)` による子の作成（`StackEval` を継承する新しいクラスを作るときは注意）。
+- 診断コードの検査の限界: 接頭辞が単独の文字列になっていない組み立て（`"TF" + "-X"`）、範囲の外（`adapters/` と `adapt_*.py` 以外）のコード、level を変数で渡すところの level は静的には見られない。level は動かして出たものの確認（`EmittedLevelsTest`）で補っているが、fixture が通らない経路の level は、呼び出しの近くの文字列と読んだ結果に頼っている。`levels` が実際に出うる level より多い（出ない level を書いている）ことは検出できない。
+- `adapt_cfn.py` は `yaml` を入口で import する（`yaml.YAMLError` を捕まえるため）。元の `cfn.py` と同じ。
+- CI に足した `adapt_cfn.py` の手順は、手元の Git Bash と PowerShell 5.1 で通したが、GitHub の Actions ではまだ動かしていない。
