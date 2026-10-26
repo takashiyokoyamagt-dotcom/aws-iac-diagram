@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 
 from aws_iac_diagram.adapters.terraform.modules.sources import registry_key
-from aws_iac_diagram.adapters.terraform.modules.summaries import iam_only, load
+from aws_iac_diagram.adapters.terraform.modules.summaries import KNOWN_MODULES, iam_only, load
 
 _CONSTRAINT = re.compile(r"^\s*(~>|>=|<=|!=|=|>|<)?\s*v?(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:[-+][0-9A-Za-z.-]+)?\s*$")
 
@@ -16,8 +16,13 @@ _CONSTRAINT = re.compile(r"^\s*(~>|>=|<=|!=|=|>|<)?\s*v?(\d+)(?:\.(\d+))?(?:\.(\
 def blackbox_plan(source: str, why: str) -> tuple:
     """要約表で展開しないレジストリモジュールの扱い。("blackbox", level, code, 理由)。
 
-    要約表のファイル自体が無い・読めない（取り込みの不備）ときは、「表に無い」(info) とは別の warn にする。"""
-    if registry_key(source) and not load()[0]:
+    要約表のファイル自体が無い・読めない（取り込みの不備）ときは、「表に無い」(info) とは別の warn にする。
+    対象は、表が 1 つも読めないとき、または要約表があるはずのモジュール（`KNOWN_MODULES`）の表がフォルダに 1 つも無いとき
+    （そのモジュールのフォルダごと欠けた）。モジュールの表はあるが呼び出しの major のファイルが無いときは、これまでどおり「表に無い」(info)。"""
+    key = registry_key(source)
+    tables = load()[0]
+    base = key.partition("//")[0] if key else ""
+    if key and (not tables or (base in KNOWN_MODULES and base not in tables)):
         return ("blackbox", "warn", "TF-MODULE-SUMMARY-TABLE-MISSING",
                 f"module {source} is not read: the summary table (data/module-summaries/) is missing or empty")
     iam = " (it makes IAM resources only: H-IAM)" if iam_only(source) else ""

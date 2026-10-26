@@ -19,12 +19,15 @@ SCRIPTS = SKILL / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 import doctor  # noqa: E402
 
-# 実行時に読むデータ（スクリプトが開くもの）。scripts/ の .py と SKILL.md 以外はここに書く。
+# 配る同梱ファイルのうち、スクリプトが開くデータ。scripts/ の .py と SKILL.md 以外はここに書く。
+# 規則: 実行時に読まなくても、配布に必須のもの（ライセンス表示の data/module-summaries/NOTICE.md）は、ここに書いて doctor の一覧にも入れる
+# （読まれない .md を許すのは要約表のフォルダの NOTICE.md だけ。summaries.DOC_FILES）。
 # 足し忘れは、下の test_data_paths_in_scripts_are_listed が、core/paths.py の定数（場所の決め方の唯一の置き場）から見つける
 RUNTIME_DATA = {
     "data/icons/catalog.json",                          # find_aws_icon.py
     "data/schemas/ir.schema.json",                      # validate_ir.py
     "data/schemas/ir-raw.schema.json",                  # validate_ir.py
+    "data/module-summaries/NOTICE.md",                  # 実行時には読まない。出典とライセンスの表示（配る物なので一覧に入れる）
     "data/module-summaries/iam-only-sources.md",        # TF アダプタ（modules/summaries.py）。H-IAM の source の一覧
     "data/module-summaries/terraform-aws-alb/v10.md",   # 同上。モジュールの要約表
     "data/module-summaries/terraform-aws-eks/v21.md",
@@ -81,6 +84,30 @@ class RequiredFilesTest(unittest.TestCase):
             if p.endswith(("doctor.py", "core/paths.py")):
                 continue
             self.assertIsNone(chain.search((SKILL / p).read_text(encoding="utf-8")), f"{p} が SKILL の下のパスを直接書いている")
+
+    def test_doctor_reports_a_misplaced_summary_table(self):
+        # 要約表の置き方の誤り（majors とファイル名のずれ、綴りの違う .md）は、doctor が error にする
+        with tempfile.TemporaryDirectory() as t:
+            fake = Path(t) / "日本語 パス" / "skill"
+            for rel in doctor.REQUIRED_FILES:
+                (fake / rel).parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(SKILL / rel, fake / rel)
+            old = doctor.SKILL_DIR
+            doctor.SKILL_DIR = fake
+            try:
+                issues: list[dict] = []
+                self.assertEqual(doctor.check_skill(issues)["table_problems"], [])
+                self.assertEqual(issues, [])
+                vpc = fake / "data/module-summaries/terraform-aws-vpc/v6.md"
+                vpc.write_text(vpc.read_text(encoding="utf-8").replace('majors="6"', 'majors="7"', 1), encoding="utf-8", newline="\n")
+                (fake / "data/module-summaries/terraform-aws-alb/notes.md").write_text("x\n", encoding="utf-8", newline="\n")
+                issues = []
+                report = doctor.check_skill(issues)
+                self.assertEqual(report["missing_files"], [])
+                self.assertEqual(len(report["table_problems"]), 2, report["table_problems"])
+                self.assertEqual([i["level"] for i in issues], ["error", "error"])
+            finally:
+                doctor.SKILL_DIR = old
 
     def test_each_missing_file_is_reported(self):
         # 一覧の全ファイルを 1 つずつ消して、doctor の確認（check_skill）が必ずそのファイルを欠けとして報告する

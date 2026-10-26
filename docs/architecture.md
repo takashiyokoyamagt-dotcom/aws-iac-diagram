@@ -174,6 +174,8 @@ skills/aws-iac-diagram/
 - **場所の決め方は `aws_iac_diagram/core/paths.py` の 1 か所**（`SKILL_DIR`＝自分の場所から 3 つ上。`IR_SCHEMA`・`IR_RAW_SCHEMA`・`ICON_CATALOG`・`MODULE_SUMMARIES_DIR` など）。読む側は定数を使い、`parents[N]` や `"data" / …` を直接書かない（`tests/test_doctor_required_files.py` が、スクリプトの `"references" / "…"`・`"data" / "…"` の連なりを見つけて失敗にする）。標準ライブラリだけを使い、ほかの層を読まない（core の決まり）。`doctor.py` だけは、パッケージが欠けていても動くために、自分で `SKILL_DIR` を決める。
 - **`tests/test_paths.py`**: `paths.py` の定数がすべて実在する／SKILL を日本語・スペースを含む別の深さにコピーしても定数がコピーの中を指す／要約表のフォルダの読み込み（`v6` は `v10` の前。フォルダとファイル 1 つが同じ結果。無い・空のフォルダは「表が無い」）。
 - **配るファイルの一覧は `doctor.py` の `REQUIRED_FILES`**。実行時のデータを足す・移すと、`tests/test_doctor_required_files.py`（`RUNTIME_DATA` と `core/paths.py` と実際のファイルの 3 つが同じ）が落ちる。
+- **要約表のファイルは名前で決まる**: ローダーが読むのは `<モジュール>/v<数字>.md`（1 階層下）と直下の `iam-only-sources.md` だけ（大文字小文字を区別して完全一致。並べ方は (モジュールのフォルダ名, major の数, パス)。ディレクトリの列挙の順や OS に依らない）。`NOTICE.md`（Apache-2.0 のソースを写した表の出典とライセンスの表示。実行時には読まないが配る物なので、doctor の一覧と `RUNTIME_DATA` に入れてある。読まれない .md を許すのはこれだけ: `summaries.DOC_FILES`）や、綴りの違う .md は、中にマーカーがあっても読まない。`summaries.problems()` が、読まれない .md、空のファイル、コードブロックの無いマーカー、ファイル名の major と `majors` のずれ、フォルダ名と source のずれ、同じ (source, major) の表が複数あること、`v06.md` のような正規でない名前を知らせる（`tests/test_paths.py` が出荷した表を調べる。doctor は `summaries` を import できるときだけ調べ、`skill.table_problems` に出して error にする。パッケージが欠けていれば調べない）。
+- **欠けの扱い**: 要約表が 1 つも読めないとき、または `summaries.KNOWN_MODULES`（vpc・alb・rds・eks。出荷した表の最上位の source と同じことをテストが確かめる）の表がフォルダに 1 つも無いとき（モジュールのフォルダごと欠けた）は、レジストリモジュールの呼び出しが `TF-MODULE-SUMMARY-TABLE-MISSING`（warn）になる（`resolve.blackbox_plan`）。**限界:** モジュールの表はあるが、呼び出しの版の major のファイルだけが無いときは、これまでどおり黒箱の info（`TF-MODULE-BLACKBOX`）で、欠けは doctor の `REQUIRED_FILES` が知らせる。表を足したら（別のモジュール）`KNOWN_MODULES` にも足す。
 - 要約表の診断の文言に入るパスは `data/module-summaries/`（R4 で `references/module-summaries.md` から変えた。5 の golden の 14 ケース）。
 
 ## 4. 1 ファイルの大きさ
@@ -199,7 +201,7 @@ skills/aws-iac-diagram/
 | CloudFormation の組み込み関数・Conditions・SAM・ネストスタックの扱いを変える | 関数は `intrinsics.py`（Ref・Sub など）か `conditions.py`、Parameters は `params.py`、Fn::ForEach は `foreach.py`、SAM は `sam.py` と `stack.py` の `run`、ネストスタックは `nested.py`、Outputs・Export は `outputs.py`、cdk.out は `cdk.py`、raw IR のまとめ方は `build.py`。新しいファイルを足したら `CLOUDFORMATION_GROUPS`（テスト）とこの文書の表と `doctor.py` の `REQUIRED_FILES` に足す。診断コードは `core/diagnostics.py` と `references/ir-schema.md` に書く。単体テストは `tests/test_cfn_adapter.py` |
 | 入力の形式を足す | `adapters/<名前>/` を作り（`__init__.py` と本体）、`scripts/adapt_<名前>.py`（入口）を足し、`adapters/registry.py` の表に書く。`ALLOWED` とこの文書の表に層を足す。golden にケースを足す（`golden.py --update`。理由を書く） |
 | 出力の形式を足す | `emit/<名前>.py` を足す（フェーズ 4・5 から） |
-| モジュールの要約表を足す | `data/module-summaries/<モジュール>/v<メジャー>.md` を足す（形式は `docs/spec/module-summaries.md`。サブモジュールの表は親と同じファイル）。`doctor.py` の `REQUIRED_FILES` と `tests/test_doctor_required_files.py` の `RUNTIME_DATA` にも足す。コードは変えない（フォルダの下の `.md` を決まった順序で全部読む） |
+| モジュールの要約表を足す | `data/module-summaries/<モジュール>/v<メジャー>.md` を足す（形式は `docs/spec/module-summaries.md`。サブモジュールの表は親と同じファイル）。`doctor.py` の `REQUIRED_FILES` と `tests/test_doctor_required_files.py` の `RUNTIME_DATA` にも足す。コードは変えない（`<モジュール>/v<数字>.md` を決まった順序で全部読む） |
 | 型の扱いを足す | **R4 以降（フェーズ 3 で表にする）:** `data/rules/` に行を足す |
 | 辞書を作り直す | `scripts/maintenance/build_icon_catalog.py`、`check_icons.py`（README の「アイコン辞書」）。出力は `data/icons/`。作り直しても `catalog.json` の場所と形が同じなら、コードは変えない |
 | スキーマを直す | `data/schemas/ir.schema.json`・`ir-raw.schema.json`（読むのは `validate_ir.py`）。説明の `references/ir-schema.md` と同じコミットで直し、`tests/test_ir_schema_v1.py` を流す |

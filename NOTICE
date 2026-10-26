@@ -28,7 +28,7 @@ trademarks belong to their respective owners.
     このファイルから作ったもの（図形名とスタイルの辞書）: skills/aws-iac-diagram/data/icons/
     ※ 描かれるアイコンの絵そのもの（SVG など）は同梱していない。描画は利用者が入れた draw.io 本体が行う。
 
-(b) skills/aws-iac-diagram/data/module-summaries/（モジュールごとのファイル）
+(b) skills/aws-iac-diagram/data/module-summaries/（モジュールごとのファイル。同じ表示を、フォルダの NOTICE.md と各ファイルの先頭にも置いてある）
     次の terraform-aws-modules（Apache License 2.0）のソースから、変数の宣言・出力・主要な
     リソースのブロックを写して短くしたもの（改変あり）。
       - https://github.com/terraform-aws-modules/terraform-aws-vpc

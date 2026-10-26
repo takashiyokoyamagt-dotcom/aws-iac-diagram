@@ -113,7 +113,7 @@ class SummaryDirectoryTest(unittest.TestCase):
         self.assertEqual(MS.load(root), ({}, ()))
         self.assertEqual(MS.load(root / "nope"), ({}, ()))
 
-    def test_iam_only_list_is_read_from_any_file(self):
+    def test_iam_only_list_is_read_from_its_file(self):
         root = self.make({"iam-only-sources.md": "<!-- iam-only-sources -->\n```text\nterraform-aws-modules/iam/aws\n```\n"})
         self.assertEqual(MS.load(root), ({}, ("terraform-aws-modules/iam/aws",)))
         self.assertTrue(MS.iam_only("terraform-aws-modules/iam/aws//modules/x", root))
@@ -125,6 +125,91 @@ class SummaryDirectoryTest(unittest.TestCase):
                     mod = key.split("/")[1]  # terraform-aws-modules/<name>/aws
                     self.assertEqual(s.file, f"terraform-aws-{mod}/v{s.majors[0]}.md")
                     self.assertEqual(len(s.majors), 1)
+
+    # --- 読むファイルは名前で決まる（レビュー対応）
+
+    def test_only_exact_names_are_read(self):
+        src = "terraform-aws-modules/vpc/aws"
+        marker = self.table(src, 6)
+        iam = "<!-- iam-only-sources -->\n```text\nterraform-aws-modules/iam/aws\n```\n"
+        stray = {"NOTICE.md": marker + iam, "terraform-aws-vpc/NOTICE.md": marker, "terraform-aws-vpc/V6.md": marker,
+                 "terraform-aws-vpc/v6.MD": marker, "terraform-aws-vpc/v1\u00b22.md": marker, "terraform-aws-vpc/v6.md.bak": marker,
+                 "terraform-aws-vpc/notes.md": marker, "terraform-aws-vpc/deep/v6.md": marker, "v6.md": marker,
+                 "x/v6.md": self.table("terraform-aws-modules/x/aws", 6)}
+        root = self.make(stray)
+        got = MS.load(root)
+        self.assertEqual(sorted(got[0]), ["terraform-aws-modules/x/aws"])  # x/v6.md だけが読まれる
+        self.assertEqual(got[1], ())  # NOTICE.md の中の iam-only は読まれない
+        read = [rel for _, rel, _ in MS._listing(root)[0]]
+        self.assertEqual(read, ["x/v6.md"])
+
+    def test_stray_notice_in_the_real_directory_is_ignored(self):
+        # 本物のフォルダに NOTICE.md がある。マーカーを書いても読まれない
+        self.assertTrue((MS.SUMMARY_DIR / "NOTICE.md").is_file())
+        import shutil
+        root = self.make({})
+        shutil.copytree(MS.SUMMARY_DIR, root, dirs_exist_ok=True)
+        before = MS.load(root)
+        extra = self.table("terraform-aws-modules/zzz/aws", 1) + "<!-- iam-only-sources -->\n```text\nzzz\n```\n"
+        (root / "NOTICE.md").write_text(extra, encoding="utf-8", newline="\n")
+        MS._CACHE.pop(str(root), None)
+        after = MS.load(root)
+        self.assertEqual(after, before)
+        self.assertEqual(MS.problems(root), [])  # NOTICE.md は「読まれない .md」の誤りに数えない
+
+    def test_order_does_not_depend_on_directory_listing_order(self):
+        from unittest import mock
+        src = "terraform-aws-modules/vpc/aws"
+        root = self.make({"terraform-aws-vpc/v10.md": self.table(src, 10), "terraform-aws-vpc/v6.md": self.table(src, 6),
+                          "terraform-aws-alb/v10.md": self.table("terraform-aws-modules/alb/aws", 10),
+                          "iam-only-sources.md": "<!-- iam-only-sources -->\n```text\nterraform-aws-modules/iam/aws\n```\n"})
+        want = [rel for _, rel, _ in MS._listing(root)[0]]
+        self.assertEqual(want, ["iam-only-sources.md", "terraform-aws-alb/v10.md", "terraform-aws-vpc/v6.md",
+                                "terraform-aws-vpc/v10.md"])
+        real = Path.iterdir
+        for name, fn in (("reversed", lambda self_: iter(reversed(list(real(self_))))),
+                         ("shuffled", lambda self_: iter(sorted(real(self_), key=lambda p: hash(p.name) % 7)))):
+            with self.subTest(name), mock.patch.object(Path, "iterdir", fn):
+                self.assertEqual([rel for _, rel, _ in MS._listing(root)[0]], want)
+
+    def test_zero_padded_names_do_not_raise_and_are_ordered_by_path(self):
+        src = "terraform-aws-modules/vpc/aws"
+        root = self.make({"terraform-aws-vpc/v06.md": self.table(src, 6), "terraform-aws-vpc/v6.md": self.table(src, 6),
+                          "terraform-aws-vpc/v" + "9" * 100 + ".md": self.table(src, 6)})
+        self.assertIsNone(MS.TABLE_FILE.fullmatch("v" + "9" * 5000 + ".md"))  # int() の桁数の上限に当たる名前も読まない
+        read = [rel for _, rel, _ in MS._listing(root)[0]]
+        self.assertEqual(read, ["terraform-aws-vpc/v06.md", "terraform-aws-vpc/v6.md"])  # (major, パス) の順。100 桁の名前は読まない
+        self.assertTrue(any("正規でない名前" in p and "v06.md" in p for p in MS.problems(root)))
+
+    # --- problems()（置き方の誤り）
+
+    def test_shipped_tables_have_no_problems(self):
+        self.assertEqual(MS.problems(), [])
+
+    def test_known_modules_equal_the_shipped_top_level_modules(self):
+        tops = {k for k in MS.load()[0] if "//" not in k}
+        self.assertEqual(set(MS.KNOWN_MODULES), tops)
+
+    def test_problems_are_reported(self):
+        src = "terraform-aws-modules/vpc/aws"
+        cases = {
+            "名前の綴り": ({"terraform-aws-vpc/V6.md": self.table(src, 6)}, "ローダーが読まない"),
+            "深さ": ({"terraform-aws-vpc/sub/v6.md": self.table(src, 6)}, "ローダーが読まない"),
+            "空のファイル": ({"terraform-aws-vpc/v6.md": ""}, "要約表（<!-- module-summary … -->）が 1 つも無い"),
+            "コードブロックの無いマーカー": ({"terraform-aws-vpc/v6.md": f'<!-- module-summary source="{src}" majors="6" -->\n'},
+                                  "コードブロックが無い"),
+            "ファイル名と majors": ({"terraform-aws-vpc/v6.md": self.table(src, 7)}, "ファイル名の major 6 と合わない"),
+            "フォルダ名と source": ({"terraform-aws-alb/v6.md": self.table(src, 6)}, "フォルダ terraform-aws-vpc に置く"),
+            "iam の一覧が空": ({"iam-only-sources.md": "# x\n"}, "source が 1 つも無い"),
+        }
+        for name, (files, want) in cases.items():
+            with self.subTest(name):
+                got = MS.problems(self.make(files))
+                self.assertTrue(any(want in g for g in got), got)
+        dup = self.make({"terraform-aws-vpc/v6.md": self.table(src, 6), "terraform-aws-vpc/v06.md": self.table(src, 6)})
+        self.assertTrue(any("複数ある" in g for g in MS.problems(dup)), MS.problems(dup))
+        self.assertEqual(MS.problems(self.make({"terraform-aws-vpc/v6.md": self.table(src, 6)})), [])
+        self.assertEqual(MS.problems(Path("nope-does-not-exist")), [])  # 無いフォルダは調べない（欠けは doctor の一覧）
 
 
 if __name__ == "__main__":

@@ -66,7 +66,10 @@
 | `data/module-summaries/terraform-aws-rds/v7.md` | rds の 7.x と、サブモジュール 5 つ（`db_instance`・`db_subnet_group`・`db_parameter_group`・`db_option_group`・`db_instance_role_association`） |
 | `data/module-summaries/terraform-aws-eks/v21.md` | eks の 21.x と、サブモジュール 3 つ（`eks-managed-node-group`・`fargate-profile`・`self-managed-node-group`） |
 | `data/module-summaries/iam-only-sources.md` | H-IAM の source の一覧（4） |
+| `data/module-summaries/NOTICE.md` | 出典とライセンスの表示（読まない） |
 
+- ライセンス: 表の HCL は terraform-aws-modules（Apache-2.0）のソースを写して短くしたもの（改変あり）。各ファイルの先頭と、フォルダの `NOTICE.md`（SKILL だけを配っても残る）に出典を書く。`NOTICE.md` は実行時に読まないが、配る物として doctor の一覧に入れる。
+- 読むファイルは名前で決まる: `<モジュール>/v<数字>.md` と直下の `iam-only-sources.md` だけ（大文字小文字を区別）。ほかの .md は読まれず、`summaries.problems()` が知らせる（`NOTICE.md` は除く）。
 - 1 つのファイルは 1 つのモジュールの 1 つの major。ファイルの先頭の見出しと説明の行（`# …`、`> …`）と、表ごとの見出し（`### …`）は読み込みに影響しない（読むのは `<!-- module-summary … -->` の行とその直後のコードブロック、`<!-- iam-only-sources -->` の直後のコードブロックだけ）。
-- 読み込み（`summaries.load`）は、フォルダの下の `.md` を、パスの文字と数を分けた順序（`v6` は `v10` の前）で読む。同じ source の表が複数のファイルにあるときも、選び方（`resolve.choose`）は 2 の規則のまま（major で選ぶ）。
+- 読み込み（`summaries.load`）は、上の名前のファイルを、(モジュールのフォルダ名, major の数, パス) の順（`v6` は `v10` の前）で読む。同じ source の表が複数のファイルにあるときも、選び方（`resolve.choose`）は 2 の規則のまま（major で選ぶ）。
 - R4 より前は、これらを `references/module-summaries.md` 1 つに書いていた。表の HCL とマーカーの行は、分ける前とバイト単位で同じ（旧ファイルを旧ローダーで読んだ結果と、フォルダを新ローダーで読んだ結果の照合は WORKLOG の「フェーズ 2b の R4」の「確かめたこと」）。

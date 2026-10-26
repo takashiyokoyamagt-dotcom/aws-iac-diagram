@@ -2424,6 +2424,42 @@ class SummaryTableFileTest(unittest.TestCase):
             raw = build(files)
         self.assertNotIn("TF-MODULE-SUMMARY-TABLE-MISSING", [d["code"] for d in raw["diagnostics"]])
 
+    def copy_tables(self, skip: tuple = ()) -> Path:
+        import shutil
+        td = tempfile.TemporaryDirectory()
+        self.addCleanup(td.cleanup)
+        root = Path(td.name) / "ms"
+        shutil.copytree(MS.SUMMARY_DIR, root, ignore=lambda d, names: [n for n in names if n in skip])
+        return root
+
+    def test_a_whole_module_folder_missing_warns_like_a_missing_table(self):
+        # vpc のフォルダごと無い（取り込みの不備）。ほかのモジュールの表はある。TF-MODULE-SUMMARY-TABLE-MISSING の warn
+        from unittest import mock
+        root = self.copy_tables(skip=("terraform-aws-vpc",))
+        self.assertIn("terraform-aws-modules/alb/aws", MS.load(root)[0])
+        with mock.patch.object(MS, "SUMMARY_DIR", root):
+            raw = build(self.CALL)
+            alb = build('module "lb" {\n  source = "terraform-aws-modules/alb/aws"\n  version = "~> 10.0"\n}\n')
+            sub = build('module "s" {\n  source = "terraform-aws-modules/vpc/aws//modules/x"\n  version = "~> 6.0"\n}\n')
+        codes = [(d["level"], d["code"]) for d in raw["diagnostics"] if d["code"].startswith("TF-MODULE")]
+        self.assertEqual(codes, [("warn", "TF-MODULE-SUMMARY-TABLE-MISSING")])
+        self.assertEqual([r["address"] for r in raw["resources"]], ["module.vpc"])
+        self.assertIn("TF-MODULE-SUMMARY", [d["code"] for d in alb["diagnostics"]])  # alb の表はある
+        self.assertIn("TF-MODULE-SUMMARY-TABLE-MISSING", [d["code"] for d in sub["diagnostics"]])  # サブモジュールも親のフォルダが無い
+
+    def test_missing_major_of_a_present_module_stays_a_blackbox_info(self):
+        # 限界: モジュールの表はあるが、呼び出しの major のファイルが無いときは、表に無いときと同じ info（欠けは doctor の一覧が知らせる）
+        from unittest import mock
+        root = self.copy_tables(skip=("v6.md",))
+        (root / "terraform-aws-vpc").mkdir(exist_ok=True)
+        (root / "terraform-aws-vpc" / "v5.md").write_text(
+            '<!-- module-summary source="terraform-aws-modules/vpc/aws" majors="5" -->\n```hcl\nvariable "a" {}\n```\n',
+            encoding="utf-8", newline="\n")
+        with mock.patch.object(MS, "SUMMARY_DIR", root):
+            raw = build(self.CALL)  # ~> 6.0 だが 6 のファイルが無い
+        codes = [(d["level"], d["code"]) for d in raw["diagnostics"] if d["code"].startswith("TF-MODULE")]
+        self.assertEqual(codes, [("info", "TF-MODULE-BLACKBOX")])
+
 
 if __name__ == "__main__":
     unittest.main()
