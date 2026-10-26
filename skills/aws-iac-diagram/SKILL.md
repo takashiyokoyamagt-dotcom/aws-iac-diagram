@@ -23,7 +23,7 @@ description: Terraform（.tf、plan JSON）や CloudFormation（YAML／JSON、SA
 
 # 環境の確認
 
-1. 次のコマンドを実行します。`<出力先>` は、`GITHUB_ACTIONS` が `true` のときは環境変数 `RUNNER_TEMP` の値（リポジトリの外。PR に混ざらないように）、それ以外は作業中のフォルダの `aws-iac-diagram-out` です。
+1. 次のコマンドを実行します。`<出力先>` は、`GITHUB_ACTIONS` が `true` のときは環境変数 `RUNNER_TEMP` の値（リポジトリの外。PR に混ざらないように）、それ以外は作業中のフォルダの `aws-iac-diagram-out` です（無ければ作られます。リポジトリの中なら、.gitignore に入れるかユーザーに確かめてください）。
    `uv run "<SKILL>/scripts/doctor.py" --out "<出力先>/doctor.json"`
 2. 出力した JSON を読み、`status` と `issues` を報告します。
    - 終了コード 0（`ok`）: 必要なものはすべてそろっています。
@@ -37,7 +37,7 @@ description: Terraform（.tf、plan JSON）や CloudFormation（YAML／JSON、SA
 |---|---|---|
 | Terraform を読む | `uv run "<SKILL>/scripts/adapt_tf.py" --input "<.tf のフォルダ>" --out "<出力先>/tf.raw.json"` | 0 = 書けた、2 = 読めなかった |
 | CloudFormation を読む | `uv run "<SKILL>/scripts/adapt_cfn.py" --input "<テンプレートか cdk.out のフォルダ>" --out "<出力先>/cfn.raw.json"` | 同上 |
-| raw IR を検査する | `uv run "<SKILL>/scripts/validate_ir.py" "<出力先>/tf.raw.json"` | 0 = 問題なし、1 = 問題あり、2 = 実行エラー |
+| raw IR を検査する | `uv run "<SKILL>/scripts/validate_ir.py" "<出力先>/tf.raw.json"` | 0 = 問題なし、1 = 問題あり（検査に通らない IR。ファイルが無い・読めないときも、エラーの表示つきで 1）、2 = パスを渡していない。**1 だけでは「IR の問題」とは決めつけず、表示を読むこと** |
 | アイコンを探す | `uv run "<SKILL>/scripts/find_aws_icon.py" lambda` | 標準出力に1行1件 |
 
 - アダプタの終了コードは、`diagnostics` に warn や error があっても 0 です。出力の JSON の `diagnostics` を読んで報告してください。`level` の意味は、`error` = そのリソースかファイルを読めなかった、`warn` = 評価できなかった値があり図が不完全になりうる、`info` = 結果に影響しない読み替え、です。

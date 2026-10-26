@@ -2,7 +2,7 @@
 # requires-python = ">=3.12"
 # dependencies = ["jsonschema==4.26.0"]
 # ///
-"""IR（docs/spec/ir-schema/、v1.0。正規化後の形）を検証する。
+"""IR（スキーマは data/schemas/、v1.0。正規化後の形）を検証する。
 
 検証すること:
   1. JSON Schema（data/schemas/ir.schema.json）に合っているか（jsonschema を使う）

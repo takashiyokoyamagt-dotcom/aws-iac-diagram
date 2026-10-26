@@ -86,7 +86,7 @@ terraform と moto は、plan JSON の fixture（`fixtures/tf-plan/`）を作り
 1. （済。2026-10-24）Windows の CI の失敗を直す。**これは今の Windows で行う**（別のドライブを Windows で再現するため）
    - 1b. **開発の場所を WSL に移す**（PLAN の 1.5。2026-10-24 にユーザーと合意）: WSL の `~/` の下に clone し、uv・gh・Node.js（mmdc）・Claude Code・draw.io の deb・xvfb・Chromium を入れ（すべて許可済み）、`~/.claude/skills/aws-iac-diagram` をシンボリックリンクにする。テストが WSL で通ることを確かめ、この HANDOFF の「再開の手順」を WSL 用に書き直す。Windows の側の clone は、Windows の VS Code ＋ Copilot で手で確かめる用に残す
 2. フェーズ2 の手順4 の第三者レビュー → 指摘を直す → main に取り込んで push（ここから WSL で進める）
-3. （実装済み。レビューとコミット待ち）フェーズ2 の手順5（公開サンプルでの確認と完了）
+3. （済。2026-10-26。第三者レビュー済み）フェーズ2 の手順5（公開サンプルでの確認と完了）
 4. **フェーズ 2b: 構成の階層化**（2026-10-24 にユーザーと合意。PLAN の 1.4 とフェーズ表の 2b）。入口のスクリプトと中身のパッケージ `scripts/aws_iac_diagram/` を分け、スクリプトが読むものを `data/`、開発者向けの仕様を SKILL の外の `docs/spec/`、辞書の保守用を `scripts/maintenance/` に移す。最初に raw IR を固定し、中身の動きを変えずに R1〜R6 の順で移す（手順ごとに第三者レビュー）。**R1〜R5 は済み（main に取り込み済み）、R6 は実装済みでレビュー待ち。2b は完了（2026-10-26）。** 今すぐではなくフェーズ2 の後にしたのは、手順4 のレビュー前の変更とファイルの移動が混ざるのと、Windows の CI が落ちていて比べる元を作れないため
 5. **vpc 5.x・eks 20.x の要約表**（フェーズ 2b の後、フェーズ3 の前。**次の作業**）: terraform-aws-vpc v5.8.1・terraform-aws-eks v20.8.5（T16）と、T18 の `~> 5.0` を確かめるための vpc 5.x の最新のタグを `fixtures/public/` に取り込み（SOURCES.md に出どころ）、`data/module-summaries/` にファイルを足して版で選び分け、本物の展開と突き合わせるテストを足す。T16・T18 の黒箱が無くなることを確かめ、第三者レビューを受ける
 6. フェーズ3（正規化）。`aws_iac_diagram/normalize/` に作る。終わったら CI の Ubuntu で実行時間を測り、合計 30 分の見込みを確かめる
@@ -95,7 +95,7 @@ terraform と moto は、plan JSON の fixture（`fixtures/tf-plan/`）を作り
 9. フェーズ6（SKILL.md の仕上げと評価。実物の cdk.out の fixture を足す）
 
 ### 次にやること（要点）
-1. **フェーズ2（Terraform アダプタ）は完了。** 5つの手順（1=土台、2=A4、3=モジュール、4=plan JSON、5=公開サンプルでの確認と完了）のうち、手順1〜4 は main に入っている。手順5 は実装・文書まで済み、第三者レビューとコミット待ち。フェーズ 2b（構成の階層化）も完了した（R6 はレビュー待ち）。次の開発は**vpc 5.x・eks 20.x の要約表**（「残りの作業の順番」の 5）、そのあとフェーズ 3（正規化。`aws_iac_diagram/normalize/`。規則表を `data/rules/` に表にする）。
+1. **フェーズ2（Terraform アダプタ）は完了。** 5つの手順（1=土台、2=A4、3=モジュール、4=plan JSON、5=公開サンプルでの確認と完了）のうち、手順1〜4 は main に入っている。手順5 も main に入っている。フェーズ 2b（構成の階層化）も完了した（R1〜R6 を第三者レビューして main に取り込んだ）。次の開発は**vpc 5.x・eks 20.x の要約表**（「残りの作業の順番」の 5）、そのあとフェーズ 3（正規化。`aws_iac_diagram/normalize/`。規則表を `data/rules/` に表にする）。
 2. 見送った小さな直し（「次にやること」の 0b）: CI の action の版の更新、doctor のパス長の診断、PEP 723 の間接依存の固定など。
 3. 既知の制約: cdk.out は実物の `cdk synth` の出力では未確認（フェーズ6 の前に fixture を1つ足す）。
 
