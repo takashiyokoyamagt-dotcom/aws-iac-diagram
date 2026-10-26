@@ -24,7 +24,8 @@ FIXTURES = WS / "fixtures" / "tf"
 PLANS = WS / "fixtures" / "tf-plan"
 sys.path.insert(0, str(SCRIPTS))
 import validate_ir as v  # noqa: E402
-from adapters import tf  # noqa: E402
+import adapt_tf  # noqa: E402
+from aws_iac_diagram.adapters.terraform import build as tf_build  # noqa: E402
 from aws_iac_diagram.adapters.terraform.plan import reader as P  # noqa: E402
 from aws_iac_diagram.core import ir_raw  # noqa: E402
 
@@ -62,15 +63,15 @@ LOST_IN_PLAN_ONLY = {
 def tf_raw(name: str) -> dict:
     folder, _, var_files = CASES[name]
     root = FIXTURES / folder
-    return tf.build_raw(root, WS, var_files=[root / f for f in var_files])
+    return tf_build.build_raw(root, WS, var_files=[root / f for f in var_files])
 
 
 def plan_raw(name: str) -> dict:
-    return tf.build_from_plan(PLANS / f"{name}.json", WS)
+    return tf_build.build_from_plan(PLANS / f"{name}.json", WS)
 
 
 def combined_raw(name: str) -> dict:
-    return tf.build_raw(FIXTURES / CASES[name][0], WS, plan=PLANS / f"{name}.json")
+    return tf_build.build_raw(FIXTURES / CASES[name][0], WS, plan=PLANS / f"{name}.json")
 
 
 def assert_valid(test: unittest.TestCase, raw: dict) -> None:
@@ -129,11 +130,11 @@ class AddressAndCollapseTest(unittest.TestCase):
             out = t / "raw.json"
             err = io.StringIO()
             with contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
-                self.assertEqual(tf.main(["--input", str(other), "--out", str(out)]), 2)
-                self.assertEqual(tf.main(["--input", str(PLANS / "rag.json"), "--out", str(out), "--var", "a=b"]), 2)
-                self.assertEqual(tf.main(["--input", str(PLANS / "rag.json"), "--out", str(out), "--redact-var",
+                self.assertEqual(adapt_tf.main(["--input", str(other), "--out", str(out)]), 2)
+                self.assertEqual(adapt_tf.main(["--input", str(PLANS / "rag.json"), "--out", str(out), "--var", "a=b"]), 2)
+                self.assertEqual(adapt_tf.main(["--input", str(PLANS / "rag.json"), "--out", str(out), "--redact-var",
                                           "a"]), 2)
-                self.assertEqual(tf.main(["--input", str(FIXTURES / "rag"), "--plan", str(state), "--out",
+                self.assertEqual(adapt_tf.main(["--input", str(FIXTURES / "rag"), "--plan", str(state), "--out",
                                           str(out)]), 2)
             self.assertIn("state", err.getvalue())
 
@@ -151,12 +152,12 @@ class PlanFixtureTest(unittest.TestCase):
     def test_all_plans_produce_valid_raw(self):
         for name in list(CASES) + ["edge"]:
             with self.subTest(name):
-                raw = tf.build_from_plan(PLANS / f"{name}.json", WS)
+                raw = tf_build.build_from_plan(PLANS / f"{name}.json", WS)
                 assert_valid(self, raw)
                 self.assertEqual(raw["root"], f"fixtures/tf-plan/{name}.json")
                 self.assertEqual({r["file"] for r in raw["resources"]}, {f"{name}.json"})
                 folder = EDGE if name == "edge" else FIXTURES / CASES[name][0]
-                comb = tf.build_raw(folder, WS, plan=PLANS / f"{name}.json")
+                comb = tf_build.build_raw(folder, WS, plan=PLANS / f"{name}.json")
                 assert_valid(self, comb)
                 self.assertEqual(comb["root"], folder.relative_to(WS).as_posix())
 
@@ -287,14 +288,14 @@ class EdgeCaseTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.plan = tf.build_from_plan(EDGE_PLAN, WS)
-        cls.comb = tf.build_raw(EDGE, WS, plan=EDGE_PLAN)
+        cls.plan = tf_build.build_from_plan(EDGE_PLAN, WS)
+        cls.comb = tf_build.build_raw(EDGE, WS, plan=EDGE_PLAN)
 
     def test_sensitive_values_are_not_written(self):
         # plan JSON の variables と configuration には sensitive の変数の値が平文で入るが、raw IR には出さない
         self.assertIn("not-a-real-password", EDGE_PLAN.read_text(encoding="utf-8"))
         for raw in (self.plan, self.comb):
-            self.assertNotIn("not-a-real-password", tf.dump(raw))
+            self.assertNotIn("not-a-real-password", tf_build.dump(raw))
             self.assertEqual(raw["evaluation"]["vars"]["db_password"], {"source": "plan", "hidden": "sensitive"})
         self.assertEqual(res_of(self.plan, "aws_ssm_parameter.p")["props"]["value"], {"$unknown": P.SENSITIVE_REASON})
         self.assertIn(("aws_ssm_parameter.p", "TF-PLAN-SENSITIVE"),
@@ -345,7 +346,7 @@ class EdgeCaseTest(unittest.TestCase):
         # .tf で読まない関数（file()）の値は plan の値で埋め、その診断を消す
         self.assertEqual(res_of(c, "aws_sqs_queue.from_file")["props"]["name"], "edge-from-file")
         self.assertNotIn("aws_sqs_queue.from_file", [d["address"] for d in c["diagnostics"]])
-        alone = tf.build_raw(EDGE, WS)
+        alone = tf_build.build_raw(EDGE, WS)
         self.assertIn("$unknown", res_of(alone, "aws_sqs_queue.from_file")["props"]["name"])
         # .tf.json のブロックは plan から取り、file は .tf.json（.tf だけでは読まない）
         self.assertNotIn("aws_sqs_queue.json_q", [r["address"] for r in alone["resources"]])
@@ -362,7 +363,7 @@ class EdgeCaseTest(unittest.TestCase):
         # .tf で count が決まらなかった（×N の [*]）ブロックは、plan の address に置き換える（file は .tf のもの）。
         # .tf だけの raw IR（変数を渡さない three-tier）に plan を直接合わせて確かめる
         root = FIXTURES / "three-tier"
-        alone = tf.build_raw(root, WS)
+        alone = tf_build.build_raw(root, WS)
         self.assertIn("aws_instance.bastion[*]", [r["address"] for r in alone["resources"]])
         c = P.combine(alone, PLANS / "three-tier.dev.json", root, WS)
         assert_valid(self, c)
@@ -376,7 +377,7 @@ class EdgeCaseTest(unittest.TestCase):
     def test_redact_var_is_not_filled_from_plan(self):
         # --redact-var で伏せた変数の値を、plan の値で埋め戻さない
         root = FIXTURES / "three-tier"
-        c = tf.build_raw(root, WS, plan=PLANS / "three-tier.dev.json", redact_vars=["project"])
+        c = tf_build.build_raw(root, WS, plan=PLANS / "three-tier.dev.json", redact_vars=["project"])
         self.assertNotIn("demo", json.dumps(res_of(c, "aws_lb.app")["props"]))
         self.assertEqual(c["evaluation"]["vars"]["project"], {"source": "plan", "hidden": "redact-var"})
 
@@ -386,12 +387,12 @@ class CliTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "raw.json"
             with contextlib.redirect_stdout(io.StringIO()):
-                self.assertEqual(tf.main(["--input", str(PLANS / "vpc-endpoints.json"), "--out", str(out),
+                self.assertEqual(adapt_tf.main(["--input", str(PLANS / "vpc-endpoints.json"), "--out", str(out),
                                           "--root-base", str(WS)]), 0)
             self.assertEqual(v.validate_file(out, False, set()), [])
             self.assertEqual(json.loads(out.read_text(encoding="utf-8"))["root"], "fixtures/tf-plan/vpc-endpoints.json")
             with contextlib.redirect_stdout(io.StringIO()):
-                self.assertEqual(tf.main(["--input", str(FIXTURES / "vpc-endpoints"), "--plan",
+                self.assertEqual(adapt_tf.main(["--input", str(FIXTURES / "vpc-endpoints"), "--plan",
                                           str(PLANS / "vpc-endpoints.json"), "--out", str(out),
                                           "--root-base", str(WS)]), 0)
             self.assertEqual(v.validate_file(out, False, set()), [])
@@ -457,7 +458,7 @@ def write_files(folder: Path, files: dict) -> Path:
 
 
 def plan_only(tmp: Path, plan: dict, name="plan.json") -> dict:
-    return tf.build_from_plan(write_json(tmp / name, plan), tmp)
+    return tf_build.build_from_plan(write_json(tmp / name, plan), tmp)
 
 
 def props_of(raw: dict, address: str) -> dict:
@@ -481,7 +482,7 @@ class TempTestCase(unittest.TestCase):
     def run_main(self, args: list) -> tuple:
         out, err = io.StringIO(), io.StringIO()
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-            code = tf.main(args)
+            code = adapt_tf.main(args)
         return code, out.getvalue(), err.getvalue()
 
 
@@ -531,9 +532,9 @@ resource "aws_x" "c" {
     def test_variable_not_declared_sensitive_does_not_leak(self):
         folder = write_files(self.tmp / "tf", {"main.tf": self.TF})
         plan = write_json(self.tmp / "plan.json", self.plan())
-        raw = tf.build_raw(folder, self.tmp, plan=plan)
+        raw = tf_build.build_raw(folder, self.tmp, plan=plan)
         assert_valid(self, raw)
-        text = tf.dump(raw)
+        text = tf_build.dump(raw)
         self.assertNotIn(SECRET, text)
         self.assertNotIn(SECRET2, text)
         main = props_of(raw, "aws_db_instance.main")
@@ -568,7 +569,7 @@ resource "aws_db_instance" "main" { password = aws_sqs_queue.q.arn }
              rc("aws_db_instance.main", {"password": None}, {"password": True}, {"password": True})],
             [cfg("aws_sqs_queue.q", {"name": const("q")}),
              cfg("aws_db_instance.main", {"password": refs("aws_sqs_queue.q.arn", "aws_sqs_queue.q")})])
-        raw = tf.build_raw(folder, self.tmp, plan=write_json(self.tmp / "p.json", plan))
+        raw = tf_build.build_raw(folder, self.tmp, plan=write_json(self.tmp / "p.json", plan))
         self.assertEqual(props_of(raw, "aws_db_instance.main")["password"], {"$res": "aws_sqs_queue.q", "attr": "arn"})
 
     def test_json_fill_under_sensitive_attribute(self):
@@ -599,13 +600,13 @@ resource "aws_secretsmanager_secret_version" "w" {
             [cfg("aws_db_instance.main", {"identifier": const("x"), "password": {}}),
              cfg("aws_secretsmanager_secret_version.v", {"secret_id": const("s"), "secret_string": {}}),
              cfg("aws_secretsmanager_secret_version.w", {"secret_id": const("s"), "secret_string": {}})])
-        raw = tf.build_raw(folder, self.tmp, plan=write_json(self.tmp / "p.json", plan))
-        self.assertNotIn("FILE-SECRET-LEAK", tf.dump(raw))
-        self.assertNotIn("ok-value", tf.dump(raw))  # sensitive + unknown の位置も、JSON の中は埋めない
+        raw = tf_build.build_raw(folder, self.tmp, plan=write_json(self.tmp / "p.json", plan))
+        self.assertNotIn("FILE-SECRET-LEAK", tf_build.dump(raw))
+        self.assertNotIn("ok-value", tf_build.dump(raw))  # sensitive + unknown の位置も、JSON の中は埋めない
         self.assertEqual(props_of(raw, "aws_secretsmanager_secret_version.v")["secret_string"], unk())
         # 比べるために: sensitive でなければ、同じ形の JSON の中を plan の値で埋める
         plan["resource_changes"][1]["change"]["after_sensitive"] = {}
-        raw = tf.build_raw(folder, self.tmp, plan=write_json(self.tmp / "p2.json", plan))
+        raw = tf_build.build_raw(folder, self.tmp, plan=write_json(self.tmp / "p2.json", plan))
         self.assertEqual(props_of(raw, "aws_secretsmanager_secret_version.v")["secret_string"],
                          {"$json": {"pw": "FILE-SECRET-LEAK"}})
 
@@ -639,7 +640,7 @@ class SensitivePlanOnlyTest(TempTestCase):
     def one(self, after, sens, exprs, unknown=None, **kw):
         plan = mkplan([rc("aws_x.a", after, sens, unknown)], [cfg("aws_x.a", exprs)], **kw)
         raw = plan_only(self.tmp, plan)
-        self.assertNotIn(SECRET, tf.dump(raw))
+        self.assertNotIn(SECRET, tf_build.dump(raw))
         assert_valid(self, raw)
         return props_of(raw, "aws_x.a"), raw
 
@@ -698,8 +699,8 @@ class SensitivePlanOnlyTest(TempTestCase):
                                                               "tags": const({"k": SECRET2, "j": "v"})})],
                       prior=prior)
         raw = plan_only(self.tmp, plan)
-        self.assertNotIn(SECRET, tf.dump(raw))
-        self.assertNotIn(SECRET2, tf.dump(raw))
+        self.assertNotIn(SECRET, tf_build.dump(raw))
+        self.assertNotIn(SECRET2, tf_build.dump(raw))
         self.assertEqual(props_of(raw, "data.aws_ssm_parameter.p"),
                          {"name": "/n", "value": unk(), "tags": {"k": unk(), "j": "v"}})
 
@@ -708,7 +709,7 @@ class SensitivePlanOnlyTest(TempTestCase):
             {"address": "aws_y.b", "mode": "managed", "type": "aws_y", "name": "b", "values": {"k": SECRET},
              "sensitive_values": {"k": True}}]}}
         raw = plan_only(self.tmp, mkplan([], [cfg("aws_y.b", {"k": const(SECRET)})], planned=planned))
-        self.assertNotIn(SECRET, tf.dump(raw))
+        self.assertNotIn(SECRET, tf_build.dump(raw))
         self.assertEqual(props_of(raw, "aws_y.b"), {"k": unk()})
 
     def test_sensitive_target_is_not_used_to_build_references(self):
@@ -733,7 +734,7 @@ class SensitivePlanOnlyTest(TempTestCase):
     def test_no_pseudo_in_plan_only_output(self):
         for name in list(CASES) + ["edge"]:
             with self.subTest(name):
-                text = tf.dump(tf.build_from_plan(PLANS / f"{name}.json", WS))
+                text = tf_build.dump(tf_build.build_from_plan(PLANS / f"{name}.json", WS))
                 self.assertNotIn("$pseudo", text)
                 self.assertNotIn('"$az"', text)
 
@@ -770,7 +771,7 @@ resource "aws_sqs_queue" "gone" { name = "gone" }
             [rc("aws_sqs_queue.a", {"name": "a"}), rc("aws_sqs_queue.b", {"name": "b"})],
             [cfg("aws_sqs_queue.a", {"name": const("a")}),
              cfg("aws_sqs_queue.b", {"name": refs("aws_sqs_queue.a")})])  # .tf には b から a への参照が無い
-        raw = tf.build_raw(folder, self.tmp, plan=write_json(self.tmp / "p.json", plan))
+        raw = tf_build.build_raw(folder, self.tmp, plan=write_json(self.tmp / "p.json", plan))
         self.assertEqual([r["address"] for r in raw["resources"]], ["aws_sqs_queue.a", "aws_sqs_queue.b"])
         np = [d for d in raw["diagnostics"] if d["code"] == "TF-PLAN-NOT-PLANNED"]
         self.assertEqual([(d["level"], d["address"]) for d in np], [("info", "")])
@@ -787,7 +788,7 @@ resource "aws_sqs_queue" "other3" { name = "o3" }
 '''})
         plan = mkplan([rc(f"aws_sns_topic.t{i}", {"name": f"t{i}"}) for i in range(3)],
                       [cfg(f"aws_sns_topic.t{i}", {"name": const(f"t{i}")}) for i in range(3)])
-        raw = tf.build_raw(folder, self.tmp, plan=write_json(self.tmp / "p.json", plan))
+        raw = tf_build.build_raw(folder, self.tmp, plan=write_json(self.tmp / "p.json", plan))
         d = [d for d in raw["diagnostics"] if d["code"] == "TF-PLAN-MISMATCH"]
         self.assertEqual([x["level"] for x in d], ["warn"])
         self.assertIn("3 of 3", d[0]["message"])
@@ -798,7 +799,7 @@ resource "aws_sqs_queue" "other3" { name = "o3" }
         for name in list(CASES) + ["edge"]:
             with self.subTest(name):
                 if name == "edge":
-                    raw = tf.build_raw(EDGE, WS, plan=EDGE_PLAN)
+                    raw = tf_build.build_raw(EDGE, WS, plan=EDGE_PLAN)
                 else:
                     raw = combined_raw(name)
                 self.assertEqual(diag_codes(raw, "TF-PLAN-MISMATCH"), [])
@@ -820,7 +821,7 @@ resource "aws_sqs_queue" "other3" { name = "o3" }
                          [("warn", "")])
         # .tf と合わせても同じ
         folder = write_files(self.tmp / "tf", {"main.tf": 'resource "aws_sqs_queue" "q" { name = "q" }\n'})
-        comb = tf.build_raw(folder, self.tmp, plan=write_json(self.tmp / "d.json", plan))
+        comb = tf_build.build_raw(folder, self.tmp, plan=write_json(self.tmp / "d.json", plan))
         self.assertEqual([(r["address"], r["enabled"]) for r in comb["resources"]], [("aws_sqs_queue.q", False)])
         self.assertEqual(len(diag_codes(comb, "TF-PLAN-DESTROY")), 1)
 
@@ -851,14 +852,14 @@ resource "aws_sqs_queue" "other3" { name = "o3" }
             return real(path, start_)
 
         with mock.patch.object(os.path, "relpath", other_drive):
-            only = tf.build_from_plan(plan, base)
-            comb = tf.build_raw(folder, base, plan=plan)
-            tf_only = tf.build_raw(folder, base)
+            only = tf_build.build_from_plan(plan, base)
+            comb = tf_build.build_raw(folder, base, plan=plan)
+            tf_only = tf_build.build_raw(folder, base)
         self.assertEqual((only["root"], comb["root"], tf_only["root"]), ("p.json", "tf-folder", "tf-folder"))
         for raw in (only, comb, tf_only):
             self.assertEqual(diag_codes(raw, "TF-ROOT-OTHER-DRIVE"), [("", "", "info")])
-            self.assertNotIn(str(self.tmp), tf.dump(raw))
-            self.assertNotIn(self.tmp.as_posix(), tf.dump(raw))
+            self.assertNotIn(str(self.tmp), tf_build.dump(raw))
+            self.assertNotIn(self.tmp.as_posix(), tf_build.dump(raw))
             assert_valid(self, raw)
 
     def test_tfjson_outside_the_input_folder_is_not_read(self):
@@ -868,7 +869,7 @@ resource "aws_sqs_queue" "other3" { name = "o3" }
         plan = mkplan([rc("module.m.aws_sqs_queue.hidden", {"name": "h"}, module_address="module.m")],
                       [], root_extra={"module_calls": {"m": {"source": "../outer", "module": {"resources": [
                           cfg("aws_sqs_queue.hidden", {"name": const("h")})]}}}})
-        raw = tf.build_raw(folder, self.tmp, plan=write_json(self.tmp / "p.json", plan))
+        raw = tf_build.build_raw(folder, self.tmp, plan=write_json(self.tmp / "p.json", plan))
         hidden = res_of(raw, "module.m.aws_sqs_queue.hidden")
         self.assertNotEqual(hidden["file"], "../outer/x.tf.json")
         self.assertNotIn("..", hidden["file"])
@@ -1011,7 +1012,7 @@ class HostilePlanTest(TempTestCase):
             with self.subTest(value=value):
                 plan = json.loads(json.dumps(base))
                 plan["variables"]["public_subnets"] = {"value": value}
-                raw = tf.build_raw(FIXTURES / "three-tier-modules", WS, plan=write_json(self.tmp / "m.json", plan))
+                raw = tf_build.build_raw(FIXTURES / "three-tier-modules", WS, plan=write_json(self.tmp / "m.json", plan))
                 assert_valid(self, raw)
                 self.assertTrue([r for r in raw["references"] if r["fn"] == "depends_on"])
 
@@ -1030,7 +1031,7 @@ class PlanPerformanceTest(TempTestCase):
                                depends_on=[prev]))
         f = write_json(self.tmp / "perf.json", mkplan(changes, configs))
         t = time.perf_counter()
-        raw = tf.build_from_plan(f, self.tmp)
+        raw = tf_build.build_from_plan(f, self.tmp)
         elapsed = time.perf_counter() - t
         self.assertEqual(len(raw["resources"]), n)
         self.assertGreaterEqual(len(raw["references"]), n)
@@ -1045,7 +1046,7 @@ class SensitiveEdgeCasesTest(TempTestCase):
 
     def assert_clean(self, raw):
         assert_valid(self, raw)
-        text = tf.dump(raw)
+        text = tf_build.dump(raw)
         self.assertNotIn(self.LEAK, text)
         self.assertNotIn(self.LEAK2, text)
 
@@ -1083,7 +1084,7 @@ resource "aws_x" "lit" { value = "ZZ-LEAK-2" }
                 only = plan_only(self.tmp, plan)
                 self.assert_clean(only)
                 self.assertEqual(props_of(only, "aws_x.lit"), {"value": unk()})
-                comb = tf.build_raw(folder, self.tmp, plan=write_json(self.tmp / "d.json", plan))
+                comb = tf_build.build_raw(folder, self.tmp, plan=write_json(self.tmp / "d.json", plan))
                 self.assert_clean(comb)
                 self.assertEqual([(r["address"], r["enabled"]) for r in comb["resources"]],
                                  [("aws_x.lit", False), ("aws_x.s", False)])
@@ -1113,8 +1114,8 @@ resource "aws_x" "off" {
                            count_expression=refs("local.zero"))],
                       variables={"pw": {"value": self.LEAK}})
         only = plan_only(self.tmp, plan)
-        self.assertNotIn(self.LEAK, tf.dump(only))
-        comb = tf.build_raw(folder, self.tmp, plan=write_json(self.tmp / "o.json", plan))
+        self.assertNotIn(self.LEAK, tf_build.dump(only))
+        comb = tf_build.build_raw(folder, self.tmp, plan=write_json(self.tmp / "o.json", plan))
         self.assert_clean(comb)
         r = res_of(comb, "aws_x.off")
         self.assertFalse(r["enabled"])
@@ -1131,12 +1132,12 @@ variable "pw" { type = string }
 resource "aws_x" "a" { value = lookup(var.m, var.pw) }
 resource "aws_x" "b" { value = parseint(var.pw, 10) }
 '''})
-        alone = tf.build_raw(folder, self.tmp, var_args=[("var", f"pw={self.LEAK}"), ("var", 'm={k="v"}')])
-        self.assertIn(self.LEAK, tf.dump(alone))  # 前提: .tf だけだと誤りの文に値が入る
+        alone = tf_build.build_raw(folder, self.tmp, var_args=[("var", f"pw={self.LEAK}"), ("var", 'm={k="v"}')])
+        self.assertIn(self.LEAK, tf_build.dump(alone))  # 前提: .tf だけだと誤りの文に値が入る
         plan = mkplan([rc("aws_x.a", {"value": "q"}, {"value": True}), rc("aws_x.b", {"value": 3}, {"value": True})],
                       [cfg("aws_x.a", {"value": refs("var.m", "var.pw")}), cfg("aws_x.b", {"value": refs("var.pw")})],
                       variables={"m": {"value": {"k": "v"}}, "pw": {"value": self.LEAK}})
-        comb = tf.build_raw(folder, self.tmp, plan=write_json(self.tmp / "p.json", plan))
+        comb = tf_build.build_raw(folder, self.tmp, plan=write_json(self.tmp / "p.json", plan))
         self.assert_clean(comb)
         self.assertEqual([props_of(comb, a) for a in ("aws_x.a", "aws_x.b")], [{"value": unk()}] * 2)
         self.assertEqual(diag_codes(comb, "TF-EVAL-ERROR"), [])
@@ -1166,7 +1167,7 @@ resource "aws_x" "a" {
         only = plan_only(self.tmp, plan)
         self.assert_clean(only)
         self.assertEqual(props_of(only, "aws_x.a"), {"value": unk(), "name": unk(), "blk": unk()})
-        comb = tf.build_raw(folder, self.tmp, plan=write_json(self.tmp / "t.json", plan))
+        comb = tf_build.build_raw(folder, self.tmp, plan=write_json(self.tmp / "t.json", plan))
         self.assert_clean(comb)
         self.assertEqual(props_of(comb, "aws_x.a"), {"value": unk(), "name": unk(), "blk": unk()})
         self.assertIs(P.Inst("a.b", "managed", "a", {"k": "v"}, {}, True).value_of("k"), P.ABSENT)

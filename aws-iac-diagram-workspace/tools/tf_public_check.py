@@ -55,7 +55,8 @@ for p in (str(SCRIPTS), str(TOOLS)):
 
 import survey_public  # noqa: E402
 import validate_ir  # noqa: E402
-from adapters import cfn, tf  # noqa: E402
+from adapters import cfn  # noqa: E402
+from aws_iac_diagram.adapters.terraform import build as tf_build  # noqa: E402
 
 
 # --------------------------------------------------------------------------------------------------------------
@@ -77,7 +78,7 @@ def check_folder(rel: str) -> dict:
     """1フォルダを TF アダプタで読み、結果の要約を返す（ProcessPoolExecutor から呼べるように top-level に置く）。"""
     out = {"folder": rel, "resources": 0, "levels": {}, "problems": []}
     try:
-        raw = tf.build_raw(PUB / rel, WS)
+        raw = tf_build.build_raw(PUB / rel, WS)
     except Exception as e:  # noqa: BLE001
         out["problems"].append(f"exception {type(e).__name__}: {e}")
         return out
@@ -86,7 +87,7 @@ def check_folder(rel: str) -> dict:
     # validate_ir.py <ファイル> と同じ検査（スキーマ、参照の整合、出力の形 C5）を、書き出したファイルにかける
     with tempfile.TemporaryDirectory() as tmp:
         f = Path(tmp) / "raw.json"
-        f.write_text(tf.dump(raw), encoding="utf-8", newline="\n")
+        f.write_text(tf_build.dump(raw), encoding="utf-8", newline="\n")
         errs = validate_ir.validate_file(f, False, set())
     if errs:
         out["problems"].append(f"raw IR is invalid: {errs[:3]}")
@@ -259,7 +260,7 @@ def cfn_types(raw: dict) -> Counter:
 
 def compare_pair(pair_id: str) -> dict:
     """対の TF 版と SAM 版を読み、型の多重集合の違いを返す。"""
-    tf_raw = tf.build_raw(PUB / survey_public.SAMPLES[pair_id][1][0], WS)
+    tf_raw = tf_build.build_raw(PUB / survey_public.SAMPLES[pair_id][1][0], WS)
     cfn_raw = cfn.build_raw(PUB / survey_public.SAMPLES[PAIRS[pair_id]][1][0], WS)
     a, b = tf_types(tf_raw), cfn_types(cfn_raw)
     return {

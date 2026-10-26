@@ -36,6 +36,8 @@ ORIGINAL_STDOUT_ENCODING = getattr(sys.stdout, "encoding", None)
 REQUIRED_FILES = [
     "SKILL.md",
     "scripts/aws_iac_diagram/platform/drawio_cli.py",
+    "scripts/adapt_tf.py",  # Terraform アダプタの入口と、その本体（欠けた取り込みを実行前に見つける）
+    "scripts/aws_iac_diagram/adapters/terraform/build.py",
     "references/icons/catalog.json",
     "references/module-summaries.md",  # TF アダプタのレジストリモジュールの要約表（無いと黒箱になり、図が欠ける）
     "references/ir.schema.json",

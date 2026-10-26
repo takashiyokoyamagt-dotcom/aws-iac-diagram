@@ -66,11 +66,6 @@ MAX_LINES = 1500
 # 1,500 行を超えているファイルの免除（scripts/ からの相対パス）。R2 で空にする。
 # ceiling = 免除を決めた日の行数。これを超えて増えたら失敗する（免除を口実に大きくしない）。
 EXEMPT: dict[str, dict] = {
-    "adapters/tf.py": {
-        "since": "2026-10-26", "ceiling": 2613, "remove_in": "R2",
-        "reason": "TF アダプタの入口と本体が 1 ファイル（2613 行）。R2 で adapt_tf.py（入口）と adapters/terraform/ の"
-                  "モジュール（hcl・参照・evaluator・modules・plan）に分ける",
-    },
     "aws_iac_diagram/adapters/terraform/plan/reader.py": {
         "since": "2026-10-26", "ceiling": 1558, "remove_in": "R2",
         "reason": "plan JSON の読み込みと .tf との結合が 1 ファイル（1558 行）。R2 で adapters/terraform/plan/ に分ける",
@@ -330,8 +325,8 @@ class DependencyDirectionTest(unittest.TestCase):
         self.assertEqual(list(ENTRY_IMPORT_ALLOW), [("maintenance/check_icons.py", "build_icon_catalog")])
 
     def test_mutation_sibling_entry_imports_fail(self):
-        for relpath, line, expect in (("adapters/cfn.py", "import tf", "入口のスクリプト tf"),
-                                      ("adapters/tf.py", "from cfn import build_raw", "入口のスクリプト cfn"),
+        for relpath, line, expect in (("adapters/cfn.py", "import adapt_tf", "入口のスクリプト adapt_tf"),
+                                      ("adapt_tf.py", "from cfn import build_raw", "入口のスクリプト cfn"),
                                       ("maintenance/build_icon_catalog.py", "import check_icons",
                                        "入口のスクリプト check_icons"),
                                       ("maintenance/check_icons.py", "import doctor",
@@ -339,7 +334,7 @@ class DependencyDirectionTest(unittest.TestCase):
             s = self.copy_tree()
             problems = self.inject(s, relpath, line)
             self.assertTrue(any(expect in p and p.startswith(relpath) for p in problems), (relpath, problems))
-        self.assertTrue({"tf", "cfn", "check_icons", "build_icon_catalog", "doctor"} <= entry_names(SCRIPTS))
+        self.assertTrue({"adapt_tf", "cfn", "check_icons", "build_icon_catalog", "doctor"} <= entry_names(SCRIPTS))
 
     def test_every_package_directory_is_a_known_layer(self):
         pkg = SCRIPTS / PACKAGE
@@ -412,10 +407,10 @@ class DependencyDirectionTest(unittest.TestCase):
 
     def test_mutation_relative_import_is_resolved(self):
         s = self.copy_tree()
-        problems = self.inject(s, "aws_iac_diagram/adapters/terraform/modules/summaries.py", "from ....emit import something")
+        problems = self.inject(s, "aws_iac_diagram/adapters/terraform/refs.py", "from ...emit import something")
         self.assertTrue(any("層 adapters/terraform は層 emit" in p for p in problems), problems)
         s2 = self.copy_tree()
-        problems = self.inject(s2, "aws_iac_diagram/adapters/terraform/modules/summaries.py", "from ... import cloudformation")
+        problems = self.inject(s2, "aws_iac_diagram/adapters/terraform/refs.py", "from .. import cloudformation")
         self.assertTrue(any("層 adapters/terraform は層 adapters/cloudformation" in p for p in problems), problems)
 
     def test_mutation_adapters_importing_emit_layout_normalize_validate_fails(self):
@@ -435,8 +430,11 @@ class DependencyDirectionTest(unittest.TestCase):
         problems = self.inject(s, "aws_iac_diagram/core/ir_raw.py", "import validate_ir")
         self.assertTrue(any("入口のスクリプト validate_ir" in p for p in problems), problems)
         s = self.copy_tree()
-        problems = self.inject(s, "aws_iac_diagram/adapters/terraform/plan/reader.py", "from adapters import tf")
+        problems = self.inject(s, "aws_iac_diagram/adapters/terraform/plan/reader.py", "from adapters import cfn")
         self.assertTrue(any("入口のスクリプト adapters" in p for p in problems), problems)
+        s = self.copy_tree()
+        problems = self.inject(s, "aws_iac_diagram/adapters/terraform/model.py", "import adapt_tf")
+        self.assertTrue(any("入口のスクリプト adapt_tf" in p for p in problems), problems)
 
     def test_mutation_entry_importing_entry_fails_but_entry_importing_layers_is_fine(self):
         s = self.copy_tree()

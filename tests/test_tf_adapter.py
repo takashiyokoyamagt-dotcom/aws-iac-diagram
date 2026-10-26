@@ -25,7 +25,10 @@ PUBLIC = WS / "fixtures" / "public"
 sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(WS / "tools"))
 import validate_ir as v  # noqa: E402
-from adapters import tf  # noqa: E402
+import adapt_tf  # noqa: E402
+from aws_iac_diagram.adapters.terraform import build as tf_build, hcl, model, module_eval, module_expand, module_emit, module_load  # noqa: E402
+from aws_iac_diagram.adapters.terraform.evaluator import functions as E  # noqa: E402
+from aws_iac_diagram.adapters.terraform.modules import summaries as M  # noqa: E402
 from aws_iac_diagram.core import ir_raw  # noqa: E402
 
 
@@ -41,7 +44,7 @@ def build(files: dict[str, str] | str) -> dict:
         files = {"main.tf": files}
     with tempfile.TemporaryDirectory() as tmp:
         write_files(Path(tmp), files)
-        return tf.build_raw(Path(tmp), Path(tmp))
+        return tf_build.build_raw(Path(tmp), Path(tmp))
 
 
 def res_of(raw: dict, address: str) -> dict:
@@ -307,21 +310,21 @@ class ValueTest(unittest.TestCase):
         '''}
         with tempfile.TemporaryDirectory() as tmp:
             write_files(Path(tmp), files)
-            dflt = tf.build_raw(Path(tmp), Path(tmp))
-            prod = tf.build_raw(Path(tmp), Path(tmp), workspace="prod")
+            dflt = tf_build.build_raw(Path(tmp), Path(tmp))
+            prod = tf_build.build_raw(Path(tmp), Path(tmp), workspace="prod")
             out = Path(tmp) / "out" / "raw.json"
-            cli = subprocess.run([sys.executable, str(SCRIPTS / "adapters" / "tf.py"), "--input", tmp, "--out", str(out),
+            cli = subprocess.run([sys.executable, str(SCRIPTS / "adapt_tf.py"), "--input", tmp, "--out", str(out),
                                   "--root-base", tmp, "--workspace", "prod"], capture_output=True)
             self.assertEqual(cli.returncode, 0, cli.stderr)
-            self.assertEqual(out.read_text(encoding="utf-8"), tf.dump(prod))
-            plan_only = subprocess.run([sys.executable, str(SCRIPTS / "adapters" / "tf.py"), "--input",
+            self.assertEqual(out.read_text(encoding="utf-8"), tf_build.dump(prod))
+            plan_only = subprocess.run([sys.executable, str(SCRIPTS / "adapt_tf.py"), "--input",
                                         str(WS / "fixtures" / "tf-plan" / "three-tier.dev.json"), "--out",
                                         str(Path(tmp) / "x.json"), "--workspace", "prod"], capture_output=True)
             self.assertEqual(plan_only.returncode, 2)
             self.assertIn("--workspace", plan_only.stderr.decode("utf-8", "replace"))
             for bad in ("", "a b", 'a"b', "a;b", "../x"):  # Terraform のワークスペース名として使えない名前は exit 2
                 with self.subTest(workspace=bad):
-                    r = subprocess.run([sys.executable, str(SCRIPTS / "adapters" / "tf.py"), "--input", tmp, "--out",
+                    r = subprocess.run([sys.executable, str(SCRIPTS / "adapt_tf.py"), "--input", tmp, "--out",
                                         str(Path(tmp) / "bad.json"), "--root-base", tmp, "--workspace", bad],
                                        capture_output=True)
                     self.assertEqual(r.returncode, 2, bad)
@@ -674,7 +677,7 @@ class ModuleTest(unittest.TestCase):
         """}
         raw = build(files)
         assert_valid(self, raw)
-        text = tf.dump(raw)
+        text = tf_build.dump(raw)
         for secret in ("root-secret-1", "child-secret-2", "output-secret-3"):
             self.assertNotIn(secret, text)
         db = props(raw, "module.db.aws_db_instance.this")
@@ -720,13 +723,13 @@ class ModuleTest(unittest.TestCase):
         # 深さの上限
         deep = {"main.tf": 'module "m" {\n  source = "./m"\n}\n'}
         path = "m"
-        for _ in range(tf.MAX_MODULE_DEPTH + 1):
+        for _ in range(module_expand.MAX_MODULE_DEPTH + 1):
             deep[f"{path}/main.tf"] = 'resource "aws_sqs_queue" "q" {}\nmodule "m" {\n  source = "./m"\n}\n'
             path += "/m"
         deep[f"{path}/main.tf"] = 'resource "aws_sqs_queue" "q" {}\n'
         raw = build(deep)
         assert_valid(self, raw)
-        self.assertEqual(sum(1 for r in raw["resources"] if r["type"] == "aws_sqs_queue"), tf.MAX_MODULE_DEPTH)
+        self.assertEqual(sum(1 for r in raw["resources"] if r["type"] == "aws_sqs_queue"), module_expand.MAX_MODULE_DEPTH)
         self.assertEqual([d["code"] for d in raw["diagnostics"] if d["code"].startswith("TF-MODULE")], ["TF-MODULE-DEPTH"])
 
     def test_providers_and_region_in_modules(self):
@@ -857,7 +860,7 @@ class ModuleTest(unittest.TestCase):
 
 def build_module_call(source: str, body: str, version: str | None = None) -> dict:
     """モジュールの呼び出し1つのルートを作って読む（source はルートからの相対パスかレジストリの source）。"""
-    local = not tf.M.registry_key(source) and not source.startswith(".")
+    local = not M.registry_key(source) and not source.startswith(".")
     # ルートからの相対パスで書くので、一時フォルダは source と同じドライブに置く
     # （Windows の CI はリポジトリが D:、既定の一時フォルダが C: で、相対パスが作れない）
     with tempfile.TemporaryDirectory(dir=WS if local else None, prefix="tmp-") as tmp:
@@ -866,14 +869,14 @@ def build_module_call(source: str, body: str, version: str | None = None) -> dic
         ver = f'  version = "{version}"\n' if version else ""
         Path(tmp, "main.tf").write_text(f'module "m" {{\n  source = "{source}"\n{ver}{body}\n}}\n'
                                         'data "aws_availability_zones" "available" {}\n', encoding="utf-8")
-        return tf.build_raw(Path(tmp), Path(tmp))
+        return tf_build.build_raw(Path(tmp), Path(tmp))
 
 
 class SummaryTest(unittest.TestCase):
     """手順3: A5 の要約表（references/module-summaries.md）、版の選び方、黒箱、H-IAM。"""
 
     def test_summary_file(self):
-        summaries, iam = tf.M.load()
+        summaries, iam = M.load()
         self.assertEqual(sorted(summaries), sorted([
             "terraform-aws-modules/vpc/aws", "terraform-aws-modules/alb/aws", "terraform-aws-modules/rds/aws",
             "terraform-aws-modules/rds/aws//modules/db_instance", "terraform-aws-modules/rds/aws//modules/db_subnet_group",
@@ -887,8 +890,8 @@ class SummaryTest(unittest.TestCase):
         for key, items in summaries.items():
             for s in items:
                 with self.subTest(key):
-                    tree = tf.summary_tree(s)  # HCL として読める
-                    mod = tf.ModuleEval(tf.Context(Path(".")), None)
+                    tree = module_load.summary_tree(s)  # HCL として読める
+                    mod = module_eval.ModuleEval(model.Context(Path(".")), None)
                     mod.summary = s
                     mod.collect(tree, "main.tf")
                     self.assertTrue(mod.outputs)
@@ -901,7 +904,7 @@ class SummaryTest(unittest.TestCase):
 
     def test_choose_version(self):
         def pick(source, version):
-            s, why, note = tf.M.choose(source, version)
+            s, why, note = M.choose(source, version)
             return (s.majors if s else None), why, note
         vpc = "terraform-aws-modules/vpc/aws"
         self.assertEqual(pick(vpc, "~> 6.7")[0], (6,))
@@ -925,7 +928,6 @@ class SummaryTest(unittest.TestCase):
         self.assertIsNone(pick(vpc, "~> foo")[0])
 
     def test_source_kinds_and_iam_only(self):
-        M = tf.M
         self.assertTrue(M.is_local("./modules/x") and M.is_local("../../") and not M.is_local("modules/x"))
         self.assertEqual(M.registry_key("terraform-aws-modules/iam/aws//modules/iam-role/"),
                          "terraform-aws-modules/iam/aws//modules/iam-role")
@@ -1204,16 +1206,16 @@ class SummaryTest(unittest.TestCase):
         """)))
 
     def test_path_present(self):
-        p = tf.path_present
+        p = module_emit.path_present
         v = {"a": {"rules": {"r": {"actions": [{"x": None}, {"y": 1}]}}}, "b": {"rules": {}}}
         self.assertTrue(p(v, ["*", "rules", "*", "actions", "*", "y"]))
         self.assertFalse(p(v, ["*", "rules", "*", "actions", "*", "x"]))
         self.assertFalse(p(v, ["*", "nothing"]))
-        self.assertIsNone(p(tf.E.Unknown("u"), ["*"]))  # 決まらず調べられない
-        self.assertIsNone(p({"a": tf.E.Unknown("u")}, ["*", "rules"]))
-        self.assertTrue(p({"a": tf.E.Unknown("u"), "b": {"rules": 1}}, ["*", "rules"]))
+        self.assertIsNone(p(E.Unknown("u"), ["*"]))  # 決まらず調べられない
+        self.assertIsNone(p({"a": E.Unknown("u")}, ["*", "rules"]))
+        self.assertTrue(p({"a": E.Unknown("u"), "b": {"rules": 1}}, ["*", "rules"]))
         self.assertFalse(p({"a": {"rules": {}}, "b": {"rules": []}}, ["*", "rules"]))  # 空の {}・[] は当てない
-        self.assertTrue(p({"a": {"rules": tf.E.Res("aws_x.y", "arn")}}, ["*", "rules"]))
+        self.assertTrue(p({"a": {"rules": E.Res("aws_x.y", "arn")}}, ["*", "rules"]))
 
     def test_vpc_summary_matches_source(self):
         src = PUBLIC / "terraform-aws-vpc"  # v6.7.3（P01）
@@ -1408,7 +1410,7 @@ class VariableTest(unittest.TestCase):
                  "extra.tfvars": 'd = "var-file"\ne = "var-file"\n'}
         with tempfile.TemporaryDirectory() as tmp:
             write_files(Path(tmp), files)
-            raw = tf.build_raw(Path(tmp), Path(tmp), var_args=[("file", str(Path(tmp) / "extra.tfvars")),
+            raw = tf_build.build_raw(Path(tmp), Path(tmp), var_args=[("file", str(Path(tmp) / "extra.tfvars")),
                                                                ("var", "e=cli")])
         assert_valid(self, raw)
         self.assertEqual(props(raw, "aws_s3_bucket.x")["tags"],
@@ -1428,18 +1430,18 @@ class VariableTest(unittest.TestCase):
             write_files(Path(tmp), files)
             out = Path(tmp) / "out.json"
             # --var-file と --var は指定した順に後のものが優先する。相対パスは作業中のフォルダ、無ければ --input から
-            code = tf.main(["--input", tmp, "--out", str(out), "--var", "a=cli", "--var-file", "env/one.tfvars",
+            code = adapt_tf.main(["--input", tmp, "--out", str(out), "--var", "a=cli", "--var-file", "env/one.tfvars",
                             "--var-file", "env/two.tfvars", "--root-base", tmp])
             self.assertEqual(code, 0)
             raw = json.loads(out.read_text(encoding="utf-8"))
             self.assertEqual(props(raw, "aws_s3_bucket.x")["tags"]["a"], "two")
             self.assertEqual(raw["evaluation"]["vars"]["a"], {"source": "env/two.tfvars"})
             self.assertEqual(raw["evaluation"]["var_files"], ["env/one.tfvars", "env/two.tfvars"])
-            tf.main(["--input", tmp, "--out", str(out), "--var-file", "env/one.tfvars", "--var", "a=cli"])
+            adapt_tf.main(["--input", tmp, "--out", str(out), "--var-file", "env/one.tfvars", "--var", "a=cli"])
             self.assertEqual(json.loads(out.read_text(encoding="utf-8"))["evaluation"]["vars"]["a"], {"source": "--var"})
             with contextlib.redirect_stderr(io.StringIO()) as err:
-                self.assertEqual(tf.main(["--input", tmp, "--out", str(out), "--var-file", "env/none.tfvars"]), 2)
-                self.assertEqual(tf.main(["--input", tmp, "--out", str(out), "--var", "novalue"]), 2)
+                self.assertEqual(adapt_tf.main(["--input", tmp, "--out", str(out), "--var-file", "env/none.tfvars"]), 2)
+                self.assertEqual(adapt_tf.main(["--input", tmp, "--out", str(out), "--var", "novalue"]), 2)
             self.assertIn("none.tfvars", err.getvalue())
 
     def test_types_and_unknown_values(self):
@@ -1494,7 +1496,7 @@ class VariableTest(unittest.TestCase):
               tags = { Name = var.name }
             }
             """})
-            raw = tf.build_raw(Path(tmp), Path(tmp), vars={}, var_args=[("var", 'azs=["a", "b", "c"]'),
+            raw = tf_build.build_raw(Path(tmp), Path(tmp), vars={}, var_args=[("var", 'azs=["a", "b", "c"]'),
                                                                         ("var", "name=a=b")])
         assert_valid(self, raw)
         self.assertEqual(len(raw["resources"]), 3)
@@ -1553,7 +1555,7 @@ class ReviewFixTest(unittest.TestCase):
             }
             '''})
             out = Path(tmp) / "out.json"
-            self.assertEqual(tf.main(["--input", tmp, "--out", str(out), "--redact-var", "token",
+            self.assertEqual(adapt_tf.main(["--input", tmp, "--out", str(out), "--redact-var", "token",
                                       "--redact-var", "nothing"]), 0)
             raw = json.loads(out.read_text(encoding="utf-8"))
         assert_valid(self, raw)
@@ -1597,7 +1599,7 @@ class ReviewFixTest(unittest.TestCase):
             resource "aws_instance" "b" { count = "2" }
             resource "aws_instance" "c" { count = "x" }
             '''})
-            raw = tf.build_raw(Path(tmp), Path(tmp), var_args=[("var", "n=3")])
+            raw = tf_build.build_raw(Path(tmp), Path(tmp), var_args=[("var", "n=3")])
         assert_valid(self, raw)
         addrs = [r["address"] for r in raw["resources"]]
         self.assertEqual(addrs, ["aws_instance.a[0]", "aws_instance.a[1]", "aws_instance.a[2]", "aws_instance.b[0]",
@@ -1635,7 +1637,7 @@ class ReviewFixTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             write_files(Path(tmp), {"main.tf": 'variable "pw" {}\n', "bad.tfvars": 'pw = "s3cret" "x"\n'})
             with self.assertRaises(ValueError) as cm:
-                tf.build_raw(Path(tmp), Path(tmp), var_files=[Path(tmp) / "bad.tfvars"])
+                tf_build.build_raw(Path(tmp), Path(tmp), var_files=[Path(tmp) / "bad.tfvars"])
         self.assertNotIn("s3cret", str(cm.exception))
         self.assertIn("line 1", str(cm.exception))
 
@@ -1643,20 +1645,20 @@ class ReviewFixTest(unittest.TestCase):
         # 任意 4: 別のドライブの変数のファイルは、evaluation.var_files にファイル名だけを書く
         with tempfile.TemporaryDirectory() as tmp:
             write_files(Path(tmp), {"main.tf": 'variable "a" {}\n', "x.tfvars": 'a = "1"\n'})
-            mod = tf.ModuleEval(tf.Context(Path(tmp)), Path(tmp))
+            mod = module_eval.ModuleEval(model.Context(Path(tmp)), Path(tmp))
             mod.load()
-            real = tf.os.path.relpath
+            real = os.path.relpath
 
             def other_drive(path, start=None):
                 if str(path).endswith("x.tfvars"):
                     raise ValueError("path is on mount 'D:', start on mount 'C:'")
                 return real(path, start)
 
-            tf.os.path.relpath = other_drive
+            os.path.relpath = other_drive
             try:
                 mod.setup_variables([("file", Path(tmp) / "x.tfvars")])
             finally:
-                tf.os.path.relpath = real
+                os.path.relpath = real
         self.assertEqual(mod.var_files, ["x.tfvars"])
         self.assertEqual((mod.var_values, mod.var_sources), ({"a": "1"}, {"a": {"source": "x.tfvars"}}))
         self.assertIn("TF-VARFILE-OTHER-DRIVE", [d["code"] for d in mod.ctx.diagnostics])
@@ -2018,7 +2020,7 @@ class EvaluatorTest(unittest.TestCase):
     """adapters/terraform/tf_eval.py の組み込み関数と型の変換（印を含む値の扱い）。"""
 
     def test_functions_on_known_values(self):
-        call = tf.E.call_function
+        call = E.call_function
         self.assertEqual(call("cidrsubnet", ["10.0.0.0/16", 8, 2]), "10.0.2.0/24")
         self.assertEqual(call("cidrsubnets", ["10.0.0.0/16", 4, 8, 4]), ["10.0.0.0/20", "10.0.16.0/24", "10.0.32.0/20"])
         self.assertEqual(call("cidrhost", ["10.0.1.0/24", 5]), "10.0.1.5")
@@ -2052,38 +2054,38 @@ class EvaluatorTest(unittest.TestCase):
         for name, args in (("lookup", [{"a": 1}, "b"]), ("element", [[], 0]), ("cidrsubnet", ["10.0.0.0/30", 8, 0]),
                            ("coalesce", [None, ""]), ("slice", [[1], 0, 3]), ("one", [[1, 2]])):
             with self.subTest(name):
-                with self.assertRaises(tf.E.EvalError):
+                with self.assertRaises(E.EvalError):
                     call(name, args)
 
     def test_functions_with_markers(self):
-        call, R = tf.E.call_function, tf.E.Res
+        call, R = E.call_function, E.Res
         a, b = R("aws_s3_bucket.a", "id"), R("aws_s3_bucket.b", "arn")
         # 構造だけで決まる関数は、印をそのまま残す
         self.assertEqual(call("concat", [[a], [b]]), [a, b])
         self.assertEqual(call("length", [[a, b]]), 2)
         self.assertEqual(call("lookup", [{"x": a}, "x"]), a)
-        self.assertEqual(call("join", [",", [a, "z"]]), tf.E.Concat((a, ",z")))
-        self.assertEqual(call("format", ["arn:%s:x", a]), tf.E.Concat(("arn:", a, ":x")))
-        self.assertEqual(call("jsonencode", [{"r": a}]), tf.E.Json({"r": a}))
-        self.assertEqual(call("slice", [tf.E.Az("*"), 0, 2]), [tf.E.Az(0), tf.E.Az(1)])
-        self.assertEqual(call("element", [tf.E.Az("*"), 2]), tf.E.Az(2))
+        self.assertEqual(call("join", [",", [a, "z"]]), E.Concat((a, ",z")))
+        self.assertEqual(call("format", ["arn:%s:x", a]), E.Concat(("arn:", a, ":x")))
+        self.assertEqual(call("jsonencode", [{"r": a}]), E.Json({"r": a}))
+        self.assertEqual(call("slice", [E.Az("*"), 0, 2]), [E.Az(0), E.Az(1)])
+        self.assertEqual(call("element", [E.Az("*"), 2]), E.Az(2))
         # 値が要る関数は Unknown（中の参照を持ち歩く）
         for name, args in (("upper", [a]), ("length", [a]), ("split", [",", a]), ("cidrsubnet", [a, 8, 1]),
                            ("contains", [[a], "x"])):
             with self.subTest(name):
                 u = call(name, args)
-                self.assertIsInstance(u, tf.E.Unknown)
+                self.assertIsInstance(u, E.Unknown)
                 self.assertIn(("aws_s3_bucket.a", "id", ()), u.refs)
-        u = call("upper", [tf.E.Unknown("variable x has no value", "TF-UNRESOLVED-VAR")])
+        u = call("upper", [E.Unknown("variable x has no value", "TF-UNRESOLVED-VAR")])
         self.assertEqual((u.reason, u.code), ("variable x has no value", "TF-UNRESOLVED-VAR"))  # 元の理由を引き継ぐ
 
     def test_convert(self):
-        spec = ("object", {"n": (("number",), False, tf.E.NODEFAULT), "l": (("set", ("string",)), True, ["b", "a"]),
-                           "o": (("map", ("bool",)), True, tf.E.NODEFAULT)})
-        self.assertEqual(tf.E.convert({"n": "5", "extra": 1}, spec), {"n": 5, "l": ["a", "b"], "o": None})
-        self.assertEqual(tf.E.convert({"n": 1, "o": {"x": "true"}}, spec)["o"], {"x": True})
-        self.assertEqual(tf.E.convert("abc", ("number",)), "abc")  # 変換できなければそのまま
-        self.assertEqual(tf.E.convert(3, ("string",)), "3")
+        spec = ("object", {"n": (("number",), False, E.NODEFAULT), "l": (("set", ("string",)), True, ["b", "a"]),
+                           "o": (("map", ("bool",)), True, E.NODEFAULT)})
+        self.assertEqual(E.convert({"n": "5", "extra": 1}, spec), {"n": 5, "l": ["a", "b"], "o": None})
+        self.assertEqual(E.convert({"n": 1, "o": {"x": "true"}}, spec)["o"], {"x": True})
+        self.assertEqual(E.convert("abc", ("number",)), "abc")  # 変換できなければそのまま
+        self.assertEqual(E.convert(3, ("string",)), "3")
 
 
 class RobustnessTest(unittest.TestCase):
@@ -2113,9 +2115,9 @@ class RobustnessTest(unittest.TestCase):
         self.assertNotIn("TF-PARSE-ERROR", codes(raw))
         self.assertIn("$json", props(raw, "aws_sns_topic_policy.p")["policy"])
         # 終端の無い開始（文字列の中の << など）は飛ばして、次の行から調べ直す
-        fixed, n = tf.fix_heredocs('a = "<<X"\nb = <<EOT\nhi\nEOT \n')
+        fixed, n = hcl.fix_heredocs('a = "<<X"\nb = <<EOT\nhi\nEOT \n')
         self.assertEqual((fixed, n), ('a = "<<X"\nb = <<EOT\nhi\nEOT\n', 1))
-        fixed, n = tf.fix_heredocs("a = <<NEVER\nb = <<EOT\nhi\nEOT \n")
+        fixed, n = hcl.fix_heredocs("a = <<NEVER\nb = <<EOT\nhi\nEOT \n")
         self.assertEqual(n, 1)
         self.assertTrue(fixed.endswith("EOT\n"))
 
@@ -2128,14 +2130,14 @@ class RobustnessTest(unittest.TestCase):
             blocker = Path(tmp) / "file"
             blocker.write_text("x", encoding="utf-8")
             with contextlib.redirect_stderr(io.StringIO()) as err:
-                code = tf.main(["--input", str(FIXTURES / "three-tier"), "--out", str(blocker / "out.json")])
+                code = adapt_tf.main(["--input", str(FIXTURES / "three-tier"), "--out", str(blocker / "out.json")])
             self.assertEqual(code, 2)
             self.assertIn("書けませんでした", err.getvalue())
 
     def test_crlf(self):
         with tempfile.TemporaryDirectory() as tmp:
             Path(tmp, "main.tf").write_bytes(b'resource "aws_vpc" "a" {\r\n  x = <<EOT\r\nhi\r\nEOT\r\n}\r\n')
-            raw = tf.build_raw(Path(tmp), Path(tmp))
+            raw = tf_build.build_raw(Path(tmp), Path(tmp))
         assert_valid(self, raw)
         self.assertEqual(props(raw, "aws_vpc.a")["x"], "hi\n")
 
@@ -2168,15 +2170,15 @@ class RobustnessTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             Path(tmp, "only.tf.json").write_text(tfjson, encoding="utf-8")
             with self.assertRaises(ValueError):
-                tf.build_raw(Path(tmp), Path(tmp))
+                tf_build.build_raw(Path(tmp), Path(tmp))
 
     def test_no_tf_files(self):
         with tempfile.TemporaryDirectory() as tmp:
             with self.assertRaises(ValueError):
-                tf.build_raw(Path(tmp), Path(tmp))
+                tf_build.build_raw(Path(tmp), Path(tmp))
             out = Path(tmp) / "out.json"
             with contextlib.redirect_stderr(io.StringIO()) as err:
-                self.assertEqual(tf.main(["--input", tmp, "--out", str(out)]), 2)
+                self.assertEqual(adapt_tf.main(["--input", tmp, "--out", str(out)]), 2)
             self.assertIn(".tf", err.getvalue())
             self.assertFalse(out.exists())
 
@@ -2184,10 +2186,10 @@ class RobustnessTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "raw.json"
             self.assertEqual(subprocess.run(
-                [sys.executable, str(SCRIPTS / "adapters" / "tf.py"), "--input", str(FIXTURES / "three-tier"),
+                [sys.executable, str(SCRIPTS / "adapt_tf.py"), "--input", str(FIXTURES / "three-tier"),
                  "--out", str(out), "--root-base", str(WS)], capture_output=True).returncode, 0)
             text = out.read_text(encoding="utf-8")
-            self.assertEqual(text, tf.dump(tf.build_raw(FIXTURES / "three-tier", WS)))  # 毎回同じ
+            self.assertEqual(text, tf_build.dump(tf_build.build_raw(FIXTURES / "three-tier", WS)))  # 毎回同じ
             self.assertEqual(v.validate_file(out, False, set()), [])
             self.assertEqual(json.loads(text)["root"], "fixtures/tf/three-tier")
 
@@ -2204,7 +2206,7 @@ EXPECTED_VAR_FILES = {"three-tier": ["env/dev.tfvars"]}
 
 def build_expected_input(name: str) -> dict:
     root = FIXTURES / name
-    return tf.build_raw(root, WS, var_files=[root / f for f in EXPECTED_VAR_FILES.get(name, [])])
+    return tf_build.build_raw(root, WS, var_files=[root / f for f in EXPECTED_VAR_FILES.get(name, [])])
 
 
 class ExpectedIrTest(unittest.TestCase):
@@ -2306,9 +2308,9 @@ class ExpectedIrTest(unittest.TestCase):
     def test_values_from_tfvars(self):
         # three-tier: env/dev.tfvars と env/prod.tfvars で、踏み台（count）と DB の設定（local の表）が変わる
         root = FIXTURES / "three-tier"
-        dev = tf.build_raw(root, WS, var_files=[root / "env" / "dev.tfvars"])
-        prod = tf.build_raw(root, WS, var_files=[root / "env" / "prod.tfvars"])
-        none = tf.build_raw(root, WS)
+        dev = tf_build.build_raw(root, WS, var_files=[root / "env" / "dev.tfvars"])
+        prod = tf_build.build_raw(root, WS, var_files=[root / "env" / "prod.tfvars"])
+        none = tf_build.build_raw(root, WS)
         self.assertEqual(dev["evaluation"]["var_files"], ["env/dev.tfvars"])
         self.assertEqual(dev["evaluation"]["vars"]["environment"], {"source": "env/dev.tfvars"})
         self.assertEqual(prod["evaluation"]["vars"]["admin_cidr"], {"source": "env/prod.tfvars"})  # prod.tfvars が上書き
@@ -2336,13 +2338,13 @@ class ExpectedIrTest(unittest.TestCase):
                     "(pass one with --var-file): env/dev.tfvars, env/prod.tfvars")])
         self.assertNotIn("TF-UNRESOLVED-VARS", codes(dev))
         # vpc-endpoints: terraform.tfvars（自動で読む）の project が既定値を上書きし、名前が正解 IR と一致する
-        vpce = tf.build_raw(FIXTURES / "vpc-endpoints", WS)
+        vpce = tf_build.build_raw(FIXTURES / "vpc-endpoints", WS)
         self.assertEqual(vpce["evaluation"]["var_files"], ["terraform.tfvars"])
         self.assertEqual(props(vpce, "aws_vpc.main")["tags"], {"Name": "net"})
         self.assertEqual(props(vpce, 'aws_vpc_endpoint.interface["ssm"]')["service_name"],
                          "com.amazonaws.ap-northeast-1.ssm")
         self.assertEqual(props(vpce, "aws_subnet.private[1]")["tags"], {"Name": "net-private-ap-northeast-1c"})
-        override = tf.build_raw(FIXTURES / "vpc-endpoints", WS, vars={"project": "x"})
+        override = tf_build.build_raw(FIXTURES / "vpc-endpoints", WS, vars={"project": "x"})
         self.assertEqual(props(override, "aws_vpc.main")["tags"], {"Name": "x"})
 
     def test_names_match_expected_nodes(self):
@@ -2364,7 +2366,7 @@ class FixtureTest(unittest.TestCase):
         from iac_inventory import tf_inventory
         for d in sorted(p for p in FIXTURES.iterdir() if p.is_dir()):
             with self.subTest(d.name):
-                raw = tf.build_raw(d, WS)
+                raw = tf_build.build_raw(d, WS)
                 assert_valid(self, raw)
                 self.assertFalse([x for x in raw["diagnostics"] if x["level"] == "error"])
                 blocks = {b.address for b in tf_inventory(d) if b.module_path == ""}

@@ -70,6 +70,33 @@ class JapanesePathTest(unittest.TestCase):
         res = run(str(SCRIPTS / "validate_ir.py"), str(src))
         self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
 
+    def test_adapt_tf_from_a_copy_of_the_skill_alone(self):
+        # SKILL のフォルダだけを日本語とスペースを含む場所にコピーして動かす（リポジトリの tests・fixture・ツールに頼らない）。
+        # 入口 adapt_tf.py は自分の場所から scripts/ を sys.path に入れるので、cwd にも元の場所にも依らない
+        skill = self.dir / "aws-iac-diagram"
+        shutil.copytree(SCRIPTS.parent, skill, ignore=shutil.ignore_patterns("__pycache__"))
+        fixtures = ROOT / "aws-iac-diagram-workspace" / "fixtures" / "tf"
+        want = self.dir / "from-repo.json"
+        got = self.dir / "from-copy.json"
+        res = run(str(SCRIPTS / "adapt_tf.py"), "--input", str(fixtures / "three-tier"), "--out", str(want),
+                  "--root-base", str(fixtures.parent), "--var-file", "env/dev.tfvars")
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+        res = subprocess.run([sys.executable, str(skill / "scripts" / "adapt_tf.py"), "--input", str(fixtures / "three-tier"),
+                              "--out", str(got), "--root-base", str(fixtures.parent), "--var-file", "env/dev.tfvars"],
+                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300, check=False,
+                             cwd=str(self.dir))  # 作業フォルダも別の場所
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+        self.assertTrue(res.stdout.startswith("raw: resources="), res.stdout)
+        self.assertEqual(got.read_bytes(), want.read_bytes())
+
+    def test_adapt_tf_usage_errors_exit_2(self):
+        self.dir.mkdir(parents=True)
+        res = run(str(SCRIPTS / "adapt_tf.py"), "--input", str(self.dir), "--out", str(self.dir / "x.json"), "--var", "novalue")
+        self.assertEqual(res.returncode, 2, res.stdout + res.stderr)
+        self.assertIn("KEY=VALUE", res.stderr)
+        res = run(str(SCRIPTS / "adapt_tf.py"), "--out", str(self.dir / "x.json"))  # --input が無い（argparse）
+        self.assertEqual(res.returncode, 2, res.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

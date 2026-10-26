@@ -55,7 +55,7 @@ MANIFEST_VERSION = 1
 
 # アダプタの入口（R2・R3 で入口を分けたら、ここだけ直す）
 ENTRY = {
-    "tf": SCRIPTS / "adapters" / "tf.py",
+    "tf": SCRIPTS / "adapt_tf.py",
     "cfn": SCRIPTS / "adapters" / "cfn.py",
 }
 

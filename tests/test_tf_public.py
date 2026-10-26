@@ -20,7 +20,7 @@ WS = ROOT / "aws-iac-diagram-workspace"
 sys.path.insert(0, str(ROOT / "skills" / "aws-iac-diagram" / "scripts"))
 sys.path.insert(0, str(WS / "tools"))
 import tf_public_check as chk  # noqa: E402
-from adapters import tf  # noqa: E402
+from aws_iac_diagram.adapters.terraform import build as tf_build  # noqa: E402
 
 PUBLIC = WS / "fixtures" / "public"
 
@@ -39,7 +39,7 @@ class PublicFoldersTest(unittest.TestCase):
         self.assertGreater(res["resources"], 2000)
         self.assertGreater(res["diagnostics"]["warn"], 0)
         # T06 は heredoc の終端の空白の前処理で読める（SELECTION.md の 4 の 1）
-        t06 = tf.build_raw(PUBLIC / "serverless-patterns" / "eventbridge-sns-lambda-terraform", WS)
+        t06 = tf_build.build_raw(PUBLIC / "serverless-patterns" / "eventbridge-sns-lambda-terraform", WS)
         self.assertIn("TF-HEREDOC-TRAILING-SPACE", [d["code"] for d in t06["diagnostics"]])
         policy = next(r for r in t06["resources"] if r["address"] == "aws_sns_topic_policy.default")
         self.assertIn("$json", policy["props"]["policy"])
@@ -73,7 +73,7 @@ class PublicFoldersTest(unittest.TestCase):
 
     def test_output_is_byte_identical_for_any_hash_seed(self):
         # C5（SELECTION.md の 3 の 4）: 同じ入力は、PYTHONHASHSEED が違っても同じバイト列になる（代表のフォルダ）
-        tf_py = ROOT / "skills" / "aws-iac-diagram" / "scripts" / "adapters" / "tf.py"
+        tf_py = ROOT / "skills" / "aws-iac-diagram" / "scripts" / "adapt_tf.py"
         samples = ["serverless-patterns/eventbridge-sqs-terraform", "terraform-aws-vpc/examples/complete"]
         with tempfile.TemporaryDirectory() as tmp:
             for folder in samples:
@@ -100,7 +100,7 @@ class DiagnosticCodesTest(unittest.TestCase):
         # コードに出てくる TF-… の code と、ir-schema.md の 7.5 の一覧が食い違わない（7.6 の注記を消したあとも、一覧を正にする）
         scripts = ROOT / "skills" / "aws-iac-diagram" / "scripts"
         in_code = set()
-        for f in [scripts / "adapters" / "tf.py", *sorted((scripts / "aws_iac_diagram" / "adapters" / "terraform").rglob("*.py"))]:
+        for f in [scripts / "adapt_tf.py", *sorted((scripts / "aws_iac_diagram" / "adapters" / "terraform").rglob("*.py"))]:
             in_code |= set(re.findall(r'"(TF-[A-Z0-9]+(?:-[A-Z0-9]+)*)"', f.read_text(encoding="utf-8")))
         doc = (scripts.parent / "references" / "ir-schema.md").read_text(encoding="utf-8")
         a = doc.index("### 7.5 診断")
@@ -155,7 +155,7 @@ class PairTest(unittest.TestCase):
         from adapters import cfn
         for pid in chk.PAIRS:
             with self.subTest(pid):
-                tf_raw = tf.build_raw(PUBLIC / chk.survey_public.SAMPLES[pid][1][0], WS)
+                tf_raw = tf_build.build_raw(PUBLIC / chk.survey_public.SAMPLES[pid][1][0], WS)
                 cfn_raw = cfn.build_raw(PUBLIC / chk.survey_public.SAMPLES[chk.PAIRS[pid]][1][0], WS)
                 want_tf, want_cfn = PAIR_CODES[pid]
                 self.assertEqual(sorted(d["code"] for d in tf_raw["diagnostics"]), want_tf)
