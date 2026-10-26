@@ -8,9 +8,21 @@ Terraform（`.tf` と plan JSON）や CloudFormation（YAML／JSON、SAM、CDK �
 - Claude Code（手元、Claude Code on the web、GitHub Actions の `@claude`）
 - GitHub Agentic Workflows（gh-aw。GitHub Actions の Ubuntu ランナー）
 
-**現在は開発中（アルファ）です。** Terraform と CloudFormation を読んで中間表現（IR）にするところまでが動きます（CloudFormation アダプタは完成、Terraform アダプタは作成中）。**IR から draw.io・Mermaid・PNG の図を出す処理は、まだありません。** 計画は [PLAN.md](PLAN.md)、開発の経緯と作業を再開するときの手順は [docs/dev-notes/HANDOFF.md](docs/dev-notes/HANDOFF.md) と [docs/dev-notes/WORKLOG.md](docs/dev-notes/WORKLOG.md) にあります。
+**現在は開発中（アルファ）です。** Terraform と CloudFormation を読んで中間表現（IR）にするところまでが動きます（CloudFormation と Terraform のアダプタは、どちらも動きます）。**IR から draw.io・Mermaid・PNG の図を出す処理は、まだありません。** 計画は [PLAN.md](PLAN.md)、開発の経緯と作業を再開するときの手順は [docs/dev-notes/HANDOFF.md](docs/dev-notes/HANDOFF.md) と [docs/dev-notes/WORKLOG.md](docs/dev-notes/WORKLOG.md) にあります。
 
 非公式のプロジェクトです。AWS、HashiCorp、Anthropic、GitHub、draw.io とは提携しておらず、承認も受けていません。商標はそれぞれの所有者のものです。詳しくは末尾の「ライセンスと注意」を見てください。
+
+## リポジトリの構成
+
+```
+skills/aws-iac-diagram/   配る SKILL（SKILL.md、scripts/ の入口とパッケージ、data/、references/、assets/）
+docs/                     開発者向け（配らない）: architecture.md（層・依存の向き・拡張のしかた）、spec/（IR スキーマを章ごとに）、dev-notes/
+tests/                    unit/ integration/ golden/ architecture/ と共有の道具 support/
+aws-iac-diagram-workspace/  fixtures/（自作の入力と公開サンプル）、expected/（正解 IR）、tools/（開発用の道具）、evals/（評価基準）
+PLAN.md                   計画（決めたこと、フェーズ、リポジトリ構成の図）
+```
+
+SKILL の中身の分け方は [docs/architecture.md](docs/architecture.md) の 1 に、IR の形は [docs/spec/ir-schema/](docs/spec/ir-schema/README.md) にあります。
 
 ## SKILL を使う
 
@@ -80,16 +92,16 @@ uv run python tests/unit/terraform/test_hcl.py                             # フ
 
 CI（[.github/workflows/ci.yml](.github/workflows/ci.yml)）は Ubuntu と Windows で、単体テスト、正解 IR と fixture の検証、日本語とスペースを含むパスに置いた SKILL の起動（Windows は PowerShell 5.1 から）を行います。
 
-### 構成を守るテスト（フェーズ 2b）
+### 構成を守るテスト
 
-構成の階層化（[PLAN.md](PLAN.md) の 1.4。層の分け方と依存の向きは [docs/architecture.md](docs/architecture.md)）では、中身の動きを変えずにファイルを移します。それを次の 2 つが守ります（どちらも上の単体テストに入っています）。
+構成の階層化（[PLAN.md](PLAN.md) の 1.4。フェーズ 2b で完了）では、中身の動きを変えずにファイルを移しました。層の分け方と依存の向き、拡張のしかたは [docs/architecture.md](docs/architecture.md) です。構成は次のテストが守ります（どれも上の単体テストに入っています）。
 
 - **出力の固定（golden）:** アダプタの出力（raw IR）を、自作 fixture・plan JSON・公開サンプルの TF のルート 52・CFN の入力 25 の 101 ケースについて、SHA-256 で `tests/golden/manifest.json` に固定しています。単独で動かすには `uv run python aws-iac-diagram-workspace/tools/golden.py`（`--list`、`--only <接頭辞>`、不一致の調査には `--dump <名前> --out <ファイル>`）。**落ちたらコードを直します。`--update` で通してはいけません**（アダプタの動きを意図して変えたときだけ、理由を書いて使います）。
-- **構成の検査（`tests/architecture/`）:** import を読んで層の依存の向きを、行数（800 行で注意、1,500 行で失敗。免除は今は無い）を、診断コードの一覧を確かめます。テストのファイルの置き場そのもの（フォルダの名前、行数）も確かめます。
+- **構成の検査（`tests/architecture/`）:** import を読んで層の依存の向きを、行数（800 行で注意、1,500 行で失敗。免除は今は無い）を、診断コードの一覧（`docs/spec/ir-schema/` の 7.5 との一致を含む）を確かめます。テストのファイルの置き場そのもの（フォルダの名前、行数）、`SKILL.md` の内容（書いたスクリプトとオプションが実在する）、Markdown の相対リンクと文書に書いた `docs/…` のパスの実在も確かめます。
 
 ### アイコン辞書の再生成
 
-辞書は `skills/aws-iac-diagram/data/icons/` に出ます（`catalog.json`、カテゴリ別の `.md`、`broken.json`。R4 で `references/icons/` から移した）。
+辞書は `skills/aws-iac-diagram/data/icons/` に出ます（`catalog.json`、カテゴリ別の `.md`、`broken.json`）。
 
 ```powershell
 uv run skills\aws-iac-diagram\scripts\maintenance\build_icon_catalog.py
@@ -115,7 +127,7 @@ uv run skills\aws-iac-diagram\scripts\maintenance\check_icons.py
 
 ### CloudFormation アダプタと C1
 
-CloudFormation のテンプレート（ネストスタック、SAM、cdk.out を含む）から、アダプタの出力（raw IR。[ir-schema.md](skills/aws-iac-diagram/references/ir-schema.md) の 7章）を作ります。
+CloudFormation のテンプレート（ネストスタック、SAM、cdk.out を含む）から、アダプタの出力（raw IR。[ir-schema](docs/spec/ir-schema/07-raw-output.md) の 7章）を作ります。
 
 ```powershell
 uv run skills\aws-iac-diagram\scripts\adapt_cfn.py --input aws-iac-diagram-workspace\fixtures\cfn\three-tier\template.yaml --out out\three-tier.raw.json --param EnvType=prod
@@ -132,9 +144,9 @@ uv run python aws-iac-diagram-workspace\tools\c1_check.py
 
 ### Terraform アダプタ
 
-Terraform のルートモジュール（.tf のフォルダ）から、同じ raw IR を作ります（フェーズ2 で完成）。変数・locals・式を評価し、count・for_each をインスタンスごとに展開します。ローカルモジュール（`./`・`../`）は中身を再帰的に読み、terraform-aws-modules の vpc・alb・rds・eks は要約表（`skills/aws-iac-diagram/data/module-summaries/`。モジュールと major ごとのファイル。説明は [docs/spec/module-summaries.md](docs/spec/module-summaries.md)）で展開します。それ以外のレジストリ・git のモジュールは黒箱の呼び出し1件にします（ネットワークからモジュールを取りに行きません）。`.tf.json` は .tf だけでは読みません（警告 `TF-TFJSON-UNSUPPORTED`。plan JSON と一緒なら plan から取ります）。`terraform.workspace` は `default` で評価し、`--workspace <名前>` で変えられます。
+Terraform のルートモジュール（.tf のフォルダ）から、同じ raw IR を作ります。変数・locals・式を評価し、count・for_each をインスタンスごとに展開します。ローカルモジュール（`./`・`../`）は中身を再帰的に読み、terraform-aws-modules の vpc・alb・rds・eks は要約表（`skills/aws-iac-diagram/data/module-summaries/`。モジュールと major ごとのファイル。説明は [docs/spec/module-summaries.md](docs/spec/module-summaries.md)）で展開します。それ以外のレジストリ・git のモジュールは黒箱の呼び出し1件にします（ネットワークからモジュールを取りに行きません）。`.tf.json` は .tf だけでは読みません（警告 `TF-TFJSON-UNSUPPORTED`。plan JSON と一緒なら plan から取ります）。`terraform.workspace` は `default` で評価し、`--workspace <名前>` で変えられます。
 
-`terraform show -json` の plan JSON も読めます（ir-schema.md の 7.2「TF の plan JSON」）。.tf のフォルダと一緒に渡す（`--plan`）のがおすすめです。address と count・for_each の展開・作られるかは Terraform の結果を使い、ファイル名・値・参照の位置は .tf から読みます（.tf で決まらなかった値は plan の値で埋める）。plan JSON だけ（`--input` に `.json`）でも読めますが、plan JSON は locals・dynamic ブロックの式と .tf のファイル名を持たないので、参照の一部が分からず、`file` は plan JSON の名前になります。
+`terraform show -json` の plan JSON も読めます（[ir-schema](docs/spec/ir-schema/07-raw-output.md) の 7.2「TF の plan JSON」）。.tf のフォルダと一緒に渡す（`--plan`）のがおすすめです。address と count・for_each の展開・作られるかは Terraform の結果を使い、ファイル名・値・参照の位置は .tf から読みます（.tf で決まらなかった値は plan の値で埋める）。plan JSON だけ（`--input` に `.json`）でも読めますが、plan JSON は locals・dynamic ブロックの式と .tf のファイル名を持たないので、参照の一部が分からず、`file` は plan JSON の名前になります。
 
 ```powershell
 uv run skills\aws-iac-diagram\scripts\adapt_tf.py --input aws-iac-diagram-workspace\fixtures\tf\three-tier --out out\three-tier.tf.raw.json --var-file env\dev.tfvars
@@ -166,7 +178,7 @@ uv run python aws-iac-diagram-workspace\tools\check_coverage.py --lint
 
 `check_coverage.py` は開発用の環境（`uv run python ...`）で動かしてください。`uv run check_coverage.py` だと、Windows では uv のキャッシュの中の cfn-lint のパスが 260 文字を超えて `--lint` が落ちることがあります。
 
-fixture の説明は [aws-iac-diagram-workspace/fixtures/README.md](aws-iac-diagram-workspace/fixtures/README.md)、IR の形は [references/ir-schema.md](skills/aws-iac-diagram/references/ir-schema.md) にあります。
+fixture の説明は [aws-iac-diagram-workspace/fixtures/README.md](aws-iac-diagram-workspace/fixtures/README.md)、IR の形は [docs/spec/ir-schema/](docs/spec/ir-schema/README.md) にあります。
 
 ## ライセンスと注意
 

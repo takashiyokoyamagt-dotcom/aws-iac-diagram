@@ -1,7 +1,7 @@
 # aws-iac-diagram 計画書
 
 - 作成日: 2026-10-14
-- 状態: **フェーズ2 完了**（2026-10-26。完了基準の「TF 版と CFN 版が同じ IR」は、ユーザーの決定でフェーズ3 の基準に分けた）。**フェーズ1 完了**（2026-10-17）。CloudFormation アダプタ（入口 `scripts/adapt_cfn.py`、本体 `scripts/aws_iac_diagram/adapters/cloudformation/`）が raw IR を出し、C1（cfn-lint のグラフとの照合、`aws-iac-diagram-workspace/tools/c1_check.py`）は対応の無い辺 0。Terraform アダプタ（入口 `scripts/adapt_tf.py`、本体 `scripts/aws_iac_diagram/adapters/terraform/`。.tf と plan JSON、A4、A5）は、公開サンプルの `.tf` のあるフォルダすべて（205）で error の診断 0（`aws-iac-diagram-workspace/tools/tf_public_check.py`）、自作5構成では正解 IR の TF 側の網羅分類と一致（`ExpectedIrTest`）。評価基準値は [evals/CRITERIA.md](aws-iac-diagram-workspace/evals/CRITERIA.md)。**フェーズ 2b は R5（R1: 出力の固定、骨組み、`lib/` の移動、依存の向きのテスト。R2: Terraform の分割、行数の免除を空に。R3: CloudFormation の分割、診断コードの一覧 `core/diagnostics.py`。R4: スクリプトが読むデータを `data/`（`schemas/`・`icons/`・`module-summaries/<モジュール>/v<major>.md`）へ、同梱ファイルの場所は `core/paths.py` の 1 か所。R5: テストを `tests/` の `unit/`・`integration/`・`golden/`・`architecture/` と共有の道具 `support/` に分け、置き場の決まりをテストで守る）まで済み**（2026-10-26。`aws_iac_diagram/` の骨組みと `tests/golden/`、`docs/architecture.md`）、次は R6（SKILL.md・references・`docs/spec/`）。実行環境の方針は 1.2、**共通 Agent Skill の方針は 1.3**（1.1・1.2 より優先する）。**WSL での開発と使う環境は 1.5**、構成の階層化は 1.4（2026-10-24）。再開時は [docs/dev-notes/HANDOFF.md](docs/dev-notes/HANDOFF.md) から読むこと
+- 状態: **フェーズ2 完了**（2026-10-26。完了基準の「TF 版と CFN 版が同じ IR」は、ユーザーの決定でフェーズ3 の基準に分けた）。**フェーズ1 完了**（2026-10-17）。CloudFormation アダプタ（入口 `scripts/adapt_cfn.py`、本体 `scripts/aws_iac_diagram/adapters/cloudformation/`）が raw IR を出し、C1（cfn-lint のグラフとの照合、`aws-iac-diagram-workspace/tools/c1_check.py`）は対応の無い辺 0。Terraform アダプタ（入口 `scripts/adapt_tf.py`、本体 `scripts/aws_iac_diagram/adapters/terraform/`。.tf と plan JSON、A4、A5）は、公開サンプルの `.tf` のあるフォルダすべて（205）で error の診断 0（`aws-iac-diagram-workspace/tools/tf_public_check.py`）、自作5構成では正解 IR の TF 側の網羅分類と一致（`ExpectedIrTest`）。評価基準値は [evals/CRITERIA.md](aws-iac-diagram-workspace/evals/CRITERIA.md)。**フェーズ 2b（構成の階層化）は完了**（2026-10-26。R1: 出力の固定、骨組み、`lib/` の移動、依存の向きのテスト。R2: Terraform の分割、行数の免除を空に。R3: CloudFormation の分割、診断コードの一覧 `core/diagnostics.py`。R4: スクリプトが読むデータを `data/`（`schemas/`・`icons/`・`module-summaries/<モジュール>/v<major>.md`）へ、同梱ファイルの場所は `core/paths.py` の 1 か所。R5: テストを `tests/` の `unit/`・`integration/`・`golden/`・`architecture/` と共有の道具 `support/` に分け、置き場の決まりをテストで守る。R6: `SKILL.md` を入口だけにし、`ir-schema.md` を SKILL の外の `docs/spec/ir-schema/` に章ごとに分け、`references/` は規則表 3 つだけにし、`docs/architecture.md` と下の構成図を今の姿に直し、SKILL.md と文書のリンクを守るテストを足した）。層と拡張のしかたは [docs/architecture.md](docs/architecture.md)。次は vpc 5.x・eks 20.x の要約表（A5）、そのあとフェーズ 3（正規化）。実行環境の方針は 1.2、**共通 Agent Skill の方針は 1.3**（1.1・1.2 より優先する）。**WSL での開発と使う環境は 1.5**、構成の階層化は 1.4（2026-10-24）。再開時は [docs/dev-notes/HANDOFF.md](docs/dev-notes/HANDOFF.md) から読むこと
 - 目的: Terraform と CloudFormation のコードを読み込み、AWS 構成図を draw.io・Mermaid・PNG の3形式で出力する Agent Skill を作る。1つの SKILL を Claude Code、VS Code + GitHub Copilot、GitHub Agentic Workflows（gh-aw）で共通に使う（1.3）
 
 ---
@@ -100,7 +100,7 @@ Windows（手元）と GitHub の Web UI（Claude Code on the web、GitHub Actio
 3. **起動は `uv run` に統一する。** 依存は各スクリプトの先頭に PEP 723 で書く（版は `==` で固定し、C5 のために揃える）。`.venv`＋`requirements.txt` はやめ、開発用の環境（単体テスト・fixture の検証）は `pyproject.toml` と `uv.lock` にする。
 4. **結果はファイル（JSON、UTF-8・LF）で受け渡し、終了コードの意味を決める。** 0 = 成功（PNG や描画確認のスキップは結果の JSON に書き、0 のまま。1.2 の 2）、1 = 検証で問題が見つかった、2 = 実行エラー（`error` を JSON に書く）。PowerShell 5.1 で標準出力を受けると文字コードが変わるため、標準出力に頼らない。
 5. **配布はこのリポジトリからタグ付きで行う。** 使う側は `skills/aws-iac-diagram/` を丸ごと置く（Copilot: `.github/skills/` か `~/.copilot/skills/`、Claude Code: `.claude/skills/` か `~/.claude/skills/`、gh-aw: APM か `gh skill install` でタグを指定）。プラグイン（マーケットプレイス）は使わない。
-6. **SKILL のフォルダには実行に要るものだけを置く。** 単体テストはルートの `tests/`、fixture・正解 IR・開発用のツールは `aws-iac-diagram-workspace/` に置く。辞書の保守用のスクリプト（`build_icon_catalog.py`、`check_icons.py`）は `scripts/maintenance/` に置き（2026-10-24 のユーザーの決定。1.4）、SKILL.md からは呼ばない。開発者向けの仕様（ir-schema.md など）は SKILL の外の `docs/spec/` に置く（1.4）。
+6. **SKILL のフォルダには実行に要るものだけを置く。** 単体テストはルートの `tests/`、fixture・正解 IR・開発用のツールは `aws-iac-diagram-workspace/` に置く。辞書の保守用のスクリプト（`build_icon_catalog.py`、`check_icons.py`）は `scripts/maintenance/` に置き（2026-10-24 のユーザーの決定。1.4）、SKILL.md からは呼ばない。開発者向けの仕様（docs/spec/ir-schema/ など）は SKILL の外の `docs/spec/` に置く（1.4）。
 7. **環境チェックの `scripts/doctor.py` を置く。** OS、Python・uv の版、文字コード、draw.io と mmdc の有無、Linux の画面と `xvfb-run`、`GITHUB_ACTIONS` を JSON で出す。SKILL.md に「失敗したらまず doctor を実行して報告する」と書く。doctor の終了コードは 0 = そろっている、1 = 任意のツール（draw.io、mmdc）が無い、2 = SKILL のファイルが足りないか doctor 自体の失敗（4 の `diagram.py` とは 1 の意味が違う）。
 8. **環境ごとの違いは SKILL.md の中で分ける。** `GITHUB_ACTIONS=true`（gh-aw、`@claude`）なら対話的な確認をしない。それ以外は結果を見せ、変更の前に確認を取る。
 9. **Claude Code にしかない機能は必須の手順にしない。** C6 の別のサブエージェントによる目視採点や PostToolUse フックは、使える環境でだけ使う。正式な判定は validate.py の数値の検証（重なり・貫通・網羅など）と、[評価基準](aws-iac-diagram-workspace/evals/CRITERIA.md) の半自動の基準（別のサブエージェントか人が判定し、根拠を記録に残すもの。大きいサンプルの抜き取りと点検表、TF／SAM の対の許す違いの一覧）とする。
@@ -116,16 +116,16 @@ uv run "<SKILL>/scripts/diagram.py" --input <IaC のフォルダかファイル>
 
 ### 1.4 構成の階層化（2026-10-24 にユーザーと合意）
 
-SKILL・関連ファイル・スクリプトが大きくなるのに備え、階層に分けて拡張の余地を残す。**フェーズ2 の完了の後、vpc 5.x・eks 20.x の要約表の前**に、フェーズ 2b として行う（手順4 のレビュー前の変更とファイルの移動が混ざらないように。Windows の CI が通り、出力を固定できる状態から始める）。構成は「リポジトリ構成（予定）」の図。
+SKILL・関連ファイル・スクリプトが大きくなるのに備え、階層に分けて拡張の余地を残す。**フェーズ2 の完了の後、vpc 5.x・eks 20.x の要約表の前**に、フェーズ 2b として行う（手順4 のレビュー前の変更とファイルの移動が混ざらないように。Windows の CI が通り、出力を固定できる状態から始める）。構成は「リポジトリ構成」の図（3 のあと）。
 
 1. **入口と中身を分ける。** `scripts/` の直下は入口のスクリプトだけ（PEP 723 と引数の処理。`uv run` の1行の起動は 1.3 のまま）。中身はパッケージ `scripts/aws_iac_diagram/`（今の `lib/`・`adapters/` の中身）に置き、`core`・`adapters/{terraform,cloudformation}`・`normalize`・`layout`・`emit`・`validate`・`icons`・`platform` に分ける。
-2. **文書とデータを分ける。** `references/` はエージェントが読む文書だけ（手順、`result.json` の読み方）。スクリプトが読むものは `data/`（`schemas/`、`module-summaries/<モジュール>/v<メジャー>.md`、`icons/`、`rules/`）に、1ファイル1単位で置く。開発者向けの仕様（ir-schema.md を章ごとに分けたもの、規則表の説明）は SKILL の外の `docs/spec/` に移す（ユーザーの決定）。
+2. **文書とデータを分ける。** `references/` はエージェントが読む文書だけ（手順、`result.json` の読み方）。スクリプトが読むものは `data/`（`schemas/`、`module-summaries/<モジュール>/v<メジャー>.md`、`icons/`、`rules/`）に、1ファイル1単位で置く。開発者向けの仕様（ir-schema を章ごとに分けたもの、規則表の説明）は SKILL の外の `docs/spec/` に移す（ユーザーの決定）。
 3. **辞書の保守用のスクリプトは `scripts/maintenance/`**（ユーザーの決定）。SKILL.md からは呼ばない。
 4. **テストで守る決まり:** 依存の向き（`core` はほかを読み込まない、アダプタ同士は読み込み合わない、全体をつなぐのは入口だけ。import を読んで確かめる）、1ファイルの行数（目安 800、1,500 を超えたら失敗）、診断コードの一覧（`core/diagnostics.py`。一覧に無いコードを使ったら失敗）。
 5. **拡張点:** 入力の形式は `adapters/<名前>/` と `adapters/registry.py`、出力の形式は `emit/<名前>.py`、モジュールの要約表は `data/module-summaries/` にファイルを足す、型の扱いは `data/rules/` に行を足す。`docs/architecture.md` に書く。
 6. **移し方:** 中身の動きは変えない。最初に自作の fixture・公開サンプルの TF のルート 52・CFN の 25 の raw IR を固定し（`tests/golden/`）、各手順の後でバイト単位で同じことと、テストがすべて通ることを確かめる。ファイルは `git mv` で移して履歴を残す。手順は R1（出力の固定、骨組み、`lib/` の移動、依存の向きのテスト）、R2（Terraform の分割）、R3（CloudFormation の分割、診断コードの一覧）、R4（`data/` への分割）、R5（テストを `unit/`・`integration/`・`golden/` に分ける）、R6（SKILL.md・references・docs/spec・architecture.md・この PLAN の構成図）。手順ごとに第三者レビューを受ける。
 
-   **状況（2026-10-26）:** R1 は済み。出力は `tests/golden/manifest.json`（101 ケース）に固定し、`lib/` の中身は `scripts/aws_iac_diagram/{core,adapters/terraform,platform}/` に、辞書の保守用は `scripts/maintenance/` に `git mv` した。`scripts/adapters/cfn.py` は R3 まで入口と本体を兼ねた（R1・R2 の間は CLI のパスのまま）。**R2（2026-10-26）:** `scripts/adapters/tf.py` は入口 `scripts/adapt_tf.py`（引数の処理だけ）と `scripts/aws_iac_diagram/adapters/terraform/`（hcl・参照・`module_*`・`evaluator/`・`modules/`・`plan/` の 26 ファイル。最大 763 行）に分けた（旧パスの互換は置かない）。依存の向きは `tests/architecture/test_dependency_direction.py`、行数は `tests/architecture/test_file_size.py` が確かめる（R1 の時点で 1,500 行を超えていた `tf.py`・`tf_plan.py` の免除は、R2 で外して `EXEMPT` は空）。層と拡張のしかたは [docs/architecture.md](docs/architecture.md)。 **R3（2026-10-26）:** `scripts/adapters/cfn.py`（1,327 行）は入口 `scripts/adapt_cfn.py`（引数の処理だけ）と `scripts/aws_iac_diagram/adapters/cloudformation/`（`build`・`stack`・`evaluator`・`intrinsics`・`conditions`・`params`・`foreach`・`nested`・`outputs`・`marks`・`refs`・`loader`・`sam`・`cdk`・`model` の 15 ファイル。最大 191 行）に分け、`scripts/adapters/` は無くなった（旧パスの互換は置かない）。診断コードは `core/diagnostics.py` の 1 つの表（TF 43 個・CFN 19 個）にあり、一覧に無いコードを使う・一覧のコードを使わないとテストが落ちる。 **R4（2026-10-26）:** スクリプトが読むものを `references/` から `skills/aws-iac-diagram/data/` に移した（`schemas/`、`icons/`、`module-summaries/<モジュール>/v<major>.md`。要約表 `module-summaries.md` の説明は `docs/spec/module-summaries.md` へ。規則表と `ir-schema.md` は R6・フェーズ 3 まで `references/` に残す）。同梱ファイルの場所は `core/paths.py` の 1 か所。出力が変わったのは、要約表のパスを含む診断の文言だけ（golden の 14 ケースを `--update --accept-changes` で更新。旧い出力のパスを置換すると新しい出力と一致する、という証明つき）。
+   **状況（2026-10-26）:** R1 は済み。出力は `tests/golden/manifest.json`（101 ケース）に固定し、`lib/` の中身は `scripts/aws_iac_diagram/{core,adapters/terraform,platform}/` に、辞書の保守用は `scripts/maintenance/` に `git mv` した。`scripts/adapters/cfn.py` は R3 まで入口と本体を兼ねた（R1・R2 の間は CLI のパスのまま）。**R2（2026-10-26）:** `scripts/adapters/tf.py` は入口 `scripts/adapt_tf.py`（引数の処理だけ）と `scripts/aws_iac_diagram/adapters/terraform/`（hcl・参照・`module_*`・`evaluator/`・`modules/`・`plan/` の 26 ファイル。最大 763 行）に分けた（旧パスの互換は置かない）。依存の向きは `tests/architecture/test_dependency_direction.py`、行数は `tests/architecture/test_file_size.py` が確かめる（R1 の時点で 1,500 行を超えていた `tf.py`・`tf_plan.py` の免除は、R2 で外して `EXEMPT` は空）。層と拡張のしかたは [docs/architecture.md](docs/architecture.md)。 **R3（2026-10-26）:** `scripts/adapters/cfn.py`（1,327 行）は入口 `scripts/adapt_cfn.py`（引数の処理だけ）と `scripts/aws_iac_diagram/adapters/cloudformation/`（`build`・`stack`・`evaluator`・`intrinsics`・`conditions`・`params`・`foreach`・`nested`・`outputs`・`marks`・`refs`・`loader`・`sam`・`cdk`・`model` の 15 ファイル。最大 191 行）に分け、`scripts/adapters/` は無くなった（旧パスの互換は置かない）。診断コードは `core/diagnostics.py` の 1 つの表（TF 43 個・CFN 19 個）にあり、一覧に無いコードを使う・一覧のコードを使わないとテストが落ちる。 **R4（2026-10-26）:** スクリプトが読むものを `references/` から `skills/aws-iac-diagram/data/` に移した（`schemas/`、`icons/`、`module-summaries/<モジュール>/v<major>.md`。要約表 `module-summaries.md` の説明は `docs/spec/module-summaries.md` へ。規則表 3 つはフェーズ 3 まで `references/` に残す。`ir-schema.md` は R6 で `docs/spec/ir-schema/` に移した）。同梱ファイルの場所は `core/paths.py` の 1 か所。出力が変わったのは、要約表のパスを含む診断の文言だけ（golden の 14 ケースを `--update --accept-changes` で更新。旧い出力のパスを置換すると新しい出力と一致する、という証明つき）。 **R5（2026-10-26）:** `tests/` の直下に平らに置いていたテストを、`tests/unit/`（領域ごとに 1 ファイル）・`integration/`（fixture・公開サンプルを入口や CLI から通す）・`golden/`・`architecture/` と、共有の道具 `tests/support/` に分けた（テストの本文は変えていない）。置き場の決まり（`__init__.py` の置き忘れ、標準ライブラリを隠す名前、文書に書いたテストのパスの実在）はテストで守る。 **R6（2026-10-26）:** `SKILL.md` を入口だけの文書（状態、コマンドの書き方、環境の確認、動くスクリプト、参照先）に直し、`ir-schema.md` を `references/` から `docs/spec/ir-schema/` に移して章ごとの 9 ファイルと目次（`README.md`）に分け（章・節の番号は識別子として変えない）、`references/` は `validate_ir.py` が読む規則表 3 つ（フェーズ 3 で `data/rules/` へ）と README だけにした。`docs/architecture.md` と下の構成図は今の姿に直した。SKILL.md の内容と、Markdown の相対リンク・文書に書いた `docs/…` のパスの実在をテストで守る（`tests/architecture/test_skill_entry.py`・`test_markdown_links.py`）。出力は変えていない（golden 101/101）。2b の完了後、フェーズ 3 より前に、vpc 5.x・eks 20.x の要約表を `data/module-summaries/` にファイルを足して入れる（A5）。
 
 
 ### 1.5 WSL での開発と、使う環境の広げ方（2026-10-24 にユーザーと合意）
@@ -252,59 +252,62 @@ SKILL・関連ファイル・スクリプトが大きくなるのに備え、階
  ⑥ LLM: あいまいな点を一括で確認、別のサブエージェントによる目視採点（C6）、説明 .md の作成（ラベルは ③〜④ でスクリプトが決める）
 ```
 
-### リポジトリ構成（予定）
+### リポジトリ構成
 
-`render-png.yml` の名前は仮（フェーズ5 で決める）。2026-10-24 に、1.4 の階層化に合わせて書き直した（フェーズ 2b で今の構成から移す。名前は移すときに細かく直してよい）。
+フェーズ 2b の完了時（2026-10-26）の実際の構成。まだ無いものは「予定」と書いた（`render-png.yml` の名前は仮。フェーズ 5 で決める）。層の分け方と依存の向きは [docs/architecture.md](docs/architecture.md)。
 
 ```
 aws-iac-diagram/                     ← Skill 専用リポジトリ（正本）。タグを付けて配る（1.3 の 5）
-├── PLAN.md  README.md  LICENSE  NOTICE        # HANDOFF.md・WORKLOG.md は docs/dev-notes/
+├── PLAN.md  README.md  LICENSE  NOTICE  .gitattributes  .gitignore
 ├── pyproject.toml  uv.lock  .python-version   # 開発用の環境（1.3 の 3）
 ├── docs/                            ← 開発者向け（SKILL の外。配らない）
-│   ├── skill-cross-platform-guide.md          # 共通 Agent Skill のガイド（1.3）
 │   ├── architecture.md              # 層の分け方、依存の向き、拡張のしかた（1.4）
-│   └── spec/                        # ir-schema（章ごと）、resource-catalog・relation-resources・edge-rules・module-summaries の説明
+│   ├── skill-cross-platform-guide.md          # 共通 Agent Skill のガイド（1.3）
+│   ├── spec/
+│   │   ├── ir-schema/               # IR スキーマ。章ごとの 9 ファイル（01-overview.md … 09-changes-from-v0.1.md）と目次 README.md
+│   │   └── module-summaries.md      # 要約表（data/module-summaries/）の説明
+│   └── dev-notes/                   # HANDOFF.md（再開用）・WORKLOG.md（作業の経緯）
 ├── .github/workflows/
-│   ├── ci.yml                       # Windows（PowerShell 5.1）と Ubuntu で単体テスト・検証・SKILL の起動（済。3形式の生成・検証はフェーズ6 で足す）
-│   └── render-png.yml               # （仮）.drawio のコミットで PNG を生成（.mmd は描画確認のみ）（draw.io の版を固定）
-├── tests/                           # SKILL のフォルダの外。パッケージと同じ階層に分ける
-│   ├── unit/…                       # 1つのファイルにつき1つのテストのファイル
-│   ├── integration/                 # fixture を入口のスクリプトから通す
-│   ├── golden/                      # 固定した raw IR などとのバイト単位の比較（1.4 の 6）
-│   └── architecture/                # 依存の向き・行数・診断コードの一覧の検査（1.4 の 4）
+│   ├── ci.yml                       # Windows（PowerShell 5.1）と Ubuntu で単体テスト・検証・SKILL の起動（3形式の生成・検証はフェーズ6 で足す）
+│   └── render-png.yml               # 【予定・仮】.drawio のコミットで PNG を生成（.mmd は描画確認のみ）（draw.io の版を固定）
+├── tests/                           # SKILL のフォルダの外
+│   ├── support/                     # 共有の道具（テストは置かない）
+│   ├── unit/                        # 領域ごとに 1 ファイル: terraform/（plan/）・cloudformation/・core/・validate/・icons/・host/
+│   ├── integration/                 # fixture・公開サンプルを入口のスクリプトや CLI から通す
+│   ├── golden/                      # 固定した raw IR（101 ケース）とのバイト単位の比較（1.4 の 6）
+│   └── architecture/                # 依存の向き・行数・診断コードの一覧・SKILL.md・文書のリンク・テストの置き場の検査（1.4 の 4）
 ├── skills/aws-iac-diagram/          ← 配布する SKILL。手元では ~/.claude/skills と ~/.copilot/skills からジャンクション
-│   ├── SKILL.md                     # 入口だけ。作業ごとに references/ へ案内する
-│   ├── references/                  # エージェントが読む文書だけ
-│   │   ├── workflow/                #   図を作る手順、あいまいな点の確かめ方、失敗したとき
-│   │   └── result-json.md           #   結果の読み方
+│   ├── SKILL.md                     # 入口だけ（状態、コマンドの書き方、環境の確認、動くスクリプト）
+│   ├── references/                  # エージェントが読む文書。今は README.md と規則表 3 つ（resource-catalog.md・relation-resources.md・edge-rules.md。validate_ir.py が読む。フェーズ 3 で data/rules/ へ）
+│   │                                #   【予定】workflow/（図を作る手順、あいまいな点の確かめ方、失敗したとき）、result-json.md（結果の読み方）はフェーズ 6
 │   ├── data/                        # スクリプトが読むデータ（1ファイル1単位）
 │   │   ├── schemas/                 #   ir.schema.json、ir-raw.schema.json
-│   │   ├── module-summaries/        #   terraform-aws-vpc/v5.md・v6.md、terraform-aws-eks/v20.md・v21.md …（A5）
+│   │   ├── module-summaries/        #   terraform-aws-vpc/v6.md、alb/v10.md、rds/v7.md、eks/v21.md、iam-only-sources.md、NOTICE.md（A5）。【予定】vpc/v5.md・eks/v20.md（2b の次）
 │   │   ├── icons/                   #   catalog.json、broken.json、カテゴリ別の一覧（生成物）
-│   │   └── rules/                   #   型の扱い・関係リソース・辺の規則（A1〜A3。フェーズ3 で表にする）
+│   │   └── rules/                   #   【予定・フェーズ3】型の扱い・関係リソース・辺の規則（A1〜A3）を表にする
 │   ├── assets/                      # vendor（draw.io の Sidebar-AWS4.js）など。Mermaid 用のアイコン JSON は同梱しない
 │   └── scripts/
-│       ├── diagram.py               # 入口の1行のコマンド（1.3）。result.json と終了コードを返す
-│       ├── doctor.py  validate_ir.py  adapt_tf.py  adapt_cfn.py  export_png.py  find_aws_icon.py
-│       │                            # ↑入口だけ（PEP 723 と引数の処理）
+│       ├── doctor.py  validate_ir.py  adapt_tf.py  adapt_cfn.py  find_aws_icon.py
+│       │                            # ↑入口だけ（PEP 723 と引数の処理）。validate_ir.py・doctor.py・find_aws_icon.py は本体も兼ねている
+│       │                            #   【予定】diagram.py（入口の1行のコマンド。1.3。result.json と終了コードを返す）、export_png.py（フェーズ5）
 │       ├── maintenance/             # 辞書の保守用。SKILL.md からは呼ばない
 │       │   └── build_icon_catalog.py  check_icons.py  sidebar_harness.js
 │       └── aws_iac_diagram/         # 中身のパッケージ
-│           ├── core/                #   raw IR の部品、診断コードの一覧、JSON の読み書き、パス
+│           ├── core/                #   raw IR の部品（ir_raw.py）、診断コードの一覧（diagnostics.py）、同梱ファイルの場所（paths.py）
 │           ├── adapters/
-│           │   ├── registry.py      #   入力の形式を見分けて振り分ける
-│           │   ├── terraform/       #   hcl・参照・count／for_each の展開・evaluator/・modules/・plan/
+│           │   ├── registry.py      #   入力の形式 → アダプタのパッケージの名前の表（形式を見分けて振り分ける処理は【予定】）
+│           │   ├── terraform/       #   hcl・参照・module_*（count／for_each の展開を含む）・evaluator/・modules/・plan/
 │           │   └── cloudformation/  #   テンプレート・組み込み関数・条件・SAM・ネストスタック・cdk.out
-│           ├── normalize/           #   フェーズ3
-│           ├── layout/              #   フェーズ4
-│           ├── emit/                #   drawio・mermaid・png（フェーズ4・5）
-│           ├── validate/            #   IR、.drawio（重なり・貫通）
-│           ├── icons/               #   辞書の読み込みと検索
-│           └── platform/            #   draw.io の探索と呼び出し（drawio_cli）、環境の確認
+│           ├── platform/            #   draw.io の探索と呼び出し（drawio_cli.py）。環境の確認（doctor の中身）はフェーズ5 で寄せる
+│           ├── normalize/           #   【予定・空】フェーズ3
+│           ├── layout/              #   【予定・空】フェーズ4
+│           ├── emit/                #   【予定・空】drawio・mermaid・png（フェーズ4・5）
+│           ├── validate/            #   【予定・空】IR、.drawio（重なり・貫通）。今の IR の検査は scripts/validate_ir.py
+│           └── icons/               #   【予定・空】辞書の読み込みと検索。今の検索は scripts/find_aws_icon.py
 └── aws-iac-diagram-workspace/
-    ├── fixtures/{tf,cfn}/…  expected/*.ir.json
-    ├── tools/
-    └── evals/
+    ├── fixtures/{tf,tf-plan,cfn,public}/…  expected/*.ir.json
+    ├── tools/                       # c1_check・check_coverage・golden・tf_public_check・make_plan_json など
+    └── evals/                       # CRITERIA.md
 ```
 
 ---
@@ -372,7 +375,7 @@ aws-iac-diagram/                     ← Skill 専用リポジトリ（正本）
 | 0 | ・ツールのインストール（venv、draw.io、mmdc）<br>・symlink の作成<br>・テスト用構成を5種類作る（3層 ALB/ECS/RDS、サーバーレス API GW/Lambda/DynamoDB、VPC+NAT+エンドポイント、モジュール利用、RAG）。それぞれ Terraform 版と CloudFormation 版を用意する<br>・各構成の正解 IR を作る<br>・アイコン辞書を生成し、壊れたアイコンを検出する（C2） | 正解 IR が第三者レビュー済み。辞書の生成と C2 が通る |
 | 1 | ・IR スキーマを決める<br>・CloudFormation アダプタ: 短縮タグ、Ref／GetAtt／Sub（`${}`）／ImportValue／DependsOn、SAM の Events、cdk.out<br>・A4（CloudFormation 側の評価）<br>・C1（cfn-lint との突き合わせ） | テストが通る。cfn-lint のグラフの辺のすべてに、アダプタの出力（raw IR）の参照が対応する（CRITERIA の 1.6。2026-10-17 に変更） |
 | 2 | ・Terraform アダプタ: 参照は .tf を正本にし、plan JSON の `configuration` にあって .tf の参照に無い組を `unevaluated` で足す（address・count／for_each の展開・値は plan。実装は `scripts/aws_iac_diagram/adapters/terraform/plan/`）<br>・count／for_each のうち値が決まらないものは「×N」として扱う<br>・A4（Terraform 側の評価）<br>・A5（4モジュール） | **完了（2026-10-26）。** raw IR の段階で: 自作5構成の正解 IR の TF 側の網羅分類と一致する（`ExpectedIrTest`）。公開サンプルの TF（T01〜T20、P01〜P04 のルート 52、`.tf` のあるフォルダ 205）がすべて読め、raw IR の検査を通り error の診断が 0。TF／SAM の対（T06、T07、T11 と T01、T05）のリソースの型の多重集合の違いが、理由つきの表と一致する。**「同じ構成の TF 版と CFN 版が同じ IR になる」は正規化の後の比較なので、フェーズ3 の完了基準に分けた**（2026-10-26 にユーザーが決め、CRITERIA.md の 1.1 も2行に分けた。フェーズ2 の時点では、SAM の暗黙のリソースや TF の分割したリソースを、図の形にするまで比べられないため） |
-| 2b | 構成の階層化（1.4。2026-10-24 にユーザーと合意。**R1・R2・R3・R4 は 2026-10-26 に済み**）<br>・R1 出力の固定、パッケージの骨組み、`lib/` の移動、依存の向きのテスト<br>・R2 Terraform の分割　・R3 CloudFormation の分割、診断コードの一覧<br>・R4 `data/` への分割（済）　・R5 テストの分け直し<br>・R6 SKILL.md・references・`docs/spec/`・architecture.md | 中身の動きが変わらない（固定した raw IR とバイト単位で同じ。テストがすべて通る。両 OS の CI が通る）。1.4 の 4 の決まりをテストが確かめている。この後の vpc 5.x・eks 20.x の要約表は `data/module-summaries/` にファイルを足すだけで入る |
+| 2b | 構成の階層化（1.4。2026-10-24 にユーザーと合意）<br>・R1 出力の固定、パッケージの骨組み、`lib/` の移動、依存の向きのテスト<br>・R2 Terraform の分割　・R3 CloudFormation の分割、診断コードの一覧<br>・R4 `data/` への分割　・R5 テストの分け直し<br>・R6 SKILL.md・references・`docs/spec/`・architecture.md・構成図 | **完了（2026-10-26。R1〜R5 は第三者レビューを受けて main に取り込み済み。R6 は実装済みで、レビューを受けて取り込む）。** 中身の動きが変わらない（固定した raw IR とバイト単位で同じ。テストがすべて通る。両 OS の CI が通る）。1.4 の 4 の決まり（依存の向き・行数・診断コードの一覧）をテストが確かめている。この後の vpc 5.x・eks 20.x の要約表は `data/module-summaries/` にファイルを足すだけで入る |
 | 3 | 正規化: 型別の表、A1、A2、A3、A6、AZ の挿入、SG を辺に変換、B3 | 網羅分類の漏れと重複が0件（CRITERIA の X4。`unknown` は分類として正しい）。正解 IR に対する再現率と適合率が CRITERIA の 1.1・1.2 を満たす。raw IR の参照で分類されないものが0件（CRITERIA の 1.8）。同じ構成の TF 版と CFN 版が同じ IR になる（自作5構成は canonical 部が一致、公開サンプルの TF／SAM の対 T06・T07・T11 は SELECTION.md の 3 の 3 のノードの型・辺の多重集合。フェーズ2 から分けた） |
 | 4 | draw.io の出力と配置<br>・相対座標、辺と図形の2レイヤ、背景矩形<br>・B1、B2、C5<br>・ELK が入れ子のコンテナを保てるか試し、採否を決める | CRITERIA の 2.2 を満たす（重なり・はみ出しは0件。辺の貫通は0件で、L4 だけ図1枚ごとに辺の本数の 5% 以下）。同じ入力を再実行してもバイト単位で同じになる |
 | 5a | スパイク（1.2 の未確認事項。フェーズ5 の手前で小さく試す）<br>・Claude Code on the web と Actions の `@claude` で、draw.io の deb＋xvfb を入れて `xvfb-run drawio --no-sandbox -x` が動くか<br>・同じ環境で mmdc（Chromium＋`--no-sandbox`）が動くか<br>・gh-aw で `uv run` を許可する frontmatter の書き方と、このリポジトリの SKILL をタグ指定で読み込めるか（APM、`gh skill install`）<br>・VS Code + Copilot（`~/.copilot/skills/`・`.github/skills/`）と Claude Code on the web（`.claude/skills/`）で SKILL が読まれ、1行のコマンドが動くか<br>・Actions で draw.io の版・ランナーのイメージ（例 `ubuntu-24.04`）・フォントを固定して、PNG がバイト単位で同じになるか | 各項目の可否と手順（または動かない理由）が WORKLOG に記録され、1.2 の表とフェーズ5・6 の作業が結果に合わせて直っている |
