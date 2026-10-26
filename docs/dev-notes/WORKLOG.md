@@ -1410,3 +1410,77 @@ tests/ 平ら 10 ファイル、最大 2,381 行（281 件）            tests/ 
 - 単体テスト **437 件**（432 + 新規 5: `test_eks20_switches_match_source`、`test_eks21_switches_match_source`、`test_vpc_switches_match_source`、`test_every_input_a_table_passes_to_a_submodule_is_declared_there`、`test_eks20_empty_node_groups_report_no_uncovered_inputs`）。
 - `tf_public_check.py --all`: 248 フォルダ、リソース **16898**、warn 2582、info 22063、error 0（`launch_template_tags` の修正では変わらない: 公開サンプルに、親の表で展開される self-managed のグループは無い）。golden 101/101。
 - 確認（レビュー対応のコミット）: Windows の通常の TEMP（164 秒）と `subst Y:` の TEMP（167 秒）で 437 件 OK、`uv lock --check` OK、golden 101/101、pyflakes 0 件。WSL（`git archive HEAD` を WSL の中で展開）は 437 件 OK（98 秒）、golden 101/101、`tf_public_check.py --all --jobs 4` は 248 フォルダ・16898 リソース・error 0、`c1_check.py` は 25・513・0、SKILL だけのコピー（日本語とスペースのパス）の T16・T18 の出力は在リポジトリの出力とバイト単位で同じ（88,078・24,291 バイト。manifest と一致）。
+
+
+## 2026-10-26 フェーズ3 の手順1: 規則データ化（動きを変えない）
+
+ローカルのブランチ `phase3-s1-rules`（main の `c24e16f` から。push はまだ。第三者レビュー待ち）。設計案（`docs/dev-notes/phase3-design-draft.md`。先頭にユーザーが推奨案での進行を了承した旨を足して最初のコミットに入れた）の 6.1 の手順 1。草案の規則表 3 つ（`references/` の `resource-catalog.md`・`relation-resources.md`・`edge-rules.md`）を、**意味を変えずに**機械が読むデータ（TOML）にし、`validate_ir.py` の読み方を付け替えた。規則表の拡張（約 40 型）と凍結は手順 2。コミット（4 つ）: ① 設計案の下書き、② 規則表のデータ・`core/rules.py`・`ir_norm.py`・`module_sources.py`・`validate_ir.py` の付け替え・`docs/spec/rules/`・`render_rules.py`、③ 使う側の付け替えと草案 3 つの削除、④ この文書・HANDOFF。
+
+### ユーザーの決定（設計案の 8 章の質問に、推奨案での進行を了承）
+1. 規則データの形式 = TOML、領域別のファイル（標準ライブラリの `tomllib` だけ。依存は増えない）。
+2. `iam_only()`（H-IAM の判定）は TF アダプタから `core/module_sources.py` へ移す（アダプタは core から読む。raw の出力は変わらない）。
+3. 既存インフラを指す `data` は、「表の行で選んだ型は、描くリソースから参照されていれば描く、それ以外は H-DATA」。**手順 1 は方針をデータに持たせただけで、正規化はしない**（`[[type]]` の `data = true`。`vpc`・`subnet`・`s3_bucket` の 3 つは、設計案が例に挙げたもの。範囲は手順 2 で決める）。
+4. 正解 IR の書き方の手順は後の手順（手順 1 では何もしない）。
+
+### データの形（`skills/aws-iac-diagram/data/rules/`）
+| ファイル | 表と行数 |
+|---|---|
+| `types/network.toml`・`compute.toml`・`data-stores.toml`・`integration.toml`・`ai-analytics.toml` | `[[type]]` 描く型 8・4・3・4・3 = 22 |
+| `types/merged-and-hidden.toml` | `[[type]]` 統合 M-* 9、非表示 H-* 12 |
+| `relations.toml` | `[[relation]]` R-* 13 |
+| `edges.toml` | `[[confidence]]` 3、`[[edge]]` 7（E-ENV-REF・E-ENV-STR・E-IAM・E-IAM-SUPPRESS・E-KB-STORAGE・E-BEDROCK-EMBEDDING・E-MERGE）、`[[kind_by_target]]` 3、`[[iam_action_kind]]` 3、`[[merge_priority]]` 6、`[[synthetic]]` 2（N-EXT-INTERNET・N-BEDROCK-MODEL）、`[[label_format]]` 6 |
+| `refs.toml` | `[[noedge]]` E-NOEDGE-* 7、`[[nonode]]` E-REF-NONODE 1 |
+| `placement.toml` | `[[placement]]` N-AZ・P-VPC・P-SUBNET・P-SPANS・P-REGIONAL 5、`[[attr]]` 1（`subnet.attrs.access`） |
+
+規則 ID は全部で 56（E 15、H 12、M 9、N 3、P 4、R 13）。旧い読み方（`validate_ir.defined_rules()`）の集合と同じ。
+
+**移し方:** 一回限りの変換スクリプト（リポジトリには入れない）で、旧い表のセルから型の一覧と原文を取り、人が条件（`when`）・統合先の型・フォールバックなどを書き足した。説明の文章（状態・用途・補足・判断の理由・まとめ方・ラベルの見出しなど）は `docs/spec/rules/` に**原文のまま**移した（表の外の行は、リンクの付け替えと見出しの整理以外は変えていない）。旧い 3 つの文書のバッククォートで囲んだ語（型名・属性名・規則 ID・アクションなど）を全部取り、新しいデータと文書のどちらかに残っていることを確かめた（残っていないのは 19 件で、すべて `when` の条件や SAM の `Events` の型が、構造（`when`・`sam`）になったもの、見出し・リンクを付け替えた行）。
+
+### 決めたこと・設計案からの逸脱（理由つき）
+1. **文書の置き方:** 表は、設計案の `rules-table.md`（1 つの生成物）ではなく、領域ごとの文書（`docs/spec/rules/` の `types`・`relations`・`edges`・`refs`・`placement`）の中の `<!-- rules-table: 名前 -->` の間に生成する。ユーザーの指示（README と領域ごとの 1 ファイル）に合わせた。説明の文章は同じ文書の手書きの部分。`render_rules.py --check` を単体テストが呼び、データと文書は食い違えない。
+2. **`[[type]]` に `parent` と `attrs` の列は持たせていない**（設計案 3.5 の列）。旧い文書にあるのは、入れ子の規則から型への対応（`placement.toml` の `types`）と、`subnet` の `attrs.access` の 1 文だけで、型ごとの `parent` を書くには、旧い文書に無い判断（`vpc`・`module` の親など）が要る。手順 1 は「規則も意味も足さない」ので、`placement.toml` に旧い文書の対応をそのまま置き、`parent` は手順 3（入れ子の実装）で決める。
+3. **`[[relation]]` に `shape`・`handler`・`from`・`to`・`direction` は無い。** 旧い文書に無い事実（属性名、ハンドラ）で、手順 3〜5 で実装するときに決める。代わりに、旧い表の列（`edge`・`kind`・`label`・`confidence`）と、辺ができなかったときのフォールバック（`fallback`。旧い文書に書いてある: R-SG → H-SG-NOEDGE、R-ROUTE → H-RT-NOROUTE、R-LAMBDA-PERMISSION・R-SQS-QUEUE-POLICY → H-IAM）、プロパティで表される関係（`tf_props`・`cfn_props`・`sam`）を持たせた。
+4. **`[[ref_rule]]`（設計案の 3.5。E-ENV-REF などの `path` の中立キーのパターン）は作らない。** パターンは設計案の「仮定」で、実装する手順 4 で決める。E-ENV-REF・E-KB-STORAGE・E-BEDROCK-EMBEDDING は、旧い表の列のまま `[[edge]]` の行にした。
+5. **`into` は `{ node_types, select }`**（設計案は `{ by, attr, node_type }`）。`node_types` は統合先の描く型、`select` は旧い表の「統合先」の文。選び方（`by`・`attr`）は旧い文書に無い解釈で、手順 3 で決める。`refs_as_target`（M-ECS-TASKDEF）は設計案どおり。
+6. **`when` のキー:** 設計案の `prop`・`in`・`default` に、`types`（条件が効く入力の型）・`via`・`via_not`（raw の `via`）を足した。足した理由: ① 同じ型が複数の行に当たるのを禁じる検査（設計案の 6.1 の 2）のために、`aws_security_group_rule` を H-SG-EGRESS（`type` が egress）と R-SG（ingress）に分ける必要があった（**R-SG に ingress の `when` を足したのは、H-SG-EGRESS の「別リソースの egress ルール」という旧い文書の分け方に合わせた読み方**）、② `AWS::CloudFormation::Stack` が、展開できたか（H-NESTED-STACK）、黒箱か（型 `module`）で変わる（設計案の 4.3）。CFN のネストスタックの `via` は、展開できた親が `None`、その中のスタックが `nested_stack`、黒箱が `module_blackbox`（`stack.py`）なので、H-NESTED-STACK は `via_not = ["module_blackbox"]`。golden の raw では CFN の `AWS::CloudFormation::Stack` 23 件がすべて `via` なし、TF の `module` 41 件がすべて `module_blackbox`。
+7. **`icon` は文字列の配列**（設計案は文字列 1 つ）と `icon_note`: 旧い表に候補が 2 つの行が 2 つある（`subnet`・`ecs_service`）。
+8. **H-IAM は `module_sources_file`**（設計案の `module_source_prefix` ではなく）: 一覧は `data/module-summaries/iam-only-sources.md` のまま（設計案の 8 章の 4 の (a)。二重管理しない）。`core/module_sources.py` が読み、ローダーはファイルがあることと、`core/paths.py` の `IAM_ONLY_SOURCES` と同じ場所を指すことを（テストで）確かめる。
+9. **`core/module_sources.py`:** `iam_only()` と一覧の読み込みに加えて、`registry_key()`（`iam_only` が使う）も core に移した。`adapters/terraform/modules/sources.py` は `registry_key` を core から再公開する（既存の import が動く）。`summaries.load()[1]`（要約表のフォルダ全体を読んだときの IAM の並び）は、IAM の印を `iam-only-sources.md` 以外のファイルが持てば足される（旧い動き）が、`core.module_sources.load_iam_sources()` は `iam-only-sources.md` だけを読む。出荷したデータでは同じ（テストが比べる）。**`resolve.blackbox_plan` は `iam_only(source, summaries.SUMMARY_DIR)` を呼ぶ**（要約表のフォルダを差し替えるテストのやり方が、IAM の一覧にも効く。移す前と同じ）。
+10. **`core/ir_norm.py`:** 関数は同じ（`_sort_lists` は `sort_lists`）。`validate_ir.canonical_dump`・`canonical_part` は残した（テストと `--same-canonical`）。
+11. **`validate_ir.py`:** 規則表は引数の IR のパスがあるときだけ読む（`--same-canonical` だけのときは読まない。有効なデータでは見た目の変化なし）。規則表が壊れていれば終了コード 2（以前は表が無ければ空の集合で黙って進んだ）。
+12. **`references/` は README.md だけ**にして残した（設計案の 5.4）。`core/paths.py` の `REFERENCES_DIR` も、実在するフォルダを指すので残した（使うのはテストだけ）。
+13. **`data/rules/README.md`** は読まれない説明。ローダーは置いてよい名前の表に入れ、一覧（doctor・`RUNTIME_DATA`）には入れない。
+
+### 文言が変わった 2 つのメッセージ（ファイルが無くなったため）
+- `規則 X が references/ の規則表に無い` → `規則 X が規則表（data/rules/）に無い`
+- `入力の型 T が resource-catalog.md の「描く型」に無い` → `入力の型 T が規則表（data/rules/types/）の「描く型」に無い`
+出力（raw IR・golden）には入らない。コード・テスト（`tests/unit/validate/test_validate_ir.py` の `RulesFromDataTest`）・文書で同じ文言にした。
+
+### 確かめたこと
+**旧い読み方（`c24e16f` の `git archive`）と新しい読み込みの比較**（使い捨てのスクリプト。リポジトリには入れていない）:
+- 規則 ID の集合 **56** と、入力の型 → 正規の型名の対応 **43**: 同一。
+- `validate_ir.py` の終了コードと標準出力（旧い版・新しい版を同じパスの引数で別プロセスに）: 正解 IR **5** 件（全部 0、同一）、golden の raw 出力 **101** 件（全部 0、同一）、変異させた IR **200** 件（種 2 通り: 一般の変異 100 件〈終了コード 0 が 9、1 が 91〉と、規則 ID・型・class・接頭辞に偏らせた 100 件〈0 が 10、1 が 90〉。ノードの型・入力の型・規則 ID・class・接頭辞・synthetic・category・辺の kind・ノードの削除）: **差 0**。比べる前に読み替えたのは、上の 2 つの文言だけ（22 行）。
+- golden **101/101**（各コミットで）。
+- 単体テスト **437 → 508**（新しいテスト 71: `test_rules.py` 37、`test_module_sources.py` 7、`test_ir_norm.py` 5、`test_core_isolation.py` 3、`test_rules_docs.py` 12、`test_validate_ir.py` +3、`test_cli_paths.py` +2、`test_doctor_required_files.py` +1、`test_paths.py` +1）。
+- **ローダーの変異 18 件**（検査を 1 つずつ外した。重なりの検査・`when` の分離・重複 ID・未知の列・必須の列・接頭辞・fallback・中立キー（行の中・行をまたぐ）・`into.node_types`・読む順（ルート・`types/`）・余りのファイル・確信度の表との整合・優先順の番号・`when.prop`/`in`・`module_sources_file`・合成ノードの型）: 1 件は最初に生き残った（ルートのフォルダの列挙の順。エラーの並びだけに効く）ので、`test_error_messages_do_not_depend_on_directory_listing_order` を足して**全部落ちる**ようにした。
+- `render_rules.py --check` が通る、データか文書を壊すと落ちる（`test_rules_docs.py`）。`doctor.py` は `data/rules/` の 10 ファイルのどれが欠けても終了コード 2（`validate_ir.py` も 2）。SKILL だけを日本語とスペースを含むパスにコピーして、`validate_ir.py` の出力と規則表の読み込み（規則 ID・型の対応・読み順）がリポジトリの中と同じ。
+
+**確認（2026-10-26。コード側の最後のコミット `2b4e45e` の木。④ は文書だけ）:**
+- Windows の通常の TEMP: 単体テスト **508 件 OK**（231 秒）。`subst Y:` の別のドライブの TEMP: **508 件 OK**（171 秒）。2 つ目のコミット（`8af340c`）の木（`git archive` を別の場所に展開）でも 508 件 OK（234 秒）と golden 101/101。
+- `uv lock --check` OK。`pyflakes`: 触った Python 22 ファイルで 0 件。
+- WSL（Ubuntu。`git archive HEAD` を WSL の中で展開）: `uv sync --locked`、単体テスト **508 件 OK**（102 秒）、golden 101/101、`validate_ir.py`（正解 IR 5）OK、`render_rules.py --check` OK、`tf_public_check.py --all` 248 フォルダ・リソース 16898・error 0（warn 2582・info 22063。変更前と同じ数）、`c1_check.py` 入力 25・辺 513・対応の無い辺 0、`check_coverage.py --lint` OK、日本語とスペースを含むパスにコピーした SKILL の `doctor.py`（warn。mmdc が無いだけ。欠けたファイル 0）。
+- CI（`ci.yml`）と同じ手順を手元の Windows で: 正解 IR の検証、`check_coverage.py --lint`、`c1_check.py`、TF の 5 構成・CFN の 5 構成・plan JSON の入力の raw IR の検証、`tf_public_check.py --all --jobs 4`（248 フォルダ、error 0）が通る。
+- SKILL だけの複製（日本語とスペースを含むパス。`uv run` の PEP 723 の経路）: `validate_ir.py`（正解 IR 5 件の出力がリポジトリの中と同じ）、`doctor.py`（欠けたファイル 0。複製の `data/rules/types/network.toml` を消すと終了コード 2 で、そのファイルを名指しする。`validate_ir.py` も終了コード 2）、`adapt_tf.py`・`adapt_cfn.py` の出力がリポジトリの中とバイト単位で同じ。
+
+### 弱い点（正直に）
+- **旧い読み方が読んでいなかった部分は、旧い読み方との同値では確かめていない。** 旧い `validate_ir.py` が読んでいたのは、規則 ID の集合と「描く型」の入力の型だけ。M-*・H-*・R-* の対象の型、`E-NOEDGE-*` の属性名、kind の表などは、旧い文書のバッククォートの語が新しいデータか文書に残ることと、データの列と原文の食い違い防止のテスト（`applies` の型が `tf`・`cfn` に全部ある、`match` の属性名が `attrs` に全部ある、テキストの規則 ID が実在する）で確かめた。**型の一覧の取り違え（たとえば H-LOGS の型の抜け）は、レビューで原文と見比べるのが確実。**
+- **条件（`when`）と統合先の型（`into.node_types`）、`fallback`、`placement.types` は私が旧い文書を読んで書いた構造**で、旧い文書に無い字面を含む（上の 2〜6）。使うのは手順 3 以降なので、そこで実装しながら見直す。
+- **`types/` の一覧は glob で読む**（設計案の「名前の昇順」）ので、`types/*.toml` のどれかが欠けても、ローダーは欠けたファイルの名前を言えない（ほかの表からの参照が切れて見つかる。名前を言うのは doctor の `REQUIRED_FILES`）。`types/` に誰も参照しない行だけのファイルが増えて、それが欠けたときは、doctor でしか見つからない。
+- **列の定義が 3 か所**（`core/rules.py` の検査、`render_rules.py` の `COLUMN_DOC`、データ）。足し忘れは落ちる（`COLUMN_DOC` の漏れ・余りはテスト、データの列は検査）が、手間は増える。
+- `core/rules.py` は 688 行（800 行の目安の内）。手順 2 で行を足しても増えない（データ側）が、`ref_rule` などを足すなら分ける。
+- 旧い文書の「状態: 草案」の文言は、そのまま残してある（`docs/spec/rules/` の各文書の先頭に「手順 1 でデータにした」を足した）。
+- CRITERIA.md（5 か所）・SELECTION.md（3 か所）・正解 IR `three-tier.ir.json` の `note`（1 か所）に、旧い名前（`resource-catalog.md`・`relation-resources.md`・`edge-rules.md`）が残っている。評価基準と確定済みの正解 IR なので変えていない。読み替え: `resource-catalog.md` → `data/rules/types/*.toml` と `placement.toml`（説明は `docs/spec/rules/types.md`・`placement.md`）、`relation-resources.md` → `data/rules/relations.toml`（`docs/spec/rules/relations.md`）、`edge-rules.md` → `data/rules/edges.toml`・`refs.toml`（`docs/spec/rules/edges.md`・`refs.md`）。
+- CI（GitHub Actions）は実行していない（push していない）。
+
+### 次（手順 2: 規則表の拡張と凍結）
+主セット 12 入力の raw IR の全リソースが型の表のどれかに入る（`unknown` 0）ように、約 40 型の行を足す（`types/edge-web.toml` など）。描く／統合／非表示の判断が多いので、機械的なものとユーザーの確認が要るものに分けて報告する。8 章の 3 の `data = true` の範囲と、黒箱の描き方も決める。足し方は `docs/architecture.md` の「規則表（`data/rules/`）」。凍結したら、主セットの正解 IR の作成（別のサブエージェント）を始められる。
