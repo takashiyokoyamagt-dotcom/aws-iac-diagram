@@ -792,3 +792,80 @@ TF アダプタを公開サンプルの TF すべてにかけて確かめ、TF�
 - **要約表の欠落を黙って通さない（MAJOR）**: `references/module-summaries.md` が無いと、`tf.py` は終了コード 0 のまま three-tier-modules が 42 でなく 13 リソースになり、`doctor.py` も ok だった。`doctor.py` の必須ファイルに足し（無ければ error・終了コード 2）、TF アダプタは要約表が空・読めないのにレジストリモジュールの呼び出しがあるとき `TF-MODULE-SUMMARY-TABLE-MISSING`（warn。ir-schema.md の TF の code の一覧は 43 個）を出す（`tf_modules.blackbox_plan`。`tf.py` の行数は増やしていない）。golden は 101/101 のまま。`SummaryTableFileTest` 4 件。
 - **構成のテストの穴**: `platform` が標準ライブラリを隠す危険（`aws_iac_diagram/` 自体を `sys.path` に入れない決まりを architecture.md に書き、標準ライブラリと同じ名前の新規のフォルダ・モジュールを失敗に。許可は `platform` の 1 つ）、入口どうしの import（`adapters/`・`maintenance/` の入口も対象。実在した `check_icons.py` → `build_icon_catalog`（辞書の書き出しの共有）は理由付きの許可表 `ENTRY_IMPORT_ALLOW` に 1 件だけ書き、外す時期を記した）、`importlib`・`__import__`・`exec`・`eval` の禁止。それぞれ一時フォルダのコピーで失敗を確かめる。
 - **golden.py**: `--only` に合うケースが無ければ失敗、`--update` はケースが減るときも `--accept-changes` が要る。`find_aws_icon.py` のメッセージのパスを直した。テストは 323 件（312 + 11）。
+
+## 2026-10-26 フェーズ2b の R2: Terraform の分割
+
+### 概要
+構成の階層化（PLAN の 1.4）の 2 番目。**中身の動きは変えずに**、`scripts/adapters/tf.py`（2,612 行。CLI と、1 クラス 1,700 行の `ModuleEval` を含む）を入口 `scripts/adapt_tf.py` と `scripts/aws_iac_diagram/adapters/terraform/` の 26 ファイルに分け、`tf_plan.py`（1,558 行）・`tf_eval.py`・`tf_modules.py` もサブパッケージ `plan/`・`evaluator/`・`modules/` に分けた。行数の免除（`EXEMPT`）は空。ローカルのブランチ `phase2b-r2`（main の `26dca6b` から。コミット 5 つ。push はしていない）。第三者レビューは別。
+
+### コミット
+| # | 内容 |
+|---|---|
+| 1 `b2735ff` | `git mv`: `tf_eval.py` → `evaluator/functions.py`、`tf_modules.py` → `modules/summaries.py`、`tf_plan.py` → `plan/reader.py`。import・`SUMMARY_FILE`（`parents[5]`）・テストのパスを直しただけ |
+| 2 `81003bd` | `adapters/tf.py` を分ける（本体は `git mv` で `module_expr.py` へ）。入口 `adapt_tf.py`、`hcl`・`addresses`・`refs`・`model`・`build`・`module_*` 7 ファイル |
+| 3 `3848347` | `evaluator/`・`modules/`・`plan/` を責務ごとに分ける。`EXEMPT` を空に |
+| 4 `ab3dacf` | CI（bash・PowerShell）・README・ir-schema.md・module-summaries.md・PLAN・architecture.md の参照と説明 |
+| 5 | HANDOFF・WORKLOG（この節） |
+
+golden は 4 つのコミットのそれぞれで 101/101 一致、単体テストは 323 → 325 → 326 → 326 件が通った。
+
+### 何がどこへ移ったか（行数は移した直後）
+| 元 | 先 | 行 |
+|---|---|---|
+| `adapters/tf.py` の docstring・`main`・`_OrderedVar` | `scripts/adapt_tf.py`（PEP 723 の宣言は変えていない） | 167 |
+| 〃 構文木の道具・heredoc・テンプレートの字句・`merge_body` | `adapters/terraform/hcl.py` | 395 |
+| 〃 `Block`・`Instances`・`ResList`・`ResMap`・`Context`・`ModObj`・`weakest`・メタ引数の集合 | `model.py` | 108 |
+| 〃 `block_address`・`inst_address`（plan の側と共通にした） | `addresses.py` | 22 |
+| 〃 `ref_order`・`through_refs`・`prepend_through`・`collect_active`・`_dedupe`（→ `dedupe_refs`）（plan の側と共通にした） | `refs.py` | 70 |
+| 〃 `build_raw`・`build_from_plan`・`dump`・変数のファイルの探し方 | `build.py` | 128 |
+| 〃 `ModuleEval` の `__init__`・`diag`・`add_ref` | `module_eval.py`（6 つのミックスインを束ねる） | 85 |
+| 〃 `ModuleEval` の読み込み（load・read_tf・collect・add_block）と `summary_tree` | `module_load.py` | 151 |
+| 〃 変数・local・output・子の変数と出力 | `module_vars.py` | 358 |
+| 〃 `count`・`for_each`・子のモジュールの作成 | `module_expand.py` | 272 |
+| 〃 式の評価・pruned の参照の集め方（`git mv` の本体） | `module_expr.py` | 662 |
+| 〃 値 → props（materialize・body_props・dynamic_block） | `module_props.py` | 136 |
+| 〃 リソースの出力・provider・depends_on・`path_present` | `module_emit.py` | 281 |
+| `tf_eval.py`（1,152 行） | `evaluator/values.py`（型・変換・`format()` の本体）、`evaluator/functions.py`（組み込み関数） | 404・763 |
+| `tf_modules.py`（209 行） | `modules/sources.py`（source の見分け）・`summaries.py`（要約表の読み込み）・`resolve.py`（版の選択・黒箱） | 46・97・85 |
+| `tf_plan.py`（1,558 行） | `plan/read.py`・`reader.py`（PlanReader）・`values.py`・`addresses.py`・`masking.py`・`consistency.py`・`diagnostics.py`・`raw.py`・`combine.py` | 215・601・183・65・72・59・10・78・273 |
+
+1,500 行を超えるファイルは無い。800 行を超えるのは **`adapters/cfn.py`（1,327 行。R3）だけ**。Terraform の側の最大は `evaluator/functions.py` の 763 行（`format_string` を `values.py` に移す前は 822 行だった）。
+
+### 決めたこと
+| 決めたこと | 理由 |
+|---|---|
+| `ModuleEval`（1 クラス 1,700 行。それだけで上限 1,500 行を超える）は、**責務ごとのミックスイン 6 つ**に分け、`module_eval.py` で束ねる。状態はすべて `ModuleEval.__init__` に残し、ミックスインは持たない | 動きを変えずに分ける最も安全な方法。メソッドは `self.xxx` で呼び合うまま。関数に直すと引数の受け渡しの書き換えが大きく、golden で守りきれない恐れがある |
+| ミックスインは `module_eval.py` を実行時には import しない。`child()` は `ModuleEval(...)` でなく `type(self)(...)` で子を作る（型の注釈は `TYPE_CHECKING` の import） | 循環 import を避けるため。`ModuleEval` の子クラスは無いので動きは同じ。**ただし `ModuleEval` を継承するクラスを作ると、子もそのクラスになる**（意図しない場合は `child()` を直す） |
+| `.tf` の側と plan の側で同じだった `collect`（`collect_active`）・`_dedupe`（`dedupe_refs`）・`block_address`・`INSTANCE_KEY` は 1 つにし、`inst_address` は plan の側（`key is None` を許す方）に揃えた | 分けると重複が目立つ。`.tf` の側の `inst_address` は `None` を渡されることが無い（呼び出しの前で分けている）ので、動きは同じ。golden で確かめた |
+| 別のモジュールから使う `_unescape`・`_dedupe`・`_version`・`_diag`・`_drop_missing`・`_props_consistent`・`_mismatch` は、先頭の `_` を外した（`unescape`・`dedupe_refs`・`version_text`・`diag`・`drop_missing`・`props_consistent`・`block_mismatch`）。そのモジュールの中だけで使うものは `_` のまま | 他のモジュールから使うものを「非公開」の名前にしない |
+| 入口 `adapt_tf.py` は `main()`・`_OrderedVar`・終了コード・エラーの文言を持つ（PLAN の 1.4 の 1。入口は引数の処理と呼び出し）。`build_raw` などの呼び出しは `build.py` | CLI の挙動（文言・終了コード）を入口の 1 か所に置く。テストは `adapt_tf.main` を呼ぶ |
+| 旧パス `adapters/tf.py` の互換（薄い shim）は置かない | 配布したタグが無い。参照はすべて直した |
+| 構成のテスト: `adapters/terraform` の直下のサブパッケージ（`evaluator`・`modules`・`plan`）は層の一部として許す（`SUBPACKAGE_PARENTS`）。層の表の外に新しい層が増えるのは、これまでどおり失敗 | サブフォルダが「表に無い層」と数えられて落ちたため |
+| `EXEMPT` は空にし、`test_no_exemptions_remain` で空であることを確かめる | PLAN の 1.4。免除を足すときは、この検査も理由付きで直す |
+| `doctor.py` の必須ファイルに `scripts/adapt_tf.py` と `scripts/aws_iac_diagram/adapters/terraform/build.py` を足した | SKILL の取り込みが一部欠けると、TF アダプタを動かしてから落ちる。`doctor` で先に見つける。診断の文言は変えていない |
+| `DiagnosticCodesTest`（`tests/test_tf_public.py`）は terraform の下の全 `.py` を読む（`glob("tf_*.py")` → `rglob("*.py")`） | 元の `glob("tf_*.py")` のままだと、新しいファイル名に当たらず、コードの診断コードを黙って読まなくなる |
+| `adapters/terraform/hcl.py` は `evaluator/values.py` を import する（`const()` の `is_number`）。逆は無い | 向きは evaluator ← hcl。evaluator は構文木を知らない |
+
+### 想定外だったこと・つまずいたこと
+- `ModuleEval` だけで 1,720 行あり、ファイルを分けるだけでは 1,500 行以下にならなかった。クラスの分割（ミックスイン）が必要だった。
+- 名前の付け替えで `plan/combine.py` に **ローカル変数 `mismatch` が関数 `mismatch` を隠す**バグを作った（`mismatch = mismatch(...)` で `UnboundLocalError`）。43 件のテストが落ちて気づいた。未定義の名前を調べる自作の確認（pyflakes 相当）は、ローカルの代入で隠れる名前を見つけられない。関数は `block_mismatch` にした。**名前を付け替えたら、同じ名前のローカル変数を grep すること。**
+- 分割用の自作スクリプトが、最初の plan の分割でデコレータ（`@dataclass`）を落とした。生成したファイルに `dataclass` の import が出ないことで気づいた。
+- `tf.os.path.relpath = other_drive` のようにモジュールの属性を直接書き換えるテストは、`os` は共有のオブジェクトなので、どのファイルに移しても効く。`mock.patch.object(P, "MAX_PLAN_BYTES")`・`_read_json`・`M.SUMMARY_FILE` は、その名前が定義されているファイル（`plan/read.py`・`modules/summaries.py`）に当て直した。
+- argparse の usage の行は、プログラム名が `tf.py` → `adapt_tf.py` になり、折り返し位置だけが変わる。ほかの文言は同じ。
+
+### 確かめたこと
+- **golden**: 101/101 一致（`b2735ff`・`81003bd`・`3848347`・`ab3dacf` の各コミットで。Windows の通常の TEMP）。Linux（WSL、`git archive` した `ab3dacf`）でも 101/101（約 27 秒の CPU 時間）。
+- **単体テスト 326 件**（323 + `test_no_exemptions_remain` + `adapt_tf.py` の CLI の 2 件（SKILL だけのコピーを日本語とスペースを含むパスで動かす、使い方の誤りは終了コード 2））: Windows の通常の TEMP、別のドライブの TEMP（`subst Y:`）、8.3 の短い名前の TEMP（`...\Temp\R2_LON~1`）のそれぞれで OK（約 91〜108 秒）。WSL（`git archive HEAD` を `/tmp` に展開し `uv sync --locked`）で OK（53 秒）。
+- `uv lock --check` OK（66 パッケージ）。`uv sync --locked` OK。
+- **CI の手順を手元で**（Git Bash）: `validate_ir.py` で正解 IR、`check_coverage.py --lint`、`c1_check.py`（入力 25・辺 513・対応の無い辺 0）、`adapt_tf.py` の自作 5 構成と plan JSON（plan だけ 7・`--plan` 7）と `validate_ir.py`、`tf_public_check.py --all --jobs 4`（205 フォルダ、リソース 11,621、error 0。Windows 約 40 秒、WSL 約 28 秒）。PowerShell 5.1 の「日本語とスペースを含むパスに SKILL を丸ごとコピーして起動」の文を CI と同じ文で通した（`doctor.py`・`validate_ir.py`・`adapt_tf.py` の `--var-file`・`--var`・`--plan`）。WSL でも SKILL だけのコピー（日本語とスペース）から `doctor.py`・`adapt_tf.py`・`validate_ir.py` を動かし、別のフォルダのシンボリックリンク経由（作業フォルダも別）で動かした出力が、直接動かした出力とバイト単位で同じ（同じ `--root-base` のとき）。
+- **旧 `tf.py`（`26dca6b` を `git archive` で別の場所に展開）との比較**: 23 の呼び出し（`--help`・引数なし・`--input` なし・`--out` なし・不正な `--workspace`・`=` の無い `--var`・plan だけのときの `--plan`／`--var`／`--redact-var`／`--workspace`／`--var-file`・plan でない JSON・state の JSON・壊れた JSON・無いフォルダ・.tf の無いフォルダ・無い `--var-file`・`--out` がフォルダ・成功 4 通り・壊れた `--plan`）で、終了コード・標準出力・標準エラーが同じ（プログラム名と空白の折り返しは正規化）。成功 4 通りの出力ファイルはバイト単位で同じ（32,084・34,870・34,864・43,218 バイト）。
+- **変異で、モンキーパッチが本当に効いていること**: ① `module_vars.var_file_name` の `except ValueError` を `KeyError` にする、② 同じ関数が `os.path.relpath` を使わなくする → `test_var_file_on_another_drive` が落ちる。③ `read.py` の `MAX_PLAN_BYTES` を直書きにする → `test_size_cap` が落ちる。④ `is_plan_file` が別名の `_RJ`（`_read_json` のコピー）を呼ぶ、⑤ `load_plan` が読み直す → `test_plan_is_parsed_once` が落ちる。⑥ `summaries.load` が別名 `_SF`（`SUMMARY_FILE` のコピー）を使う → `test_missing_table_warns_for_registry_modules` が落ちる。⑦ `Context.rel` が `relpath` を使わなくする → TF のテスト 4 件が落ちる。**⑥ と同じ変異は `test_missing_table_does_not_warn_without_registry_modules` を落とさない**（このテストは「警告が出ない」ことだけを見るので、パッチが効かなくても通る。R1 から持っている弱さで、警告が出る側のテストが守っている）。
+- 構成のテスト 27 件（`EXEMPT` が空、サブパッケージの許可、アダプタの入口の import の禁止、相対 import など）が通る。
+
+### 残したこと・リスク
+- **R3**: `cfn.py`（1,327 行）の分割、入口 `adapt_cfn.py`、診断コードの一覧。`golden.py` の `ENTRY` の `cfn`、`test_architecture.py` の `adapters/cfn.py` を使う変異、`ENTRY_DIRS` の `adapters`。
+- `ModuleEval` のミックスインは「状態を持たない」という約束をテストで守っていない（ミックスインのメソッドが `self.新しい属性 = …` と書いても、構成のテストは落ちない）。
+- `type(self)(...)` による子の作成。`ModuleEval` を継承する新しいクラスを作るときは注意。
+- `modules/summaries.py` の `SUMMARY_FILE` の相対の深さ（`parents[5]`）は R4（`data/` への移動）でまた直す。
+- `.tf` の側と plan の側で重複していた `collect`／`dedupe`／`block_address`／`inst_address` は 1 つにした。`PSEUDO_DATA` は両方にあるが形が違う（`.tf` は属性 → 擬似パラメータ、plan は型 → 属性）ので残した。
+- コミットのメッセージの番号は (1/4)〜(3/4) の後に (4/5) と書いた（途中で 5 つ目が増えたため）。
