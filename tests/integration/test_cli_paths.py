@@ -71,6 +71,45 @@ class JapanesePathTest(unittest.TestCase):
         res = run(str(SCRIPTS / "validate_ir.py"), str(src))
         self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
 
+    def test_validate_ir_and_rules_from_a_copy_of_the_skill_alone(self):
+        # SKILL のフォルダだけを日本語とスペースを含む場所にコピーして、validate_ir.py と規則表（data/rules/）の読み込みが
+        # リポジトリの中と同じ結果になる（規則表の場所は自分の場所から決まり、cwd や元の場所に依らない）
+        skill = self.dir / "aws-iac-diagram"
+        shutil.copytree(SCRIPTS.parent, skill, ignore=shutil.ignore_patterns("__pycache__"))
+        files = sorted(EXPECTED.glob("*.ir.json"))
+        want = run(str(SCRIPTS / "validate_ir.py"), *map(str, files))
+        self.assertEqual(want.returncode, 0, want.stdout + want.stderr)
+        got = subprocess.run([sys.executable, str(skill / "scripts" / "validate_ir.py"), *map(str, files)],
+                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300, check=False,
+                             cwd=str(self.dir))
+        self.assertEqual(got.returncode, 0, got.stdout + got.stderr)
+        self.assertEqual(got.stdout, want.stdout)
+        code = ("import sys, json; sys.path.insert(0, sys.argv[1]);"
+                "from aws_iac_diagram.core import rules, paths;"
+                "r = rules.load();"
+                "print(json.dumps([str(paths.RULES_DIR), sorted(r.rule_ids), {k: sorted(v) for k, v in sorted(r.drawable_types().items())},"
+                " [x.id for x in r.types], sorted(r.synthetic_types)]))")
+        outs = []
+        for scripts in (SCRIPTS, skill / "scripts"):
+            res = subprocess.run([sys.executable, "-c", code, str(scripts)], capture_output=True, text=True, encoding="utf-8",
+                                 errors="replace", timeout=120, cwd=str(self.dir))
+            self.assertEqual(res.returncode, 0, res.stderr)
+            outs.append(json.loads(res.stdout))
+        self.assertTrue(Path(outs[1][0]).resolve().is_relative_to(skill.resolve()), outs[1][0])  # 複製の中の規則表を読んでいる
+        self.assertEqual(outs[0][1:], outs[1][1:])
+        self.assertEqual(len(outs[0][1]), 56)
+
+    def test_validate_ir_with_a_broken_rules_table_exits_2(self):
+        skill = self.dir / "aws-iac-diagram"
+        shutil.copytree(SCRIPTS.parent, skill, ignore=shutil.ignore_patterns("__pycache__"))
+        refs = skill / "data" / "rules" / "refs.toml"
+        refs.write_text(refs.read_text(encoding="utf-8").replace("[[noedge]]", "[[noedge]]\nbogus = 1", 1), encoding="utf-8", newline="\n")
+        res = subprocess.run([sys.executable, str(skill / "scripts" / "validate_ir.py"), str(EXPECTED / "three-tier.ir.json")],
+                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300, check=False)
+        self.assertEqual(res.returncode, 2, res.stdout + res.stderr)
+        self.assertIn("refs.toml: [[noedge]] #1（E-NOEDGE-FROM-RULE）: 未知のフィールド 'bogus'", res.stderr)
+        self.assertEqual(res.stdout, "")
+
     def test_adapt_tf_from_a_copy_of_the_skill_alone(self):
         # SKILL のフォルダだけを日本語とスペースを含む場所にコピーして動かす（リポジトリの tests・fixture・ツールに頼らない）。
         # 入口 adapt_tf.py は自分の場所から scripts/ を sys.path に入れるので、cwd にも元の場所にも依らない

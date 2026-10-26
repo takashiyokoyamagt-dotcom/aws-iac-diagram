@@ -8,10 +8,10 @@
   1. JSON Schema（data/schemas/ir.schema.json）に合っているか（jsonschema を使う）
   2. 参照の整合: ID の一意性、id と type の対応、id の key と name の対応（K-NAME）、parent・spans・辺の端点・網羅分類の node／into が存在するか、
      入れ子が循環しないか、spans の共通の祖先が parent か、合成でないノードが各形式で drawn になっているか、
-     すべての辺に各形式の根拠があるか、使っている規則ID が references/ の規則表に定義されているか、
+     すべての辺に各形式の根拠があるか、使っている規則ID が規則表（data/rules/）に定義されているか、
      class と規則の接頭辞（hidden → H-*、merged_into → M-*／R-*）、M-* の into はノード・R-* の into は辺、
      R-* で辺に統合したリソースの規則がその辺の根拠の rules にあるか、
-     drawn の入力の型から resource-catalog.md の「描く型」の表でそのノードの型が描けるか
+     drawn の入力の型から規則表の「描く型」（data/rules/types/）でそのノードの型が描けるか
   3. 出力の形（C5）: キーの順・配列の順・インデント・末尾の改行がずれていないか（--write で整形する）
 
 使い方:
@@ -19,7 +19,7 @@
   uv run scripts/validate_ir.py --write <ir.json>...    # 整形して書き戻してから検証
   uv run scripts/validate_ir.py --same-canonical A.json B.json   # 2つの canonical 部が一致するか
 
-終了コード: 0 = すべて通過、1 = エラーあり、2 = 使い方の誤り・jsonschema が無い
+終了コード: 0 = すべて通過、1 = エラーあり、2 = 使い方の誤り・jsonschema が無い・規則表（data/rules/）が壊れている
 """
 from __future__ import annotations
 
@@ -31,79 +31,34 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from aws_iac_diagram.core import ir_raw, paths  # noqa: E402
+from aws_iac_diagram.core import ir_norm, ir_raw, paths  # noqa: E402
+from aws_iac_diagram.core import rules as rule_data  # noqa: E402
 
 SKILL = paths.SKILL_DIR
 SCHEMA_PATH = paths.IR_SCHEMA
 RAW_SCHEMA_PATH = paths.IR_RAW_SCHEMA
-RULE_DOCS = list(paths.RULE_DOCS)
-RULE_ROW = re.compile(r"^\|\s*`([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+)`\s*\|", re.M)
-SYNTHETIC_TYPES = {"availability_zone", "external", "bedrock_model"}
-CATALOG = paths.RESOURCE_CATALOG
-INPUT_TYPE = re.compile(r"`((?:aws|awscc|opensearch)_[a-z0-9_]+|AWS::[A-Za-z0-9]+::[A-Za-z0-9]+)`")
-CLASS_PREFIX = {"hidden": ("H-",), "merged_into": ("M-", "R-")}
+CLASS_PREFIX = rule_data.CLASS_PREFIX
 # 黒箱のモジュールになれる入力の型（ir-schema の 2章）
 BLACKBOX_TYPES = {"module", "AWS::CloudFormation::Stack", "AWS::Serverless::Application"}
 
 
 # ------------------------------------------------------------------ 形式（C5）
 
-def _sort_lists(ir: dict) -> dict:
-    ir = json.loads(json.dumps(ir))  # 深いコピー
-    ir["nodes"] = sorted(ir.get("nodes", []), key=lambda n: n.get("id", ""))
-    for n in ir["nodes"]:
-        if "spans" in n:
-            n["spans"] = sorted(n["spans"])
-    ir["edges"] = sorted(ir.get("edges", []), key=lambda e: e.get("id", ""))
-    for src in (ir.get("sources") or {}).values():
-        src["resources"] = sorted(src.get("resources", []), key=lambda r: r.get("address", ""))
-        for r in src["resources"]:
-            if "into" in r:
-                r["into"] = sorted(r["into"])
-        src["edges"] = sorted(src.get("edges", []), key=lambda e: e.get("edge", ""))
-        for e in src["edges"]:
-            e["rules"] = sorted(e.get("rules", []))
-            e["evidence"] = sorted(e.get("evidence", []))
-    return ir
-
-
-def canonical_dump(ir: dict) -> str:
-    return json.dumps(_sort_lists(ir), ensure_ascii=False, indent=2, sort_keys=True) + "\n"
-
-
-def canonical_part(ir: dict) -> dict:
-    """TF 版と CFN 版の比較に使う部分（note を除く nodes と edges）。"""
-    ir = _sort_lists(ir)
-    strip = lambda d: {k: v for k, v in d.items() if k != "note"}  # noqa: E731
-    return {"nodes": [strip(n) for n in ir["nodes"]], "edges": [strip(e) for e in ir["edges"]]}
+# 出力の形と canonical 部は core/ir_norm.py（フェーズ 3 の normalize/ も同じ関数を使う）
+canonical_dump = ir_norm.canonical_dump
+canonical_part = ir_norm.canonical_part
 
 
 # ------------------------------------------------------------------ 検証
 
 def defined_rules() -> set[str]:
-    rules: set[str] = set()
-    for p in RULE_DOCS:
-        if p.exists():
-            rules.update(RULE_ROW.findall(p.read_text(encoding="utf-8")))
-    return rules
+    """規則表（data/rules/）に定義されている規則 ID すべて。規則表が壊れていれば core.rules.RulesError。"""
+    return set(rule_data.default().rule_ids)
 
 
 def drawable_types() -> dict[str, set[str]]:
-    """resource-catalog.md の「1. 描く型」の表から、入力の型 → 正規の型名 の対応を作る。"""
-    out: dict[str, set[str]] = {}
-    if not CATALOG.exists():
-        return out
-    text = CATALOG.read_text(encoding="utf-8")
-    sec = text.split("## 1.", 1)[1].split("\n## ", 1)[0] if "## 1." in text else ""
-    for line in sec.splitlines():
-        cells = [c.strip() for c in line.strip().strip("|").split("|")]
-        if len(cells) < 4 or not cells[0].startswith("`"):
-            continue
-        canon = cells[0].strip("`")
-        for col in cells[2:4]:
-            for t in INPUT_TYPE.findall(col):
-                out.setdefault(t, set()).add(canon)
-    return out
+    """規則表の「描く型」（data/rules/types/）から、入力の型 → 正規の型名 の対応を作る。"""
+    return {k: set(v) for k, v in rule_data.default().drawable_types().items()}
 
 
 def slug(name: str) -> str:
@@ -130,6 +85,7 @@ def schema_errors(ir: dict) -> list[str]:
 def semantic_errors(ir: dict, rules: set[str], drawable: dict[str, set[str]] | None = None) -> list[str]:
     errs: list[str] = []
     drawable = drawable_types() if drawable is None else drawable
+    synthetic_types = rule_data.default().synthetic_types
     nodes = {}
     for n in ir["nodes"]:
         if n["id"] in nodes:
@@ -137,7 +93,7 @@ def semantic_errors(ir: dict, rules: set[str], drawable: dict[str, set[str]] | N
         nodes[n["id"]] = n
         if n["id"].split("/", 1)[0] != n["type"]:
             errs.append(f"node {n['id']}: id の型の部分と type（{n['type']}）が違う")
-        if (n["type"] in SYNTHETIC_TYPES) != bool(n.get("synthetic")):
+        if (n["type"] in synthetic_types) != bool(n.get("synthetic")):
             errs.append(f"node {n['id']}: 型 {n['type']} の synthetic の値が規則と違う")
         if not n.get("synthetic") and n["id"].split("/", 1)[1] != slug(n["name"]):
             errs.append(f"node {n['id']}: id の key が name（{n['name']}）から作ったもの（{slug(n['name'])}）と違う（K-NAME）")
@@ -230,7 +186,7 @@ def semantic_errors(ir: dict, rules: set[str], drawable: dict[str, set[str]] | N
                     if allowed is not None:
                         allowed = allowed - {"module"}
                 if allowed is None:
-                    errs.append(f"sources.{fmt} {a}: 入力の型 {r['type']} が resource-catalog.md の「描く型」に無い")
+                    errs.append(f"sources.{fmt} {a}: 入力の型 {r['type']} が規則表（data/rules/types/）の「描く型」に無い")
                 elif r["node"] in nodes and nodes[r["node"]]["type"] not in allowed:
                     errs.append(f"sources.{fmt} {a}: 入力の型 {r['type']} から描けるのは {sorted(allowed)}（{nodes[r['node']]['type']} ではない）")
                 if r["node"] not in nodes:
@@ -242,7 +198,7 @@ def semantic_errors(ir: dict, rules: set[str], drawable: dict[str, set[str]] | N
                 if t not in nodes and t not in edges:
                     errs.append(f"sources.{fmt} {a}: into {t} がノードにも辺にも無い")
             if "rule" in r and r["rule"] not in rules:
-                errs.append(f"sources.{fmt} {a}: 規則 {r['rule']} が references/ の規則表に無い")
+                errs.append(f"sources.{fmt} {a}: 規則 {r['rule']} が規則表（data/rules/）に無い")
         for nid, n in nodes.items():
             if not n.get("synthetic") and nid not in drawn:
                 errs.append(f"sources.{fmt}: ノード {nid} を drawn にしたリソースが無い")
@@ -255,7 +211,7 @@ def semantic_errors(ir: dict, rules: set[str], drawable: dict[str, set[str]] | N
                 errs.append(f"sources.{fmt}: 根拠の辺 {x['edge']} が edges に無い")
             for rid in x["rules"]:
                 if rid not in rules:
-                    errs.append(f"sources.{fmt} 辺 {x['edge']}: 規則 {rid} が references/ の規則表に無い")
+                    errs.append(f"sources.{fmt} 辺 {x['edge']}: 規則 {rid} が規則表（data/rules/）に無い")
         for eid in edges:
             if eid not in ev:
                 errs.append(f"sources.{fmt}: 辺 {eid} の根拠が無い")
@@ -316,8 +272,14 @@ def main() -> int:
         ap.print_usage(sys.stderr)
         return 2
     global DRAWABLE
-    rules = defined_rules()
-    DRAWABLE = drawable_types()
+    rules: set[str] = set()
+    if a.paths:
+        try:
+            rules = defined_rules()
+            DRAWABLE = drawable_types()
+        except rule_data.RulesError as e:
+            print(e, file=sys.stderr)
+            return 2
     failed = False
     for p in expand_globs(a.paths):
         errs = validate_file(p, a.write, rules)

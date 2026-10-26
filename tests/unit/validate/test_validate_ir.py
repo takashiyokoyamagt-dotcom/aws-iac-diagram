@@ -151,5 +151,43 @@ class SelfLoopTest(unittest.TestCase):
         self.assertFalse(any("id が from->to と違う" in e for e in errs), errs)
 
 
+class RulesFromDataTest(unittest.TestCase):
+    """validate_ir.py は規則表（data/rules/）を core/rules.py から読む（草案の Markdown の表は読まない。フェーズ 3 の手順 1）。"""
+
+    def test_sets_come_from_core_rules(self):
+        from aws_iac_diagram.core import rules as rule_data
+        r = rule_data.default()
+        self.assertEqual(v.defined_rules(), set(r.rule_ids))
+        self.assertEqual(v.drawable_types(), {k: set(x) for k, x in r.drawable_types().items()})
+        self.assertIsInstance(v.defined_rules(), set)
+        self.assertEqual(v.CLASS_PREFIX, rule_data.CLASS_PREFIX)
+        for name in ("RULE_DOCS", "RULE_ROW", "CATALOG", "INPUT_TYPE", "SYNTHETIC_TYPES"):
+            self.assertFalse(hasattr(v, name), name)  # 旧い読み方（正規表現で表を読む）は残していない
+
+    def test_synthetic_node_types_come_from_the_data(self):
+        ir = load()
+        ir["nodes"][0]["synthetic"] = True  # 合成でない型を合成にする
+        self.assertTrue(any("synthetic の値が規則と違う" in e for e in errors(ir)))
+        ir = load()
+        ext = next(n for n in ir["nodes"] if n["type"] == "external")
+        ext["synthetic"] = False  # 合成の型（データの synthetic を持つ型）を合成でなくす
+        self.assertTrue(any("synthetic の値が規則と違う" in e for e in errors(ir)))
+
+    def test_messages_name_the_new_location(self):
+        ir = load()
+        r = next(r for r in ir["sources"]["tf"]["resources"] if r["class"] == "hidden")
+        r["rule"] = "H-NOT-DEFINED"
+        ir["sources"]["tf"]["edges"][0]["rules"] = ir["sources"]["tf"]["edges"][0]["rules"] + ["R-NOT-DEFINED"]
+        errs = errors(ir)
+        self.assertTrue(any(e.endswith("規則 H-NOT-DEFINED が規則表（data/rules/）に無い") for e in errs), errs)
+        self.assertTrue(any("規則 R-NOT-DEFINED が規則表（data/rules/）に無い" in e for e in errs), errs)
+        ir = load()
+        d = next(r for r in ir["sources"]["tf"]["resources"] if r["class"] == "drawn")
+        d["type"] = "aws_not_drawable"
+        errs = errors(ir)
+        self.assertTrue(any(e.endswith("入力の型 aws_not_drawable が規則表（data/rules/types/）の「描く型」に無い") for e in errs), errs)
+        self.assertFalse(any("references/" in e or "resource-catalog" in e for e in errs), errs)
+
+
 if __name__ == "__main__":
     unittest.main()

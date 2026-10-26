@@ -1,0 +1,158 @@
+# 関係リソースの表（R-*）。2 つのリソースを結ぶためだけにある型（またはプロパティ）を、辺に変える規則。
+# スキーマと読み方は docs/spec/rules/relations.md、検査は scripts/aws_iac_diagram/core/rules.py。
+# tf / cfn は網羅分類に出るリソースの型、tf_props / cfn_props は親のプロパティ（ブロック）、sam は SAM の Events の Type
+# （どちらもリソースではないので網羅分類には出ない）。edge / label は表の文をそのまま写した。
+# kind が空なのは「既存の辺に従う」（kind_note）。fallback は、辺ができなかったときの H-* 。
+
+[[relation]]
+id = "R-ROUTE"
+class = "merged_into"
+tf = ["aws_route_table", "aws_route", "aws_route_table_association"]
+cfn = ["AWS::EC2::RouteTable", "AWS::EC2::Route", "AWS::EC2::SubnetRouteTableAssociation"]
+tf_props = ["aws_route_table.route"]
+edge = "ルートテーブルに関連付いた各サブネット → ルートの宛先（インターネットゲートウェイ、NAT ゲートウェイ、TGW など）"
+kind = "route"
+label = "宛先の CIDR（`0.0.0.0/0`）"
+confidence = "derived"
+fallback = "H-RT-NOROUTE"
+
+[[relation]]
+id = "R-VPCE-GATEWAY"
+class = "merged_into"
+tf = []
+cfn = []
+tf_props = ["aws_vpc_endpoint.route_table_ids"]
+cfn_props = ["AWS::EC2::VPCEndpoint.RouteTableIds"]
+when = { types = ["aws_vpc_endpoint", "AWS::EC2::VPCEndpoint"], prop = { tf = "vpc_endpoint_type", cfn = "VpcEndpointType" }, in = ["Gateway"] }
+edge = "そのルートテーブルに関連付いた各サブネット → エンドポイント"
+kind = "route"
+label = "`<サービス> prefix list`（`s3 prefix list`）"
+confidence = "derived"
+
+[[relation]]
+id = "R-LB-LISTENER"
+class = "merged_into"
+tf = ["aws_lb_listener"]
+cfn = ["AWS::ElasticLoadBalancingV2::Listener"]
+edge = "（インターネット向けの LB なら）`external/internet` → LB と、LB → 転送先のターゲット"
+kind = "request"
+label = "internet → LB はリスナーの `<PROTOCOL> <port>`（`HTTP 80`）"
+confidence = "derived"
+
+[[relation]]
+id = "R-LB-TG"
+class = "merged_into"
+tf = ["aws_lb_target_group", "aws_lb_target_group_attachment"]
+cfn = ["AWS::ElasticLoadBalancingV2::TargetGroup"]
+tf_props = ["aws_ecs_service.load_balancer"]
+cfn_props = ["AWS::ECS::Service.LoadBalancers"]
+edge = "LB → ターゲット（ECS サービス、EC2、Lambda）。**参照はサービス → ターゲットグループだが、向きは LB → サービス**"
+kind = "request"
+label = "ターゲットグループの `<PROTOCOL> <port>`（`HTTP 8080`）"
+confidence = "derived"
+
+[[relation]]
+id = "R-SG"
+class = "merged_into"
+tf = ["aws_security_group", "aws_security_group_rule", "aws_vpc_security_group_ingress_rule"]
+cfn = ["AWS::EC2::SecurityGroup", "AWS::EC2::SecurityGroupIngress"]
+tf_props = ["aws_security_group.ingress"]
+cfn_props = ["AWS::EC2::SecurityGroup.SecurityGroupIngress"]
+when = { types = ["aws_security_group_rule"], prop = { tf = "type" }, in = ["ingress"] }
+edge = "SG X の ingress ルールの送信元が SG Y なら、Y を付けた各リソース → X を付けた各リソース。送信元が `0.0.0.0/0`／`::/0` で、X を付けたリソースがインターネットに公開されていれば `external/internet` → そのリソース。「公開されている」は、インターネット向けの LB（`internal = false`／`Scheme: internet-facing`）、パブリック IP を持つ EC2（`associate_public_ip_address`、パブリックサブネットの `map_public_ip_on_launch`）。**それ以外の外部の CIDR**（管理用ネットワークからの SSH など。three-tier の prod の踏み台）は v0.1 では辺にしない（相手のノードが無い）。VPC の CIDR 内からの許可も辺にしない（相手が特定できない）"
+kind = "network"
+kind_note = "ほかの根拠があればそちらの kind（E-MERGE）"
+label = "`TCP <port>`（範囲は `TCP 1024-65535`、全プロトコルは `ALL`）"
+confidence = "derived"
+fallback = "H-SG-NOEDGE"
+
+[[relation]]
+id = "R-APIGW-HTTP"
+class = "merged_into"
+tf = ["aws_apigatewayv2_integration", "aws_apigatewayv2_route"]
+cfn = ["AWS::ApiGatewayV2::Integration", "AWS::ApiGatewayV2::Route"]
+sam = ["HttpApi"]
+edge = "API → 統合先（Lambda など）"
+kind = "request"
+label = "ルートキーを辞書順に `, ` でつなぐ（`GET /orders, POST /orders`）"
+confidence = "derived"
+
+[[relation]]
+id = "R-APIGW-REST"
+class = "merged_into"
+tf = ["aws_api_gateway_resource", "aws_api_gateway_method", "aws_api_gateway_integration"]
+cfn = ["AWS::ApiGateway::Resource", "AWS::ApiGateway::Method"]
+sam = ["Api"]
+cfn_note = "`Integration` を含む"
+edge = "API → 統合先"
+kind = "request"
+label = "`<METHOD> <path>` を辞書順に `, ` でつなぐ（`POST /query`）"
+confidence = "derived"
+
+[[relation]]
+id = "R-LAMBDA-PERMISSION"
+class = "merged_into"
+tf = ["aws_lambda_permission"]
+cfn = ["AWS::Lambda::Permission"]
+edge = "呼び出し元（`source_arn`／`SourceArn` のリソース）→ 関数。同じ組の辺がほかの規則でできていれば、その辺の根拠に加えるだけ。ほかの規則の辺が無いときは、`principal` で kind を決めて辺を作る（`apigateway`・`elasticloadbalancing` → `request`、`s3`・`sns`・`events`・`logs` など → `event`）。`source_arn` のリソースが入力に無いとき（ワイルドカードや別スタック）は辺を作らず `H-IAM`"
+kind = ""
+kind_note = "既存の辺に従う／無ければ左の規則"
+label = "既存の辺に従う／無ければ空"
+confidence = "derived"
+fallback = "H-IAM"
+
+[[relation]]
+id = "R-LAMBDA-ESM"
+class = "merged_into"
+tf = ["aws_lambda_event_source_mapping"]
+cfn = ["AWS::Lambda::EventSourceMapping"]
+sam = ["DynamoDB", "Kinesis", "SQS"]
+edge = "イベントソース（DynamoDB テーブル、Kinesis、SQS）→ 関数。**関数がポーリングするが、向きはデータの流れ**"
+kind = "event"
+label = "（なし）"
+confidence = "derived"
+
+[[relation]]
+id = "R-SNS-SUBSCRIPTION"
+class = "merged_into"
+tf = ["aws_sns_topic_subscription"]
+cfn = ["AWS::SNS::Subscription"]
+cfn_props = ["AWS::SNS::Topic.Subscription"]
+sam = ["SNS"]
+edge = "トピック → 購読先（SQS、Lambda など）"
+kind = "event"
+label = "（なし）"
+confidence = "derived"
+
+[[relation]]
+id = "R-SQS-QUEUE-POLICY"
+class = "merged_into"
+tf = ["aws_sqs_queue_policy"]
+cfn = ["AWS::SQS::QueuePolicy"]
+edge = "許可された送信元（`aws:SourceArn`）→ キュー。同じ組の辺があればその根拠に加えるだけ。ほかの規則の辺が無く、送信元が入力のリソースなら `event` の辺を作る。送信元が入力に無い・条件が無いときは辺を作らず `H-IAM`"
+kind = ""
+kind_note = "既存の辺に従う／無ければ `event`"
+label = "既存の辺に従う／無ければ空"
+confidence = "derived"
+fallback = "H-IAM"
+
+[[relation]]
+id = "R-S3-NOTIFICATION"
+class = "merged_into"
+tf = ["aws_s3_bucket_notification"]
+cfn = []
+cfn_props = ["AWS::S3::Bucket.NotificationConfiguration"]
+edge = "バケット → 通知先（Lambda、SQS、SNS）"
+kind = "event"
+label = "（なし）"
+confidence = "derived"
+
+[[relation]]
+id = "R-BEDROCK-DATA-SOURCE"
+class = "merged_into"
+tf = ["aws_bedrockagent_data_source"]
+cfn = ["AWS::Bedrock::DataSource"]
+edge = "データソースのバケット → ナレッジベース（取り込み）"
+kind = "data"
+label = "（なし）"
+confidence = "derived"

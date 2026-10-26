@@ -1,0 +1,192 @@
+# 辺の規則（A2・A3）: 確信度、直接の参照・環境変数・IAM・知識ベースから辺を作る規則（E-*）、kind の対応表、
+# 辺どうしをまとめる優先順（E-MERGE）、合成ノード（N-*）、ラベルの書式。
+# スキーマと読み方は docs/spec/rules/edges.md、検査は scripts/aws_iac_diagram/core/rules.py。
+# [[edge]] の kind が空なのは、kind_by の表で決める。confidence が空なのは、規則が確信度を決めない（E-IAM-SUPPRESS）か、
+# 強い方を取る（E-MERGE。confidence_note）。
+
+confidence_order = ["confirmed", "derived", "inferred"]   # E-MERGE: 確信度は強い方
+iam_action_priority = "first_row_wins"                    # 1つのステートメントに複数のアクションがあれば、[[iam_action_kind]] の上にあるものを優先
+iam_action_default = "none"                               # どの行にも当たらなければ辺を作らない（v0.1）
+
+[[confidence]]
+level = "confirmed"
+basis = "設定の属性からの直接の参照（`aws_dynamodb_table.orders.name`、`!Ref OrdersTable`、`!GetAtt Database.Endpoint.Address`）。モジュールの出力・変数、ネストスタックの出力・パラメータを通っても、元が参照なら確定"
+rules = ["E-ENV-REF", "E-KB-STORAGE"]
+draw = "実線"
+
+[[confidence]]
+level = "derived"
+basis = "関係リソースの変換（R-*）、SG からの導出（R-SG）、型の定義で意味が決まっている属性の文字列（KB の `embedding_model_arn`）、合成ノードへの辺"
+rules = ["R-*", "E-BEDROCK-EMBEDDING", "N-EXT-INTERNET"]
+draw = "実線＋ラベル"
+
+[[confidence]]
+level = "inferred"
+basis = "IAM の Resource ARN、環境変数などの文字列が名前・ARN と一致するだけのもの"
+rules = ["E-IAM", "E-ENV-STR"]
+draw = "破線＋凡例。既定で非表示にもできる。根拠を説明 .md に一覧で載せる"
+
+[[edge]]
+id = "E-ENV-REF"
+input = "計算リソース（Lambda、ECS サービス＝タスク定義を含む）の環境変数の値が、ほかのリソースの属性への参照"
+edge = "計算リソース → 参照先"
+kind = ""
+kind_by = "kind_by_target"
+kind_note = "参照先の型で決める（下の表）"
+confidence = "confirmed"
+
+[[edge]]
+id = "E-ENV-STR"
+input = "環境変数の値が文字列で、ほかのリソースの名前・ARN と一致する"
+edge = "計算リソース → 一致したリソース"
+kind = ""
+kind_by = "kind_by_target"
+kind_note = "同上"
+confidence = "inferred"
+
+[[edge]]
+id = "E-IAM"
+input = "ロールを引き受けるリソース（Lambda・ECS タスクの実行ロール／タスクロール、EC2 のインスタンスプロファイル、Bedrock KB・Step Functions などの `role_arn`／`RoleArn` で指定するサービスロール）に付いたポリシーの `Resource` が、ほかのリソースの ARN（参照、または文字列の一致）。v0.1 はリソース部分にワイルドカードの無い ARN と、S3 の `<bucket>/*` だけを照合する"
+edge = "ロールを引き受けるリソース → そのリソース"
+kind = ""
+kind_by = "iam_action_kind"
+kind_note = "下の「E-IAM のアクション → kind」"
+confidence = "inferred"
+
+[[edge]]
+id = "E-IAM-SUPPRESS"
+input = "E-IAM の辺と **逆向き** の辺が、ほかの規則で同じ組にできている"
+edge = "E-IAM の辺を作らない（例: ESM で テーブル → 関数 があるとき、ストリームを読む権限から 関数 → テーブル を作らない）"
+kind = ""
+confidence = ""
+
+[[edge]]
+id = "E-KB-STORAGE"
+input = "ナレッジベースの `storage_configuration`（`collection_arn`／`CollectionArn`）"
+edge = "KB → ベクトルストア"
+kind = "data"
+confidence = "confirmed"
+
+[[edge]]
+id = "E-BEDROCK-EMBEDDING"
+input = "ナレッジベースの `embedding_model_arn`／`EmbeddingModelArn`"
+edge = "KB → `bedrock_model`（N-BEDROCK-MODEL）"
+kind = "request"
+confidence = "derived"
+
+[[edge]]
+id = "E-MERGE"
+input = "同じ順序付きの組に、複数の規則から辺ができた"
+edge = "1本にまとめる"
+kind = ""
+kind_by = "merge_priority"
+kind_note = "下の「まとめ方」"
+confidence = ""
+confidence_note = "強い方"
+
+[[kind_by_target]]
+kind = "data"
+types = ["dynamodb_table", "s3_bucket", "db_instance", "opensearchserverless_collection"]
+
+[[kind_by_target]]
+kind = "event"
+types = ["sns_topic", "sqs_queue"]
+
+[[kind_by_target]]
+kind = "request"
+types = ["lambda_function", "apigw_*", "bedrock_knowledge_base", "bedrock_model"]
+
+[[iam_action_kind]]
+kind = "request"
+actions = [
+    "lambda:InvokeFunction",
+    "states:StartExecution",
+    "bedrock:InvokeModel*",
+    "bedrock:Retrieve",
+    "bedrock:RetrieveAndGenerate",
+    "bedrock:StartIngestionJob",
+    "execute-api:Invoke",
+]
+
+[[iam_action_kind]]
+kind = "event"
+actions = ["sns:Publish", "sqs:SendMessage", "events:PutEvents", "kinesis:PutRecord*", "firehose:PutRecord*"]
+
+[[iam_action_kind]]
+kind = "data"
+actions = [
+    "dynamodb:*",
+    "s3:GetObject",
+    "s3:PutObject",
+    "s3:ListBucket",
+    "rds-data:*",
+    "aoss:APIAccessAll",
+    "sqs:ReceiveMessage",
+]
+actions_note = "`dynamodb:*`（読み書き・ストリームの読み取り）、`s3:GetObject`・`s3:PutObject`・`s3:ListBucket` など、`rds-data:*`、`aoss:APIAccessAll`、`sqs:ReceiveMessage`"
+
+[[merge_priority]]
+rank = 1
+rules = ["R-LB-*", "R-APIGW-*", "R-ROUTE", "R-VPCE-GATEWAY"]
+
+[[merge_priority]]
+rank = 2
+rules = ["R-LAMBDA-ESM", "R-SNS-SUBSCRIPTION", "R-S3-NOTIFICATION", "R-BEDROCK-DATA-SOURCE"]
+
+[[merge_priority]]
+rank = 3
+rules = ["E-ENV-REF", "E-KB-STORAGE", "E-BEDROCK-EMBEDDING"]
+
+[[merge_priority]]
+rank = 4
+rules = ["E-ENV-STR"]
+
+[[merge_priority]]
+rank = 5
+rules = ["R-SG"]
+
+[[merge_priority]]
+rank = 6
+rules = ["E-IAM"]
+
+[[synthetic]]
+id = "N-EXT-INTERNET"
+trigger = "(a) インターネット向けの LB（`internal = false`／`Scheme: internet-facing`）で、SG が `0.0.0.0/0` からの ingress を許す、(b) パブリックな API Gateway（REST の `REGIONAL`／`EDGE`、HTTP API）"
+node = "`external/internet`（label `Internet`、`parent: null`、`synthetic: true`）。構成ごとに1つ"
+edges = "internet → LB（`request`、リスナーの `<PROTOCOL> <port>`）、internet → API（`request`、`HTTPS`）。`derived`"
+
+[[synthetic]]
+id = "N-BEDROCK-MODEL"
+trigger = "基盤モデルの ARN（`arn:aws:bedrock:<region>::foundation-model/<model id>`）が、KB の埋め込み設定、IAM の `Resource`、環境変数のどれかに現れる"
+node = "`bedrock_model/<model id の key>`（label はモデルID、`parent: null`、`synthetic: true`）"
+edges = "E-BEDROCK-EMBEDDING、E-IAM、E-ENV-STR で作る"
+
+[[label_format]]
+subject = "LB のリスナー・ターゲットグループ"
+format = "`<PROTOCOL> <port>`"
+example = "`HTTP 80`、`HTTP 8080`"
+
+[[label_format]]
+subject = "SG"
+format = "`TCP <port>`／`TCP <from>-<to>`／`UDP …`／`ALL`"
+example = "`TCP 5432`"
+
+[[label_format]]
+subject = "ルート"
+format = "宛先 CIDR、または `<サービス> prefix list`"
+example = "`0.0.0.0/0`、`s3 prefix list`"
+
+[[label_format]]
+subject = "API Gateway"
+format = "ルートキー（HTTP API）／`<METHOD> <path>`（REST）を辞書順に `, ` でつなぐ"
+example = "`GET /orders, POST /orders`"
+
+[[label_format]]
+subject = "internet → API"
+format = "`HTTPS`"
+example = ""
+
+[[label_format]]
+subject = "それ以外"
+format = "空文字"
+example = ""

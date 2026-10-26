@@ -1,0 +1,47 @@
+# 入れ子の規則（N-AZ・P-*）と、ノードの attrs の取り方。
+# スキーマと読み方は docs/spec/rules/placement.md、検査は scripts/aws_iac_diagram/core/rules.py。
+# types は、その規則で parent が決まる（または作られる）描く型。content は表の文をそのまま写した。
+
+[[placement]]
+id = "N-AZ"
+types = ["availability_zone", "subnet"]
+content = "サブネットの AZ ごとに `availability_zone` のノードを VPC の下に作り、サブネットをその下に入れる（TerraVision と同じ考え方）。key は `<VPC の key>.<AZ 名>`"
+
+[[placement]]
+id = "P-VPC"
+types = ["internet_gateway", "vpc_endpoint"]
+content = "インターネットゲートウェイ、Gateway 型の VPC エンドポイント、複数の AZ にまたがるリソースの `parent` は VPC"
+
+[[placement]]
+id = "P-SUBNET"
+types = ["nat_gateway", "ec2_instance"]
+content = "サブネットを1つだけ指定するリソース（NAT ゲートウェイ、EC2 インスタンス）の `parent` はそのサブネット"
+
+[[placement]]
+id = "P-SPANS"
+types = ["alb", "ecs_service", "vpc_endpoint", "db_instance"]
+content = "サブネットを2つ以上指定するリソース（ALB、ECS サービス、Interface 型の VPC エンドポイント、DB サブネットグループ経由の DB）は、`spans` にそのサブネットを並べ、`parent` はそれらの最も近い共通の祖先（AZ が違えば VPC）にする。描き方（サブネットごとに複製するか、またがる箱にするか）は配置（フェーズ4）で決める"
+
+[[placement]]
+id = "P-REGIONAL"
+types = [
+    "lambda_function",
+    "dynamodb_table",
+    "s3_bucket",
+    "sns_topic",
+    "sqs_queue",
+    "apigw_http_api",
+    "apigw_rest_api",
+    "bedrock_knowledge_base",
+    "bedrock_model",
+    "opensearchserverless_collection",
+    "external",
+]
+content = "VPC に入らないリソース（Lambda、DynamoDB、S3、SNS、SQS、API Gateway、Bedrock、OpenSearch Serverless）と `external` は `parent: null`。「AWS Cloud」やリージョンの枠は配置の段階で描き、IR には入れない"
+
+[[attr]]
+type = "subnet"
+name = "access"
+values = ["public", "private"]
+source = "R-ROUTE"
+rule = "関連付いたルートテーブルに `0.0.0.0/0 → インターネットゲートウェイ` のルートがあれば `public`、無ければ `private`。"

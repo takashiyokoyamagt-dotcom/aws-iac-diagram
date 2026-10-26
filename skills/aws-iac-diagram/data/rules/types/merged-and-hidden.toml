@@ -1,0 +1,190 @@
+# 統合する型（M-*）と非表示にする型（H-*）
+# 規則表の「型」の行。スキーマと読み方は docs/spec/rules/types.md、検査は scripts/aws_iac_diagram/core/rules.py。
+# 1 行 = 1 つの [[type]]。id は規則 ID（描く型は正規の型名）。ファイルは types/ の名前の昇順に、行は書いた順に読む。
+
+[[type]]
+id = "M-EIP-NAT"
+class = "merged_into"
+tf = ["aws_eip"]
+cfn = ["AWS::EC2::EIP"]
+tf_note = "NAT が `allocation_id` で参照"
+cfn_note = "NAT が `AllocationId` で参照"
+into = { node_types = ["nat_gateway"], select = "その NAT ゲートウェイ" }
+reason = "NAT の付属品で、単独で描く意味が無い"
+
+[[type]]
+id = "M-IGW-ATTACH"
+class = "merged_into"
+tf = []
+cfn = ["AWS::EC2::VPCGatewayAttachment"]
+tf_note = "該当なし"
+into = { node_types = ["internet_gateway"], select = "そのインターネットゲートウェイ" }
+reason = "CFN だけにある接続の型。TF は `aws_internet_gateway.vpc_id` で表す"
+
+[[type]]
+id = "M-ECS-CLUSTER"
+class = "merged_into"
+tf = ["aws_ecs_cluster"]
+cfn = ["AWS::ECS::Cluster"]
+into = { node_types = ["ecs_service"], select = "そのクラスタのサービスすべて" }
+reason = "クラスタは論理的な入れ物で通信経路を持たない。サービスがサブネットをまたぐので枠にもできない（クラスタ名は将来 `attrs` に残す）"
+
+[[type]]
+id = "M-ECS-TASKDEF"
+class = "merged_into"
+tf = ["aws_ecs_task_definition"]
+cfn = ["AWS::ECS::TaskDefinition"]
+into = { node_types = ["ecs_service"], select = "それを使うサービス" }
+refs_as_target = true
+reason = "タスク定義の中の参照（環境変数など）は、サービスからの参照として扱う"
+
+[[type]]
+id = "M-DB-SUBNET-GROUP"
+class = "merged_into"
+tf = ["aws_db_subnet_group"]
+cfn = ["AWS::RDS::DBSubnetGroup"]
+into = { node_types = ["db_instance"], select = "それを使う DB インスタンス" }
+reason = "DB の置き場所（`spans`）を決めるためだけにある"
+
+[[type]]
+id = "M-S3-CONFIG"
+class = "merged_into"
+tf = [
+    "aws_s3_bucket_versioning",
+    "aws_s3_bucket_public_access_block",
+    "aws_s3_bucket_server_side_encryption_configuration",
+    "aws_s3_bucket_ownership_controls",
+    "aws_s3_bucket_lifecycle_configuration",
+    "aws_s3_bucket_policy",
+]
+cfn = []
+cfn_note = "プロパティ"
+into = { node_types = ["s3_bucket"], select = "そのバケット" }
+reason = "TF の provider v4 以降でバケットの設定が別リソースになっただけ。CFN では `AWS::S3::Bucket` のプロパティ"
+
+[[type]]
+id = "M-APIGW-STAGE"
+class = "merged_into"
+tf = ["aws_apigatewayv2_stage", "aws_api_gateway_stage", "aws_api_gateway_deployment"]
+cfn = ["AWS::ApiGatewayV2::Stage", "AWS::ApiGateway::Stage", "AWS::ApiGateway::Deployment"]
+into = { node_types = ["apigw_http_api", "apigw_rest_api"], select = "その API" }
+reason = "デプロイの単位で、構成図では API と同じもの"
+
+[[type]]
+id = "M-AOSS-POLICY"
+class = "merged_into"
+tf = ["aws_opensearchserverless_security_policy", "aws_opensearchserverless_access_policy"]
+cfn = ["AWS::OpenSearchServerless::SecurityPolicy", "AWS::OpenSearchServerless::AccessPolicy"]
+into = { node_types = ["opensearchserverless_collection"], select = "ポリシーの `Rules[].Resource` の `collection/<名前>` が一致するコレクション" }
+reason = "コレクションの設定。参照ではなく名前の一致で結ぶ"
+
+[[type]]
+id = "M-AOSS-INDEX"
+class = "merged_into"
+tf = ["opensearch_index"]
+cfn = ["AWS::OpenSearchServerless::Index"]
+tf_note = "opensearch-project/opensearch プロバイダ"
+into = { node_types = ["opensearchserverless_collection"], select = "プロバイダの `url`／`CollectionEndpoint` が指すコレクション" }
+reason = "コレクションの中身。KB の `vector_index_name` が名前で指す"
+
+[[type]]
+id = "H-IAM"
+class = "hidden"
+tf = ["aws_iam_role", "aws_iam_role_policy", "aws_iam_role_policy_attachment", "aws_iam_instance_profile"]
+cfn = ["AWS::IAM::Role", "AWS::IAM::Policy", "AWS::IAM::InstanceProfile", "AWS::IAM::ManagedPolicy"]
+tf_data = ["aws_iam_policy_document"]
+applies = "`aws_iam_role`、`aws_iam_role_policy`、`aws_iam_role_policy_attachment`、`aws_iam_instance_profile`、`data.aws_iam_policy_document`、`AWS::IAM::Role`、`AWS::IAM::Policy`、`AWS::IAM::InstanceProfile`、`AWS::IAM::ManagedPolicy`"
+evidence_source = true
+module_sources_file = "data/module-summaries/iam-only-sources.md"
+reason = "権限は図に描かない。ただし非表示にする前に E-IAM（推定の辺）の材料として使う"
+
+[[type]]
+id = "H-LOGS"
+class = "hidden"
+tf = ["aws_cloudwatch_log_group"]
+cfn = ["AWS::Logs::LogGroup"]
+applies = "`aws_cloudwatch_log_group`、`AWS::Logs::LogGroup`"
+reason = "運用の付属品。全体図には出さない（B2 の詳細図で出す余地はある）"
+
+[[type]]
+id = "H-OBSERVABILITY"
+class = "hidden"
+tf = ["aws_flow_log"]
+cfn = ["AWS::EC2::FlowLog"]
+applies = "`aws_flow_log`、`AWS::EC2::FlowLog`"
+reason = "同上。フローログの送り先のロググループも H-LOGS で非表示になる"
+
+[[type]]
+id = "H-DATA"
+class = "hidden"
+tf = []
+cfn = []
+data_block = true
+applies = "IAM 以外の TF の `data` ブロック（`aws_ssm_parameter`、`aws_caller_identity`、`archive_file` など）"
+reason = "値を引くためのもの。既存のインフラを指す、描く型の data（`data.aws_vpc`、`data.aws_subnet` など）が、描くリソースから参照されていれば既存のノードとして描く方針（ir-schema の 7.4。規則 ID と描き方はフェーズ3 で決める。fixture には無い）"
+
+[[type]]
+id = "H-COND-FALSE"
+class = "hidden"
+tf = []
+cfn = []
+applies = "count／for_each が 0 件、または CFN の `Condition` が偽に評価されたリソース"
+reason = "作られないもの。TF はインデックスなしのアドレスで1件として数える"
+
+[[type]]
+id = "H-RT-NOROUTE"
+class = "hidden"
+tf = []
+cfn = []
+applies = "`local` 以外のルートを持たず、**Gateway 型の VPC エンドポイントも関連付いていない** ルートテーブルと、その関連付け"
+reason = "辺が1本もできない。サブネットが隔離されていることは辺が無いことで分かる"
+
+[[type]]
+id = "H-SG-NOEDGE"
+class = "hidden"
+tf = []
+cfn = []
+applies = "辺を1本も生まないセキュリティグループ"
+reason = "辺を生む SG は R-SG で `merged_into` になる"
+
+[[type]]
+id = "H-SG-EGRESS"
+class = "hidden"
+tf = ["aws_vpc_security_group_egress_rule", "aws_security_group_rule"]
+cfn = ["AWS::EC2::SecurityGroupEgress"]
+when = { types = ["aws_security_group_rule"], prop = { tf = "type" }, in = ["egress"] }
+applies = "別リソースの egress ルール（`aws_vpc_security_group_egress_rule`、`aws_security_group_rule`（`type = \"egress\"`）、`AWS::EC2::SecurityGroupEgress`）"
+reason = "v0.1 は egress から辺を作らない（docs/spec/rules/relations.md の補足）。インラインの egress は SG 本体の一部なので個別には数えない"
+
+[[type]]
+id = "H-UTILITY"
+class = "hidden"
+tf = ["time_sleep", "random_*", "null_resource", "terraform_data"]
+cfn = []
+applies = "`time_sleep`、`random_*`、`null_resource`、`terraform_data`"
+reason = "クラウド上の実体が無い"
+
+[[type]]
+id = "H-NESTED-STACK"
+class = "hidden"
+tf = []
+cfn = ["AWS::CloudFormation::Stack"]
+when = { via_not = ["module_blackbox"] }
+applies = "`AWS::CloudFormation::Stack`（子テンプレートを展開できたもの）"
+reason = "中身を展開して描く。展開できないもの（`TemplateURL` を手元のファイルに読み替えられない。ir-schema の 7.4）は、黒箱のモジュール（型 `module`、`via: \"module_blackbox\"`）として描く"
+
+[[type]]
+id = "H-NONAWS"
+class = "hidden"
+tf = []
+cfn = []
+applies = "AWS 以外のプロバイダの型のうち、H-UTILITY・M-AOSS-INDEX に当たらないもの（kubernetes、helm、tls、local など）。awscc の型は同じ名前の CFN の型として扱うので、ここには入らない"
+reason = "AWS の構成図の対象外（ir-schema の 7.4）"
+
+[[type]]
+id = "H-VPC-DEFAULTS"
+class = "hidden"
+tf = ["aws_default_security_group", "aws_default_network_acl", "aws_default_route_table"]
+cfn = []
+applies = "`aws_default_security_group`、`aws_default_network_acl`、`aws_default_route_table`"
+reason = "既定のリソースを管理下に置くためのもので、構成上の役割が無い（terraform-aws-modules/vpc が既定で作る）"

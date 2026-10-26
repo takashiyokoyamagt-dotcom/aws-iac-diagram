@@ -1,0 +1,31 @@
+# 描く型: データストアの型
+# 規則表の「型」の行。スキーマと読み方は docs/spec/rules/types.md、検査は scripts/aws_iac_diagram/core/rules.py。
+# 1 行 = 1 つの [[type]]。id は規則 ID（描く型は正規の型名）。ファイルは types/ の名前の昇順に、行は書いた順に読む。
+
+[[type]]
+id = "db_instance"
+class = "drawn"
+category = "resource"
+tf = ["aws_db_instance"]
+cfn = ["AWS::RDS::DBInstance"]
+name_attr = { tf = "identifier", cfn = "DBInstanceIdentifier" }
+icon = ["shape:rds_instance"]
+
+[[type]]
+id = "dynamodb_table"
+class = "drawn"
+category = "resource"
+tf = ["aws_dynamodb_table"]
+cfn = ["AWS::DynamoDB::Table", "AWS::Serverless::SimpleTable"]
+name_attr = { tf = "name", cfn = "TableName" }
+icon = ["resource_icon:dynamodb"]
+
+[[type]]
+id = "s3_bucket"
+class = "drawn"
+category = "resource"
+tf = ["aws_s3_bucket"]
+cfn = ["AWS::S3::Bucket"]
+name_attr = { tf = "bucket", cfn = "BucketName" }
+icon = ["resource_icon:s3"]
+data = true

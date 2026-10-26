@@ -1,6 +1,6 @@
 """A5 の要約表（data/module-summaries/）の読み込みと、IAM だけを作るモジュールの見分け。
 
-モジュールの展開（module_expand.py）と、フェーズ3 の正規化（IAM だけのモジュールの H-IAM）が使う。
+モジュールの展開（module_expand.py）が使う。IAM だけのモジュールの判定（`iam_only()`。正規化の H-IAM でも使う）は core/module_sources.py にある。
 
 要約表は `data/module-summaries/<モジュール>/v<メジャー>.md`（1 モジュールの 1 major につき 1 ファイル。サブモジュールの
 表は親と同じファイルに入れる）。Markdown の中の HCL のコードブロックで、直前の行に
@@ -30,7 +30,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from aws_iac_diagram.adapters.terraform.modules.sources import registry_key
+from aws_iac_diagram.core import module_sources
 from aws_iac_diagram.core.paths import MODULE_SUMMARIES_DIR
 
 # 要約表のディレクトリ（テストは、無い場所や空の場所に差し替えて、表が無いときの扱いを確かめる）
@@ -46,12 +46,11 @@ KNOWN_MODULES = frozenset({
 })
 
 TABLE_FILE = re.compile(r"v([0-9]{1,9})\.md")  # <モジュール>/v6.md（大文字小文字を区別する）
-IAM_FILE = "iam-only-sources.md"
+IAM_FILE = module_sources.IAM_FILE
 DOC_FILES = frozenset({"NOTICE.md"})  # 読まない（書き手向けの表示）。problems() が「読まれない .md」から除く
 
 _MARK = re.compile(r'<!--\s*module-summary\s+source="([^"]+)"\s+majors="([0-9, ]+)"\s*-->')
-_IAM_MARK = re.compile(r"<!--\s*iam-only-sources\s*-->")
-_FENCE = re.compile(r"^```[a-z]*\s*$")
+_IAM_MARK = module_sources.IAM_MARK
 
 
 @dataclass(frozen=True)
@@ -66,18 +65,7 @@ class Summary:
 
 _CACHE: dict = {}
 
-
-def _fenced_after(lines: list[str], i: int) -> tuple[str, int] | None:
-    """lines[i] の後ろの最初のコードブロックの中身と、その最初の行の番号（0 始まり）。"""
-    j = i + 1
-    while j < len(lines) and not lines[j].strip():
-        j += 1
-    if j >= len(lines) or not _FENCE.match(lines[j].strip()):
-        return None
-    k = j + 1
-    while k < len(lines) and lines[k].strip() != "```":
-        k += 1
-    return "\n".join(lines[j + 1:k]) + "\n", j + 1
+_fenced_after = module_sources.fenced_after
 
 
 def _listing(path: Path) -> tuple[list[tuple[tuple, str, Path]], list[str]]:
@@ -144,7 +132,7 @@ def _read(f: Path, rel: str, summaries: dict, iam: list, bad: list | None = None
         elif _IAM_MARK.search(line):
             got = _fenced_after(lines, i)
             if got is not None:
-                iam += [x.strip() for x in got[0].splitlines() if x.strip() and not x.strip().startswith("#")]
+                iam += module_sources.iam_entries(got[0])
             elif bad is not None:
                 bad.append(f"{i + 1} 行目の iam-only-sources の後にコードブロックが無い")
 
@@ -209,14 +197,3 @@ def problems(path: Path | None = None) -> list[str]:
                     seen.setdefault((source, mj), []).append(rel)
     out += [f"同じ (source, major) = {k} の表が複数ある: {', '.join(v)}" for k, v in sorted(seen.items()) if len(v) > 1]
     return out
-
-
-def iam_only(source: str, path: Path | None = None) -> bool:
-    """IAM のリソースだけを作るモジュールか（正規化の H-IAM。ir-schema の 2章）。"""
-    key = registry_key(source)
-    if key is None:
-        return False
-    for s in load(path)[1]:
-        if key == s or key.startswith(s + "//") or (s.endswith("//") and key.startswith(s)):
-            return True
-    return False

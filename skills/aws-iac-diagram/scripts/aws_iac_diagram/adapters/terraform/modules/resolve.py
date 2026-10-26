@@ -7,8 +7,10 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from aws_iac_diagram.adapters.terraform.modules import summaries
 from aws_iac_diagram.adapters.terraform.modules.sources import registry_key
-from aws_iac_diagram.adapters.terraform.modules.summaries import KNOWN_MODULES, iam_only, load
+from aws_iac_diagram.adapters.terraform.modules.summaries import KNOWN_MODULES, load
+from aws_iac_diagram.core.module_sources import iam_only
 
 _CONSTRAINT = re.compile(r"^\s*(~>|>=|<=|!=|=|>|<)?\s*v?(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:[-+][0-9A-Za-z.-]+)?\s*$")
 
@@ -25,7 +27,7 @@ def blackbox_plan(source: str, why: str) -> tuple:
     if key and (not tables or (base in KNOWN_MODULES and base not in tables)):
         return ("blackbox", "warn", "TF-MODULE-SUMMARY-TABLE-MISSING",
                 f"module {source} is not read: the summary table (data/module-summaries/) is missing or empty")
-    iam = " (it makes IAM resources only: H-IAM)" if iam_only(source) else ""
+    iam = " (it makes IAM resources only: H-IAM)" if iam_only(source, summaries.SUMMARY_DIR) else ""
     return ("blackbox", "info", "TF-MODULE-BLACKBOX", f"module {source} is not read: {why}{iam}")
 
 

@@ -1,0 +1,32 @@
+# 描く型: AI・分析の型
+# 規則表の「型」の行。スキーマと読み方は docs/spec/rules/types.md、検査は scripts/aws_iac_diagram/core/rules.py。
+# 1 行 = 1 つの [[type]]。id は規則 ID（描く型は正規の型名）。ファイルは types/ の名前の昇順に、行は書いた順に読む。
+
+[[type]]
+id = "bedrock_knowledge_base"
+class = "drawn"
+category = "resource"
+tf = ["aws_bedrockagent_knowledge_base"]
+cfn = ["AWS::Bedrock::KnowledgeBase"]
+name_attr = { tf = "name", cfn = "Name" }
+icon = ["resource_icon:bedrock"]
+
+[[type]]
+id = "opensearchserverless_collection"
+class = "drawn"
+category = "resource"
+tf = ["aws_opensearchserverless_collection"]
+cfn = ["AWS::OpenSearchServerless::Collection"]
+name_attr = { tf = "name", cfn = "Name" }
+icon = ["resource_icon:elasticsearch_service"]
+
+[[type]]
+id = "bedrock_model"
+class = "drawn"
+category = "resource"
+synthetic = "N-BEDROCK-MODEL"
+tf = []
+cfn = []
+name_attr = {}
+name_from = "モデルID"
+icon = ["resource_icon:bedrock"]

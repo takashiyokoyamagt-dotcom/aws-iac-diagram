@@ -1,0 +1,40 @@
+# 描く型: API・メッセージングの型
+# 規則表の「型」の行。スキーマと読み方は docs/spec/rules/types.md、検査は scripts/aws_iac_diagram/core/rules.py。
+# 1 行 = 1 つの [[type]]。id は規則 ID（描く型は正規の型名）。ファイルは types/ の名前の昇順に、行は書いた順に読む。
+
+[[type]]
+id = "apigw_http_api"
+class = "drawn"
+category = "resource"
+tf = ["aws_apigatewayv2_api"]
+cfn = ["AWS::ApiGatewayV2::Api", "AWS::Serverless::HttpApi"]
+when = { types = ["aws_apigatewayv2_api", "AWS::ApiGatewayV2::Api"], prop = { tf = "protocol_type", cfn = "ProtocolType" }, in = ["HTTP"] }
+name_attr = { tf = "name", cfn = "Name" }
+icon = ["resource_icon:api_gateway"]
+
+[[type]]
+id = "apigw_rest_api"
+class = "drawn"
+category = "resource"
+tf = ["aws_api_gateway_rest_api"]
+cfn = ["AWS::ApiGateway::RestApi", "AWS::Serverless::Api"]
+name_attr = { tf = "name", cfn = "Name" }
+icon = ["resource_icon:api_gateway"]
+
+[[type]]
+id = "sns_topic"
+class = "drawn"
+category = "resource"
+tf = ["aws_sns_topic"]
+cfn = ["AWS::SNS::Topic"]
+name_attr = { tf = "name", cfn = "TopicName" }
+icon = ["resource_icon:sns"]
+
+[[type]]
+id = "sqs_queue"
+class = "drawn"
+category = "resource"
+tf = ["aws_sqs_queue"]
+cfn = ["AWS::SQS::Queue"]
+name_attr = { tf = "name", cfn = "QueueName" }
+icon = ["resource_icon:sqs"]

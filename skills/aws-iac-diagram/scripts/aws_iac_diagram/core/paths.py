@@ -5,8 +5,7 @@
 （作業ディレクトリや環境変数に依らない。SKILL のフォルダを日本語やスペースを含む場所に、別の深さに置いても同じ）。
 
 - `data/` : スクリプトが読むデータ（スキーマ、アイコンの辞書、モジュールの要約表）。1 ファイル 1 単位。
-- `references/` : エージェントが読む文書。今は `validate_ir.py` が規則の ID の照合に 3 つの規則表を読む
-  （フェーズ 3 で `data/rules/` に表にして移す）。
+- `references/` : エージェントが読む文書。今は移行前の規則表の草案 3 つ（`data/rules/` に移した後、手順 1 の次のコミットで消す）。
 
 標準ライブラリだけを使い、ほかの層を import しない（core の決まり）。
 """
@@ -31,7 +30,13 @@ ICON_BROKEN = ICONS_DIR / "broken.json"
 
 # <モジュール>/v<major>.md（モジュールの要約表）と、IAM だけを作るモジュールの一覧 iam-only-sources.md
 MODULE_SUMMARIES_DIR = DATA_DIR / "module-summaries"
+IAM_ONLY_SOURCES = MODULE_SUMMARIES_DIR / "iam-only-sources.md"
 
-# 規則表（エージェントが読む文書。validate_ir.py が規則の ID の照合に読む。フェーズ 3 で data/rules/ に移す）
+# 規則表（TOML。読み込みと検査は core/rules.py。説明の文章はリポジトリの docs/spec/rules/）。
+# types/*.toml と relations.toml・edges.toml・refs.toml・placement.toml（README.md は読まない）
+RULES_DIR = DATA_DIR / "rules"
+RULES_TYPES_DIR = RULES_DIR / "types"
+
+# 移行前の規則表の草案（手順 1 の途中。次のコミットで消す）
 RULE_DOCS = tuple(REFERENCES_DIR / n for n in ("resource-catalog.md", "relation-resources.md", "edge-rules.md"))
 RESOURCE_CATALOG = REFERENCES_DIR / "resource-catalog.md"

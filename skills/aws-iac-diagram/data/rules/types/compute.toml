@@ -1,0 +1,45 @@
+# 描く型: 計算の型
+# 規則表の「型」の行。スキーマと読み方は docs/spec/rules/types.md、検査は scripts/aws_iac_diagram/core/rules.py。
+# 1 行 = 1 つの [[type]]。id は規則 ID（描く型は正規の型名）。ファイルは types/ の名前の昇順に、行は書いた順に読む。
+
+[[type]]
+id = "ecs_service"
+class = "drawn"
+category = "resource"
+tf = ["aws_ecs_service"]
+cfn = ["AWS::ECS::Service"]
+name_attr = { tf = "name", cfn = "ServiceName" }
+icon = ["resource_icon:fargate", "shape:ecs_service"]
+icon_note = "resource_icon:fargate は Fargate のとき"
+
+[[type]]
+id = "ec2_instance"
+class = "drawn"
+category = "resource"
+tf = ["aws_instance"]
+cfn = ["AWS::EC2::Instance"]
+name_attr = {}
+icon = ["resource_icon:ec2"]
+
+[[type]]
+id = "lambda_function"
+class = "drawn"
+category = "resource"
+tf = ["aws_lambda_function"]
+cfn = ["AWS::Lambda::Function", "AWS::Serverless::Function"]
+name_attr = { tf = "function_name", cfn = "FunctionName" }
+icon = ["resource_icon:lambda"]
+
+[[type]]
+id = "module"
+class = "drawn"
+category = "resource"
+tf = []
+cfn = ["AWS::CloudFormation::Stack", "AWS::Serverless::Application"]
+tf_note = "黒箱のモジュールの呼び出し（A5 の要約表に無いレジストリモジュール、`git::` などのリモートのソース）。IAM だけのモジュールは H-IAM"
+cfn_note = "読めないネストスタックと、SAM のアプリケーション"
+when = { via = ["module_blackbox"] }
+name_attr = {}
+name_from = "モジュール呼び出しの名前"
+icon = ["group:group_aws_cloud_alt"]
+icon_note = "仮。フェーズ4 で決める"

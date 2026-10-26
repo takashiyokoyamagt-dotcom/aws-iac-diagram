@@ -17,7 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "support").is_dir())))
 from support.paths import SKILL
 from aws_iac_diagram.adapters.terraform.modules import summaries as MS  # noqa: E402
-from aws_iac_diagram.core import paths  # noqa: E402
+from aws_iac_diagram.core import module_sources, paths  # noqa: E402
 
 
 def constants() -> dict[str, Path]:
@@ -52,6 +52,9 @@ class PathsTest(unittest.TestCase):
         self.assertEqual(rel["IR_RAW_SCHEMA"], "data/schemas/ir-raw.schema.json")
         self.assertEqual(rel["ICON_CATALOG"], "data/icons/catalog.json")
         self.assertEqual(rel["MODULE_SUMMARIES_DIR"], "data/module-summaries")
+        self.assertEqual(rel["IAM_ONLY_SOURCES"], "data/module-summaries/iam-only-sources.md")
+        self.assertEqual(rel["RULES_DIR"], "data/rules")
+        self.assertEqual(rel["RULES_TYPES_DIR"], "data/rules/types")
 
     def test_constants_follow_a_copy_of_the_skill_at_another_depth(self):
         # SKILL のフォルダだけを、日本語・スペースを含む別の深さにコピーして、定数がコピーの中を指すことを別のプロセスで確かめる
@@ -115,7 +118,15 @@ class SummaryDirectoryTest(unittest.TestCase):
     def test_iam_only_list_is_read_from_its_file(self):
         root = self.make({"iam-only-sources.md": "<!-- iam-only-sources -->\n```text\nterraform-aws-modules/iam/aws\n```\n"})
         self.assertEqual(MS.load(root), ({}, ("terraform-aws-modules/iam/aws",)))
-        self.assertTrue(MS.iam_only("terraform-aws-modules/iam/aws//modules/x", root))
+        self.assertTrue(module_sources.iam_only("terraform-aws-modules/iam/aws//modules/x", root))
+        self.assertEqual(module_sources.load_iam_sources(root), ("terraform-aws-modules/iam/aws",))
+
+    def test_core_and_summaries_read_the_same_shipped_iam_list(self):
+        # H-IAM の一覧の読み込みは core/module_sources.py に移した。要約表のフォルダ全体の読み込み（summaries.load）の結果と同じ
+        self.assertEqual(module_sources.load_iam_sources(), MS.load()[1])
+        self.assertEqual(module_sources.load_iam_sources(), module_sources.load_iam_sources(paths.IAM_ONLY_SOURCES))
+        self.assertEqual(module_sources.IAM_FILE, MS.IAM_FILE)
+        self.assertEqual(paths.IAM_ONLY_SOURCES, paths.MODULE_SUMMARIES_DIR / module_sources.IAM_FILE)
 
     def test_real_tables_are_one_file_per_module_and_major(self):
         for key, items in MS.load()[0].items():

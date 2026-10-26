@@ -36,7 +36,17 @@ RUNTIME_DATA = {
     "data/module-summaries/terraform-aws-rds/v7.md",
     "data/module-summaries/terraform-aws-vpc/v5.md",
     "data/module-summaries/terraform-aws-vpc/v6.md",
-    "references/resource-catalog.md",                   # validate_ir.py（規則の ID の照合）。フェーズ 3 で data/rules/ へ
+    "data/rules/edges.toml",                            # validate_ir.py（規則の ID の照合）。core/rules.py が読む規則表
+    "data/rules/placement.toml",
+    "data/rules/refs.toml",
+    "data/rules/relations.toml",
+    "data/rules/types/ai-analytics.toml",
+    "data/rules/types/compute.toml",
+    "data/rules/types/data-stores.toml",
+    "data/rules/types/integration.toml",
+    "data/rules/types/merged-and-hidden.toml",
+    "data/rules/types/network.toml",
+    "references/resource-catalog.md",                   # （移行前の草案。次のコミットで消す）
     "references/relation-resources.md",                 # validate_ir.py
     "references/edge-rules.md",                         # validate_ir.py
 }
@@ -75,6 +85,8 @@ class RequiredFilesTest(unittest.TestCase):
                 if q.is_dir():
                     if q.name in ("module-summaries", "schemas"):
                         pointed |= {f.relative_to(SKILL).as_posix() for f in q.rglob("*") if f.is_file()}
+                    elif q.name == "rules":  # 規則表は .toml だけが読まれる（README.md は読まれない説明）
+                        pointed |= {f.relative_to(SKILL).as_posix() for f in q.rglob("*.toml") if f.is_file()}
                 elif q.suffix:
                     pointed.add(q.relative_to(SKILL).as_posix())
         pointed -= {"data/icons/broken.json"}  # 保守用（check_icons.py の出力。実行時には読まない）
@@ -155,6 +167,39 @@ class RequiredFilesTest(unittest.TestCase):
             report = json.loads(out.read_text(encoding="utf-8"))
             self.assertEqual(report["status"], "error")
             self.assertEqual(report["skill"]["missing_files"], [victim])
+
+
+    def test_deleting_any_rules_file_makes_doctor_exit_2(self):
+        # 規則表（data/rules/ の .toml）のどれが欠けても、実行前に doctor が error（終了コード 2）で見つける。validate_ir.py も、
+        # 規則表が欠けたまま黙って動かない（終了コード 2 と、欠けたファイル名）
+        import json
+        rules_files = sorted(f for f in doctor.REQUIRED_FILES if f.startswith("data/rules/"))
+        self.assertEqual(len(rules_files), 10)
+        with tempfile.TemporaryDirectory() as t:
+            skill = Path(t) / "日本語 パス" / "aws-iac-diagram"
+            shutil.copytree(SKILL, skill, ignore=shutil.ignore_patterns("__pycache__"))
+            out = Path(t) / "doctor.json"
+            expected = SKILL.parent.parent / "aws-iac-diagram-workspace" / "expected" / "three-tier.ir.json"
+            for rel in rules_files:
+                victim = skill / rel
+                saved = victim.read_bytes()
+                victim.unlink()
+                try:
+                    with self.subTest(rel):
+                        res = subprocess.run([sys.executable, str(skill / "scripts" / "doctor.py"), "--out", str(out)],
+                                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300)
+                        self.assertEqual(res.returncode, 2, res.stdout + res.stderr)
+                        report = json.loads(out.read_text(encoding="utf-8"))
+                        self.assertEqual(report["status"], "error")
+                        self.assertEqual(report["skill"]["missing_files"], [rel])
+                        res = subprocess.run([sys.executable, str(skill / "scripts" / "validate_ir.py"), str(expected)],
+                                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300)
+                        self.assertEqual(res.returncode, 2, res.stdout + res.stderr)
+                        self.assertIn("規則表（data/rules/）に問題があります", res.stderr)
+                        if "/types/" not in rel:  # types/ は glob で読むので、欠けたファイル名は出ない（ほかの表からの参照の切れで見つかる。名前を言うのは doctor）
+                            self.assertIn(Path(rel).name, res.stderr)
+                finally:
+                    victim.write_bytes(saved)
 
 
 if __name__ == "__main__":

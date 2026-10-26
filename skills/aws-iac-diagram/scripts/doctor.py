@@ -37,7 +37,7 @@ ORIGINAL_STDOUT_ENCODING = getattr(sys.stdout, "encoding", None)
 # この一覧が食い違うと tests/architecture/test_doctor_required_files.py が失敗する（モジュールを足したら、ここにも足す）
 REQUIRED_FILES = [
     "SKILL.md",
-    # 実行時に読むデータ（スキーマ、アイコンの辞書、TF のモジュールの要約表。規則表は references/ にある）
+    # 実行時に読むデータ（スキーマ、アイコンの辞書、TF のモジュールの要約表、規則表）
     "data/icons/catalog.json",
     "data/schemas/ir-raw.schema.json",
     "data/schemas/ir.schema.json",
@@ -50,6 +50,17 @@ REQUIRED_FILES = [
     "data/module-summaries/terraform-aws-rds/v7.md",
     "data/module-summaries/terraform-aws-vpc/v5.md",
     "data/module-summaries/terraform-aws-vpc/v6.md",
+    # 規則表（TOML。読み込みと検査は core/rules.py。無いと validate_ir.py が動かない）。行を足すだけなら一覧は変わらない。ファイルを足したらここにも足す
+    "data/rules/edges.toml",
+    "data/rules/placement.toml",
+    "data/rules/refs.toml",
+    "data/rules/relations.toml",
+    "data/rules/types/ai-analytics.toml",
+    "data/rules/types/compute.toml",
+    "data/rules/types/data-stores.toml",
+    "data/rules/types/integration.toml",
+    "data/rules/types/merged-and-hidden.toml",
+    "data/rules/types/network.toml",
     "references/edge-rules.md",
     "references/relation-resources.md",
     "references/resource-catalog.md",
@@ -107,8 +118,11 @@ REQUIRED_FILES = [
     "scripts/aws_iac_diagram/adapters/terraform/refs.py",
     "scripts/aws_iac_diagram/core/__init__.py",
     "scripts/aws_iac_diagram/core/diagnostics.py",
+    "scripts/aws_iac_diagram/core/ir_norm.py",
     "scripts/aws_iac_diagram/core/ir_raw.py",
+    "scripts/aws_iac_diagram/core/module_sources.py",
     "scripts/aws_iac_diagram/core/paths.py",
+    "scripts/aws_iac_diagram/core/rules.py",
     "scripts/aws_iac_diagram/emit/__init__.py",
     "scripts/aws_iac_diagram/icons/__init__.py",
     "scripts/aws_iac_diagram/layout/__init__.py",

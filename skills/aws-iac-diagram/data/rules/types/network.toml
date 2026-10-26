@@ -1,0 +1,83 @@
+# 描く型: ネットワークと入口の型
+# 規則表の「型」の行。スキーマと読み方は docs/spec/rules/types.md、検査は scripts/aws_iac_diagram/core/rules.py。
+# 1 行 = 1 つの [[type]]。id は規則 ID（描く型は正規の型名）。ファイルは types/ の名前の昇順に、行は書いた順に読む。
+
+[[type]]
+id = "vpc"
+class = "drawn"
+category = "group"
+tf = ["aws_vpc"]
+cfn = ["AWS::EC2::VPC"]
+name_attr = {}
+icon = ["group:group_vpc2"]
+data = true
+
+[[type]]
+id = "availability_zone"
+class = "drawn"
+category = "group"
+synthetic = "N-AZ"
+tf = []
+cfn = []
+name_attr = {}
+name_from = "AZ 名"
+icon = ["plain_group:availability_zone"]
+
+[[type]]
+id = "subnet"
+class = "drawn"
+category = "group"
+tf = ["aws_subnet"]
+cfn = ["AWS::EC2::Subnet"]
+name_attr = {}
+icon = ["group:public_subnet", "group:private_subnet"]
+icon_note = "`attrs.access` で選ぶ（`public` なら group:public_subnet、`private` なら group:private_subnet）"
+data = true
+
+[[type]]
+id = "internet_gateway"
+class = "drawn"
+category = "resource"
+tf = ["aws_internet_gateway"]
+cfn = ["AWS::EC2::InternetGateway"]
+name_attr = {}
+icon = ["shape:internet_gateway"]
+
+[[type]]
+id = "nat_gateway"
+class = "drawn"
+category = "resource"
+tf = ["aws_nat_gateway"]
+cfn = ["AWS::EC2::NatGateway"]
+name_attr = {}
+icon = ["shape:nat_gateway"]
+
+[[type]]
+id = "vpc_endpoint"
+class = "drawn"
+category = "resource"
+tf = ["aws_vpc_endpoint"]
+cfn = ["AWS::EC2::VPCEndpoint"]
+name_attr = {}
+icon = ["shape:endpoints"]
+
+[[type]]
+id = "alb"
+class = "drawn"
+category = "resource"
+tf = ["aws_lb", "aws_alb"]
+cfn = ["AWS::ElasticLoadBalancingV2::LoadBalancer"]
+when = { prop = { tf = "load_balancer_type", cfn = "Type" }, in = ["application"], default = "application" }
+name_attr = { tf = "name", cfn = "Name" }
+icon = ["shape:application_load_balancer"]
+
+[[type]]
+id = "external"
+class = "drawn"
+category = "external"
+synthetic = "N-EXT-INTERNET"
+tf = []
+cfn = []
+name_attr = {}
+name_from = "Internet"
+icon = ["shape:internet_alt2"]

@@ -25,6 +25,7 @@ from aws_iac_diagram.adapters.terraform import (  # noqa: E402
 from aws_iac_diagram.adapters.terraform.evaluator import values as V  # noqa: E402
 from aws_iac_diagram.adapters.terraform.modules import resolve as MR, summaries as MS  # noqa: E402
 from aws_iac_diagram.adapters.terraform.modules.sources import is_local, join_summary_source, registry_key  # noqa: E402
+from aws_iac_diagram.core.module_sources import iam_only  # noqa: E402  IAM だけのモジュールの判定は core にある（手順 1 で adapters から移した）
 
 
 def build_module_call(source: str, body: str, version: str | None = None, extra: str = "") -> dict:
@@ -198,10 +199,10 @@ class SummaryTest(unittest.TestCase):
         self.assertEqual(join_summary_source("terraform-aws-modules/rds/aws", "./modules/db_instance"),
                          "terraform-aws-modules/rds/aws//modules/db_instance")
         self.assertEqual(join_summary_source("a/b/c//modules/x", "../y"), "a/b/c//modules/y")
-        self.assertTrue(MS.iam_only("terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"))
-        self.assertTrue(MS.iam_only("registry.terraform.io/terraform-aws-modules/iam/aws"))
-        self.assertFalse(MS.iam_only("terraform-aws-modules/iam-foo/aws"))
-        self.assertFalse(MS.iam_only("terraform-aws-modules/vpc/aws"))
+        self.assertTrue(iam_only("terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"))
+        self.assertTrue(iam_only("registry.terraform.io/terraform-aws-modules/iam/aws"))
+        self.assertFalse(iam_only("terraform-aws-modules/iam-foo/aws"))
+        self.assertFalse(iam_only("terraform-aws-modules/vpc/aws"))
         # IAM だけのモジュールは黒箱の呼び出し（正規化が H-IAM にする）。理由に H-IAM と書く
         raw = build("""
         module "irsa" {

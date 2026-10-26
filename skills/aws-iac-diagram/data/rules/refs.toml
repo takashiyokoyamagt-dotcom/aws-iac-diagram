@@ -1,0 +1,61 @@
+# 辺にしない参照（E-NOEDGE-*）と、参照先にノードが無いときの参照（E-REF-NONODE）。
+# スキーマと読み方は docs/spec/rules/refs.md、検査は scripts/aws_iac_diagram/core/rules.py。
+# attrs は参照の属性名（raw IR の path の最後の要素）。TF の書き方（snake_case）で書けば CFN の CamelCase にも当たる
+# （中立キー: 小文字にして `_` を除く。`vpc_id` は `VpcId` にも当たる）。中立キーが同じにならない CFN の名前だけ、別に書く。
+# 規則は上から順に当てはめ、最初に当たったものを使う。match / use_text は表の文をそのまま写した。
+
+[[noedge]]
+id = "E-NOEDGE-FROM-RULE"
+attrs = []
+from_class = ["merged_into", "hidden"]
+except_rules = ["M-ECS-TASKDEF"]
+use = ["R-*", "M-*", "H-*"]
+match = "**参照する側**のリソースが、関係リソース（R-*）、統合（M-*）、非表示（H-*）に分類されたもの（例: `AWS::EC2::VPCGatewayAttachment` の `InternetGatewayId`、`AWS::ApiGateway::Stage` の `DeploymentId`、`AWS::EC2::FlowLog` の `ResourceId`、`AWS::IAM::InstanceProfile` の `Roles`、`AWS::OpenSearchServerless::Index` の `CollectionEndpoint`、`aws_s3_bucket_versioning` の `bucket`、ルート・リスナー・SG のルールの中の参照）。**ただし** `M-ECS-TASKDEF` で統合したタスク定義の中の参照は、統合先のサービスの参照として扱うので、ここには当てない（下の行と E-ENV-REF で扱う）"
+use_text = "その R-*・M-*・H-* の規則（辺を作るかどうかはその規則が決める）"
+
+[[noedge]]
+id = "E-NOEDGE-PLACEMENT"
+attrs = ["vpc_id", "subnet_id", "subnet_ids", "subnets", "availability_zone", "db_subnet_group_name", "vpc_config"]
+use = ["P-*"]
+match = "`vpc_id`／`VpcId`、`subnet_id`・`subnet_ids`・`subnets`／`SubnetId`・`SubnetIds`・`Subnets`、`availability_zone`／`AvailabilityZone`、`db_subnet_group_name`／`DBSubnetGroupName`、`vpc_config`／`VpcConfig` の中のサブネット"
+use_text = "入れ子（placement.toml。P-*）"
+
+[[noedge]]
+id = "E-NOEDGE-SG"
+attrs = ["security_groups", "security_group_ids", "vpc_security_group_ids", "VPCSecurityGroups"]
+use = ["R-SG"]
+match = "計算リソースなどに SG を付ける属性: `security_groups`・`security_group_ids`・`vpc_security_group_ids`／`SecurityGroups`・`SecurityGroupIds`・`VPCSecurityGroups`"
+use_text = "R-SG"
+
+[[noedge]]
+id = "E-NOEDGE-ROLE"
+attrs = ["role", "role_arn", "execution_role_arn", "task_role_arn", "iam_instance_profile", "Policies"]
+use = ["E-IAM"]
+match = "`role`・`role_arn`・`execution_role_arn`・`task_role_arn`・`iam_instance_profile`／`Role`・`RoleArn`・`ExecutionRoleArn`・`TaskRoleArn`・`IamInstanceProfile`、SAM の `Policies`（ポリシーテンプレートの中の参照も含む）"
+use_text = "E-IAM"
+
+[[noedge]]
+id = "E-NOEDGE-LOG"
+attrs = ["log_group_name", "awslogs-group"]
+use = []
+match = "ロググループへの参照（`log_group_name`、`awslogs-group`／`LogGroupName`）"
+use_text = "（描かない）"
+
+[[noedge]]
+id = "E-NOEDGE-MERGE"
+attrs = ["cluster", "task_definition", "allocation_id"]
+use = ["M-*"]
+match = "参照する側を統合先にする参照: `cluster`／`Cluster`、`task_definition`／`TaskDefinition`、`allocation_id`／`AllocationId`"
+use_text = "統合先のノード（M-*）"
+
+[[noedge]]
+id = "E-NOEDGE-DEPENDS"
+attrs = ["depends_on"]
+use = []
+match = "`depends_on`／`DependsOn`"
+use_text = "（描かない。作る順序だけの依存）"
+
+[[nonode]]
+id = "E-REF-NONODE"
+target = "R-* で辺に変換された関係リソース（例: rag の `DATA_SOURCE_ID = aws_bedrockagent_data_source.docs.data_source_id`）、または H-* で非表示のリソース（ロググループ、IAM など）"
+handling = "辺を作らない。根拠（`sources.*.edges[].evidence`）には、同じ計算リソースから出るほかの辺があればそこに「辺にしなかった参照」として書く。M-* で統合されたリソースへの参照は、**統合先のノードへの参照** として扱う（例: タスク定義 → サービス、DB サブネットグループ → DB）"
