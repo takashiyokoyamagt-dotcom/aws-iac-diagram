@@ -1,7 +1,7 @@
 """python-hcl2 の構文木（lark の Tree・Token）を読む小さな道具と、heredoc・テンプレートの字句の処理。
 
 評価（値を作ること）はしない。構文木から名前・文字列・定数を取り出し、式の文字列を木にし、テンプレート（${…}、%{if}・%{for}）を
-部品に分ける。Terraform の評価器（module_eval.py の式の評価）が使う。
+部品に分ける。Terraform の評価器（module_expr.py の式の評価）が使う。
 """
 from __future__ import annotations
 

@@ -77,7 +77,7 @@ CI（[.github/workflows/ci.yml](.github/workflows/ci.yml)）は Ubuntu と Windo
 構成の階層化（[PLAN.md](PLAN.md) の 1.4。層の分け方と依存の向きは [docs/architecture.md](docs/architecture.md)）では、中身の動きを変えずにファイルを移します。それを次の 2 つが守ります（どちらも上の単体テストに入っています）。
 
 - **出力の固定（golden）:** アダプタの出力（raw IR）を、自作 fixture・plan JSON・公開サンプルの TF のルート 52・CFN の入力 25 の 101 ケースについて、SHA-256 で `tests/golden/manifest.json` に固定しています。単独で動かすには `uv run python aws-iac-diagram-workspace/tools/golden.py`（`--list`、`--only <接頭辞>`、不一致の調査には `--dump <名前> --out <ファイル>`）。**落ちたらコードを直します。`--update` で通してはいけません**（アダプタの動きを意図して変えたときだけ、理由を書いて使います）。
-- **構成の検査（`tests/test_architecture.py`）:** import を読んで層の依存の向きを、行数（800 行で注意、1,500 行で失敗。期限付きの免除あり）を確かめます。
+- **構成の検査（`tests/test_architecture.py`）:** import を読んで層の依存の向きを、行数（800 行で注意、1,500 行で失敗。免除は今は無い）を確かめます。
 
 ### アイコン辞書の再生成
 
@@ -127,11 +127,11 @@ Terraform のルートモジュール（.tf のフォルダ）から、同じ ra
 `terraform show -json` の plan JSON も読めます（ir-schema.md の 7.2「TF の plan JSON」）。.tf のフォルダと一緒に渡す（`--plan`）のがおすすめです。address と count・for_each の展開・作られるかは Terraform の結果を使い、ファイル名・値・参照の位置は .tf から読みます（.tf で決まらなかった値は plan の値で埋める）。plan JSON だけ（`--input` に `.json`）でも読めますが、plan JSON は locals・dynamic ブロックの式と .tf のファイル名を持たないので、参照の一部が分からず、`file` は plan JSON の名前になります。
 
 ```powershell
-uv run skills\aws-iac-diagram\scripts\adapters\tf.py --input aws-iac-diagram-workspace\fixtures\tf\three-tier --out out\three-tier.tf.raw.json --var-file env\dev.tfvars
+uv run skills\aws-iac-diagram\scripts\adapt_tf.py --input aws-iac-diagram-workspace\fixtures\tf\three-tier --out out\three-tier.tf.raw.json --var-file env\dev.tfvars
 uv run python skills\aws-iac-diagram\scripts\validate_ir.py out\three-tier.tf.raw.json
 # plan JSON と合わせる（変数の値は plan のもの）／plan JSON だけ
-uv run skills\aws-iac-diagram\scripts\adapters\tf.py --input aws-iac-diagram-workspace\fixtures\tf\three-tier --plan aws-iac-diagram-workspace\fixtures\tf-plan\three-tier.dev.json --out out\three-tier.plan.raw.json
-uv run skills\aws-iac-diagram\scripts\adapters\tf.py --input aws-iac-diagram-workspace\fixtures\tf-plan\three-tier.dev.json --out out\three-tier.planonly.raw.json
+uv run skills\aws-iac-diagram\scripts\adapt_tf.py --input aws-iac-diagram-workspace\fixtures\tf\three-tier --plan aws-iac-diagram-workspace\fixtures\tf-plan\three-tier.dev.json --out out\three-tier.plan.raw.json
+uv run skills\aws-iac-diagram\scripts\adapt_tf.py --input aws-iac-diagram-workspace\fixtures\tf-plan\three-tier.dev.json --out out\three-tier.planonly.raw.json
 ```
 
 公開サンプルでの確認（フェーズ2 の手順5）は、`tf_public_check.py` で行います。T01〜T20、P01〜P04 のルート（52 フォルダ）が読めて raw IR の検査を通ること（error の診断が 0）と、TF／SAM の対（T01、T05、T06、T07、T11）のリソースの型の違いが、理由つきの表（`PAIR_EXPECTED`）と一致することを調べます。`--all` は `.tf` のあるフォルダすべて（205）を読みます。

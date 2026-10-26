@@ -1,7 +1,7 @@
 # 公開モジュールの要約表（A5）
 
 - 状態: フェーズ2 の手順3（2026-10-17）で作成。対象は terraform-aws-modules の vpc・alb・rds・eks（PLAN の A5）。4つとも、タグを付けた版の本物のソース（`aws-iac-diagram-workspace/fixtures/public/`）と突き合わせるテストがある
-- 使うもの: TF アダプタ（`scripts/adapters/tf.py`）が、手元に中身の無いレジストリモジュールの呼び出しを、この表の HCL で展開する。読み込みは `scripts/aws_iac_diagram/adapters/terraform/tf_modules.py`
+- 使うもの: TF アダプタ（`scripts/adapt_tf.py`）が、手元に中身の無いレジストリモジュールの呼び出しを、この表の HCL で展開する。読み込みは `scripts/aws_iac_diagram/adapters/terraform/tf_modules.py`
 - raw IR での出し方: [ir-schema.md](ir-schema.md) の 7.2（モジュール）と 4章の `via: "module_summary"`
 - 表の HCL は terraform-aws-modules（Apache-2.0）のソースから、変数の宣言（`type`・`default`・`nullable`）・出力・主要なリソースのブロックを写して短くしたもの（改変あり）。出典とライセンスは、ルートの [NOTICE](../../../NOTICE) の 2(b)
 
@@ -42,7 +42,7 @@
 
 ## 4. IAM だけを作るモジュール（H-IAM）
 
-次の source（サブモジュールを含む）は、IAM のリソースだけを作る。アダプタは黒箱の呼び出し（`via: module_blackbox`）として出し、正規化が `hidden`（規則 `H-IAM`。ir-schema.md の 2章）にする。判定は `scripts/aws_iac_diagram/adapters/terraform/tf_modules.py` の `iam_only()`（source の前方一致。ホスト名 `registry.terraform.io/` は除く）。ローカルモジュールは中身を読むので、リソースの型ごとに `H-IAM` になる（この一覧は使わない）。
+次の source（サブモジュールを含む）は、IAM のリソースだけを作る。アダプタは黒箱の呼び出し（`via: module_blackbox`）として出し、正規化が `hidden`（規則 `H-IAM`。ir-schema.md の 2章）にする。判定は `scripts/aws_iac_diagram/adapters/terraform/modules/summaries.py` の `iam_only()`（source の前方一致。ホスト名 `registry.terraform.io/` は除く）。ローカルモジュールは中身を読むので、リソースの型ごとに `H-IAM` になる（この一覧は使わない）。
 
 <!-- iam-only-sources -->
 ```text

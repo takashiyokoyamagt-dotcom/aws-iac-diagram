@@ -42,7 +42,7 @@ jobs:
           # TF アダプタ（フェーズ2）: 自作 fixture の5構成を PEP 723 の依存だけで読み、raw IR の検査を通す
           # （glob は validate_ir.py が展開する。Windows の RUNNER_TEMP のバックスラッシュを bash の glob に渡さないため）
           for d in aws-iac-diagram-workspace/fixtures/tf/*/; do
-            uv run skills/aws-iac-diagram/scripts/adapters/tf.py --input "$d" \
+            uv run skills/aws-iac-diagram/scripts/adapt_tf.py --input "$d" \
               --out "$RUNNER_TEMP/tf-raw/$(basename "$d").json" --root-base aws-iac-diagram-workspace
           done
           uv run skills/aws-iac-diagram/scripts/validate_ir.py "$RUNNER_TEMP/tf-raw/*.json"
@@ -52,9 +52,9 @@ jobs:
             n=$(basename "$f" .json)
             d="aws-iac-diagram-workspace/fixtures/tf/${n%%.*}"
             if [ "$n" = "edge" ]; then d="aws-iac-diagram-workspace/fixtures/tf-plan/edge"; fi
-            uv run skills/aws-iac-diagram/scripts/adapters/tf.py --input "$f" \
+            uv run skills/aws-iac-diagram/scripts/adapt_tf.py --input "$f" \
               --out "$RUNNER_TEMP/tf-plan-raw/$n.plan.json" --root-base aws-iac-diagram-workspace
-            uv run skills/aws-iac-diagram/scripts/adapters/tf.py --input "$d" --plan "$f" \
+            uv run skills/aws-iac-diagram/scripts/adapt_tf.py --input "$d" --plan "$f" \
               --out "$RUNNER_TEMP/tf-plan-raw/$n.combined.json" --root-base aws-iac-diagram-workspace
           done
           uv run skills/aws-iac-diagram/scripts/validate_ir.py "$RUNNER_TEMP/tf-plan-raw/*.json"
@@ -95,15 +95,15 @@ jobs:
           $tfin = Join-Path $env:GITHUB_WORKSPACE 'aws-iac-diagram-workspace\fixtures\tf\three-tier'
           $tfout = Join-Path $base 'out\three-tier.tf.raw.json'
           # 変数のファイル（--input からの相対パス）と --var も渡す（A4。フェーズ2 の手順2）
-          uv run "$skill\scripts\adapters\tf.py" --input "$tfin" --out "$tfout" --var-file 'env\dev.tfvars' --var project=demo
-          if ($LASTEXITCODE -ne 0) { throw "tf.py exit code was $LASTEXITCODE" }
+          uv run "$skill\scripts\adapt_tf.py" --input "$tfin" --out "$tfout" --var-file 'env\dev.tfvars' --var project=demo
+          if ($LASTEXITCODE -ne 0) { throw "adapt_tf.py exit code was $LASTEXITCODE" }
           uv run "$skill\scripts\validate_ir.py" "$tfout"
           if ($LASTEXITCODE -ne 0) { throw "validate_ir (tf raw) exit code was $LASTEXITCODE" }
           # plan JSON（コミットしたもの）を .tf のフォルダと合わせて読む（--plan。フェーズ2 の手順4）
           $plan = Join-Path $env:GITHUB_WORKSPACE 'aws-iac-diagram-workspace\fixtures\tf-plan\three-tier.dev.json'
           $planout = Join-Path $base 'out\three-tier.plan.raw.json'
-          uv run "$skill\scripts\adapters\tf.py" --input "$tfin" --plan "$plan" --out "$planout"
-          if ($LASTEXITCODE -ne 0) { throw "tf.py --plan exit code was $LASTEXITCODE" }
+          uv run "$skill\scripts\adapt_tf.py" --input "$tfin" --plan "$plan" --out "$planout"
+          if ($LASTEXITCODE -ne 0) { throw "adapt_tf.py --plan exit code was $LASTEXITCODE" }
           uv run "$skill\scripts\validate_ir.py" "$planout"
           if ($LASTEXITCODE -ne 0) { throw "validate_ir (tf plan raw) exit code was $LASTEXITCODE" }
           exit 0
