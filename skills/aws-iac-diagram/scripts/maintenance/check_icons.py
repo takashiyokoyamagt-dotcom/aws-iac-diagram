@@ -18,7 +18,7 @@
        stencil_missing  ステンシル名を存在しない名前にした参照と画素がほぼ同じ
                         （グラデーションの正方形だけになる resourceIcon や、アイコンの無い group 枠）
      group は枠と隅の小さなアイコンだけで中が空なのが正常なので、stencil_missing だけで判定する。
-  4. 結果を references/icons/broken.json に書き、build_icon_catalog の出力処理で
+  4. 結果を data/icons/broken.json に書き、build_icon_catalog の出力処理で
      catalog.json とカテゴリ別 .md に `broken` を反映する。build_icon_catalog.py を再実行しても
      broken.json を読んでマージするので消えない。
 
@@ -56,6 +56,7 @@ from xml.sax.saxutils import quoteattr
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent  # scripts/（この本体のパッケージ aws_iac_diagram がある）
 sys.path.insert(0, str(SCRIPTS_DIR))
 
+from aws_iac_diagram.core import paths  # noqa: E402
 from aws_iac_diagram.platform.drawio_cli import DrawioError, drawio_version, export_png, find_drawio  # noqa: E402
 
 try:
@@ -63,11 +64,11 @@ try:
 except ImportError:  # pragma: no cover
     sys.exit("Pillow がありません: uv run で起動してください（依存はスクリプト先頭の PEP 723 の宣言にあります）。")
 
-SKILL_DIR = SCRIPTS_DIR.parent
+SKILL_DIR = paths.SKILL_DIR
 REPO_DIR = SKILL_DIR.parent.parent  # skills/aws-iac-diagram の2つ上
-ICONS_DIR = SKILL_DIR / "references" / "icons"
-CATALOG = ICONS_DIR / "catalog.json"
-BROKEN_JSON = ICONS_DIR / "broken.json"
+ICONS_DIR = paths.ICONS_DIR
+CATALOG = paths.ICON_CATALOG
+BROKEN_JSON = paths.ICON_BROKEN
 SIDEBAR = SKILL_DIR / "assets" / "vendor" / "Sidebar-AWS4.js"
 DEFAULT_WORK_DIR = REPO_DIR / "aws-iac-diagram-workspace" / "icon-check"
 

@@ -18,7 +18,7 @@ _SUMMARY_TREES: dict = {}
 
 def summary_tree(summary: MS.Summary) -> Tree:
     """要約表の HCL の構文木（1回だけ読む）。"""
-    key = (summary.source, summary.majors, summary.line)
+    key = (summary.source, summary.majors, summary.file, summary.line)
     if key not in _SUMMARY_TREES:
         _SUMMARY_TREES[key] = hcl2.parses_to_tree(summary.text)
     return _SUMMARY_TREES[key]
@@ -29,7 +29,7 @@ class LoadMixin:
 
     # --- 読み込み
     def load(self) -> None:
-        if self.summary is not None:  # 要約表（references/module-summaries.md）の HCL
+        if self.summary is not None:  # 要約表（data/module-summaries/）の HCL
             self.collect(summary_tree(self.summary), self.file_override)
             return
         if not self.dir.is_dir():

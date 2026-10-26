@@ -5,7 +5,7 @@
 """IR（references/ir-schema.md、v1.0。正規化後の形）を検証する。
 
 検証すること:
-  1. JSON Schema（references/ir.schema.json）に合っているか（jsonschema を使う）
+  1. JSON Schema（data/schemas/ir.schema.json）に合っているか（jsonschema を使う）
   2. 参照の整合: ID の一意性、id と type の対応、id の key と name の対応（K-NAME）、parent・spans・辺の端点・網羅分類の node／into が存在するか、
      入れ子が循環しないか、spans の共通の祖先が parent か、合成でないノードが各形式で drawn になっているか、
      すべての辺に各形式の根拠があるか、使っている規則ID が references/ の規則表に定義されているか、
@@ -29,16 +29,17 @@ import re
 import sys
 from pathlib import Path
 
-SKILL = Path(__file__).resolve().parent.parent
-SCHEMA_PATH = SKILL / "references" / "ir.schema.json"
-RAW_SCHEMA_PATH = SKILL / "references" / "ir-raw.schema.json"
-sys.path.insert(0, str(SKILL / "scripts"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from aws_iac_diagram.core import ir_raw  # noqa: E402
-RULE_DOCS = [SKILL / "references" / n for n in ("resource-catalog.md", "relation-resources.md", "edge-rules.md")]
+from aws_iac_diagram.core import ir_raw, paths  # noqa: E402
+
+SKILL = paths.SKILL_DIR
+SCHEMA_PATH = paths.IR_SCHEMA
+RAW_SCHEMA_PATH = paths.IR_RAW_SCHEMA
+RULE_DOCS = list(paths.RULE_DOCS)
 RULE_ROW = re.compile(r"^\|\s*`([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+)`\s*\|", re.M)
 SYNTHETIC_TYPES = {"availability_zone", "external", "bedrock_model"}
-CATALOG = SKILL / "references" / "resource-catalog.md"
+CATALOG = paths.RESOURCE_CATALOG
 INPUT_TYPE = re.compile(r"`((?:aws|awscc|opensearch)_[a-z0-9_]+|AWS::[A-Za-z0-9]+::[A-Za-z0-9]+)`")
 CLASS_PREFIX = {"hidden": ("H-",), "merged_into": ("M-", "R-")}
 # 黒箱のモジュールになれる入力の型（ir-schema.md の 2章）

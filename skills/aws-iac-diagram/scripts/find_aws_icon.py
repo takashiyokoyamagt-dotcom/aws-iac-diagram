@@ -2,7 +2,7 @@
 # requires-python = ">=3.12"
 # dependencies = []
 # ///
-"""AWS アイコン辞書（references/icons/catalog.json）を検索する。
+"""AWS アイコン辞書（data/icons/catalog.json）を検索する。
 
 辞書全体を LLM に読ませる代わりに、このスクリプトで必要なエントリだけを引く。
 スタイル文字列は辞書にあるものをそのまま使い、手で組み立てないこと（PLAN 2.2 の 1〜3）。
@@ -21,7 +21,11 @@ import json
 import sys
 from pathlib import Path
 
-CATALOG = Path(__file__).resolve().parent.parent / "references" / "icons" / "catalog.json"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from aws_iac_diagram.core import paths  # noqa: E402
+
+CATALOG = paths.ICON_CATALOG
 KINDS = ("resource_icon", "shape", "group", "plain_group", "plain", "edge")
 
 

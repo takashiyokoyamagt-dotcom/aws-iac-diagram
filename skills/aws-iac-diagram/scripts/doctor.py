@@ -37,14 +37,19 @@ ORIGINAL_STDOUT_ENCODING = getattr(sys.stdout, "encoding", None)
 # この一覧が食い違うと tests/test_doctor_required_files.py が失敗する（モジュールを足したら、ここにも足す）
 REQUIRED_FILES = [
     "SKILL.md",
-    # 実行時に読むデータ（スキーマ、規則表、アイコンの辞書、TF のモジュールの要約表）
-    "references/icons/catalog.json",
-    "references/ir-raw.schema.json",
-    "references/ir.schema.json",
+    # 実行時に読むデータ（スキーマ、アイコンの辞書、TF のモジュールの要約表。規則表は references/ にある）
+    "data/icons/catalog.json",
+    "data/schemas/ir-raw.schema.json",
+    "data/schemas/ir.schema.json",
+    # TF アダプタのレジストリモジュールの要約表（無いと黒箱になり、図が欠ける）。モジュールの版を足したらここにも足す
+    "data/module-summaries/iam-only-sources.md",
+    "data/module-summaries/terraform-aws-alb/v10.md",
+    "data/module-summaries/terraform-aws-eks/v21.md",
+    "data/module-summaries/terraform-aws-rds/v7.md",
+    "data/module-summaries/terraform-aws-vpc/v6.md",
     "references/edge-rules.md",
     "references/relation-resources.md",
     "references/resource-catalog.md",
-    "references/module-summaries.md",  # TF アダプタのレジストリモジュールの要約表（無いと黒箱になり、図が欠ける）
     # scripts/ の .py（入口、パッケージ aws_iac_diagram/ のすべて）
     "scripts/adapt_cfn.py",
     "scripts/adapt_tf.py",
@@ -100,6 +105,7 @@ REQUIRED_FILES = [
     "scripts/aws_iac_diagram/core/__init__.py",
     "scripts/aws_iac_diagram/core/diagnostics.py",
     "scripts/aws_iac_diagram/core/ir_raw.py",
+    "scripts/aws_iac_diagram/core/paths.py",
     "scripts/aws_iac_diagram/emit/__init__.py",
     "scripts/aws_iac_diagram/icons/__init__.py",
     "scripts/aws_iac_diagram/layout/__init__.py",

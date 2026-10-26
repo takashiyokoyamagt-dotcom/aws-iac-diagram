@@ -55,7 +55,7 @@ class MergeTest(unittest.TestCase):
         self.assertFalse(any("broken_reason" in c for c in again))
 
     def test_write_outputs_stays_in_out_dir(self):
-        """out_dir を渡せば本物の references/icons には書かない。broken.json も out_dir から読む。"""
+        """out_dir を渡せば本物の data/icons には書かない。broken.json も out_dir から読む。"""
         real = bic.OUT_DIR / "catalog.json"
         before = real.read_bytes() if real.exists() else None
         (self.tmp / "broken.json").write_text(self.broken.read_text(encoding="utf-8"), encoding="utf-8")

@@ -12,13 +12,13 @@ import jsonschema
 
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS = ROOT / "skills" / "aws-iac-diagram" / "scripts"
-REFS = ROOT / "skills" / "aws-iac-diagram" / "references"
+DATA = ROOT / "skills" / "aws-iac-diagram" / "data"
 EXPECTED = ROOT / "aws-iac-diagram-workspace" / "expected"
 sys.path.insert(0, str(SCRIPTS))
 import validate_ir as v  # noqa: E402
 from aws_iac_diagram.core import ir_raw  # noqa: E402
 
-RAW = jsonschema.Draft202012Validator(json.loads((REFS / "ir-raw.schema.json").read_text(encoding="utf-8")))
+RAW = jsonschema.Draft202012Validator(json.loads((DATA / "schemas" / "ir-raw.schema.json").read_text(encoding="utf-8")))
 
 
 def res(address, attr=None):

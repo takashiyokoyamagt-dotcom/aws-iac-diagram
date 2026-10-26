@@ -878,7 +878,7 @@ def build_module_call(source: str, body: str, version: str | None = None) -> dic
 
 
 class SummaryTest(unittest.TestCase):
-    """手順3: A5 の要約表（references/module-summaries.md）、版の選び方、黒箱、H-IAM。"""
+    """手順3: A5 の要約表（data/module-summaries/）、版の選び方、黒箱、H-IAM。"""
 
     def test_summary_file(self):
         summaries, iam = MS.load()
@@ -2385,20 +2385,22 @@ class FixtureTest(unittest.TestCase):
 
 
 class SummaryTableFileTest(unittest.TestCase):
-    """要約表（references/module-summaries.md）が無い・読めないことを、黙って通さない（フェーズ 2b の R1 のレビュー）。"""
+    """要約表（data/module-summaries/）が無い・読めないことを、黙って通さない（フェーズ 2b の R1 のレビュー）。"""
 
     CALL = 'module "vpc" {\n  source = "terraform-aws-modules/vpc/aws"\n  version = "~> 6.0"\n  cidr = "10.0.0.0/16"\n}\n'
 
-    def test_summary_file_exists_and_is_loaded(self):
-        self.assertTrue(MS.SUMMARY_FILE.is_file(), MS.SUMMARY_FILE)
-        self.assertEqual(MS.SUMMARY_FILE.name, "module-summaries.md")
+    def test_summary_dir_exists_and_is_loaded(self):
+        self.assertTrue(MS.SUMMARY_DIR.is_dir(), MS.SUMMARY_DIR)
+        self.assertEqual(MS.SUMMARY_DIR.relative_to(SCRIPTS.parent).as_posix(), "data/module-summaries")
         summaries, iam = MS.load()
         self.assertIn("terraform-aws-modules/vpc/aws", summaries)
         self.assertTrue(iam)
 
-    def test_doctor_requires_the_summary_file(self):
+    def test_doctor_requires_every_summary_file(self):
         import doctor
-        self.assertIn("references/module-summaries.md", doctor.REQUIRED_FILES)
+        on_disk = sorted(p.relative_to(SCRIPTS.parent).as_posix() for p in MS.SUMMARY_DIR.rglob("*.md"))
+        self.assertEqual(on_disk, sorted(f for f in doctor.REQUIRED_FILES if f.startswith("data/module-summaries/")))
+        self.assertIn("data/module-summaries/terraform-aws-vpc/v6.md", doctor.REQUIRED_FILES)
         for rel in doctor.REQUIRED_FILES:
             self.assertTrue((SCRIPTS.parent / rel).is_file(), rel)
 
@@ -2408,7 +2410,7 @@ class SummaryTableFileTest(unittest.TestCase):
         codes = [d["code"] for d in raw["diagnostics"] if d["code"].startswith("TF-MODULE")]
         self.assertEqual(codes, ["TF-MODULE-SUMMARY"])
         self.assertGreater(len(raw["resources"]), 1)  # 要約表で展開される
-        with tempfile.TemporaryDirectory() as t, mock.patch.object(MS, "SUMMARY_FILE", Path(t) / "nope.md"):
+        with tempfile.TemporaryDirectory() as t, mock.patch.object(MS, "SUMMARY_DIR", Path(t) / "nope"):
             raw = build(self.CALL)
         codes = [(d["level"], d["code"]) for d in raw["diagnostics"] if d["code"].startswith("TF-MODULE")]
         self.assertEqual(codes, [("warn", "TF-MODULE-SUMMARY-TABLE-MISSING")])
@@ -2418,7 +2420,7 @@ class SummaryTableFileTest(unittest.TestCase):
         from unittest import mock
         files = {"main.tf": 'module "a" {\n  source = "./mod"\n}\nmodule "g" {\n  source = "git::https://example.com/x.git"\n}\n',
                  "mod/main.tf": 'resource "aws_sqs_queue" "q" {\n  name = "q"\n}\n'}
-        with tempfile.TemporaryDirectory() as t, mock.patch.object(MS, "SUMMARY_FILE", Path(t) / "nope.md"):
+        with tempfile.TemporaryDirectory() as t, mock.patch.object(MS, "SUMMARY_DIR", Path(t) / "nope"):
             raw = build(files)
         self.assertNotIn("TF-MODULE-SUMMARY-TABLE-MISSING", [d["code"] for d in raw["diagnostics"]])
 

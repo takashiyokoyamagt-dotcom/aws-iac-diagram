@@ -20,15 +20,19 @@ sys.path.insert(0, str(SCRIPTS))
 import doctor  # noqa: E402
 
 # 実行時に読むデータ（スクリプトが開くもの）。scripts/ の .py と SKILL.md 以外はここに書く。
-# 足し忘れは、下の test_data_paths_in_scripts_are_listed が、スクリプトの中の "references" / "…" の連なりから見つける
+# 足し忘れは、下の test_data_paths_in_scripts_are_listed が、core/paths.py の定数（場所の決め方の唯一の置き場）から見つける
 RUNTIME_DATA = {
-    "references/icons/catalog.json",       # find_aws_icon.py
-    "references/ir.schema.json",           # validate_ir.py
-    "references/ir-raw.schema.json",       # validate_ir.py
-    "references/resource-catalog.md",      # validate_ir.py（規則の ID の照合）
-    "references/relation-resources.md",    # validate_ir.py
-    "references/edge-rules.md",            # validate_ir.py
-    "references/module-summaries.md",      # TF アダプタ（modules/summaries.py）
+    "data/icons/catalog.json",                          # find_aws_icon.py
+    "data/schemas/ir.schema.json",                      # validate_ir.py
+    "data/schemas/ir-raw.schema.json",                  # validate_ir.py
+    "data/module-summaries/iam-only-sources.md",        # TF アダプタ（modules/summaries.py）。H-IAM の source の一覧
+    "data/module-summaries/terraform-aws-alb/v10.md",   # 同上。モジュールの要約表
+    "data/module-summaries/terraform-aws-eks/v21.md",
+    "data/module-summaries/terraform-aws-rds/v7.md",
+    "data/module-summaries/terraform-aws-vpc/v6.md",
+    "references/resource-catalog.md",                   # validate_ir.py（規則の ID の照合）。フェーズ 3 で data/rules/ へ
+    "references/relation-resources.md",                 # validate_ir.py
+    "references/edge-rules.md",                         # validate_ir.py
 }
 
 
@@ -52,16 +56,31 @@ class RequiredFilesTest(unittest.TestCase):
         self.assertTrue(any(SCRIPTS.joinpath("maintenance").glob("*.py")))  # 除いた対象が実在する
 
     def test_data_paths_in_scripts_are_listed(self):
-        # "references" / "icons" / "catalog.json" の形（Path の連なり）で書かれたデータを、スクリプトから拾う
-        chain = re.compile(r'"references"((?:\s*/\s*"[^"]+")+)')
-        found: set[str] = set()
-        for p in runtime_python_files():
-            if p.endswith("doctor.py"):
+        # 場所の決め方は core/paths.py だけにある。そこにある Path の定数が指すファイル（ディレクトリは中の .md と .json）が、
+        # 一覧にある実行時のデータの中にあることを確かめる。あわせて、ほかのスクリプトが SKILL の下のフォルダ名を直接書いていない
+        from aws_iac_diagram.core import paths
+        pointed: set[str] = set()
+        for name, val in vars(paths).items():
+            if name.startswith("_"):
                 continue
-            for m in chain.finditer((SKILL / p).read_text(encoding="utf-8")):
-                found.add("references/" + "/".join(re.findall(r'"([^"]+)"', m.group(1))))
-        self.assertTrue(found, "スクリプトから 1 つも拾えない（正規表現が古い）")
-        self.assertEqual(sorted(found - RUNTIME_DATA), [], "スクリプトが開くデータが RUNTIME_DATA に無い")
+            for q in (val if isinstance(val, tuple) else (val,)):
+                if not isinstance(q, Path):
+                    continue
+                if q.is_dir():
+                    if q.name in ("module-summaries", "schemas"):
+                        pointed |= {f.relative_to(SKILL).as_posix() for f in q.rglob("*") if f.is_file()}
+                elif q.suffix:
+                    pointed.add(q.relative_to(SKILL).as_posix())
+        pointed -= {"data/icons/broken.json"}  # 保守用（check_icons.py の出力。実行時には読まない）
+        self.assertTrue(pointed, "paths.py から 1 つも拾えない")
+        self.assertEqual(sorted(pointed - RUNTIME_DATA), [], "paths.py のデータが RUNTIME_DATA に無い")
+        self.assertEqual(sorted(RUNTIME_DATA - pointed), [], "RUNTIME_DATA にあるが paths.py が指さない")
+        # SKILL のフォルダ名（"references"・"data"）を Path の連なりで直接書いているスクリプトが無い（paths.py を使う）
+        chain = re.compile(r'"(?:references|data)"\s*/\s*"')
+        for p in runtime_python_files():
+            if p.endswith(("doctor.py", "core/paths.py")):
+                continue
+            self.assertIsNone(chain.search((SKILL / p).read_text(encoding="utf-8")), f"{p} が SKILL の下のパスを直接書いている")
 
     def test_each_missing_file_is_reported(self):
         # 一覧の全ファイルを 1 つずつ消して、doctor の確認（check_skill）が必ずそのファイルを欠けとして報告する

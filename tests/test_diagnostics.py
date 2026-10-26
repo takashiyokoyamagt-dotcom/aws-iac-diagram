@@ -255,7 +255,7 @@ class EmittedLevelsTest(unittest.TestCase):
 
     def test_registry_levels_are_written_to_the_json(self):
         # 出力のバイト列が一覧の表記（"warn"・"info"・"error"）を使っている（スキーマの列挙と同じ）
-        schema = json.loads((SCRIPTS.parent / "references" / "ir-raw.schema.json").read_text(encoding="utf-8"))
+        schema = json.loads((SCRIPTS.parent / "data" / "schemas" / "ir-raw.schema.json").read_text(encoding="utf-8"))
         text = json.dumps(schema)
         for level in D.LEVELS:
             self.assertIn(f'"{level}"', text)

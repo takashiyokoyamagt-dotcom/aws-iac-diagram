@@ -8,10 +8,10 @@
 JS の解析は正規表現ではなく、Node 上で Sidebar をスタブ化して実行し、登録されたエントリを記録する。
 
 出力:
-  references/icons/catalog.json   機械用の辞書（find_aws_icon.py などが読む）
-  references/icons/<category>.md  人と LLM 向けのカテゴリ別一覧（スタイル文字列は載せない）
+  data/icons/catalog.json   機械用の辞書（find_aws_icon.py などが読む）
+  data/icons/<category>.md  人と LLM 向けのカテゴリ別一覧（スタイル文字列は載せない）
 
-壊れたアイコンの情報は references/icons/broken.json（check_icons.py の出力、C2）から読み、
+壊れたアイコンの情報は data/icons/broken.json（check_icons.py の出力、C2）から読み、
 各エントリの `broken`（と `broken_reason`）としてマージする。辞書を再生成しても消えない。
 
 使い方: uv run scripts/maintenance/build_icon_catalog.py [--sidebar PATH]
@@ -26,11 +26,15 @@ import subprocess
 import sys
 from pathlib import Path
 
-SKILL_DIR = Path(__file__).resolve().parent.parent.parent
-DEFAULT_SIDEBAR = SKILL_DIR / "assets" / "vendor" / "Sidebar-AWS4.js"
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # scripts/（パッケージ aws_iac_diagram がある）
+
+from aws_iac_diagram.core import paths  # noqa: E402
+
+SKILL_DIR = paths.SKILL_DIR
+DEFAULT_SIDEBAR = paths.ASSETS_DIR / "vendor" / "Sidebar-AWS4.js"
 HARNESS = Path(__file__).resolve().parent / "sidebar_harness.js"
-OUT_DIR = SKILL_DIR / "references" / "icons"
-BROKEN_JSON = OUT_DIR / "broken.json"
+OUT_DIR = paths.ICONS_DIR
+BROKEN_JSON = paths.ICON_BROKEN
 
 
 def run_harness(sidebar: Path) -> list[dict]:
@@ -172,7 +176,7 @@ def write_outputs(catalog: list[dict], out_dir: Path | None = None, sidebar: Pat
                   broken_path: Path | None = None) -> list[Path]:
     """broken.json をマージして catalog.json とカテゴリ別 .md を書く（UTF-8・LF、順序固定）。
 
-    out_dir と broken_path の既定は references/icons/（呼び出し時に解決する）。
+    out_dir と broken_path の既定は data/icons/（呼び出し時に解決する）。
     """
     out_dir = OUT_DIR if out_dir is None else out_dir
     broken_path = out_dir / "broken.json" if broken_path is None else broken_path
