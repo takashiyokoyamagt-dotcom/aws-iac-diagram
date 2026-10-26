@@ -10,7 +10,7 @@
 
 | 項目 | 決定内容 |
 |---|---|
-| 入力（Terraform） | `.tf` を python-hcl2 で静的に解析するのが基本（file・props・参照の位置と参照の組は .tf を正本にする）。`terraform show -json` の plan JSON があれば、address・count／for_each の展開・作られるか・値は plan を使い、plan の `configuration` にあって .tf の参照に無い組は `unevaluated` で足す（実装は `scripts/aws_iac_diagram/adapters/terraform/tf_plan.py`）。plan JSON だけを渡しても読める |
+| 入力（Terraform） | `.tf` を python-hcl2 で静的に解析するのが基本（file・props・参照の位置と参照の組は .tf を正本にする）。`terraform show -json` の plan JSON があれば、address・count／for_each の展開・作られるか・値は plan を使い、plan の `configuration` にあって .tf の参照に無い組は `unevaluated` で足す（実装は `scripts/aws_iac_diagram/adapters/terraform/plan/`）。plan JSON だけを渡しても読める |
 | 入力（CloudFormation） | YAML と JSON の両方。SAM と CDK の出力（`cdk.out` 配下のテンプレート）も対象 |
 | 出力 | `.drawio`（これを正本とする）、`.mmd`（Mermaid）、`.png` の3形式 |
 | 置き場所 | 独立した公開リポジトリ（MIT）`takashiyokoyamagt-dotcom/aws-iac-diagram` の `skills/aws-iac-diagram/`。手元では `~/.claude/skills/aws-iac-diagram` と `~/.copilot/skills/aws-iac-diagram` からジャンクションで参照する。ほかのリポジトリやクラウドへはタグを付けて配る（1.3 の 5） |
