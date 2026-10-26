@@ -55,7 +55,7 @@ for p in (str(SCRIPTS), str(TOOLS)):
 
 import survey_public  # noqa: E402
 import validate_ir  # noqa: E402
-from aws_iac_diagram.adapters.cloudformation import evaluator as cfn  # noqa: E402
+from aws_iac_diagram.adapters.cloudformation import build as cfn_build  # noqa: E402
 from aws_iac_diagram.adapters.terraform import build as tf_build  # noqa: E402
 
 
@@ -261,7 +261,7 @@ def cfn_types(raw: dict) -> Counter:
 def compare_pair(pair_id: str) -> dict:
     """対の TF 版と SAM 版を読み、型の多重集合の違いを返す。"""
     tf_raw = tf_build.build_raw(PUB / survey_public.SAMPLES[pair_id][1][0], WS)
-    cfn_raw = cfn.build_raw(PUB / survey_public.SAMPLES[PAIRS[pair_id]][1][0], WS)
+    cfn_raw = cfn_build.build_raw(PUB / survey_public.SAMPLES[PAIRS[pair_id]][1][0], WS)
     a, b = tf_types(tf_raw), cfn_types(cfn_raw)
     return {
         "pair": f"{pair_id}+{PAIRS[pair_id]}",

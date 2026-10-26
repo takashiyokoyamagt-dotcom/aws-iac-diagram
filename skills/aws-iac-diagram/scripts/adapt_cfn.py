@@ -42,7 +42,8 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from aws_iac_diagram.adapters.cloudformation.evaluator import build_raw, dump, load_parameter_file  # noqa: E402
+from aws_iac_diagram.adapters.cloudformation.build import build_raw, dump  # noqa: E402
+from aws_iac_diagram.adapters.cloudformation.params import load_parameter_file  # noqa: E402
 
 
 def main(argv: list[str] | None = None) -> int:

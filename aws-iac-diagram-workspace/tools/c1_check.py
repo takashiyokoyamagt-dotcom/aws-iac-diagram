@@ -31,7 +31,8 @@ WS = Path(__file__).resolve().parent.parent
 SCRIPTS = WS.parent / "skills" / "aws-iac-diagram" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
-from aws_iac_diagram.adapters.cloudformation import evaluator as cfn  # noqa: E402
+from aws_iac_diagram.adapters.cloudformation import build as cfn_build  # noqa: E402
+from aws_iac_diagram.adapters.cloudformation import loader, model  # noqa: E402
 from aws_iac_diagram.core import ir_raw  # noqa: E402
 
 TEMPLATE_SUFFIXES = (".yaml", ".yml", ".json", ".template")
@@ -97,7 +98,7 @@ def file_prefixes(raw: dict) -> dict[str, set[str]]:
 
 def check_input(input_path: Path) -> dict:
     """1つの入力を照合する。結果: edges、unmatched（対応の無い辺）、raw_only（参考値）、files。"""
-    raw = cfn.build_raw(input_path, WS)
+    raw = cfn_build.build_raw(input_path, WS)
     base = root_dir(input_path)
     edges, unmatched, seen = 0, [], set()
     prefixes_by_file = file_prefixes(raw)
@@ -121,10 +122,10 @@ def discover() -> list[Path]:
     candidates = []
     for d in (WS / "fixtures" / "cfn", WS / "fixtures" / "public"):
         for p in sorted(d.rglob("*")):
-            if not p.is_file() or p.suffix.lower() not in TEMPLATE_SUFFIXES or cfn.SKIP_DIRS.intersection(p.parts):
+            if not p.is_file() or p.suffix.lower() not in TEMPLATE_SUFFIXES or model.SKIP_DIRS.intersection(p.parts):
                 continue
             try:
-                doc = cfn.load_template(p)
+                doc = loader.load_template(p)
             except Exception:  # noqa: BLE001  テンプレートでないファイル（Terraform の変数ファイルなど）は飛ばす
                 continue
             res = doc.get("Resources")
@@ -134,7 +135,7 @@ def discover() -> list[Path]:
     children: set[Path] = set()
     for p in candidates:
         try:
-            raw = cfn.build_raw(p, WS)
+            raw = cfn_build.build_raw(p, WS)
         except Exception:  # noqa: BLE001
             continue
         for r in raw["resources"]:

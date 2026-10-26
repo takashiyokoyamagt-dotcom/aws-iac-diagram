@@ -94,6 +94,22 @@ INTRA_TERRAFORM: dict[str, frozenset[str]] = {
     "plan": frozenset({"base"}),
 }
 
+# adapters/cloudformation の中の順序（同じ決まり。docs/architecture.md の表と同じ。食い違えば失敗）
+CLOUDFORMATION_GROUPS: dict[str, tuple[str, ...]] = {
+    "base": ("loader", "model", "marks", "refs", "sam", "cdk"),
+    "mixins": ("params", "conditions", "intrinsics", "foreach", "outputs", "nested"),
+    "evaluator": ("evaluator",),
+    "stack": ("stack",),
+    "build": ("build",),
+}
+INTRA_CLOUDFORMATION: dict[str, frozenset[str]] = {
+    "base": frozenset(),
+    "mixins": frozenset({"base"}),
+    "evaluator": frozenset({"base", "mixins"}),
+    "stack": frozenset({"base", "mixins", "evaluator"}),
+    "build": frozenset({"base", "stack"}),
+}
+
 LAYER_DIRS = {"core", "normalize", "layout", "emit", "validate", "icons", "platform"}
 # scripts/ の直下の入口のフォルダ（lib は R1、adapters は R3 で無くなった。戻さない。adapters という名前の import は入口の import と数える）
 ENTRY_DIRS = {"adapters", "maintenance", "lib"}
@@ -219,40 +235,49 @@ class _DropTypeChecking(ast.NodeTransformer):
         return self.generic_visit(node)
 
 
-def terraform_group(parts: tuple[str, ...]) -> str:
-    for group, members in TERRAFORM_GROUPS.items():
+def adapter_group(groups: dict[str, tuple[str, ...]], parts: tuple[str, ...]) -> str:
+    for group, members in groups.items():
         if parts[0] in members:
             return group
     return f"?{parts[0]}"
 
 
-def violations_in_terraform_order(scripts: Path, allowed: dict[str, frozenset[str]] = INTRA_TERRAFORM) -> tuple[list[str], set[tuple[str, str]]]:
-    """adapters/terraform の中の import の向きの違反の一覧と、見つけた辺 (from のグループ, to のグループ) の集合。"""
-    base = scripts / PACKAGE / "adapters" / "terraform"
-    prefix = f"{PACKAGE}.adapters.terraform"
+def violations_in_adapter_order(scripts: Path, adapter: str, groups: dict[str, tuple[str, ...]],
+                                allowed: dict[str, frozenset[str]]) -> tuple[list[str], set[tuple[str, str]]]:
+    """adapters/<adapter> の中の import の向きの違反の一覧と、見つけた辺 (from のグループ, to のグループ) の集合。"""
+    base = scripts / PACKAGE / "adapters" / adapter
+    prefix = f"{PACKAGE}.adapters.{adapter}"
     problems: list[str] = []
     edges: set[tuple[str, str]] = set()
     for path in sorted(base.rglob("*.py")):
         if "__pycache__" in path.parts or path.name == "__init__.py":
             continue
         rel = path.relative_to(scripts).as_posix()
-        src = terraform_group(path.relative_to(base).with_suffix("").parts)
+        src = adapter_group(groups, path.relative_to(base).with_suffix("").parts)
         if src.startswith("?"):
-            problems.append(f"{rel}: adapters/terraform のグループに無い（TERRAFORM_GROUPS と docs/architecture.md の表に足す）")
+            problems.append(f"{rel}: adapters/{adapter} のグループに無い（グループの表と docs/architecture.md の表に足す）")
             continue
         tree = _DropTypeChecking().visit(ast.parse(path.read_text(encoding="utf-8"), filename=str(path)))
         for lineno, target in imported_targets(tree, path, scripts):
             if not target.startswith(prefix + "."):
                 continue
-            dst = terraform_group(tuple(target[len(prefix) + 1:].split(".")))
+            dst = adapter_group(groups, tuple(target[len(prefix) + 1:].split(".")))
             if dst.startswith("?"):
-                problems.append(f"{rel}:{lineno}: import {target} は adapters/terraform のグループに無い")
+                problems.append(f"{rel}:{lineno}: import {target} は adapters/{adapter} のグループに無い")
                 continue
             if dst != src:
                 edges.add((src, dst))
                 if dst not in allowed[src]:
-                    problems.append(f"{rel}:{lineno}: adapters/terraform のグループ {src} はグループ {dst} を import できない（import {target}）")
+                    problems.append(f"{rel}:{lineno}: adapters/{adapter} のグループ {src} はグループ {dst} を import できない（import {target}）")
     return problems, edges
+
+
+def violations_in_terraform_order(scripts: Path, allowed: dict[str, frozenset[str]] = INTRA_TERRAFORM) -> tuple[list[str], set[tuple[str, str]]]:
+    return violations_in_adapter_order(scripts, "terraform", TERRAFORM_GROUPS, allowed)
+
+
+def violations_in_cloudformation_order(scripts: Path, allowed: dict[str, frozenset[str]] = INTRA_CLOUDFORMATION) -> tuple[list[str], set[tuple[str, str]]]:
+    return violations_in_adapter_order(scripts, "cloudformation", CLOUDFORMATION_GROUPS, allowed)
 
 
 def stdlib_collisions(scripts: Path, allow: dict[str, str] = STDLIB_ALLOW) -> list[str]:
@@ -335,6 +360,8 @@ class DependencyDirectionTest(unittest.TestCase):
         # 空振りの防止: 実在する辺を見つけている
         self.assertIn(("adapters/terraform", "core"), edges)
         self.assertIn(("entry", "adapters/terraform"), edges)
+        self.assertIn(("adapters/cloudformation", "core"), edges)
+        self.assertIn(("entry", "adapters/cloudformation"), edges)
         self.assertIn(("entry", "core"), edges)
         self.assertIn(("entry", "platform"), edges)
         self.assertEqual(violations_in_dynamic_imports(SCRIPTS), [])
@@ -612,6 +639,116 @@ class TerraformOrderTest(unittest.TestCase):
         (s / PACKAGE / "adapters" / "terraform" / "newthing.py").write_text("X = 1\n", encoding="utf-8")
         problems, _ = violations_in_terraform_order(s)
         self.assertTrue(any("newthing.py" in p and "グループに無い" in p for p in problems), problems)
+
+
+class CloudFormationOrderTest(unittest.TestCase):
+    """adapters/cloudformation の中の下の層 → 上の層の import を禁じる決まり（docs/architecture.md の「CloudFormation アダプタの中身」）。"""
+
+    def copy_tree(self) -> Path:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        dst = Path(tmp.name) / "scripts"
+        shutil.copytree(SCRIPTS, dst, ignore=shutil.ignore_patterns("__pycache__"))
+        return dst
+
+    def inject(self, scripts: Path, relpath: str, line: str) -> list[str]:
+        f = scripts / PACKAGE / "adapters" / "cloudformation" / relpath
+        f.write_text(f.read_text(encoding="utf-8") + "\n" + line + "\n", encoding="utf-8", newline="\n")
+        problems, _ = violations_in_cloudformation_order(scripts)
+        return problems
+
+    def test_real_tree_follows_the_order(self):
+        problems, edges = violations_in_cloudformation_order(SCRIPTS)
+        self.assertEqual(problems, [], "\n".join(problems))
+        # 空振りの防止: 表にある辺はすべて実際に使われている（古い許可を残さない）
+        self.assertEqual(edges, {(a, b) for a, bs in INTRA_CLOUDFORMATION.items() for b in bs})
+
+    def test_table_is_consistent(self):
+        self.assertEqual(set(INTRA_CLOUDFORMATION), set(CLOUDFORMATION_GROUPS))
+        self.assertEqual(check_allowed_table(INTRA_CLOUDFORMATION), [])
+        members = [m for ms in CLOUDFORMATION_GROUPS.values() for m in ms]
+        self.assertEqual(len(members), len(set(members)))
+        # 実在する最上位のファイルがすべてどこかのグループに入っている
+        base = SCRIPTS / PACKAGE / "adapters" / "cloudformation"
+        tops = {p.stem if p.is_file() else p.name for p in base.iterdir()
+                if (p.suffix == ".py" or p.is_dir()) and p.name not in ("__init__.py", "__pycache__")}
+        self.assertEqual(sorted(tops - set(members)), [])
+        self.assertEqual(sorted(set(members) - tops), [])
+
+    def test_docs_table_matches(self):
+        text = ARCH_DOC.read_text(encoding="utf-8")
+        start = text.index("<!-- cloudformation-order:begin -->")
+        end = text.index("<!-- cloudformation-order:end -->")
+        groups, allowed = {}, {}
+        for line in text[start:end].splitlines():
+            m = re.match(r"^\|\s*`([a-z_]+)`\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|\s*$", line)
+            if m:
+                groups[m.group(1)] = set(re.findall(r"`([a-z_]+)`", m.group(2)))
+                allowed[m.group(1)] = frozenset(re.findall(r"`([a-z_]+)`", m.group(3)))
+        self.assertEqual(groups, {g: set(ms) for g, ms in CLOUDFORMATION_GROUPS.items()},
+                         "docs/architecture.md のグループの表と CLOUDFORMATION_GROUPS が食い違う")
+        self.assertEqual(allowed, INTRA_CLOUDFORMATION, "docs/architecture.md の表と INTRA_CLOUDFORMATION が食い違う")
+
+    def test_mutation_lower_layers_importing_upper_layers_fail(self):
+        cf = "from aws_iac_diagram.adapters.cloudformation"
+        cases = (
+            ("loader.py", f"{cf}.build import dump", "グループ base はグループ build"),
+            ("marks.py", f"{cf}.conditions import weaker", "グループ base はグループ mixins"),
+            ("refs.py", f"{cf}.evaluator import Evaluator", "グループ base はグループ evaluator"),
+            ("model.py", f"{cf}.stack import StackEval", "グループ base はグループ stack"),
+            ("cdk.py", f"{cf}.stack import StackEval", "グループ base はグループ stack"),
+            ("conditions.py", f"{cf}.evaluator import Evaluator", "グループ mixins はグループ evaluator"),
+            ("nested.py", f"{cf}.stack import StackEval", "グループ mixins はグループ stack"),
+            ("intrinsics.py", f"{cf}.build import build_raw", "グループ mixins はグループ build"),
+            ("evaluator.py", f"{cf}.stack import StackEval", "グループ evaluator はグループ stack"),
+            ("evaluator.py", f"{cf}.build import dump", "グループ evaluator はグループ build"),
+            ("stack.py", f"{cf}.build import dump", "グループ stack はグループ build"),
+        )
+        for relpath, line, expect in cases:
+            s = self.copy_tree()
+            problems = self.inject(s, relpath, line)
+            self.assertTrue(any(expect in p and p.startswith("aws_iac_diagram/adapters/cloudformation/" + relpath + ":") for p in problems),
+                            (relpath, line, problems))
+
+    def test_mutation_relative_imports_are_resolved(self):
+        s = self.copy_tree()
+        problems = self.inject(s, "loader.py", "from . import build")
+        self.assertTrue(any("グループ base はグループ build" in p for p in problems), problems)
+        s = self.copy_tree()
+        problems = self.inject(s, "marks.py", "from .conditions import weaker")
+        self.assertTrue(any("グループ base はグループ mixins" in p for p in problems), problems)
+
+    def test_type_checking_imports_are_not_counted(self):
+        # model.py は StackEval を型の注釈のためだけに TYPE_CHECKING の中で import している（実行時は import しない）
+        self.assertIn("TYPE_CHECKING", (SCRIPTS / PACKAGE / "adapters" / "cloudformation" / "model.py").read_text(encoding="utf-8"))
+        line = "from aws_iac_diagram.adapters.cloudformation.build import dump"
+        s = self.copy_tree()
+        self.assertEqual(self.inject(s, "loader.py", "if TYPE_CHECKING:\n    " + line), [])
+        s = self.copy_tree()
+        problems = self.inject(s, "loader.py", "if True:\n    " + line)
+        self.assertTrue(any("グループ base はグループ build" in p for p in problems), problems)
+
+    def test_mutation_new_file_outside_the_groups_fails(self):
+        s = self.copy_tree()
+        (s / PACKAGE / "adapters" / "cloudformation" / "newthing.py").write_text("X = 1\n", encoding="utf-8")
+        problems, _ = violations_in_cloudformation_order(s)
+        self.assertTrue(any("newthing.py" in p and "グループに無い" in p for p in problems), problems)
+
+    def test_adapters_do_not_import_each_other(self):
+        # アダプタどうし（terraform ⇄ cloudformation）は読み合わない。ここでは cloudformation の側を実ファイルで確かめる
+        problems, edges = violations_in_dependencies(SCRIPTS)
+        self.assertEqual(problems, [])
+        self.assertIn(("adapters/cloudformation", "core"), edges)
+        self.assertNotIn(("adapters/cloudformation", "adapters/terraform"), edges)
+        self.assertNotIn(("adapters/terraform", "adapters/cloudformation"), edges)
+        s = self.copy_tree()
+        f = s / PACKAGE / "adapters" / "cloudformation" / "build.py"
+        f.write_text(f.read_text(encoding="utf-8") + "\nfrom aws_iac_diagram.adapters.terraform import build as tf_build\n", encoding="utf-8", newline="\n")
+        problems, _ = violations_in_dependencies(s)
+        self.assertTrue(any("層 adapters/cloudformation は層 adapters/terraform" in p for p in problems), problems)
+        f.write_text(f.read_text(encoding="utf-8") + "\nfrom aws_iac_diagram.adapters import registry\n", encoding="utf-8", newline="\n")
+        problems, _ = violations_in_dependencies(s)
+        self.assertTrue(any("層 adapters/cloudformation は層 adapters" in p for p in problems), problems)
 
 
 class FileSizeTest(unittest.TestCase):

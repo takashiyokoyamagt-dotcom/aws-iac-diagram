@@ -14,7 +14,10 @@ FIXTURES = ROOT / "aws-iac-diagram-workspace" / "fixtures" / "cfn"
 sys.path.insert(0, str(SCRIPTS))
 import validate_ir as v  # noqa: E402
 import adapt_cfn  # noqa: E402
-from aws_iac_diagram.adapters.cloudformation import evaluator as cfn  # noqa: E402
+from aws_iac_diagram.adapters.cloudformation import build as cfn_build  # noqa: E402
+from aws_iac_diagram.adapters.cloudformation import loader as cfn_loader  # noqa: E402
+from aws_iac_diagram.adapters.cloudformation import marks as cfn_marks  # noqa: E402
+from aws_iac_diagram.adapters.cloudformation import params as cfn_params  # noqa: E402
 from aws_iac_diagram.core import ir_raw  # noqa: E402
 
 
@@ -22,7 +25,7 @@ def build(yaml_text: str, name: str = "template.yaml") -> dict:
     with tempfile.TemporaryDirectory() as tmp:
         p = Path(tmp) / name
         p.write_text(textwrap.dedent(yaml_text), encoding="utf-8")
-        return cfn.build_raw(p, Path(tmp))
+        return cfn_build.build_raw(p, Path(tmp))
 
 
 def props(raw: dict, address: str) -> dict:
@@ -86,7 +89,7 @@ class ShortTagTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             p = Path(tmp) / "t.yaml"
             p.write_text(BASE, encoding="utf-8")
-            self.assertEqual(cfn.load_template(p)["AWSTemplateFormatVersion"], "2010-09-09")
+            self.assertEqual(cfn_loader.load_template(p)["AWSTemplateFormatVersion"], "2010-09-09")
 
     def test_json_template(self):
         raw = build(json.dumps({"Resources": {"Bucket": {"Type": "AWS::S3::Bucket"},
@@ -209,8 +212,8 @@ Conditions:
         assert_valid(self, raw)
 
     def test_output_is_deterministic(self):
-        a = cfn.dump(build(BASE))
-        b = cfn.dump(build(BASE))
+        a = cfn_build.dump(build(BASE))
+        b = cfn_build.dump(build(BASE))
         self.assertEqual(a, b)
 
 
@@ -414,7 +417,7 @@ class NestedStackTest(unittest.TestCase):
     """フェーズ1 の手順3: ネストスタック（ir-schema.md の 7.2〜7.4）。"""
 
     def test_three_tier_modules(self):
-        raw = cfn.build_raw(FIXTURES / "three-tier-modules" / "root.yaml", ROOT / "aws-iac-diagram-workspace")
+        raw = cfn_build.build_raw(FIXTURES / "three-tier-modules" / "root.yaml", ROOT / "aws-iac-diagram-workspace")
         assert_valid(self, raw)
         self.assertEqual(raw["diagnostics"], [])
         lb = next(r for r in raw["resources"] if r["address"] == "AlbStack/LoadBalancer")
@@ -465,7 +468,7 @@ class NestedStackTest(unittest.TestCase):
                 "a/sg.yaml": "Resources: {A: {Type: AWS::EC2::SecurityGroup}}\n",
                 "b/sg.yaml": "Resources: {B: {Type: AWS::EC2::SecurityGroup}}\n",
             })
-            raw = cfn.build_raw(tmp / "main.yaml", tmp)
+            raw = cfn_build.build_raw(tmp / "main.yaml", tmp)
         assert_valid(self, raw)
         res = {r["address"]: r for r in raw["resources"]}
         # 末尾から最も多く一致する infra/vpc.yaml を読む（vpc.yaml ではない）
@@ -485,7 +488,7 @@ class NestedStackTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
             write_files(tmp, files)
-            raw = cfn.build_raw(tmp / "main.yaml", tmp)
+            raw = cfn_build.build_raw(tmp / "main.yaml", tmp)
         assert_valid(self, raw)
         return raw
 
@@ -580,7 +583,7 @@ class NestedStackTest(unittest.TestCase):
                     Type: AWS::CloudFormation::Stack
                     Properties: {TemplateURL: loop.yaml}
                 """})
-            raw = cfn.build_raw(tmp / "loop.yaml", tmp)
+            raw = cfn_build.build_raw(tmp / "loop.yaml", tmp)
         self.assertIn("CFN-NESTED-CYCLE", [d["code"] for d in raw["diagnostics"]])
         assert_valid(self, raw)
 
@@ -654,7 +657,7 @@ Resources:
         assert_valid(self, raw)
 
     def test_explicit_api_has_no_implicit(self):
-        raw = cfn.build_raw(FIXTURES / "serverless-api" / "template.yaml", ROOT / "aws-iac-diagram-workspace")
+        raw = cfn_build.build_raw(FIXTURES / "serverless-api" / "template.yaml", ROOT / "aws-iac-diagram-workspace")
         self.assertFalse([r for r in raw["resources"] if r.get("implicit")])
 
 
@@ -686,7 +689,7 @@ class CdkOutTest(unittest.TestCase):
                     "Outputs": {"QueueUrl": {"Value": {"Ref": "Queue"}}}}),
             }
             write_files(tmp, files)
-            raw = cfn.build_raw(tmp, tmp.parent)
+            raw = cfn_build.build_raw(tmp, tmp.parent)
         assert_valid(self, raw)
         self.assertEqual(raw["root"], "cdk.out")
         res = {r["address"]: r for r in raw["resources"]}
@@ -728,7 +731,7 @@ class CdkOutTest(unittest.TestCase):
                 "assembly-Prod/ProdNet2.template.json": stack(
                     {"Vpc": {"Type": "AWS::EC2::VPC"}}, {"Y": {"Value": "y", "Export": {"Name": "dup"}}}),
             })
-            raw = cfn.build_raw(tmp, tmp.parent)
+            raw = cfn_build.build_raw(tmp, tmp.parent)
         assert_valid(self, raw)
         res = {r["address"]: r for r in raw["resources"]}
         # 同じ stackName（Net）が2つあるので artifact の ID を使う
@@ -754,7 +757,7 @@ class CdkOutTest(unittest.TestCase):
                 "App.json": json.dumps({"Resources": {"Sg": {"Type": "AWS::EC2::SecurityGroup",
                                                              "Properties": {"VpcId": {"Fn::ImportValue": "Net-VpcId"}}}}}),
             })
-            raw = cfn.build_raw(tmp, tmp.parent)
+            raw = cfn_build.build_raw(tmp, tmp.parent)
         sg = next(r for r in raw["resources"] if r["address"] == "App::Sg")
         self.assertEqual(sg["props"]["VpcId"], {"$res": "Net::Vpc", "attr": None})
         assert_valid(self, raw)
@@ -765,7 +768,7 @@ class EvaluationTest(unittest.TestCase):
 
     def three_tier(self, env: str | None = None) -> dict:
         params = {"EnvType": env} if env else None
-        return cfn.build_raw(FIXTURES / "three-tier" / "template.yaml", ROOT / "aws-iac-diagram-workspace", params)
+        return cfn_build.build_raw(FIXTURES / "three-tier" / "template.yaml", ROOT / "aws-iac-diagram-workspace", params)
 
     def test_three_tier_dev_and_prod(self):
         dev, prod = self.three_tier(), self.three_tier("prod")
@@ -786,9 +789,9 @@ class EvaluationTest(unittest.TestCase):
         self.assertNotEqual(d[db]["props"]["DBInstanceClass"], p[db]["props"]["DBInstanceClass"])
 
     def test_vpc_endpoints_parameters_file(self):
-        params = cfn.load_parameter_file(FIXTURES / "vpc-endpoints" / "parameters.json")
+        params = cfn_params.load_parameter_file(FIXTURES / "vpc-endpoints" / "parameters.json")
         self.assertEqual(params, {"Project": "net"})
-        raw = cfn.build_raw(FIXTURES / "vpc-endpoints" / "template.json", ROOT / "aws-iac-diagram-workspace", params)
+        raw = cfn_build.build_raw(FIXTURES / "vpc-endpoints" / "template.json", ROOT / "aws-iac-diagram-workspace", params)
         assert_valid(self, raw)
         self.assertEqual(raw["evaluation"]["parameters"]["Project"], "net")
         vpc = next(r for r in raw["resources"] if r["type"] == "AWS::EC2::VPC")
@@ -847,7 +850,7 @@ Resources:
         with tempfile.TemporaryDirectory() as tmp:
             p = Path(tmp) / "t.yaml"
             p.write_text(textwrap.dedent(text), encoding="utf-8")
-            raw = cfn.build_raw(p, Path(tmp), {"AWS::Region": "ap-northeast-1"})
+            raw = cfn_build.build_raw(p, Path(tmp), {"AWS::Region": "ap-northeast-1"})
         self.assertTrue(raw["evaluation"]["conditions"]["InTokyo"])
         # 擬似パラメータの値は条件の評価にだけ使い、props は $pseudo のまま
         self.assertEqual(props(raw, "Q")["Region"], {"$pseudo": "AWS::Region"})
@@ -923,7 +926,7 @@ class EvaluationReviewTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             p = Path(tmp) / "t.yaml"
             p.write_text(textwrap.dedent(text), encoding="utf-8")
-            return cfn.build_raw(p, Path(tmp), params)
+            return cfn_build.build_raw(p, Path(tmp), params)
 
     def test_given_parameter_values(self):
         text = """
@@ -945,7 +948,7 @@ Resources:
             f = Path(tmp) / "p.json"
             f.write_text(json.dumps([{"ParameterKey": "S", "UsePreviousValue": True},
                                      {"ParameterKey": "L", "ParameterValue": "x,y"}]), encoding="utf-8")
-            self.assertEqual(cfn.load_parameter_file(f), {"L": "x,y"})
+            self.assertEqual(cfn_params.load_parameter_file(f), {"L": "x,y"})
 
     def test_foreach_collisions_inline_and_outputs(self):
         raw = build("""
@@ -1062,7 +1065,7 @@ Outputs:
                 "B.json": json.dumps({"Resources": {"Fn": {"Type": "AWS::Lambda::Function",
                                                            "Properties": {"X": {"Fn::ImportValue": "x"}}}}}),
             })
-            raw = cfn.build_raw(tmp, tmp.parent)
+            raw = cfn_build.build_raw(tmp, tmp.parent)
         fn = next(r for r in raw["resources"] if r["address"] == "B::Fn")
         self.assertEqual(fn["props"]["X"], {"$import": "x"})
 
@@ -1084,8 +1087,8 @@ class ExpectedIrTest(unittest.TestCase):
                 expected = json.loads((ws / "expected" / f"{name}.ir.json").read_text(encoding="utf-8"))
                 params = dict(expected.get("evaluation", {}).get("cfn", {}).get("parameters", {}))
                 if pfile:
-                    params.update(cfn.load_parameter_file(FIXTURES / pfile))
-                raw = cfn.build_raw(FIXTURES / tpl, ws, params)
+                    params.update(cfn_params.load_parameter_file(FIXTURES / pfile))
+                raw = cfn_build.build_raw(FIXTURES / tpl, ws, params)
                 got = {r["address"]: (r["type"], r["file"], r["enabled"]) for r in raw["resources"]}
                 want = {r["address"]: (r["type"], r["file"], r.get("rule") != "H-COND-FALSE")
                         for r in expected["sources"]["cfn"]["resources"]}
@@ -1095,14 +1098,14 @@ class ExpectedIrTest(unittest.TestCase):
 class SplitConcatTest(unittest.TestCase):
     def test_split(self):
         A, B = {"$res": "A", "attr": None}, {"$res": "B", "attr": None}
-        self.assertEqual(cfn.split_concat([A, ",", B], ","), [A, B])
-        self.assertEqual(cfn.split_concat(["x-", A, ",y"], ","), [{"$concat": ["x-", A]}, "y"])
+        self.assertEqual(cfn_marks.split_concat([A, ",", B], ","), [A, B])
+        self.assertEqual(cfn_marks.split_concat(["x-", A, ",y"], ","), [{"$concat": ["x-", A]}, "y"])
 
 
 def count_resources(template: Path) -> int:
     """テンプレートのリソースの数。手元のファイルを指すネストスタックは中身も数える。"""
     n = 0
-    for body in (cfn.load_template(template).get("Resources") or {}).values():
+    for body in (cfn_loader.load_template(template).get("Resources") or {}).values():
         n += 1
         url = (body.get("Properties") or {}).get("TemplateURL")
         if body.get("Type") == "AWS::CloudFormation::Stack" and isinstance(url, str) and "://" not in url:
@@ -1118,7 +1121,7 @@ class FixtureTest(unittest.TestCase):
         self.assertGreaterEqual(len(templates), 10)
         for t in templates:
             with self.subTest(t.relative_to(FIXTURES).as_posix()):
-                raw = cfn.build_raw(t, ROOT / "aws-iac-diagram-workspace")
+                raw = cfn_build.build_raw(t, ROOT / "aws-iac-diagram-workspace")
                 assert_valid(self, raw)
                 self.assertFalse([d for d in raw["diagnostics"] if d["level"] == "error"])
                 self.assertEqual(len(raw["resources"]), count_resources(t))
