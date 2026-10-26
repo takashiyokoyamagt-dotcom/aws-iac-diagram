@@ -1,13 +1,15 @@
 # 構成（層・依存の向き・拡張のしかた）
 
-開発者向けの文書です（SKILL の外。配りません）。決めた経緯は [PLAN.md](../PLAN.md) の 1.4。**この文書は階層化の途中（フェーズ 2b）で書いています。** 「R4」「R5」のように印を付けた所は、その手順で中身が変わるので、そのとき書き直します（印は最後の R6 で全部消す）。Terraform の側は R2、CloudFormation の側は R3 で分け終えました（2 の下の「Terraform アダプタの中身」「CloudFormation アダプタの中身」）。
+開発者向けの文書です（SKILL の外。配りません）。決めた経緯は [PLAN.md](../PLAN.md) の 1.4。**この文書は階層化の途中（フェーズ 2b）で書いています。** 「R4」「R5」のように印を付けた所は、その手順で中身が変わるので、そのとき書き直します（印は最後の R6 で全部消す）。Terraform の側は R2、CloudFormation の側は R3 で分け終えました（2 の下の「Terraform アダプタの中身」「CloudFormation アダプタの中身」）。スクリプトが読むデータは R4 で `data/` に移しました（1 の図と「データ（`data/`）」）。
 
 ## 1. 全体の形
 
 ```
 skills/aws-iac-diagram/
 ├── SKILL.md
-├── references/            エージェントが読む文書（R4・R6 で data/ と分ける）
+├── references/            エージェントが読む文書（今は ir-schema.md と規則表 3 つ。R6 で整理する）
+├── data/                  スクリプトが実行時に読むデータ（1 ファイル 1 単位。R4）
+│   ├── schemas/  icons/  module-summaries/<モジュール>/v<major>.md      （rules/ はフェーズ 3）
 ├── assets/                vendor（draw.io の Sidebar-AWS4.js）
 └── scripts/
     ├── doctor.py  validate_ir.py  find_aws_icon.py     入口（直下）
@@ -27,7 +29,7 @@ skills/aws-iac-diagram/
 
 | 層 | 中身 | 状態 |
 |---|---|---|
-| `core` | raw IR の部品（印・パス・正規化の共通処理）`ir_raw.py`、診断コードの一覧 `diagnostics.py`（下の「診断コードの一覧」） | `ir_raw.py`・`diagnostics.py`（R3） |
+| `core` | raw IR の部品（印・パス・正規化の共通処理）`ir_raw.py`、診断コードの一覧 `diagnostics.py`（下の「診断コードの一覧」）、同梱ファイルの場所 `paths.py`（下の「データ（`data/`）」） | `ir_raw.py`・`diagnostics.py`（R3）・`paths.py`（R4） |
 | `adapters/terraform` | Terraform アダプタの中身（下の「Terraform アダプタの中身」）。入口は `scripts/adapt_tf.py` | 済み（R2） |
 | `adapters/cloudformation` | CloudFormation アダプタの中身（下の「CloudFormation アダプタの中身」）。入口は `scripts/adapt_cfn.py` | 済み（R3） |
 | `adapters`（`registry.py`） | 入力の形式 → アダプタのパッケージ名の表。形式を見分けて振り分ける処理は後で足す | 名前の表だけ |
@@ -57,7 +59,7 @@ skills/aws-iac-diagram/
 | `refs.py`・`addresses.py` | 70・22 | 参照の through・並べ方・重なりの除去／address の添字の付け外し（`.tf` と plan で共通） |
 | `evaluator/values.py` | 404 | 値の型（`Res`・`Unknown` など）、変換・比較、`format()` の本体 |
 | `evaluator/functions.py` | 763 | 組み込み関数の表（`@fn("名前")`）と `call_function` |
-| `modules/sources.py`・`summaries.py`・`resolve.py` | 46・97・85 | source の見分け／要約表（A5）の読み込み／版の選択と黒箱 |
+| `modules/sources.py`・`summaries.py`・`resolve.py` | 46・129・85 | source の見分け／要約表（A5。`data/module-summaries/` のフォルダを読む）の読み込み／版の選択と黒箱 |
 | `plan/read.py`・`reader.py` | 215・601 | plan JSON を読み形を確かめる／`PlanReader`（インスタンスとモジュールを集める） |
 | `plan/values.py`・`addresses.py`・`masking.py`・`consistency.py`・`diagnostics.py`・`raw.py`・`combine.py` | 183・65・72・59・10・78・273 | unknown・sensitive の印を持つ値／plan の address／sensitive の伏せ字／props と参照の整合／診断の部品／plan だけから raw IR／`.tf` と合わせる |
 
@@ -77,7 +79,7 @@ skills/aws-iac-diagram/
 <!-- terraform-order:end -->
 
   つまり、`evaluator/`・`modules/` はほかの Terraform のファイルを import せず、`plan/` は `evaluator/`・`modules/`・`module_*` を import せず（`base` だけ）、入口の `adapt_tf.py` だけが `build`・`plan/read` を読む（入口はこの表の外。パッケージ全体の決まりは 3 の表）。
-- モジュールの属性を直接書き換えるテスト（`mock.patch.object`）は、使われる側のモジュールに当てる（`plan/read.py` の `MAX_PLAN_BYTES`・`_read_json`、`modules/summaries.py` の `SUMMARY_FILE`）。移したときは、当てた先が実際に使われているか（当てたのに落ちない、が無いか）を変異で確かめる。
+- モジュールの属性を直接書き換えるテスト（`mock.patch.object`）は、使われる側のモジュールに当てる（`plan/read.py` の `MAX_PLAN_BYTES`・`_read_json`、`modules/summaries.py` の `SUMMARY_DIR`）。移したときは、当てた先が実際に使われているか（当てたのに落ちない、が無いか）を変異で確かめる。
 
 ### CloudFormation アダプタの中身（`aws_iac_diagram/adapters/cloudformation/`。R3 で分けた）
 
@@ -158,6 +160,22 @@ skills/aws-iac-diagram/
 - `tests/test_diagnostics.py` が守ること: 表の形（コードの形、接頭辞、重い順の levels、説明、並び）、表と ir-schema.md の 7.5 が TF・CFN の両方で同じ、アダプタを実際に動かして出た (code, level) が表にある（fixture と、error になる入力）。
 - **静的な検査は最善の努力（best-effort）です。** すり抜けるもの: ① `"TF" + "-X"` のように接頭辞が単独の文字列になっていない組み立て、② level を変数や既定の引数で渡すところ（`Unknown` の既定の level など）の level（呼び出しの近くに文字列で書いた level だけを比べる）、③ 範囲の外（`adapt_*.py` と `adapters/` の下以外）で診断を出すコード、④ 接頭辞が `ALLOWED_PREFIXES` に無く、診断を出す位置（`diag`・`Unknown` などの引数、辞書の `"code"`、level つきのタプル）の外にあるコードの形の文字列（`"UTF-8"` などを誤検出しないために数えない。診断を出す位置にあれば、接頭辞が未登録だと失敗する）。範囲は入口のアダプタと `adapters/` の下だけ（`NORM-…` は正規化の層ができるときに範囲を広げ、`ALLOWED_PREFIXES` と `PREFIXES` に足す）。**動的な安全網:** `tests/test_diagnostics.py` の `EmittedLevelsTest`（fixture と、error や info になる小さな入力を動かして、出た (code, level) を一覧と比べる。ir-schema.md の 7.5 の level も一覧と同じことを確かめる）と、旧コードとの CLI・変異入力の差分比較（WORKLOG の「確かめたこと」）、golden。
 
+### データ（`data/`。R4 で作った）
+
+スクリプトが実行時に開くファイルは、SKILL の `data/` に 1 ファイル 1 単位で置く。エージェントが読む文書は `references/`（今は `ir-schema.md` と規則表 3 つ。R6 で整理する）、開発者向けの説明は SKILL の外の `docs/spec/`（`module-summaries.md` は R4 で移した。残りは R6）。
+
+| 場所 | 中身 | 読むもの |
+|---|---|---|
+| `data/schemas/` | `ir.schema.json`・`ir-raw.schema.json` | `scripts/validate_ir.py` |
+| `data/icons/` | `catalog.json`（機械用の辞書）、カテゴリ別の `.md`、`broken.json`（`check_icons.py` の出力）。生成物 | `scripts/find_aws_icon.py`（`catalog.json` だけ）。`maintenance/` の 2 つが書く |
+| `data/module-summaries/<モジュール>/v<major>.md` | A5 の要約表（HCL）。サブモジュールの表は親と同じファイル。`iam-only-sources.md` は H-IAM の source の一覧 | `adapters/terraform/modules/summaries.py` |
+| `data/rules/` | （フェーズ 3 で、型の扱い・関係リソース・辺の規則を表にして置く。今は `references/` の 3 つの規則表を `validate_ir.py` が読む） | — |
+
+- **場所の決め方は `aws_iac_diagram/core/paths.py` の 1 か所**（`SKILL_DIR`＝自分の場所から 3 つ上。`IR_SCHEMA`・`IR_RAW_SCHEMA`・`ICON_CATALOG`・`MODULE_SUMMARIES_DIR` など）。読む側は定数を使い、`parents[N]` や `"data" / …` を直接書かない（`tests/test_doctor_required_files.py` が、スクリプトの `"references" / "…"`・`"data" / "…"` の連なりを見つけて失敗にする）。標準ライブラリだけを使い、ほかの層を読まない（core の決まり）。`doctor.py` だけは、パッケージが欠けていても動くために、自分で `SKILL_DIR` を決める。
+- **`tests/test_paths.py`**: `paths.py` の定数がすべて実在する／SKILL を日本語・スペースを含む別の深さにコピーしても定数がコピーの中を指す／要約表のフォルダの読み込み（`v6` は `v10` の前。フォルダとファイル 1 つが同じ結果。無い・空のフォルダは「表が無い」）。
+- **配るファイルの一覧は `doctor.py` の `REQUIRED_FILES`**。実行時のデータを足す・移すと、`tests/test_doctor_required_files.py`（`RUNTIME_DATA` と `core/paths.py` と実際のファイルの 3 つが同じ）が落ちる。
+- 要約表の診断の文言に入るパスは `data/module-summaries/`（R4 で `references/module-summaries.md` から変えた。5 の golden の 14 ケース）。
+
 ## 4. 1 ファイルの大きさ
 
 `scripts/` の下の `.py` は、800 行を超えたら注意（テストが印字するだけ）、1,500 行を超えたら失敗です。超えるファイルは、`tests/test_architecture.py` の `EXEMPT` に日付・理由・外す手順を付けて書けます（決めた日の行数を超えて増えたら失敗、1,500 行以内になった免除は消さないと失敗）が、**今の `EXEMPT` は空です（R2 で `adapters/tf.py` と `tf_plan.py` の免除を外した。R3 の `adapters/cfn.py` は免除を作らずに分けた。空であることも `test_no_exemptions_remain` が確かめる）**。800 行を超えるファイルは R3 の後は無く、最大は `adapters/terraform/evaluator/functions.py` の 763 行です。
@@ -169,6 +187,7 @@ skills/aws-iac-diagram/
 - 落ちたら、コードを直します。**`golden.py --update` で通してはいけません。** 調べるには `golden.py --dump <名前> --out <ファイル>` で今の出力を書き、移す前のコミット（`git worktree add` か `git archive`）の同じケースの出力と比べます（名前の一覧は `golden.py --list`）。
 - `--update` は、アダプタの動きを意図して変えたとき（フェーズ 3 以降の仕様変更や fixture の追加）だけ、理由をコミットメッセージに書いて使います。既存のケースの hash が変わるとき、ケースが減るときは `--accept-changes` が要ります。`--only` に合うケースが無いと失敗します。
 - 入口のスクリプトの場所を変えたとき（R2・R3）は、`golden.py` の `ENTRY` の表を直します。出力（manifest）は変わりません。
+- **R4 だけは、出力のバイト列が変わりました（14 ケース）。** 要約表のパスを含む 3 つの診断の文言（`references/module-summaries.md` → `data/module-summaries/`）のためで、`--update --accept-changes` で更新しました。理由と、旧い出力のパスを置換すると新しい出力とバイト単位で一致する、という機械的な証明は WORKLOG の「フェーズ 2b の R4」。
 
 ## 6. 拡張のしかた
 
@@ -180,7 +199,9 @@ skills/aws-iac-diagram/
 | CloudFormation の組み込み関数・Conditions・SAM・ネストスタックの扱いを変える | 関数は `intrinsics.py`（Ref・Sub など）か `conditions.py`、Parameters は `params.py`、Fn::ForEach は `foreach.py`、SAM は `sam.py` と `stack.py` の `run`、ネストスタックは `nested.py`、Outputs・Export は `outputs.py`、cdk.out は `cdk.py`、raw IR のまとめ方は `build.py`。新しいファイルを足したら `CLOUDFORMATION_GROUPS`（テスト）とこの文書の表と `doctor.py` の `REQUIRED_FILES` に足す。診断コードは `core/diagnostics.py` と `references/ir-schema.md` に書く。単体テストは `tests/test_cfn_adapter.py` |
 | 入力の形式を足す | `adapters/<名前>/` を作り（`__init__.py` と本体）、`scripts/adapt_<名前>.py`（入口）を足し、`adapters/registry.py` の表に書く。`ALLOWED` とこの文書の表に層を足す。golden にケースを足す（`golden.py --update`。理由を書く） |
 | 出力の形式を足す | `emit/<名前>.py` を足す（フェーズ 4・5 から） |
-| モジュールの要約表を足す | **R4 以降:** `data/module-summaries/<モジュール>/v<メジャー>.md` を足すだけ。今（R1〜R3）は `references/module-summaries.md` に書く |
+| モジュールの要約表を足す | `data/module-summaries/<モジュール>/v<メジャー>.md` を足す（形式は `docs/spec/module-summaries.md`。サブモジュールの表は親と同じファイル）。`doctor.py` の `REQUIRED_FILES` と `tests/test_doctor_required_files.py` の `RUNTIME_DATA` にも足す。コードは変えない（フォルダの下の `.md` を決まった順序で全部読む） |
 | 型の扱いを足す | **R4 以降（フェーズ 3 で表にする）:** `data/rules/` に行を足す |
-| 辞書を作り直す | `scripts/maintenance/build_icon_catalog.py`、`check_icons.py`（README の「アイコン辞書」） |
+| 辞書を作り直す | `scripts/maintenance/build_icon_catalog.py`、`check_icons.py`（README の「アイコン辞書」）。出力は `data/icons/`。作り直しても `catalog.json` の場所と形が同じなら、コードは変えない |
+| スキーマを直す | `data/schemas/ir.schema.json`・`ir-raw.schema.json`（読むのは `validate_ir.py`）。説明の `references/ir-schema.md` と同じコミットで直し、`tests/test_ir_schema_v1.py` を流す |
+| 同梱のデータを足す・動かす | `core/paths.py` に定数を足し（読む側は定数を使う。`parents[N]` や `"data" / …` を直接書かない）、`doctor.py` の `REQUIRED_FILES` と `tests/test_doctor_required_files.py` の `RUNTIME_DATA` に足す。`tests/test_paths.py` が、定数がすべて実在することを確かめる |
 | 診断コードを足す | `core/diagnostics.py` の表に足し、`references/ir-schema.md` の 7.5 にも書く（一覧に無いコードを使う・一覧のコードを使わないとテストが落ちる。`tests/test_architecture.py` と `tests/test_diagnostics.py`）。出力が変わるときは golden も更新する |

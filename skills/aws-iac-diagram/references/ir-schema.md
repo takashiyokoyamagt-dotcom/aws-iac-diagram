@@ -1,7 +1,7 @@
 # IR スキーマ（v1.0）
 
 - 状態: **v1.0 確定**（2026-10-17）。正規化後の形（1〜6章）はフェーズ1 の手順1 で、アダプタの出力（7章）は CFN アダプタの実装（手順2〜4）で確かめて手順5 で確定した。TF アダプタ（フェーズ2）の実装で足りなかったものは、7章に足して確定した（2026-10-26。リソースの `provider`・`region`、TF の props・参照・値の書き方、モジュールの展開・A5 の要約表・`terraform_remote_state`・モジュールに渡した provider、plan JSON の入力）。v0.1 草案（フェーズ0）からの変更点は 9章
-- 機械可読な定義: 正規化後は [ir.schema.json](ir.schema.json)、アダプタの出力は [ir-raw.schema.json](ir-raw.schema.json)（どちらも JSON Schema 2020-12）
+- 機械可読な定義: 正規化後は [ir.schema.json](../data/schemas/ir.schema.json)、アダプタの出力は [ir-raw.schema.json](../data/schemas/ir-raw.schema.json)（どちらも JSON Schema 2020-12）
 - 検証: `scripts/validate_ir.py`（スキーマ＋参照の整合＋出力形式）
 - 関連する規則表: [resource-catalog.md](resource-catalog.md)（型ごとの扱い・入れ子）、[relation-resources.md](relation-resources.md)（A1）、[edge-rules.md](edge-rules.md)（A2・A3・SG・IAM・合成ノード・辺にしない参照）
 

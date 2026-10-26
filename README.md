@@ -81,6 +81,8 @@ CI（[.github/workflows/ci.yml](.github/workflows/ci.yml)）は Ubuntu と Windo
 
 ### アイコン辞書の再生成
 
+辞書は `skills/aws-iac-diagram/data/icons/` に出ます（`catalog.json`、カテゴリ別の `.md`、`broken.json`。R4 で `references/icons/` から移した）。
+
 ```powershell
 uv run skills\aws-iac-diagram\scripts\maintenance\build_icon_catalog.py
 uv run skills\aws-iac-diagram\scripts\find_aws_icon.py lambda
@@ -97,7 +99,7 @@ uv run skills\aws-iac-diagram\scripts\maintenance\check_icons.py
 - 辞書の全アイコン（shape・resource_icon・group）を draw.io で PNG にし、セルごとに「空箱」「黒塗り」「単色」を判定します。さらに、ステンシル名（`resIcon`／`grIcon`／`shape`）だけを存在しない名前にした参照を隣に描いて比べ、画素がほぼ同じもの（グラデーションの正方形だけになる resourceIcon、アイコンの無い group 枠など）を「ステンシル欠落」とします。
 - 判定しないもの: edge（矢印でステンシルを参照しない）と plain_group（AZ・SG などの枠で、中が空なのが正常）。
 - 検出できないもの: 一部だけ欠ける・崩れる壊れ方と、別の実在アイコンに置き換わる壊れ方。気になるときは作業ディレクトリの PNG を目で見てください。
-- 結果は `references/icons/broken.json` に書き、`catalog.json` とカテゴリ別 `.md` に `broken`（と `broken_reason`）として反映します。`build_icon_catalog.py` も `broken.json` を読んでマージするので、辞書を再生成しても消えません。
+- 結果は `data/icons/broken.json` に書き、`catalog.json` とカテゴリ別 `.md` に `broken`（と `broken_reason`）として反映します。`build_icon_catalog.py` も `broken.json` を読んでマージするので、辞書を再生成しても消えません。
 - `find_aws_icon.py` は既定で broken を除外します。表示するには `--include-broken` を付けます。
 - 壊れ方が分かっている対照（存在しないシェイプ名 `dynamodb_table` など）と正常な対照を同じ図に描き、期待どおりに判定されなければ異常終了します（辞書は更新しません）。
 - 作業ファイル（`.drawio`、ページごとの PNG、全件の指標 `report.json`）は `aws-iac-diagram-workspace/icon-check/` に出ます（git 管理外）。
@@ -122,7 +124,7 @@ uv run python aws-iac-diagram-workspace\tools\c1_check.py
 
 ### Terraform アダプタ
 
-Terraform のルートモジュール（.tf のフォルダ）から、同じ raw IR を作ります（フェーズ2 で完成）。変数・locals・式を評価し、count・for_each をインスタンスごとに展開します。ローカルモジュール（`./`・`../`）は中身を再帰的に読み、terraform-aws-modules の vpc・alb・rds・eks は要約表（`references/module-summaries.md`）で展開します。それ以外のレジストリ・git のモジュールは黒箱の呼び出し1件にします（ネットワークからモジュールを取りに行きません）。`.tf.json` は .tf だけでは読みません（警告 `TF-TFJSON-UNSUPPORTED`。plan JSON と一緒なら plan から取ります）。`terraform.workspace` は `default` で評価し、`--workspace <名前>` で変えられます。
+Terraform のルートモジュール（.tf のフォルダ）から、同じ raw IR を作ります（フェーズ2 で完成）。変数・locals・式を評価し、count・for_each をインスタンスごとに展開します。ローカルモジュール（`./`・`../`）は中身を再帰的に読み、terraform-aws-modules の vpc・alb・rds・eks は要約表（`skills/aws-iac-diagram/data/module-summaries/`。モジュールと major ごとのファイル。説明は [docs/spec/module-summaries.md](docs/spec/module-summaries.md)）で展開します。それ以外のレジストリ・git のモジュールは黒箱の呼び出し1件にします（ネットワークからモジュールを取りに行きません）。`.tf.json` は .tf だけでは読みません（警告 `TF-TFJSON-UNSUPPORTED`。plan JSON と一緒なら plan から取ります）。`terraform.workspace` は `default` で評価し、`--workspace <名前>` で変えられます。
 
 `terraform show -json` の plan JSON も読めます（ir-schema.md の 7.2「TF の plan JSON」）。.tf のフォルダと一緒に渡す（`--plan`）のがおすすめです。address と count・for_each の展開・作られるかは Terraform の結果を使い、ファイル名・値・参照の位置は .tf から読みます（.tf で決まらなかった値は plan の値で埋める）。plan JSON だけ（`--input` に `.json`）でも読めますが、plan JSON は locals・dynamic ブロックの式と .tf のファイル名を持たないので、参照の一部が分からず、`file` は plan JSON の名前になります。
 
