@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from aws_iac_diagram.adapters.terraform.evaluator.functions import Concat, Json, Res, Unknown, ZeroColl
+from aws_iac_diagram.adapters.terraform.evaluator.values import Concat, Json, Res, Unknown, ZeroColl
 from aws_iac_diagram.core import ir_raw
 
 

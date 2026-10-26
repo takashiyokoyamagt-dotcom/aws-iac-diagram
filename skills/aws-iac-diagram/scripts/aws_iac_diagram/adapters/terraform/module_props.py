@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 
 from lark import Tree
 
-from aws_iac_diagram.adapters.terraform.evaluator import functions as E
-from aws_iac_diagram.adapters.terraform.evaluator.functions import Az, Concat, Json, Pseudo, Res, Unknown
+from aws_iac_diagram.adapters.terraform.evaluator import values as V
+from aws_iac_diagram.adapters.terraform.evaluator.values import Az, Concat, Json, Pseudo, Res, Unknown
 from aws_iac_diagram.adapters.terraform.hcl import identifier_name, label_text, name_of, sig
 from aws_iac_diagram.adapters.terraform.refs import ref_order
 from aws_iac_diagram.core import ir_raw
@@ -49,7 +49,7 @@ class PropertiesMixin:
         if isinstance(v, str):
             return ir_raw.maybe_json(v)
         if isinstance(v, float):
-            return E.norm_number(v)
+            return V.norm_number(v)
         if isinstance(v, list):
             return [self.materialize(e, ir_raw.join_path(path, i)) for i, e in enumerate(v)]
         if isinstance(v, dict):
@@ -124,7 +124,7 @@ class PropertiesMixin:
             if fe is None:
                 return
             p = ir_raw.join_path(block_path, len(lst))
-            u = E.unknown_from(fe, f"for_each of dynamic block {label} is not known before apply",
+            u = V.unknown_from(fe, f"for_each of dynamic block {label} is not known before apply",
                                extra_refs=self.static_refs(content))
             lst.append(self.materialize(u, p))
             return

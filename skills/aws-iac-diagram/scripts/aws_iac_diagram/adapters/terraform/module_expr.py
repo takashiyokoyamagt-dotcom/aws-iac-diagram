@@ -9,9 +9,15 @@ from typing import TYPE_CHECKING
 from lark import Token, Tree
 
 from aws_iac_diagram.adapters.terraform.addresses import block_address, inst_address
-from aws_iac_diagram.adapters.terraform.evaluator import functions as E
-from aws_iac_diagram.adapters.terraform.evaluator.functions import Az, Concat, EvalError, Json, Pseudo, Res, Unknown, ZeroColl
-from aws_iac_diagram.adapters.terraform.hcl import HEREDOC, TRAVERSAL, apply_strip, build_template, const, flatten, heredoc_body, identifier_name, name_of, sig, string_tokens, text_tokens, token_trees, unescape, unwrap
+from aws_iac_diagram.adapters.terraform.evaluator import values as V
+from aws_iac_diagram.adapters.terraform.evaluator import functions as F
+from aws_iac_diagram.adapters.terraform.evaluator.values import (
+    Az, Concat, EvalError, Json, Pseudo, Res, Unknown, ZeroColl,
+)
+from aws_iac_diagram.adapters.terraform.hcl import (
+    HEREDOC, TRAVERSAL, apply_strip, build_template, const, flatten, heredoc_body, identifier_name,
+    name_of, sig, string_tokens, text_tokens, token_trees, unescape, unwrap,
+)
 from aws_iac_diagram.adapters.terraform.model import ModObj, ResList
 from aws_iac_diagram.adapters.terraform.refs import through_refs
 
@@ -51,7 +57,7 @@ class ExpressionMixin:
         try:
             for t in trees:
                 try:
-                    out |= E.refs_in(self.eval(t, env))
+                    out |= V.refs_in(self.eval(t, env))
                 except (EvalError, RecursionError):
                     out |= set(self.static_refs(t))
             out |= self.sink
@@ -63,11 +69,11 @@ class ExpressionMixin:
         """評価で値に残らなかった参照を pruned にする。"""
         if isinstance(after, Unknown):
             return
-        self.prune(E.refs_in(before), after)
+        self.prune(V.refs_in(before), after)
 
     def prune(self, refs: set, after) -> None:
         """refs のうち、after に同じリソースへの参照が無いものを pruned にする（属性が違うだけなら捨てていない）。"""
-        kept = {block_address(r[0]) for r in E.refs_in(after)}
+        kept = {block_address(r[0]) for r in V.refs_in(after)}
         self.sink |= {r for r in refs if block_address(r[0]) not in kept}
 
     def eval(self, t, env: dict):
@@ -115,7 +121,7 @@ class ExpressionMixin:
                            set().union(*[self.static_refs(x) for x in trees]) if trees else set())
         if len(tokens) == 1 and not isinstance(tokens[0], str) and tokens[0][0] == "expr":
             return self.eval(tokens[0][1], env)
-        return E.concat_parts(self.template_nodes(nodes, env))
+        return V.concat_parts(self.template_nodes(nodes, env))
 
     def template_nodes(self, nodes: list, env: dict) -> list:
         parts: list = []
@@ -123,22 +129,22 @@ class ExpressionMixin:
             if isinstance(n, str):
                 parts.append(n)
             elif n[0] == "expr":
-                parts.append(E.template_part(self.eval(n[1], env)))
+                parts.append(V.template_part(self.eval(n[1], env)))
             elif n[0] == "if":
                 c = self.eval(n[1], env)
                 if isinstance(c, bool) or c in ("true", "false"):
-                    chosen, other = (n[2], n[3]) if E.to_bool(c) else (n[3], n[2])
+                    chosen, other = (n[2], n[3]) if V.to_bool(c) else (n[3], n[2])
                     got = self.template_nodes(chosen, env)
                     self.prune(self.spec_node_refs(other, env), got)
                     parts += got
                 else:
-                    parts.append(E.unknown_from(c, "%{if} with a condition that is not known before apply",
+                    parts.append(V.unknown_from(c, "%{if} with a condition that is not known before apply",
                                                 extra_refs=self.spec_node_refs(n[2] + n[3], env)))
             else:  # for
                 names, coll = n[1], self.eval(n[2], env)
                 items = self.iter_items(coll)
                 if items is None:
-                    parts.append(E.unknown_from(coll, "%{for} over a value that is not known before apply",
+                    parts.append(V.unknown_from(coll, "%{for} over a value that is not known before apply",
                                                 extra_refs=self.spec_node_refs(n[3], env)))
                     continue
                 for k, v in items:
@@ -154,7 +160,7 @@ class ExpressionMixin:
         saved, self.sink = self.sink, set()
         try:
             try:
-                out = E.refs_in(self.template_nodes(nodes, env))
+                out = V.refs_in(self.template_nodes(nodes, env))
             except (EvalError, RecursionError):
                 out = set()
                 for t in self.node_trees(nodes):
@@ -189,11 +195,11 @@ class ExpressionMixin:
     def unary(self, t: Tree, env: dict):
         op = str(t.children[0]).strip()
         v = self.eval(t.children[-1], env)
-        if not E.is_concrete(v):
-            return E.unknown_from(v, f"operator {op} on a value that is not known before apply")
+        if not V.is_concrete(v):
+            return V.unknown_from(v, f"operator {op} on a value that is not known before apply")
         if op == "-":
-            return E.norm_number(-E.to_number(v))
-        return not E.to_bool(v)
+            return V.norm_number(-V.to_number(v))
+        return not V.to_bool(v)
 
     def binary(self, t: Tree, env: dict):
         cs = sig(t)
@@ -210,21 +216,21 @@ class ExpressionMixin:
             # なら、中に決まらない値があっても決まる（リソースの属性 $res と $unknown は null かもしれない）
             other = b if a is None else a
             whole = isinstance(other, Res) and other.attr is None  # リソース・モジュールの呼び出しそのもの
-            if isinstance(other, (dict, list, Concat, Json, Pseudo, Az, ModObj)) or whole or E.is_concrete(other):
+            if isinstance(other, (dict, list, Concat, Json, Pseudo, Az, ModObj)) or whole or V.is_concrete(other):
                 return op == "!="
-        if not (E.is_concrete(a) and E.is_concrete(b)):
-            return E.unknown_from([a, b], f"operator {op} on a value that is not known before apply")
+        if not (V.is_concrete(a) and V.is_concrete(b)):
+            return V.unknown_from([a, b], f"operator {op} on a value that is not known before apply")
         if op == "==":
-            return E.same(a, b)
+            return V.same(a, b)
         if op == "!=":
-            return not E.same(a, b)
+            return not V.same(a, b)
         if op == "&&":
-            return E.to_bool(a) and E.to_bool(b)
+            return V.to_bool(a) and V.to_bool(b)
         if op == "||":
-            return E.to_bool(a) or E.to_bool(b)
-        x, y = E.to_number(a), E.to_number(b)
+            return V.to_bool(a) or V.to_bool(b)
+        x, y = V.to_number(a), V.to_number(b)
         if op in ("+", "-", "*", "/", "%"):
-            return E.arith(op, x, y)
+            return V.arith(op, x, y)
         if op == "<":
             return x < y
         if op == ">":
@@ -239,13 +245,13 @@ class ExpressionMixin:
         cond_t, a_t, b_t = sig(t)[:3]
         c = self.eval(cond_t, env)
         if isinstance(c, bool) or c in ("true", "false"):
-            chosen, other = (a_t, b_t) if E.to_bool(c) else (b_t, a_t)
+            chosen, other = (a_t, b_t) if V.to_bool(c) else (b_t, a_t)
             v = self.eval(chosen, env)
             self.prune(self.spec_refs(other, env), v)
             return v
-        if E.is_concrete(c):
-            raise EvalError(f"the condition is {E.type_name(c)}, not bool")
-        return E.unknown_from(c, "the condition is not known before apply", extra_refs=self.spec_refs([a_t, b_t], env))
+        if V.is_concrete(c):
+            raise EvalError(f"the condition is {V.type_name(c)}, not bool")
+        return V.unknown_from(c, "the condition is not known before apply", extra_refs=self.spec_refs([a_t, b_t], env))
 
     def for_expr(self, t: Tree, env: dict):
         intro = next(c for c in t.children if isinstance(c, Tree) and c.data == "for_intro")
@@ -263,7 +269,7 @@ class ExpressionMixin:
         if items is None:
             if coll is None:
                 raise EvalError("for expression over null")
-            return E.unknown_from(coll, "for expression over a value that is not known before apply",
+            return V.unknown_from(coll, "for expression over a value that is not known before apply",
                                   extra_refs=self.spec_refs_static(rest))
         out_list: list = []
         out_map: dict = {}
@@ -277,21 +283,21 @@ class ExpressionMixin:
             if cond_t is not None:
                 c = self.eval(cond_t, env2)
                 if not (isinstance(c, bool) or c in ("true", "false")):
-                    if E.is_concrete(c):
+                    if V.is_concrete(c):
                         raise EvalError("the for condition is not bool")
-                    return E.unknown_from([coll, c], "the for condition is not known before apply",
+                    return V.unknown_from([coll, c], "the for condition is not known before apply",
                                           extra_refs=self.spec_refs_static(rest))
-                if not E.to_bool(c):
-                    excluded |= E.refs_in(v) | (E.refs_in(k) if len(names) == 2 else set())
+                if not V.to_bool(c):
+                    excluded |= V.refs_in(v) | (V.refs_in(k) if len(names) == 2 else set())
                     continue
             if is_obj:
                 key = self.eval(body[0], env2)
-                if isinstance(key, bool) or E.is_number(key):
-                    key = E.to_string(key)
+                if isinstance(key, bool) or V.is_number(key):
+                    key = V.to_string(key)
                 if not isinstance(key, str):
-                    if E.is_concrete(key):
+                    if V.is_concrete(key):
                         raise EvalError("the key of a for expression must be a string")
-                    return E.unknown_from([coll, key], "the key of a for expression is not known before apply",
+                    return V.unknown_from([coll, key], "the key of a for expression is not known before apply",
                                           extra_refs=self.spec_refs_static(rest))
                 val = self.eval(body[1], env2)
                 if grouping:
@@ -325,8 +331,8 @@ class ExpressionMixin:
                 key = n
             else:
                 key = self.eval(c, env)
-                if isinstance(key, bool) or E.is_number(key):
-                    key = E.to_string(key)
+                if isinstance(key, bool) or V.is_number(key):
+                    key = V.to_string(key)
             val = self.eval(cs[-1], env)
             if not isinstance(key, str):
                 unknown_key = unknown_key or (key, val)
@@ -334,9 +340,9 @@ class ExpressionMixin:
                 continue
             out[key] = val
         if unknown_key is not None:
-            if E.is_concrete(unknown_key[0]):
+            if V.is_concrete(unknown_key[0]):
                 raise EvalError("an object key must be a string")
-            return E.unknown_from(list(out.values()), "an object key is not known before apply")
+            return V.unknown_from(list(out.values()), "an object key is not known before apply")
         return out
 
     def call(self, t: Tree, env: dict):
@@ -353,9 +359,9 @@ class ExpressionMixin:
         if expand and args:
             last = args[-1]
             if not isinstance(last, list):
-                return E.unknown_from(args, f"{name}(...) with an argument that is not known before apply")
+                return V.unknown_from(args, f"{name}(...) with an argument that is not known before apply")
             args = args[:-1] + list(last)
-        result = E.call_function(name, args)
+        result = F.call_function(name, args)
         if name in SELECTING:
             self.lose(args, result)
         return result
@@ -392,8 +398,8 @@ class ExpressionMixin:
             return False
         finally:
             self.try_depth -= 1
-        if not E.is_concrete(v):  # 値の全体が決まらなければ、誤りになるかも決まらない（Terraform と同じ）
-            return E.unknown_from(v, "can() of a value that is not known before apply")
+        if not V.is_concrete(v):  # 値の全体が決まらなければ、誤りになるかも決まらない（Terraform と同じ）
+            return V.unknown_from(v, "can() of a value that is not known before apply")
         return True
 
     # 参照
@@ -482,8 +488,8 @@ class ExpressionMixin:
                 key = st[1] if isinstance(st[1], int) else self.eval(st[1], env)
                 if isinstance(key, str):
                     return self.module_output(v, key)
-                if not E.is_concrete(key):
-                    return E.unknown_from(key, "an index that is not known before apply")
+                if not V.is_concrete(key):
+                    return V.unknown_from(key, "an index that is not known before apply")
                 raise EvalError("a module call is not a list")
             return self.traverse(v, st[1], env) if v.child.multi else [self.traverse(v, st[1], env)]
         if kind == "attr":
@@ -497,8 +503,8 @@ class ExpressionMixin:
             if v is None:
                 raise EvalError(f"attribute {name!r} of null")
             if isinstance(v, (Pseudo, Az, Concat, Json)):
-                return E.unknown_from(v, f"attribute {name} of a value that is not known before apply")
-            raise EvalError(f"attribute {name!r} of a {E.type_name(v)}")
+                return V.unknown_from(v, f"attribute {name} of a value that is not known before apply")
+            raise EvalError(f"attribute {name!r} of a {V.type_name(v)}")
         if kind == "index":
             key = st[1] if isinstance(st[1], int) else self.eval(st[1], env)
             if isinstance(v, Res):
@@ -507,17 +513,17 @@ class ExpressionMixin:
                 if self.try_depth:  # try()・can() の中では Terraform と同じく誤り（次の式に進む）
                     raise EvalError("index into a block whose count is 0")
                 return v.res
-            if isinstance(v, Az) and v.index == "*" and E.is_number(key):
-                i = E.to_int(key)
+            if isinstance(v, Az) and v.index == "*" and V.is_number(key):
+                i = V.to_int(key)
                 if i < 0:
                     raise EvalError("negative index")
                 return Az(i)
-            if not E.is_concrete(key):
-                return E.unknown_from([v, key], "an index that is not known before apply")
+            if not V.is_concrete(key):
+                return V.unknown_from([v, key], "an index that is not known before apply")
             if isinstance(v, list):
                 if isinstance(key, bool):
                     raise EvalError("a bool cannot be a list index")
-                i = E.to_int(key)
+                i = V.to_int(key)
                 if not (0 <= i < len(v)):
                     raise EvalError(f"index {i} is out of range (length {len(v)})")
                 out = v[i]
@@ -525,15 +531,15 @@ class ExpressionMixin:
                     self.lose(v, out)
                 return out
             if isinstance(v, dict):
-                k = key if isinstance(key, str) else E.to_string(key)
+                k = key if isinstance(key, str) else V.to_string(key)
                 if k not in v:
                     raise EvalError(f"no key {k!r}")
                 return v[k]
             if v is None:
                 raise EvalError("index of null")
             if isinstance(v, (Pseudo, Az, Concat, Json)):
-                return E.unknown_from([v, key], "an index into a value that is not known before apply")
-            raise EvalError(f"index into a {E.type_name(v)}")
+                return V.unknown_from([v, key], "an index into a value that is not known before apply")
+            raise EvalError(f"index into a {V.type_name(v)}")
         # splat
         sub = st[1]
         if v is None:

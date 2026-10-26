@@ -7,11 +7,15 @@ from typing import TYPE_CHECKING
 from lark import Tree
 
 from aws_iac_diagram.adapters.terraform.addresses import inst_address
-from aws_iac_diagram.adapters.terraform.evaluator import functions as E
-from aws_iac_diagram.adapters.terraform.evaluator.functions import EvalError, Res, Unknown, ZeroColl
+from aws_iac_diagram.adapters.terraform.evaluator import values as V
+from aws_iac_diagram.adapters.terraform.evaluator.values import EvalError, Res, Unknown, ZeroColl
 from aws_iac_diagram.adapters.terraform.hcl import NOTCONST, const, sig, unwrap
-from aws_iac_diagram.adapters.terraform.model import Block, Instances, MODULE_META, ModObj, ResList, ResMap, weakest
-from aws_iac_diagram.adapters.terraform.modules import summaries as M
+from aws_iac_diagram.adapters.terraform.model import (
+    Block, Instances, MODULE_META, ModObj, ResList, ResMap, weakest,
+)
+from aws_iac_diagram.adapters.terraform.modules.sources import is_local, join_summary_source
+from aws_iac_diagram.adapters.terraform.modules import resolve as MR
+from aws_iac_diagram.adapters.terraform.modules import summaries as MS
 
 if TYPE_CHECKING:
     from aws_iac_diagram.adapters.terraform.module_eval import ModuleEval
@@ -52,20 +56,20 @@ class ExpansionMixin:
     @staticmethod
     def decide_instances(meta: str, v) -> Instances:
         def unknown(reason, code="TF-UNEVALUATED"):
-            return Instances("unknown", meta, unknown=E.unknown_from(v, reason, code) if not isinstance(v, Unknown)
+            return Instances("unknown", meta, unknown=V.unknown_from(v, reason, code) if not isinstance(v, Unknown)
                              else v)
         if meta == "count":
             if v is None:
                 return unknown("count is null", "TF-EVAL-ERROR")
             if isinstance(v, str):  # "2"（型の無い変数に --var で渡した値など）は数に変換する（Terraform と同じ）
                 try:
-                    v = E.to_number(v)
+                    v = V.to_number(v)
                 except EvalError as e:
                     return unknown(str(e), "TF-EVAL-ERROR")
-            if not E.is_number(v):
+            if not V.is_number(v):
                 return unknown("count is not known before apply")
             try:
-                n = E.to_int(v)
+                n = V.to_int(v)
             except EvalError as e:
                 return unknown(str(e), "TF-EVAL-ERROR")
             if n < 0:
@@ -77,7 +81,7 @@ class ExpansionMixin:
                 Instances("zero", meta)
         if isinstance(v, list):
             if not all(isinstance(x, str) for x in v):
-                if all(E.is_concrete(x) for x in v):
+                if all(V.is_concrete(x) for x in v):
                     return unknown("for_each must be a map or a set of strings", "TF-EVAL-ERROR")
                 return unknown("for_each is not known before apply")
             keys = sorted(set(v))
@@ -136,13 +140,13 @@ class ExpansionMixin:
         plan: tuple
         if not (isinstance(source, str) and source):
             plan = ("blackbox", "warn", "TF-MALFORMED-BLOCK", "module has no constant source")
-        elif self.via == "module_summary" and M.is_local(source):
+        elif self.via == "module_summary" and is_local(source):
             # 要約表の中のサブモジュール（"./modules/x"）は、同じ版の要約表の "<source>//modules/x"
-            key = M.join_summary_source(self.summary.source, source)
-            cands = [s for s in M.load()[0].get(key or "", []) if set(s.majors) & set(self.summary.majors)]
+            key = join_summary_source(self.summary.source, source)
+            cands = [s for s in MS.load()[0].get(key or "", []) if set(s.majors) & set(self.summary.majors)]
             plan = ("summary", cands[0], None) if cands else \
                 ("blackbox", "info", "TF-MODULE-BLACKBOX", f"submodule {key} is not in the summary table")
-        elif M.is_local(source):
+        elif is_local(source):
             d = (self.dir / source).resolve() if self.dir is not None else None
             if d is None or not d.is_dir() or not any(p.suffix == ".tf" for p in d.iterdir() if p.is_file()):
                 where = self.ctx.rel(d) if d is not None else source
@@ -151,9 +155,9 @@ class ExpansionMixin:
             else:
                 plan = ("local", d)
         else:
-            summary, why, note = M.choose(source, version)
+            summary, why, note = MR.choose(source, version)
             if summary is None:
-                plan = M.blackbox_plan(source, why)
+                plan = MR.blackbox_plan(source, why)
             else:
                 plan = ("summary", summary, note)
         if plan[0] != "blackbox":

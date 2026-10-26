@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 from lark import Tree
 
-from aws_iac_diagram.adapters.terraform.evaluator.functions import Unknown
+from aws_iac_diagram.adapters.terraform.evaluator.values import Unknown
 from aws_iac_diagram.adapters.terraform.hcl import sig
 
 if TYPE_CHECKING:

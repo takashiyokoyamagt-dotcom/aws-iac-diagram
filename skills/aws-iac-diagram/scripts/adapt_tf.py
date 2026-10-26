@@ -74,7 +74,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from aws_iac_diagram.adapters.terraform.build import build_from_plan, build_raw, dump  # noqa: E402
-from aws_iac_diagram.adapters.terraform.plan import reader as PR  # noqa: E402
+from aws_iac_diagram.adapters.terraform.plan.read import PlanError, is_plan_file, why_unreadable  # noqa: E402
 
 
 class _OrderedVar(argparse.Action):
@@ -112,8 +112,8 @@ def main(argv: list[str] | None = None) -> int:
             print(f"--var は KEY=VALUE の形で指定してください: {item}", file=sys.stderr)
             return 2
     plan_only = a.input.is_file()
-    if plan_only and not PR.is_plan_file(a.input):
-        why = PR.why_unreadable(a.input) if a.input.suffix.lower() == ".json" else None
+    if plan_only and not is_plan_file(a.input):
+        why = why_unreadable(a.input) if a.input.suffix.lower() == ".json" else None
         if why:
             print(f"plan JSON を読めませんでした: {why}", file=sys.stderr)
             return 2
@@ -135,7 +135,7 @@ def main(argv: list[str] | None = None) -> int:
             raw = build_raw(a.input, a.root_base, var_args=var_args, redact_vars=a.redact_var, plan=a.plan,
                             workspace=a.workspace)
         text = dump(raw)
-    except PR.PlanError as e:
+    except PlanError as e:
         print(f"plan JSON を読めませんでした: {e}", file=sys.stderr)
         return 2
     except RecursionError:

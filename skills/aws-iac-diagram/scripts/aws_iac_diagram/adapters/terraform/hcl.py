@@ -10,7 +10,7 @@ import re
 import hcl2
 from lark import Token, Tree
 
-from aws_iac_diagram.adapters.terraform.evaluator import functions as E
+from aws_iac_diagram.adapters.terraform.evaluator import values as V
 
 
 # 読み飛ばす記号の字句（構文木の中で意味を持たないもの）
@@ -119,7 +119,7 @@ def const(t):
         return "".join(out)
     if d == "unary_op":
         op, operand = str(t.children[0]).strip(), const(t.children[-1])
-        if op == "-" and E.is_number(operand):
+        if op == "-" and V.is_number(operand):
             return -operand
         if op == "!" and isinstance(operand, bool):
             return not operand

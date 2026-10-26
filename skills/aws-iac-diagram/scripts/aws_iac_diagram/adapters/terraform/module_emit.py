@@ -9,11 +9,13 @@ from typing import TYPE_CHECKING
 from lark import Tree
 
 from aws_iac_diagram.adapters.terraform.addresses import inst_address
-from aws_iac_diagram.adapters.terraform.evaluator import functions as E
-from aws_iac_diagram.adapters.terraform.evaluator.functions import Unknown
+from aws_iac_diagram.adapters.terraform.evaluator import values as V
+from aws_iac_diagram.adapters.terraform.evaluator.values import Unknown
 from aws_iac_diagram.adapters.terraform.hcl import NOTCONST, const, flatten, name_of, sig, unwrap
-from aws_iac_diagram.adapters.terraform.model import Block, DATA_META, Instances, MODULE_META, RESOURCE_META, weakest
-from aws_iac_diagram.adapters.terraform.modules import summaries as M
+from aws_iac_diagram.adapters.terraform.model import (
+    Block, DATA_META, Instances, MODULE_META, RESOURCE_META, weakest,
+)
+from aws_iac_diagram.adapters.terraform.modules.sources import registry_key
 from aws_iac_diagram.adapters.terraform.refs import collect_active, ref_order
 
 if TYPE_CHECKING:
@@ -34,12 +36,12 @@ def path_present(value, parts: list):
         elif isinstance(value, list):
             items = value
         else:
-            return None if not (value is None or E.is_concrete(value)) else False
+            return None if not (value is None or V.is_concrete(value)) else False
         got = [path_present(v, rest) for v in items]
         return True if True in got else None if None in got else False
     if isinstance(value, dict):
         return path_present(value[head], rest) if head in value else False
-    return None if not (value is None or E.is_concrete(value)) else False
+    return None if not (value is None or V.is_concrete(value)) else False
 
 
 class EmitMixin:
@@ -204,7 +206,7 @@ class EmitMixin:
         if self.via == "module_summary":
             return True
         source = const(blk.attrs["source"]) if "source" in blk.attrs else NOTCONST
-        key = M.registry_key(source) if isinstance(source, str) else None
+        key = registry_key(source) if isinstance(source, str) else None
         return bool(key and key.startswith("terraform-aws-modules/"))
 
     def provider_region(self, found) -> str | None:

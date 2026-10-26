@@ -10,9 +10,11 @@ from typing import TYPE_CHECKING
 import hcl2
 from lark import Tree
 
-from aws_iac_diagram.adapters.terraform.evaluator import functions as E
-from aws_iac_diagram.adapters.terraform.evaluator.functions import EvalError, Unknown, ZeroColl
-from aws_iac_diagram.adapters.terraform.hcl import NOTCONST, const, fix_heredocs, identifier_name, name_of, parse_expr, sig, unwrap
+from aws_iac_diagram.adapters.terraform.evaluator import values as V
+from aws_iac_diagram.adapters.terraform.evaluator.values import EvalError, Unknown, ZeroColl
+from aws_iac_diagram.adapters.terraform.hcl import (
+    NOTCONST, const, fix_heredocs, identifier_name, name_of, parse_expr, sig, unwrap,
+)
 from aws_iac_diagram.adapters.terraform.model import ModObj
 from aws_iac_diagram.adapters.terraform.refs import prepend_through, through_refs
 
@@ -88,7 +90,7 @@ class VariablesMixin:
             if value is NOTCONST:
                 self.var_values[name] = Unknown(f"variable {name} has no value", "TF-UNRESOLVED-VAR")
                 continue
-            self.var_values[name] = E.convert(value, spec)
+            self.var_values[name] = V.convert(value, spec)
 
     def var_file_name(self, path: Path) -> str:
         """evaluation.var_files に書く名前（root からの相対パス。別のドライブならファイル名だけ）。"""
@@ -148,10 +150,10 @@ class VariablesMixin:
             return NOTCONST
         finally:
             self.const_mode = saved
-        return v if E.is_concrete(v) else NOTCONST
+        return v if V.is_concrete(v) else NOTCONST
 
     def parse_type(self, t):
-        """variable の type の式を、tf_eval.convert の形にする。読めなければ None（変換しない）。"""
+        """variable の type の式を、evaluator/values.py の convert の形にする。読めなければ None（変換しない）。"""
         t = unwrap(t)
         if isinstance(t, Tree) and t.data == "identifier":
             n = name_of(t)
@@ -177,12 +179,12 @@ class VariablesMixin:
                 if isinstance(at, Tree) and at.data == "function_call" and name_of(sig(at)[0]) == "optional":
                     oargs_t = next((c for c in sig(at) if isinstance(c, Tree) and c.data == "arguments"), None)
                     oargs = [c for c in sig(oargs_t) if isinstance(c, Tree)] if oargs_t is not None else []
-                    default = self.eval_const(oargs[1]) if len(oargs) > 1 else E.NODEFAULT
+                    default = self.eval_const(oargs[1]) if len(oargs) > 1 else V.NODEFAULT
                     if default is NOTCONST:
-                        default = E.NODEFAULT
+                        default = V.NODEFAULT
                     attrs[key] = (self.parse_type(oargs[0]) if oargs else None, True, default)
                 else:
-                    attrs[key] = (self.parse_type(at), False, E.NODEFAULT)
+                    attrs[key] = (self.parse_type(at), False, V.NODEFAULT)
             return ("object", attrs)
         return None
 
@@ -268,9 +270,9 @@ class VariablesMixin:
                             "TF-UNRESOLVED-VAR")
             if secret:  # 秘密の値として扱うと書かれた変数の値は使わない（中の参照は残す）
                 v = Unknown(f"variable {name} of {self.call_address} is {secret}; its value is not used",
-                            "TF-SENSITIVE-VAR", "info", E.refs_in(v))
+                            "TF-SENSITIVE-VAR", "info", V.refs_in(v))
             elif not isinstance(v, Unknown):
-                v = E.convert(v, spec)
+                v = V.convert(v, spec)
             hop = f"{self.prefix}var.{name}"
             v, pruned = prepend_through(v, hop), frozenset(through_refs(pruned, hop))
         finally:
@@ -309,7 +311,7 @@ class VariablesMixin:
         secret = next((k for k in ("sensitive", "ephemeral") if k in attrs and const(attrs[k]) is True), None)
         if secret:  # sensitive の出力の値は使わない（中の参照は unevaluated で残す）
             v = Unknown(f"output {name} of {self.call_address} is {secret}; its value is not used",
-                        "TF-SENSITIVE-VAR", "info", E.refs_in(v))
+                        "TF-SENSITIVE-VAR", "info", V.refs_in(v))
         out = (prepend_through(v, hop), frozenset(through_refs(pruned, hop)))
         self._out_cache[name] = out
         return out

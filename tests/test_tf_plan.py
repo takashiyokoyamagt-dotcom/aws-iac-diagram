@@ -1,4 +1,4 @@
-"""Terraform アダプタの plan JSON の入力（scripts/aws_iac_diagram/adapters/terraform/tf_plan.py と tf.py の --plan。フェーズ2 の手順4）のテスト。
+"""Terraform アダプタの plan JSON の入力（scripts/aws_iac_diagram/adapters/terraform/plan/ と adapt_tf.py の --plan。フェーズ2 の手順4）のテスト。
 
 plan JSON の fixture（aws-iac-diagram-workspace/fixtures/tf-plan/）は、tools/make_plan_json.py で本物の terraform と
 moto（ローカルの AWS モック）から作ったもの。テストは terraform を動かさず、コミットした plan JSON を読むだけ。
@@ -26,7 +26,16 @@ sys.path.insert(0, str(SCRIPTS))
 import validate_ir as v  # noqa: E402
 import adapt_tf  # noqa: E402
 from aws_iac_diagram.adapters.terraform import build as tf_build  # noqa: E402
-from aws_iac_diagram.adapters.terraform.plan import reader as P  # noqa: E402
+from aws_iac_diagram.adapters.terraform.addresses import block_address  # noqa: E402
+from aws_iac_diagram.adapters.terraform.plan import (  # noqa: E402
+    addresses as PA,
+    combine as PC,
+    consistency as PK,
+    masking as PM,
+    read as PR,
+    reader as PD,
+    values as PV,
+)
 from aws_iac_diagram.core import ir_raw  # noqa: E402
 
 # plan JSON → (.tf のフォルダ, 正解 IR, plan を作ったときの変数のファイル)
@@ -91,21 +100,21 @@ def res_of(raw: dict, address: str) -> dict:
 
 class AddressAndCollapseTest(unittest.TestCase):
     def test_collapse_keeps_the_most_specific(self):
-        self.assertEqual(P.collapse(["aws_subnet.private[0].id", "aws_subnet.private[0]", "aws_subnet.private"]),
+        self.assertEqual(PA.collapse(["aws_subnet.private[0].id", "aws_subnet.private[0]", "aws_subnet.private"]),
                          ["aws_subnet.private[0].id"])
-        self.assertEqual(P.collapse(['module.alb.target_groups["app"].arn', 'module.alb.target_groups["app"]',
+        self.assertEqual(PA.collapse(['module.alb.target_groups["app"].arn', 'module.alb.target_groups["app"]',
                                      "module.alb.target_groups", "module.alb"]), ['module.alb.target_groups["app"].arn'])
         # 別のリソースと、前の部分ではないもの（aws_x.ab は aws_x.a の後ろではない）は残す
-        self.assertEqual(P.collapse(["aws_x.a", "aws_x.ab", "var.v", "aws_x.ab", "count.index"]),
+        self.assertEqual(PA.collapse(["aws_x.a", "aws_x.ab", "var.v", "aws_x.ab", "count.index"]),
                          ["aws_x.a", "aws_x.ab", "var.v", "count.index"])
 
     def test_steps_and_module_path(self):
-        self.assertEqual(P.parse_steps('module.a["k.1"].aws_x.y[0].id'),
+        self.assertEqual(PA.parse_steps('module.a["k.1"].aws_x.y[0].id'),
                          [("attr", "module"), ("attr", "a"), ("index", "k.1"), ("attr", "aws_x"), ("attr", "y"),
                           ("index", 0), ("attr", "id")])
-        self.assertEqual(P.module_path('module.a["k"].module.b[0].aws_x.y["z"]'), "module.a.module.b")
-        self.assertEqual(P.module_path("aws_x.y"), "")
-        self.assertEqual(P.block_address('aws_x.y["a[0]"]'), "aws_x.y")
+        self.assertEqual(PA.module_path('module.a["k"].module.b[0].aws_x.y["z"]'), "module.a.module.b")
+        self.assertEqual(PA.module_path("aws_x.y"), "")
+        self.assertEqual(block_address('aws_x.y["a[0]"]'), "aws_x.y")
 
     def test_input_detection_and_errors(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -118,15 +127,15 @@ class AddressAndCollapseTest(unittest.TestCase):
             future = t / "future.json"
             future.write_text(json.dumps({"format_version": "2.0", "terraform_version": "9.0.0",
                                           "planned_values": {}}), encoding="utf-8")
-            self.assertTrue(P.is_plan_file(PLANS / "rag.json"))
-            self.assertFalse(P.is_plan_file(state))
-            self.assertFalse(P.is_plan_file(FIXTURES / "rag"))
-            with self.assertRaisesRegex(P.PlanError, "state"):
-                P.load_plan(state)
-            with self.assertRaisesRegex(P.PlanError, "plan"):
-                P.load_plan(other)
-            with self.assertRaisesRegex(P.PlanError, "format_version"):
-                P.load_plan(future)
+            self.assertTrue(PR.is_plan_file(PLANS / "rag.json"))
+            self.assertFalse(PR.is_plan_file(state))
+            self.assertFalse(PR.is_plan_file(FIXTURES / "rag"))
+            with self.assertRaisesRegex(PR.PlanError, "state"):
+                PR.load_plan(state)
+            with self.assertRaisesRegex(PR.PlanError, "plan"):
+                PR.load_plan(other)
+            with self.assertRaisesRegex(PR.PlanError, "format_version"):
+                PR.load_plan(future)
             out = t / "raw.json"
             err = io.StringIO()
             with contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
@@ -192,7 +201,7 @@ class PlanFixtureTest(unittest.TestCase):
             for x, y in zip(c, t):
                 self.assert_same_or_not_created(x, y)
         elif c != t:
-            self.assertEqual(c, {"$unknown": P.NOT_CREATED_REASON})
+            self.assertEqual(c, {"$unknown": PM.NOT_CREATED_REASON})
 
     def test_combined_matches_tf(self):
         # .tf と plan JSON を合わせると、5構成では .tf の結果と resources・references が同じになる（plan の値で
@@ -201,7 +210,7 @@ class PlanFixtureTest(unittest.TestCase):
             with self.subTest(name):
                 t, c = tf_raw(name), combined_raw(name)
                 # 作られない（enabled: false）リソースは、変数から来た値を使わない（リテラルの値だけ残す）ので、props の
-                # 値は .tf だけのときと同じか $unknown（P.NOT_CREATED_REASON）
+                # 値は .tf だけのときと同じか $unknown（PM.NOT_CREATED_REASON）
                 self.assertEqual([r for r in c["resources"] if r["enabled"]], [r for r in t["resources"] if r["enabled"]])
                 self.assertEqual([{k: v for k, v in r.items() if k != "props"} for r in c["resources"]],
                                  [{k: v for k, v in r.items() if k != "props"} for r in t["resources"]])
@@ -297,7 +306,7 @@ class EdgeCaseTest(unittest.TestCase):
         for raw in (self.plan, self.comb):
             self.assertNotIn("not-a-real-password", tf_build.dump(raw))
             self.assertEqual(raw["evaluation"]["vars"]["db_password"], {"source": "plan", "hidden": "sensitive"})
-        self.assertEqual(res_of(self.plan, "aws_ssm_parameter.p")["props"]["value"], {"$unknown": P.SENSITIVE_REASON})
+        self.assertEqual(res_of(self.plan, "aws_ssm_parameter.p")["props"]["value"], {"$unknown": PV.SENSITIVE_REASON})
         self.assertIn(("aws_ssm_parameter.p", "TF-PLAN-SENSITIVE"),
                       [(d["address"], d["code"]) for d in self.plan["diagnostics"]])
 
@@ -365,7 +374,7 @@ class EdgeCaseTest(unittest.TestCase):
         root = FIXTURES / "three-tier"
         alone = tf_build.build_raw(root, WS)
         self.assertIn("aws_instance.bastion[*]", [r["address"] for r in alone["resources"]])
-        c = P.combine(alone, PLANS / "three-tier.dev.json", root, WS)
+        c = PC.combine(alone, PLANS / "three-tier.dev.json", root, WS)
         assert_valid(self, c)
         b = res_of(c, "aws_instance.bastion")
         self.assertEqual((b["enabled"], b["file"]), (False, "bastion.tf"))
@@ -469,7 +478,7 @@ def diag_codes(raw: dict, code: str) -> list:
     return [(d["address"], d["path"], d["level"]) for d in raw["diagnostics"] if d["code"] == code]
 
 
-def unk(reason=P.SENSITIVE_REASON) -> dict:
+def unk(reason=PV.SENSITIVE_REASON) -> dict:
     return {"$unknown": reason}
 
 
@@ -615,23 +624,23 @@ resource "aws_secretsmanager_secret_version" "w" {
         pv = json.dumps({"pw": "FAKE-FILL"})
         fill = {"secret_string.pw"}
         filled: list = []
-        self.assertEqual(P._walk_fill(tv, pv, None, None, "secret_string", fill, filled),
+        self.assertEqual(PC._walk_fill(tv, pv, None, None, "secret_string", fill, filled),
                          {"$json": {"pw": "FAKE-FILL"}})
         for pu, ps in ((None, True), (None, [True]), (True, None)):
             filled = []
-            self.assertEqual(P._walk_fill(tv, pv, pu, ps, "secret_string", fill, filled), tv)
+            self.assertEqual(PC._walk_fill(tv, pv, pu, ps, "secret_string", fill, filled), tv)
             self.assertEqual(filled, [])
 
     def test_mask_sensitive_shapes(self):
         found: list = []
         # 形が合わない印（値は dict なのに印は list など）は全体を伏せる。ブロックの数が違うときも
-        self.assertEqual(P.mask_sensitive({"a": "x"}, [True], "o", found), unk())
-        self.assertEqual(P.mask_sensitive([{"k": "x"}], [{}, {"k": True}], "b", found), unk())
-        self.assertEqual(P.mask_sensitive("x", {"a": True}, "s", found), unk())
+        self.assertEqual(PM.mask_sensitive({"a": "x"}, [True], "o", found), unk())
+        self.assertEqual(PM.mask_sensitive([{"k": "x"}], [{}, {"k": True}], "b", found), unk())
+        self.assertEqual(PM.mask_sensitive("x", {"a": True}, "s", found), unk())
         self.assertEqual(found, ["o", "b", "s"])
         # 印が無い・すべて false のときは何もしない
-        self.assertEqual(P.mask_sensitive({"a": "x"}, {"a": False}, "", []), {"a": "x"})
-        self.assertEqual(P.mask_sensitive({"a": "x"}, None, "", []), {"a": "x"})
+        self.assertEqual(PM.mask_sensitive({"a": "x"}, {"a": False}, "", []), {"a": "x"})
+        self.assertEqual(PM.mask_sensitive({"a": "x"}, None, "", []), {"a": "x"})
 
 
 class SensitivePlanOnlyTest(TempTestCase):
@@ -666,9 +675,9 @@ class SensitivePlanOnlyTest(TempTestCase):
         p, _ = self.one({"o": {"a": SECRET}, "s": SECRET}, {"o": [True], "s": {"a": True}},
                         {"o": const({"a": SECRET}), "s": const(SECRET)})
         self.assertEqual(p, {"o": unk(), "s": unk()})
-        self.assertEqual(P.conv({"a": SECRET}, None, [True]), P.SENS)
-        self.assertEqual(P.conv([SECRET], None, {"0": True}), P.SENS)
-        self.assertEqual(P.conv({"a": SECRET, "b": "ok"}, None, {"a": True}), {"a": P.SENS, "b": "ok"})
+        self.assertEqual(PV.conv({"a": SECRET}, None, [True]), PV.SENS)
+        self.assertEqual(PV.conv([SECRET], None, {"0": True}), PV.SENS)
+        self.assertEqual(PV.conv({"a": SECRET, "b": "ok"}, None, {"a": True}), {"a": PV.SENS, "b": "ok"})
 
     def test_whole_static_block_marked_sensitive(self):
         # m2: 入れ子のブロックの全体が after_sensitive: true（configuration にある静的なブロック）
@@ -725,10 +734,10 @@ class SensitivePlanOnlyTest(TempTestCase):
         self.assertEqual(props_of(raw, "aws_x.src"), {"pw": unk()})
         self.assertEqual({(r["from"], r["to"], r["state"]) for r in raw["references"]},
                          {("aws_x.use", "aws_x.src", "unevaluated")})
-        inst = P.Inst("aws_x.src", "managed", "aws_x", {"pw": "v", "n": "w", "m": {"a": "x"}}, {},
+        inst = PD.Inst("aws_x.src", "managed", "aws_x", {"pw": "v", "n": "w", "m": {"a": "x"}}, {},
                       {"pw": True, "m": {"a": True}})
-        self.assertIs(inst.value_of("pw"), P.ABSENT)
-        self.assertIs(inst.value_of("m"), P.ABSENT)
+        self.assertIs(inst.value_of("pw"), PV.ABSENT)
+        self.assertIs(inst.value_of("m"), PV.ABSENT)
         self.assertEqual(inst.value_of("n"), "w")
 
     def test_no_pseudo_in_plan_only_output(self):
@@ -744,7 +753,7 @@ class PlanDiagnosticsTest(TempTestCase):
         plan = mkplan([rc("aws_x.a", {"name": None, "ok": "v"}, unknown={"name": True})],
                       [cfg("aws_x.a", {"name": {}, "ok": const("v")})])
         raw = plan_only(self.tmp, plan)
-        self.assertEqual(props_of(raw, "aws_x.a")["name"], unk(P.UNKNOWN_REASON))
+        self.assertEqual(props_of(raw, "aws_x.a")["name"], unk(PV.UNKNOWN_REASON))
         d = [d for d in raw["diagnostics"] if d["code"] == "TF-PLAN-UNKNOWN"]
         self.assertEqual([(x["address"], x["path"], x["level"], x["message"]) for x in d],
                          [("aws_x.a", "name", "info", "value is known only after apply")])
@@ -804,7 +813,7 @@ resource "aws_sqs_queue" "other3" { name = "o3" }
                     raw = combined_raw(name)
                 self.assertEqual(diag_codes(raw, "TF-PLAN-MISMATCH"), [])
         # 3割以下の違いは warn にしない（.tf.json など plan だけにあるブロック）
-        self.assertEqual(P._mismatch([{"type": "aws_x", "address": f"aws_x.r{i}"} for i in range(10)],
+        self.assertEqual(PK.block_mismatch([{"type": "aws_x", "address": f"aws_x.r{i}"} for i in range(10)],
                                      {**{f"aws_x.r{i}": {} for i in range(10)}, "aws_x.extra": {}}), "")
 
     def test_destroy_plan(self):
@@ -954,9 +963,9 @@ class HostilePlanTest(TempTestCase):
     def test_is_plan_file_survives_deep_json(self):
         f = self.tmp / "deep.json"
         f.write_text("[" * 100000, encoding="utf-8")
-        self.assertFalse(P.is_plan_file(f))
-        with self.assertRaises(P.PlanError):
-            P.load_plan(f)
+        self.assertFalse(PR.is_plan_file(f))
+        with self.assertRaises(PR.PlanError):
+            PR.load_plan(f)
 
     def test_non_finite_numbers_are_rejected(self):
         head = '{"format_version":"1.0","terraform_version":"1","planned_values":{"x":%s}}'
@@ -970,10 +979,10 @@ class HostilePlanTest(TempTestCase):
 
     def test_size_cap(self):
         f = write_json(self.tmp / "big.json", json.loads(self.base()))
-        with mock.patch.object(P, "MAX_PLAN_BYTES", 10):
-            self.assertFalse(P.is_plan_file(f))
-            with self.assertRaisesRegex(P.PlanError, "大きすぎます"):
-                P.load_plan(f)
+        with mock.patch.object(PR, "MAX_PLAN_BYTES", 10):
+            self.assertFalse(PR.is_plan_file(f))
+            with self.assertRaisesRegex(PR.PlanError, "大きすぎます"):
+                PR.load_plan(f)
             err = self.check("big", f.read_text(encoding="utf-8"))
             self.assertIn("大きすぎます", err)
 
@@ -993,15 +1002,15 @@ class HostilePlanTest(TempTestCase):
     def test_plan_is_parsed_once(self):
         f = write_json(self.tmp / "p.json", json.loads(self.base()))
         calls = []
-        real = P._read_json
-        with mock.patch.object(P, "_read_json", lambda p: calls.append(p) or real(p)):
+        real = PR._read_json
+        with mock.patch.object(PR, "_read_json", lambda p: calls.append(p) or real(p)):
             self.run_main(["--input", str(f), "--out", str(self.tmp / "o.json"), "--root-base", str(self.tmp)])
         self.assertEqual(len(calls), 1)
 
     def test_collapse_is_not_quadratic_on_hostile_references(self):
         refs_ = [f"aws_x.r{i}.a" for i in range(20000)] + [f"aws_x.r{i}" for i in range(20000)]
         t = time.perf_counter()
-        self.assertEqual(len(P.collapse(refs_)), 20000)
+        self.assertEqual(len(PA.collapse(refs_)), 20000)
         self.assertLess(time.perf_counter() - t, 2)
 
     def test_mutated_variable_keeps_depends_on_references_valid(self):
@@ -1119,7 +1128,7 @@ resource "aws_x" "off" {
         self.assert_clean(comb)
         r = res_of(comb, "aws_x.off")
         self.assertFalse(r["enabled"])
-        why = {"$unknown": P.NOT_CREATED_REASON}
+        why = {"$unknown": PM.NOT_CREATED_REASON}
         self.assertEqual(r["props"], {"value": why, "text": why, "other": "lit", "blk": [{"k": why, "j": 7}]})
         self.assertEqual(sorted(p for _, p, _ in diag_codes(comb, "TF-PLAN-LITERAL-ONLY")),
                          ["blk[0].k", "text", "value"])
@@ -1143,9 +1152,9 @@ resource "aws_x" "b" { value = parseint(var.pw, 10) }
         self.assertEqual(diag_codes(comb, "TF-EVAL-ERROR"), [])
         # $unknown（理由の文に値が入りうる）も、sensitive の位置では sensitive の理由に置き換える
         found: list = []
-        self.assertEqual(P.mask_sensitive({"$unknown": f"bad '{self.LEAK}'"}, True, "v", found), unk())
+        self.assertEqual(PM.mask_sensitive({"$unknown": f"bad '{self.LEAK}'"}, True, "v", found), unk())
         self.assertEqual(found, ["v"])
-        self.assertEqual(P.mask_sensitive({"$res": "aws_x.a", "attr": "id"}, True, "v", []),
+        self.assertEqual(PM.mask_sensitive({"$res": "aws_x.a", "attr": "id"}, True, "v", []),
                          {"$res": "aws_x.a", "attr": "id"})
 
     def test_root_after_sensitive_true(self):
@@ -1170,7 +1179,7 @@ resource "aws_x" "a" {
         comb = tf_build.build_raw(folder, self.tmp, plan=write_json(self.tmp / "t.json", plan))
         self.assert_clean(comb)
         self.assertEqual(props_of(comb, "aws_x.a"), {"value": unk(), "name": unk(), "blk": unk()})
-        self.assertIs(P.Inst("a.b", "managed", "a", {"k": "v"}, {}, True).value_of("k"), P.ABSENT)
+        self.assertIs(PD.Inst("a.b", "managed", "a", {"k": "v"}, {}, True).value_of("k"), PV.ABSENT)
 
     def test_flags_are_merged_across_sources(self):
         # MINOR-3B: resource_changes の after_sensitive が空でも、planned_values・prior_state・before_sensitive の印は使う
@@ -1192,11 +1201,11 @@ resource "aws_x" "a" {
                 raw = plan_only(self.tmp, plan)
                 self.assert_clean(raw)
                 self.assertEqual(props_of(raw, "aws_x.a"), {"value": unk(), "tags": {"t": unk(), "u": "ok"}})
-        self.assertEqual(P.merge_flags({"a": True}, {"b": [False, True]}), {"a": True, "b": [False, True]})
-        self.assertEqual(P.merge_flags({}, None), {})
-        self.assertIs(P.merge_flags(False, True), True)
-        self.assertIs(P.merge_flags({"a": True}, [True]), True)  # 形が違う: 全体
-        self.assertEqual(P.merge_flags([True], [False, False, True]), [True, False, True])
+        self.assertEqual(PV.merge_flags({"a": True}, {"b": [False, True]}), {"a": True, "b": [False, True]})
+        self.assertEqual(PV.merge_flags({}, None), {})
+        self.assertIs(PV.merge_flags(False, True), True)
+        self.assertIs(PV.merge_flags({"a": True}, [True]), True)  # 形が違う: 全体
+        self.assertEqual(PV.merge_flags([True], [False, False, True]), [True, False, True])
 
     def test_empty_strings_in_names_are_exit_2(self):
         # MINOR-6: type・address が空の文字列は、スキーマに合わない IR になるので PlanError

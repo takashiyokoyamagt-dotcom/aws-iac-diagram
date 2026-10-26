@@ -16,7 +16,7 @@ from aws_iac_diagram.adapters.terraform.module_expr import ExpressionMixin
 from aws_iac_diagram.adapters.terraform.module_load import LoadMixin
 from aws_iac_diagram.adapters.terraform.module_props import PropertiesMixin
 from aws_iac_diagram.adapters.terraform.module_vars import VariablesMixin
-from aws_iac_diagram.adapters.terraform.modules import summaries as M
+from aws_iac_diagram.adapters.terraform.modules import summaries as MS
 
 
 class ModuleEval(LoadMixin, VariablesMixin, ExpansionMixin, ExpressionMixin, PropertiesMixin, EmitMixin):
@@ -37,7 +37,7 @@ class ModuleEval(LoadMixin, VariablesMixin, ExpansionMixin, ExpressionMixin, Pro
         self.call_args: dict[str, Tree] = {}  # 引数の名前 → 親の中の式
         self.call_env: dict = {}  # 引数を評価するときの count.index・each（親の側）
         self.via: str | None = None  # 要約表から作るときは "module_summary"
-        self.summary: M.Summary | None = None
+        self.summary: MS.Summary | None = None
         self.file_override: str | None = None  # 要約表のブロックの file（呼び出しのあるファイル）
         self.enabled_base = True  # 呼び出しの enabled（count が 0 なら false、決まらなければ null）
         self.multi = False  # 呼び出しが ×N（count・for_each が決まらない）

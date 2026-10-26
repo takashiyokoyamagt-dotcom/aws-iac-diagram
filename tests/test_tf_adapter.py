@@ -1,4 +1,4 @@
-"""Terraform アダプタ（scripts/adapters/tf.py）と評価器（scripts/aws_iac_diagram/adapters/terraform/tf_eval.py）のテスト。
+"""Terraform アダプタ（scripts/adapt_tf.py と scripts/aws_iac_diagram/adapters/terraform/）と評価器（evaluator/）のテスト。
 
 フェーズ2 の手順1（土台）、手順2（A4: 変数・locals・式・count／for_each の展開）、手順3（モジュール: ローカル
 モジュールの再帰、A5 の要約表、黒箱、H-IAM、terraform_remote_state、provider の受け渡し）の範囲。
@@ -26,9 +26,14 @@ sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(WS / "tools"))
 import validate_ir as v  # noqa: E402
 import adapt_tf  # noqa: E402
-from aws_iac_diagram.adapters.terraform import build as tf_build, hcl, model, module_eval, module_expand, module_emit, module_load  # noqa: E402
-from aws_iac_diagram.adapters.terraform.evaluator import functions as E  # noqa: E402
-from aws_iac_diagram.adapters.terraform.modules import summaries as M  # noqa: E402
+from aws_iac_diagram.adapters.terraform import (  # noqa: E402
+    build as tf_build, hcl, model, module_emit, module_eval, module_expand, module_load,
+)
+from aws_iac_diagram.adapters.terraform.evaluator import values as V  # noqa: E402
+from aws_iac_diagram.adapters.terraform.evaluator import functions as F  # noqa: E402
+from aws_iac_diagram.adapters.terraform.modules.sources import is_local, join_summary_source, registry_key  # noqa: E402
+from aws_iac_diagram.adapters.terraform.modules import resolve as MR  # noqa: E402
+from aws_iac_diagram.adapters.terraform.modules import summaries as MS  # noqa: E402
 from aws_iac_diagram.core import ir_raw  # noqa: E402
 
 
@@ -860,7 +865,7 @@ class ModuleTest(unittest.TestCase):
 
 def build_module_call(source: str, body: str, version: str | None = None) -> dict:
     """モジュールの呼び出し1つのルートを作って読む（source はルートからの相対パスかレジストリの source）。"""
-    local = not M.registry_key(source) and not source.startswith(".")
+    local = not registry_key(source) and not source.startswith(".")
     # ルートからの相対パスで書くので、一時フォルダは source と同じドライブに置く
     # （Windows の CI はリポジトリが D:、既定の一時フォルダが C: で、相対パスが作れない）
     with tempfile.TemporaryDirectory(dir=WS if local else None, prefix="tmp-") as tmp:
@@ -876,7 +881,7 @@ class SummaryTest(unittest.TestCase):
     """手順3: A5 の要約表（references/module-summaries.md）、版の選び方、黒箱、H-IAM。"""
 
     def test_summary_file(self):
-        summaries, iam = M.load()
+        summaries, iam = MS.load()
         self.assertEqual(sorted(summaries), sorted([
             "terraform-aws-modules/vpc/aws", "terraform-aws-modules/alb/aws", "terraform-aws-modules/rds/aws",
             "terraform-aws-modules/rds/aws//modules/db_instance", "terraform-aws-modules/rds/aws//modules/db_subnet_group",
@@ -904,7 +909,7 @@ class SummaryTest(unittest.TestCase):
 
     def test_choose_version(self):
         def pick(source, version):
-            s, why, note = M.choose(source, version)
+            s, why, note = MR.choose(source, version)
             return (s.majors if s else None), why, note
         vpc = "terraform-aws-modules/vpc/aws"
         self.assertEqual(pick(vpc, "~> 6.7")[0], (6,))
@@ -928,19 +933,19 @@ class SummaryTest(unittest.TestCase):
         self.assertIsNone(pick(vpc, "~> foo")[0])
 
     def test_source_kinds_and_iam_only(self):
-        self.assertTrue(M.is_local("./modules/x") and M.is_local("../../") and not M.is_local("modules/x"))
-        self.assertEqual(M.registry_key("terraform-aws-modules/iam/aws//modules/iam-role/"),
+        self.assertTrue(is_local("./modules/x") and is_local("../../") and not is_local("modules/x"))
+        self.assertEqual(registry_key("terraform-aws-modules/iam/aws//modules/iam-role/"),
                          "terraform-aws-modules/iam/aws//modules/iam-role")
         for src in ("git::https://example.com/x.git", "github.com/org/repo", "s3::https://b/x.zip",
                     "https://example.com/x.zip", "hashicorp/consul/aws?ref=1"):
-            self.assertIsNone(M.registry_key(src), src)
-        self.assertEqual(M.join_summary_source("terraform-aws-modules/rds/aws", "./modules/db_instance"),
+            self.assertIsNone(registry_key(src), src)
+        self.assertEqual(join_summary_source("terraform-aws-modules/rds/aws", "./modules/db_instance"),
                          "terraform-aws-modules/rds/aws//modules/db_instance")
-        self.assertEqual(M.join_summary_source("a/b/c//modules/x", "../y"), "a/b/c//modules/y")
-        self.assertTrue(M.iam_only("terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"))
-        self.assertTrue(M.iam_only("registry.terraform.io/terraform-aws-modules/iam/aws"))
-        self.assertFalse(M.iam_only("terraform-aws-modules/iam-foo/aws"))
-        self.assertFalse(M.iam_only("terraform-aws-modules/vpc/aws"))
+        self.assertEqual(join_summary_source("a/b/c//modules/x", "../y"), "a/b/c//modules/y")
+        self.assertTrue(MS.iam_only("terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"))
+        self.assertTrue(MS.iam_only("registry.terraform.io/terraform-aws-modules/iam/aws"))
+        self.assertFalse(MS.iam_only("terraform-aws-modules/iam-foo/aws"))
+        self.assertFalse(MS.iam_only("terraform-aws-modules/vpc/aws"))
         # IAM だけのモジュールは黒箱の呼び出し（正規化が H-IAM にする）。理由に H-IAM と書く
         raw = build("""
         module "irsa" {
@@ -1211,11 +1216,11 @@ class SummaryTest(unittest.TestCase):
         self.assertTrue(p(v, ["*", "rules", "*", "actions", "*", "y"]))
         self.assertFalse(p(v, ["*", "rules", "*", "actions", "*", "x"]))
         self.assertFalse(p(v, ["*", "nothing"]))
-        self.assertIsNone(p(E.Unknown("u"), ["*"]))  # 決まらず調べられない
-        self.assertIsNone(p({"a": E.Unknown("u")}, ["*", "rules"]))
-        self.assertTrue(p({"a": E.Unknown("u"), "b": {"rules": 1}}, ["*", "rules"]))
+        self.assertIsNone(p(V.Unknown("u"), ["*"]))  # 決まらず調べられない
+        self.assertIsNone(p({"a": V.Unknown("u")}, ["*", "rules"]))
+        self.assertTrue(p({"a": V.Unknown("u"), "b": {"rules": 1}}, ["*", "rules"]))
         self.assertFalse(p({"a": {"rules": {}}, "b": {"rules": []}}, ["*", "rules"]))  # 空の {}・[] は当てない
-        self.assertTrue(p({"a": {"rules": E.Res("aws_x.y", "arn")}}, ["*", "rules"]))
+        self.assertTrue(p({"a": {"rules": V.Res("aws_x.y", "arn")}}, ["*", "rules"]))
 
     def test_vpc_summary_matches_source(self):
         src = PUBLIC / "terraform-aws-vpc"  # v6.7.3（P01）
@@ -2017,10 +2022,10 @@ class BlockKindTest(unittest.TestCase):
 
 
 class EvaluatorTest(unittest.TestCase):
-    """adapters/terraform/tf_eval.py の組み込み関数と型の変換（印を含む値の扱い）。"""
+    """adapters/terraform/evaluator/ の組み込み関数と型の変換（印を含む値の扱い）。"""
 
     def test_functions_on_known_values(self):
-        call = E.call_function
+        call = F.call_function
         self.assertEqual(call("cidrsubnet", ["10.0.0.0/16", 8, 2]), "10.0.2.0/24")
         self.assertEqual(call("cidrsubnets", ["10.0.0.0/16", 4, 8, 4]), ["10.0.0.0/20", "10.0.16.0/24", "10.0.32.0/20"])
         self.assertEqual(call("cidrhost", ["10.0.1.0/24", 5]), "10.0.1.5")
@@ -2054,38 +2059,38 @@ class EvaluatorTest(unittest.TestCase):
         for name, args in (("lookup", [{"a": 1}, "b"]), ("element", [[], 0]), ("cidrsubnet", ["10.0.0.0/30", 8, 0]),
                            ("coalesce", [None, ""]), ("slice", [[1], 0, 3]), ("one", [[1, 2]])):
             with self.subTest(name):
-                with self.assertRaises(E.EvalError):
+                with self.assertRaises(V.EvalError):
                     call(name, args)
 
     def test_functions_with_markers(self):
-        call, R = E.call_function, E.Res
+        call, R = F.call_function, V.Res
         a, b = R("aws_s3_bucket.a", "id"), R("aws_s3_bucket.b", "arn")
         # 構造だけで決まる関数は、印をそのまま残す
         self.assertEqual(call("concat", [[a], [b]]), [a, b])
         self.assertEqual(call("length", [[a, b]]), 2)
         self.assertEqual(call("lookup", [{"x": a}, "x"]), a)
-        self.assertEqual(call("join", [",", [a, "z"]]), E.Concat((a, ",z")))
-        self.assertEqual(call("format", ["arn:%s:x", a]), E.Concat(("arn:", a, ":x")))
-        self.assertEqual(call("jsonencode", [{"r": a}]), E.Json({"r": a}))
-        self.assertEqual(call("slice", [E.Az("*"), 0, 2]), [E.Az(0), E.Az(1)])
-        self.assertEqual(call("element", [E.Az("*"), 2]), E.Az(2))
+        self.assertEqual(call("join", [",", [a, "z"]]), V.Concat((a, ",z")))
+        self.assertEqual(call("format", ["arn:%s:x", a]), V.Concat(("arn:", a, ":x")))
+        self.assertEqual(call("jsonencode", [{"r": a}]), V.Json({"r": a}))
+        self.assertEqual(call("slice", [V.Az("*"), 0, 2]), [V.Az(0), V.Az(1)])
+        self.assertEqual(call("element", [V.Az("*"), 2]), V.Az(2))
         # 値が要る関数は Unknown（中の参照を持ち歩く）
         for name, args in (("upper", [a]), ("length", [a]), ("split", [",", a]), ("cidrsubnet", [a, 8, 1]),
                            ("contains", [[a], "x"])):
             with self.subTest(name):
                 u = call(name, args)
-                self.assertIsInstance(u, E.Unknown)
+                self.assertIsInstance(u, V.Unknown)
                 self.assertIn(("aws_s3_bucket.a", "id", ()), u.refs)
-        u = call("upper", [E.Unknown("variable x has no value", "TF-UNRESOLVED-VAR")])
+        u = call("upper", [V.Unknown("variable x has no value", "TF-UNRESOLVED-VAR")])
         self.assertEqual((u.reason, u.code), ("variable x has no value", "TF-UNRESOLVED-VAR"))  # 元の理由を引き継ぐ
 
     def test_convert(self):
-        spec = ("object", {"n": (("number",), False, E.NODEFAULT), "l": (("set", ("string",)), True, ["b", "a"]),
-                           "o": (("map", ("bool",)), True, E.NODEFAULT)})
-        self.assertEqual(E.convert({"n": "5", "extra": 1}, spec), {"n": 5, "l": ["a", "b"], "o": None})
-        self.assertEqual(E.convert({"n": 1, "o": {"x": "true"}}, spec)["o"], {"x": True})
-        self.assertEqual(E.convert("abc", ("number",)), "abc")  # 変換できなければそのまま
-        self.assertEqual(E.convert(3, ("string",)), "3")
+        spec = ("object", {"n": (("number",), False, V.NODEFAULT), "l": (("set", ("string",)), True, ["b", "a"]),
+                           "o": (("map", ("bool",)), True, V.NODEFAULT)})
+        self.assertEqual(V.convert({"n": "5", "extra": 1}, spec), {"n": 5, "l": ["a", "b"], "o": None})
+        self.assertEqual(V.convert({"n": 1, "o": {"x": "true"}}, spec)["o"], {"x": True})
+        self.assertEqual(V.convert("abc", ("number",)), "abc")  # 変換できなければそのまま
+        self.assertEqual(V.convert(3, ("string",)), "3")
 
 
 class RobustnessTest(unittest.TestCase):
@@ -2385,10 +2390,9 @@ class SummaryTableFileTest(unittest.TestCase):
     CALL = 'module "vpc" {\n  source = "terraform-aws-modules/vpc/aws"\n  version = "~> 6.0"\n  cidr = "10.0.0.0/16"\n}\n'
 
     def test_summary_file_exists_and_is_loaded(self):
-        from aws_iac_diagram.adapters.terraform.modules import summaries as M
-        self.assertTrue(M.SUMMARY_FILE.is_file(), M.SUMMARY_FILE)
-        self.assertEqual(M.SUMMARY_FILE.name, "module-summaries.md")
-        summaries, iam = M.load()
+        self.assertTrue(MS.SUMMARY_FILE.is_file(), MS.SUMMARY_FILE)
+        self.assertEqual(MS.SUMMARY_FILE.name, "module-summaries.md")
+        summaries, iam = MS.load()
         self.assertIn("terraform-aws-modules/vpc/aws", summaries)
         self.assertTrue(iam)
 
@@ -2400,12 +2404,11 @@ class SummaryTableFileTest(unittest.TestCase):
 
     def test_missing_table_warns_for_registry_modules(self):
         from unittest import mock
-        from aws_iac_diagram.adapters.terraform.modules import summaries as M
         raw = build(self.CALL)
         codes = [d["code"] for d in raw["diagnostics"] if d["code"].startswith("TF-MODULE")]
         self.assertEqual(codes, ["TF-MODULE-SUMMARY"])
         self.assertGreater(len(raw["resources"]), 1)  # 要約表で展開される
-        with tempfile.TemporaryDirectory() as t, mock.patch.object(M, "SUMMARY_FILE", Path(t) / "nope.md"):
+        with tempfile.TemporaryDirectory() as t, mock.patch.object(MS, "SUMMARY_FILE", Path(t) / "nope.md"):
             raw = build(self.CALL)
         codes = [(d["level"], d["code"]) for d in raw["diagnostics"] if d["code"].startswith("TF-MODULE")]
         self.assertEqual(codes, [("warn", "TF-MODULE-SUMMARY-TABLE-MISSING")])
@@ -2413,10 +2416,9 @@ class SummaryTableFileTest(unittest.TestCase):
 
     def test_missing_table_does_not_warn_without_registry_modules(self):
         from unittest import mock
-        from aws_iac_diagram.adapters.terraform.modules import summaries as M
         files = {"main.tf": 'module "a" {\n  source = "./mod"\n}\nmodule "g" {\n  source = "git::https://example.com/x.git"\n}\n',
                  "mod/main.tf": 'resource "aws_sqs_queue" "q" {\n  name = "q"\n}\n'}
-        with tempfile.TemporaryDirectory() as t, mock.patch.object(M, "SUMMARY_FILE", Path(t) / "nope.md"):
+        with tempfile.TemporaryDirectory() as t, mock.patch.object(MS, "SUMMARY_FILE", Path(t) / "nope.md"):
             raw = build(files)
         self.assertNotIn("TF-MODULE-SUMMARY-TABLE-MISSING", [d["code"] for d in raw["diagnostics"]])
 

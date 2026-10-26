@@ -11,7 +11,7 @@ from lark import Tree
 
 from aws_iac_diagram.adapters.terraform.hcl import const, fix_heredocs, label_text, merge_body, name_of, sig
 from aws_iac_diagram.adapters.terraform.model import Block
-from aws_iac_diagram.adapters.terraform.modules import summaries as M
+from aws_iac_diagram.adapters.terraform.modules import summaries as MS
 
 if TYPE_CHECKING:
     from aws_iac_diagram.adapters.terraform.module_eval import ModuleEval
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 _SUMMARY_TREES: dict = {}
 
 
-def summary_tree(summary: M.Summary) -> Tree:
+def summary_tree(summary: MS.Summary) -> Tree:
     """要約表の HCL の構文木（1回だけ読む）。"""
     key = (summary.source, summary.majors, summary.line)
     if key not in _SUMMARY_TREES:

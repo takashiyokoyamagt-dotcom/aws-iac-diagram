@@ -5,10 +5,13 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from aws_iac_diagram.adapters.terraform.evaluator.functions import Unknown
+from aws_iac_diagram.adapters.terraform.evaluator.values import Unknown
 from aws_iac_diagram.adapters.terraform.model import Context
 from aws_iac_diagram.adapters.terraform.module_eval import ModuleEval
-from aws_iac_diagram.adapters.terraform.plan import reader as P
+from aws_iac_diagram.adapters.terraform.plan.combine import combine
+from aws_iac_diagram.adapters.terraform.plan.diagnostics import ROOT_OTHER_DRIVE_MESSAGE
+from aws_iac_diagram.adapters.terraform.plan.raw import build_plan_raw, plan_variables, root_text
+from aws_iac_diagram.adapters.terraform.plan.read import load_plan
 from aws_iac_diagram.adapters.terraform.refs import dedupe_refs
 from aws_iac_diagram.core import ir_raw
 
@@ -57,16 +60,16 @@ def build_raw(input_dir: Path, root_base: Path | None = None, var_files: list | 
     var_files・vars: 外から渡す変数の値（--var-file、--var）。この順に（vars が後で）重ねる。
     var_args: コマンドラインの順のまま渡すとき。("file", パス) と ("var", "K=V") の並び（var_files・vars より後）。
     plan: 同じ構成の plan JSON（--plan）。変数の値は plan の variables を使い（var_files・vars・var_args はその後に
-    重ねる）、address と作られるかは plan に合わせる（adapters/terraform/tf_plan.py の combine。ir-schema.md の 7.2）。
+    重ねる）、address と作られるかは plan に合わせる（adapters/terraform/plan/combine.py の combine。ir-schema.md の 7.2）。
     """
-    plan_doc = P.load_plan(plan) if plan is not None else None
+    plan_doc = load_plan(plan) if plan is not None else None
     ctx = Context(input_dir, workspace)
     mod = ModuleEval(ctx, input_dir)
     mod.chain = (input_dir.resolve(),)
     mod.load()
     sources: list = [("file", p) for p in auto_var_files(input_dir)]
     if plan_doc is not None:
-        sources += [("plan", (k, v)) for k, v in sorted(P.plan_variables(plan_doc).items())]
+        sources += [("plan", (k, v)) for k, v in sorted(plan_variables(plan_doc).items())]
     sources += [("file", resolve_var_file(Path(p), input_dir)) for p in (var_files or [])]
     sources += [("value", (k, v)) for k, v in (vars or {}).items()]
     for kind, item in var_args or []:
@@ -88,10 +91,10 @@ def build_raw(input_dir: Path, root_base: Path | None = None, var_files: list | 
     mod.run()
     # Windows でドライブが違うと相対パスにできない: フォルダの名前だけを書く（絶対パスは書かない。plan JSON だけの
     # ときと同じ規則）
-    root, relative = P.root_text(input_dir, root_base or Path.cwd())
+    root, relative = root_text(input_dir, root_base or Path.cwd())
     if not relative:
         ctx.diagnostics.append({"level": "info", "code": "TF-ROOT-OTHER-DRIVE", "address": "", "path": "",
-                                "message": P.ROOT_OTHER_DRIVE_MESSAGE})
+                                "message": ROOT_OTHER_DRIVE_MESSAGE})
     diagnostics = list({(d.get("address", ""), d.get("path", ""), d["code"], d["message"]): d
                         for d in ctx.diagnostics}.values())
     # 変数の値は書かない（名前と値の出どころだけ。秘密の値を IR に残さないため）。手元のモジュールの変数は
@@ -112,13 +115,13 @@ def build_raw(input_dir: Path, root_base: Path | None = None, var_files: list | 
         "diagnostics": diagnostics,
     }
     if plan is not None:
-        return P.combine(raw, plan, input_dir, root_base, plan_doc)
+        return combine(raw, plan, input_dir, root_base, plan_doc)
     return ir_raw.canonical_raw(raw)
 
 
 def build_from_plan(plan: Path, root_base: Path | None = None) -> dict:
-    """plan JSON だけから raw IR を作る（--input に plan JSON を渡したとき。adapters/terraform/tf_plan.py）。"""
-    return P.build_plan_raw(plan, root_base)
+    """plan JSON だけから raw IR を作る（--input に plan JSON を渡したとき。adapters/terraform/plan/raw.py）。"""
+    return build_plan_raw(plan, root_base)
 
 
 def dump(raw: dict) -> str:

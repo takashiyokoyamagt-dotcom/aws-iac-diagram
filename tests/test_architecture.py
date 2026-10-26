@@ -63,14 +63,10 @@ ENTRY_IMPORT_ALLOW: dict[tuple[str, str], str] = {
 WARN_LINES = 800
 MAX_LINES = 1500
 
-# 1,500 行を超えているファイルの免除（scripts/ からの相対パス）。R2 で空にする。
-# ceiling = 免除を決めた日の行数。これを超えて増えたら失敗する（免除を口実に大きくしない）。
-EXEMPT: dict[str, dict] = {
-    "aws_iac_diagram/adapters/terraform/plan/reader.py": {
-        "since": "2026-10-26", "ceiling": 1558, "remove_in": "R2",
-        "reason": "plan JSON の読み込みと .tf との結合が 1 ファイル（1558 行）。R2 で adapters/terraform/plan/ に分ける",
-    },
-}
+# 1,500 行を超えているファイルの免除（scripts/ からの相対パス）。R2 で空にした（今は 1,500 行を超えるファイルが無い）。
+# 免除を足すときは、日付（since）・上限（ceiling = 決めた日の行数。超えて増えたら失敗）・外す手順（remove_in）・理由を付け、
+# 下の test_no_exemptions_remain も直す（理由をコミットメッセージに書く）。
+EXEMPT: dict[str, dict] = {}
 
 # サブパッケージ（フォルダ）を持ってよい層。層の表の外に新しい層が増えないように、ここに書いたものの直下だけ許す
 SUBPACKAGE_PARENTS = {"adapters/terraform", "adapters/cloudformation"}
@@ -463,6 +459,10 @@ class FileSizeTest(unittest.TestCase):
         for w in warn:
             print(f"\n[note] {w}", file=sys.stderr)
         self.assertEqual(problems, [], "\n".join(problems))
+
+    def test_no_exemptions_remain(self):
+        # R2 で空にした。免除を足すなら、この検査を理由付きで直す
+        self.assertEqual(EXEMPT, {})
 
     def test_exemptions_are_dated_and_justified(self):
         for rel, ex in EXEMPT.items():
