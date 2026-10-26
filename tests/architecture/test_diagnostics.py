@@ -18,13 +18,13 @@ from pathlib import Path
 
 # tests/ を import の道に入れる（`python tests/.../test_x.py` で直接動かすときのため。discover では要らないが害は無い）
 sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "support").is_dir())))
-from support.paths import SCRIPTS, WS
+from support.paths import ROOT, SCRIPTS, WS
 from aws_iac_diagram.adapters.cloudformation import build as cfn_build  # noqa: E402
 from aws_iac_diagram.adapters.terraform import build as tf_build  # noqa: E402
 from aws_iac_diagram.core import diagnostics as D  # noqa: E402
 
 
-SCHEMA_DOC = SCRIPTS.parent / "references" / "ir-schema.md"
+SCHEMA_DOC = ROOT / "docs" / "spec" / "ir-schema" / "07-raw-output.md"
 
 # 子テンプレートが YAML として読めない／親が読めない子と、見つからない子を持つ入力（CFN-NESTED-UNREADABLE の error と warn）
 BAD_CHILD = "Resources: [" + chr(10) + "  a: b" + chr(10)

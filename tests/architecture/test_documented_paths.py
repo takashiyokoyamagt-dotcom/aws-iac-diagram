@@ -1,6 +1,6 @@
 """文書・CI・コメントに書いた `tests/…/*.py`（と `.json`）のパスが、実在するファイルを指すこと（フェーズ 2b の R5 のレビューの指摘）。
 
-テストのファイルを動かしたとき、README・docs・PLAN・ir-schema.md・ci.yml・スクリプトのコメントに古いパスが残るのを失敗にする。
+テストのファイルを動かしたとき、README・docs（docs/spec/ir-schema/ を含む）・PLAN・ci.yml・スクリプトのコメントに古いパスが残るのを失敗にする。
 対象は、開発の経緯を書いた docs/dev-notes/（当時の名前のまま残す）以外。
 """
 from __future__ import annotations
@@ -20,7 +20,7 @@ PATH_RE = re.compile(r"(?<![A-Za-z0-9_/.-])tests/[A-Za-z0-9_][A-Za-z0-9_./-]*[.]
 
 def documents() -> list[Path]:
     files = [ROOT / "README.md", ROOT / "PLAN.md", ROOT / ".github" / "workflows" / "ci.yml",
-             ROOT / "skills" / "aws-iac-diagram" / "references" / "ir-schema.md", WS / "fixtures" / "README.md"]
+             WS / "fixtures" / "README.md"]
     files += [p for p in sorted((ROOT / "docs").rglob("*.md")) if "dev-notes" not in p.relative_to(ROOT / "docs").parts]
     files += [p for base in (SCRIPTS, TOOLS) for p in sorted(base.rglob("*.py")) if "__pycache__" not in p.parts]
     return files
@@ -53,9 +53,9 @@ class DocumentedPathsTest(unittest.TestCase):
             self.assertEqual(stale_paths([doc], root), ["doc.md: tests/test_old.py", "doc.md: tests/unit/gone.json"])
 
     def test_real_documents_do_mention_test_paths(self):
-        # 空振りの防止: 少なくとも architecture.md・README・ir-schema.md・ci.yml が実際のパスを書いている
+        # 空振りの防止: 少なくとも architecture.md・README・07-raw-output.md（ir-schema の 7 章）・ci.yml が実際のパスを書いている
         names = {f.name for f in documents() if PATH_RE.search(f.read_text(encoding="utf-8"))}
-        self.assertTrue({"architecture.md", "README.md", "ir-schema.md", "ci.yml"} <= names, names)
+        self.assertTrue({"architecture.md", "README.md", "07-raw-output.md", "ci.yml"} <= names, names)
 
 
 if __name__ == "__main__":
