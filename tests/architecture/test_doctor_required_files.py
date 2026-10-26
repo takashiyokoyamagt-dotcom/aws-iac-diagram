@@ -31,8 +31,10 @@ RUNTIME_DATA = {
     "data/module-summaries/NOTICE.md",                  # 実行時には読まない。出典とライセンスの表示（配る物なので一覧に入れる）
     "data/module-summaries/iam-only-sources.md",        # TF アダプタ（modules/summaries.py）。H-IAM の source の一覧
     "data/module-summaries/terraform-aws-alb/v10.md",   # 同上。モジュールの要約表
+    "data/module-summaries/terraform-aws-eks/v20.md",
     "data/module-summaries/terraform-aws-eks/v21.md",
     "data/module-summaries/terraform-aws-rds/v7.md",
+    "data/module-summaries/terraform-aws-vpc/v5.md",
     "data/module-summaries/terraform-aws-vpc/v6.md",
     "references/resource-catalog.md",                   # validate_ir.py（規則の ID の照合）。フェーズ 3 で data/rules/ へ
     "references/relation-resources.md",                 # validate_ir.py

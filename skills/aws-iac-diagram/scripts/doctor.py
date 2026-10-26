@@ -45,8 +45,10 @@ REQUIRED_FILES = [
     "data/module-summaries/NOTICE.md",  # 実行時には読まない。出典とライセンスの表示（Apache-2.0 のソースを写した表を配るので、欠けたら取り込みの不備）
     "data/module-summaries/iam-only-sources.md",
     "data/module-summaries/terraform-aws-alb/v10.md",
+    "data/module-summaries/terraform-aws-eks/v20.md",
     "data/module-summaries/terraform-aws-eks/v21.md",
     "data/module-summaries/terraform-aws-rds/v7.md",
+    "data/module-summaries/terraform-aws-vpc/v5.md",
     "data/module-summaries/terraform-aws-vpc/v6.md",
     "references/edge-rules.md",
     "references/relation-resources.md",

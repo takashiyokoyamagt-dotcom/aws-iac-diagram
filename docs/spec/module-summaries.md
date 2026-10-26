@@ -1,6 +1,6 @@
 # 公開モジュールの要約表（A5）
 
-- 状態: フェーズ2 の手順3（2026-10-17）で作成。対象は terraform-aws-modules の vpc・alb・rds・eks（PLAN の A5）。4つとも、タグを付けた版の本物のソース（`aws-iac-diagram-workspace/fixtures/public/`）と突き合わせるテストがある
+- 状態: フェーズ2 の手順3（2026-10-17）で作成。2026-10-26 に vpc の 5.x と eks の 20.x を足した（ユーザーの 2026-10-24 の決定）。対象は terraform-aws-modules の vpc（5・6）・alb（10）・rds（7）・eks（20・21）（PLAN の A5）。どの表も、タグを付けた版の本物のソース（`aws-iac-diagram-workspace/fixtures/public/`）と突き合わせるテストがある
 - **これは開発者向けの説明です（SKILL の外。配りません）。表そのもの（TF アダプタが実行時に読むデータ）は `skills/aws-iac-diagram/data/module-summaries/` にあります**（R4 で `references/module-summaries.md` から分けた。説明はここ、表はデータのフォルダ）
 - 使うもの: TF アダプタ（`scripts/adapt_tf.py`）が、手元に中身の無いレジストリモジュールの呼び出しを、この表の HCL で展開する。読み込みは `scripts/aws_iac_diagram/adapters/terraform/modules/summaries.py`
 - raw IR での出し方: [ir-schema](ir-schema/07-raw-output.md) の 7.2（モジュール）と [4章](ir-schema/04-sources.md) の `via: "module_summary"`
@@ -21,20 +21,28 @@
 
 - 各表は、対象の major を持つ（下の `majors`）。呼び出しの `version` の制約（`~> 6.7`、`6.6.0`、`>= 6.0, < 7.0`）が許す major のうち、表のある最も新しいものを使う。
 - `version` が無い、上限の無い制約（`>= 5.0`）、2つ以上の major を許す制約（`>= 5.0, < 7.0`）は、表のある最も新しい major を使い、`evaluation.assumptions` に書く。
-- 許す major の表が無ければ黒箱（`type: module`、`via: module_blackbox`、`TF-MODULE-BLACKBOX`）。例: vpc の 5.x（T16 の `5.8.1`、T18 の `~> 5.0`）、eks の 20.x・19.x（作るかはフェーズ6 の前に決める）。
+- 許す major の表が無ければ黒箱（`type: module`、`via: module_blackbox`、`TF-MODULE-BLACKBOX`。理由に「表にある major」を `it has 5.x, 6.x` のように書く）。例: vpc の 4.x 以前（`learn-terraform-aws-asg` の `2.77.0`）、eks の 19.x（T18 の `~> 19.15.2`。19.x の表は作らない）。
+- 例（vpc は 5・6、eks は 20・21 の表がある）: `5.8.1`・`~> 5.0`・`>= 5, < 6` は 5、`6.6.0`・`~> 6.7` は 6、`20.8.5`・`~> 20.0` は 20、`~> 21.0` は 21、`>= 5.0, < 7.0` は 6（2 つの major にまたがるので前提に書く）、`2.77.0`・`~> 19.15.2` は黒箱。表を足す前から表が選ばれていた組は、選ばれる表も前提の文も変わらない（`SummaryTest.test_choose_is_unchanged_for_every_previous_pair`）。
 - サブモジュール（`terraform-aws-modules/rds/aws//modules/db_instance`）は、`//modules/<名前>` を付けた source の表。表の中の `module` ブロックの `./modules/<名前>` も、同じ版のこの表で展開する。
 
 ## 3. 表の一覧
 
 | source | majors | 確かめたソース | 主なリソース | 写していないもの（入力を渡すと TF-MODULE-SUMMARY-INPUT） |
 |---|---|---|---|---|
+| `terraform-aws-modules/vpc/aws` | 5 | v5.21.0（`fixtures/public/terraform-aws-vpc-v5.21.0`、M04、コミット 7c1f791）に合わせ、v5.8.1（`terraform-aws-vpc-v5.8.1`、M03、コミット 25322b6。T16 の版）とも突き合わせ。突き合わせのテストあり | VPC、サブネット（public・private・database・intra）、ルートテーブル・関連付け・ルート（IGW・NAT・egress-only IGW）、IGW、EIP、NAT、DB サブネットグループ、VPN ゲートウェイ、既定の SG・NACL・ルートテーブル | elasticache・redshift・outpost のサブネット、専用の NACL、IPv6 の CIDR、NAT64 の経路（`private_dns64_nat_gateway` など）、セカンダリ CIDR、DHCP オプション、フローログ、カスタマーゲートウェイ、VPN の経路の伝播、IPAM、Block Public Access |
 | `terraform-aws-modules/vpc/aws` | 6 | v6.7.3（`fixtures/public/terraform-aws-vpc`、P01、コミット b3abd6d）。突き合わせのテストあり | VPC、サブネット（public・private・database・intra）、ルートテーブル・関連付け・ルート（IGW・NAT・egress-only IGW）、IGW、EIP、NAT、DB サブネットグループ、VPN ゲートウェイ、既定の SG・NACL・ルートテーブル | elasticache・redshift・outpost のサブネット、専用の NACL、IPv6 の CIDR、セカンダリ CIDR、DHCP オプション、フローログ、カスタマーゲートウェイ、VPN の経路の伝播、IPAM、Block Public Access |
 | `terraform-aws-modules/alb/aws` | 10 | v10.5.1（`fixtures/public/terraform-aws-alb`、コミット 6c6e48c、2026-10-17 に取得）。突き合わせのテストあり | ロードバランサ、リスナー（forward・weighted_forward・redirect・fixed-response）、リスナーのルール（同じ4種のアクションと条件）、追加の証明書、ターゲットグループ、ターゲットの登録（`additional` を含む）、Lambda のターゲットの `aws_lambda_permission`、SG と `aws_vpc_security_group_{ingress,egress}_rule`、Route 53 のレコード、WAF の関連付け | 認証のアクション（`listeners.*.authenticate_cognito`・`authenticate_oidc`・`jwt_validation`、ルールの `actions.*` の同じもの）、mTLS（`listeners.*.mutual_authentication`）、ルールの `transform`、接続・ヘルスチェックのログ、IPAM |
 | `terraform-aws-modules/rds/aws`（と `//modules/db_instance`・`db_subnet_group`・`db_parameter_group`・`db_option_group`・`db_instance_role_association`） | 7 | v7.2.2（`fixtures/public/terraform-aws-rds`、コミット 175da04、2026-10-17 に取得）。突き合わせのテストあり | DB インスタンス、サブネットグループ・パラメータグループ・オプショングループ（`create_*` で作るとき）、ロググループ（`enabled_cloudwatch_logs_exports`）、拡張モニタリングのロール、マスターパスワードのローテーション、IAM ロールの関連付け | 自動バックアップのリージョン間レプリケーション（`db_instance_automated_backups_replication`）、`s3_import`、`restore_to_point_in_time` |
+| `terraform-aws-modules/eks/aws`（と `//modules/eks-managed-node-group`・`fargate-profile`・`self-managed-node-group`） | 20 | v20.8.5（`fixtures/public/terraform-aws-eks-v20.8.5`、M05、コミット afadb14。T16 の版）。突き合わせのテストあり | クラスタ、ロググループ、クラスタと node の SG とルール（EFA のルールを含む）、クラスタの IAM ロール、OIDC プロバイダ、KMS（`module.kms`。黒箱）、アドオン、アクセスエントリ、クラスタのタグの `aws_ec2_tag`、`time_sleep`、マネージドノードグループ・Fargate プロファイル・セルフマネージドノードグループ（それぞれ IAM ロール・起動テンプレートなど） | outposts（`outpost_config`）、ID プロバイダ（`cluster_identity_providers`）、IPv6 の CNI ポリシー（`create_cni_ipv6_iam_policy`）、ノードグループの EFA・配置グループ・スケジュール、OIDC のルート CA の thumbprint（`data.tls_certificate`）、ユーザーデータのサブモジュール（`module.user_data`）、Karpenter・aws-auth サブモジュール |
 | `terraform-aws-modules/eks/aws`（と `//modules/eks-managed-node-group`・`fargate-profile`・`self-managed-node-group`） | 21 | v21.29.0（`fixtures/public/terraform-aws-eks`、P03、コミット 91b8a8d）。突き合わせのテストあり | クラスタ、ロググループ、クラスタと node の SG とルール、クラスタの IAM ロール、OIDC プロバイダ、KMS（`module.kms`。表に無いので黒箱）、アドオン、アクセスエントリ、`time_sleep`、マネージドノードグループ・Fargate プロファイル・セルフマネージドノードグループ（それぞれ IAM ロール・起動テンプレートなど） | Auto Mode、Outposts、ID プロバイダ、IPv6 の CNI ポリシー、追加の IAM ポリシー、ノードグループの SG・配置グループ・ユーザーデータ、Karpenter・hybrid-node-role などのサブモジュール |
 
 - rds-aurora（`terraform-aws-modules/rds-aurora/aws`）は表にしない。公開サンプルでレジストリから呼ぶものが無く、P04 は `source = "../../"` で手元のソースを読む（ローカルモジュールとして展開される）。
+- **本物との違い（意図したもの、vpc 5.x）:** 表は 5.21.0 に合わせた。5.8.1 との違いは 3 つだけ。① `create_multiple_public_route_tables = true` のとき、public のルートテーブルから IGW への経路（`aws_route.public_internet_gateway` と、IPv6 のとき `…_ipv6`）が、5.8.1 は 1 つ、5.21.0 はテーブルごと（表は後者）。② `create_private_nat_gateway_route` は 5.21.0 で足された入力（5.8.1 には無い。既定は true で、5.8.1 の動きと同じ）。③ そのほか 5.21.0 で足されたもの（Block Public Access、DHCP オプションの IPv6 のリース、フローログの IAM の入力、`*_subnet_objects` の出力）は、5.8.1 の呼び出しでは渡せない・使えない。①以外は、5.8.1 の呼び出しでも作られるリソースが同じ（`SummaryTest.test_vpc5_differences_between_5_8_1_and_5_21_0`）。
+- **本物との違い（意図したもの、eks 20.x）:** 表は v20.8.5 から作った。`aws_iam_policy_document`・`data.aws_eks_addon_version`・`data.tls_certificate` などの data は載せない（アドオンの `addon_version` は渡された値だけ、OIDC プロバイダの `thumbprint_list` は `custom_oidc_thumbprints` だけ）。クラスタ作成者の ARN は、v21 と同じく文字列 `"cluster creator (the caller of Terraform)"` にした。ノードグループのユーザーデータのサブモジュール（`module.user_data`）の `null_resource`（入力の検査だけのもの）は写していない。node のグループの引数は、本物の `try(each.value.x, var.<…>_defaults.x, 既定値)` の鎖をそのまま写した（図に要る引数だけ）。**20.8.5 より新しい 20.x（20.37.2 まで）は、取り込んでいない**ので、テストでは確かめていない。取り込まずに一時フォルダで同じ入力を確かめたところ、20.37.2 は 20.8.5 より `aws_iam_policy.custom[0]` と `aws_iam_role_policy_attachment.custom[0]`（`enable_auto_mode_custom_tags` の既定が true。IAM だけ）の 2 つが多いだけで、残りのリソース・参照・名前は一致した（2026-10-26。WORKLOG）。
 - **本物との違い（意図したもの）:** eks の `data.aws_iam_session_context` から引くクラスタ作成者の ARN は、文字列 `"cluster creator (the caller of Terraform)"` にした。ノードグループのユーザーデータのサブモジュール（`module.user_data`）の `null_resource`（入力の検査だけのもの）は写していない。表の中で `data.aws_partition` を擬似パラメータとして使うので、本物では data への参照になる属性（alb の `aws_lambda_permission` の `principal` など）が `$pseudo` になる。
+- **本物と突き合わせた結果（vpc 5.x・eks 20.x。2026-10-26）:**
+  - vpc 5.x: v5.8.1 と v5.21.0（`~> 5.0`・`>= 5, < 6` の制約でも）で、vpc 6 と同じ 3 通りの入力（25・39・17 件）と T16 の `education-vpc` の入力（23 件）で、address・参照・名前とタグがすべて一致した。差が出る入力（public のルートテーブルを複数、IPv6、`create_private_nat_gateway_route`）は、上の「本物との違い」の差だけ。
+  - eks 20.x: v20.8.5 で、マネージド（`*_defaults` と、既存の IAM ロール・起動テンプレートの名前を渡したもの）・Fargate・セルフマネージドのノードグループ、アドオン（`before_compute` を含む）、アクセスエントリ、`tags`（`aws_ec2_tag`）を渡した入力で、`null_resource`（4件）を除いて 54 件の address と参照・名前が一致した。最小の入力（23 件）と、暗号化しない入力（`module.kms` が `enabled: false`）も確かめた。
 - **本物と突き合わせた結果（2026-10-17）:**
   - vpc: 3通りの入力（three-tier-modules と同じもの、AZ を `data.aws_availability_zones` から取り NAT を AZ ごとにするもの、DB サブネットをインターネットゲートウェイに向けるもの）で、作られるリソースの address（25・39・17 件）、表のリソースの間の参照、名前とタグがすべて一致した。
   - eks: マネージド・Fargate・セルフマネージドのノードグループ、アドオン、アクセスエントリを渡した入力で、`null_resource` （2件）を除いて 48 件の address と参照・名前が一致した。
@@ -61,10 +69,12 @@
 
 | 場所 | 中身 |
 |---|---|
+| `data/module-summaries/terraform-aws-vpc/v5.md` | vpc の 5.x |
 | `data/module-summaries/terraform-aws-vpc/v6.md` | vpc の 6.x |
 | `data/module-summaries/terraform-aws-alb/v10.md` | alb の 10.x |
 | `data/module-summaries/terraform-aws-rds/v7.md` | rds の 7.x と、サブモジュール 5 つ（`db_instance`・`db_subnet_group`・`db_parameter_group`・`db_option_group`・`db_instance_role_association`） |
-| `data/module-summaries/terraform-aws-eks/v21.md` | eks の 21.x と、サブモジュール 3 つ（`eks-managed-node-group`・`fargate-profile`・`self-managed-node-group`） |
+| `data/module-summaries/terraform-aws-eks/v20.md` | eks の 20.x と、サブモジュール 3 つ（`eks-managed-node-group`・`fargate-profile`・`self-managed-node-group`） |
+| `data/module-summaries/terraform-aws-eks/v21.md` | eks の 21.x と、サブモジュール 3 つ（同上） |
 | `data/module-summaries/iam-only-sources.md` | H-IAM の source の一覧（4） |
 | `data/module-summaries/NOTICE.md` | 出典とライセンスの表示（読まない） |
 

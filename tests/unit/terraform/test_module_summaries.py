@@ -68,7 +68,32 @@ class SummaryTest(unittest.TestCase):
                     for blk in mod.blocks.values():
                         if blk.kind == "data":
                             self.assertTrue(blk.plain and not blk.attrs, blk.base)
-        self.assertIn("enable_flow_log", summaries["terraform-aws-modules/vpc/aws"][0].uncovered)
+        # 1 つの source に major ごとの表がある（ファイル名の major と majors が合う。置き方の検査は MS.problems()）
+        majors = {k: [s.majors for s in v] for k, v in summaries.items()}
+        self.assertEqual(majors["terraform-aws-modules/vpc/aws"], [(5,), (6,)])
+        self.assertEqual(majors["terraform-aws-modules/eks/aws"], [(20,), (21,)])
+        self.assertEqual(majors["terraform-aws-modules/alb/aws"], [(10,)])
+        self.assertEqual(majors["terraform-aws-modules/rds/aws"], [(7,)])
+        for source in ("terraform-aws-modules/eks/aws//modules/eks-managed-node-group",
+                       "terraform-aws-modules/eks/aws//modules/fargate-profile",
+                       "terraform-aws-modules/eks/aws//modules/self-managed-node-group"):
+            self.assertEqual(majors[source], [(20,), (21,)], source)  # サブモジュールの表も、親と同じ major ごと
+        self.assertEqual(MS.problems(), [])
+        for items in summaries.values():
+            for s in items:  # ファイル名（<モジュール>/v<major>.md）と majors が合う（置き方の検査 problems() と同じことを、読んだ表で確かめる）
+                self.assertRegex(s.file, r"^terraform-aws-[a-z]+/v[0-9]+\.md$")
+                self.assertEqual(len(s.majors), 1)
+                self.assertTrue(s.file.endswith(f"/v{s.majors[0]}.md"), (s.source, s.file, s.majors))
+        by_major = {s.majors[0]: s for s in summaries["terraform-aws-modules/vpc/aws"]}
+        self.assertEqual(by_major[5].file, "terraform-aws-vpc/v5.md")
+        self.assertEqual(by_major[6].file, "terraform-aws-vpc/v6.md")
+        for s in summaries["terraform-aws-modules/vpc/aws"]:
+            self.assertIn("enable_flow_log", s.uncovered)
+        self.assertIn("outpost_subnets", by_major[5].uncovered)
+        eks = {s.majors[0]: s for s in summaries["terraform-aws-modules/eks/aws"]}
+        self.assertIn("cluster_identity_providers", eks[20].uncovered)
+        self.assertIn("eks_managed_node_groups.*.schedules", eks[20].uncovered)
+        self.assertIn("identity_providers", eks[21].uncovered)
         self.assertIn("listeners.*.authenticate_cognito", summaries["terraform-aws-modules/alb/aws"][0].uncovered)
 
     def test_choose_version(self):
@@ -85,16 +110,79 @@ class SummaryTest(unittest.TestCase):
         self.assertEqual(got[0], (6,))
         self.assertIn("not pinned", got[2])
         self.assertIn("no upper major", pick(vpc, ">= 5.0")[2])
-        for v in ("~> 5.0", "5.8.1", "2.77.0", "< 6.0"):
+        # vpc: 5.x の表ができた。5.x の制約は 5、6.x の制約は 6（これまでの選び方は変わらない）
+        for v in ("~> 5.0", "5.8.1", "= 5.8.1", "~> 5.21", ">= 5, < 6", ">= 5.0, < 6.0", "~> 5"):
+            with self.subTest(v):
+                majors, why, note = pick(vpc, v)
+                self.assertEqual((majors, why, note), ((5,), "", None))
+        for v in ("< 6.0", "<= 5.99"):  # 下限が無い: 5 を選び、前提に書く
+            with self.subTest(v):
+                majors, why, note = pick(vpc, v)
+                self.assertEqual((majors, why), ((5,), ""))
+                self.assertIn("allows majors 0 to 5", note)
+        self.assertEqual(pick(vpc, ">= 5.0")[0], (6,))  # 上限が無い: 最も新しい major
+        self.assertIn("allows majors 5 to 6", pick(vpc, ">= 5.0, < 7.0")[2])
+        self.assertEqual(pick(vpc, ">= 5.0, < 7.0")[0], (6,))
+        self.assertEqual(pick(vpc, "~> 6.0")[0], (6,))
+        for v in ("2.77.0", "4.0.0", "~> 3.0", "7.0.0", "~> 7.0", ">= 7"):
             with self.subTest(v):
                 majors, why, _ = pick(vpc, v)
                 self.assertIsNone(majors)
-                self.assertIn("it has 6.x", why)
-        self.assertEqual(pick("terraform-aws-modules/eks/aws", "~> 21.0")[0], (21,))
-        self.assertIsNone(pick("terraform-aws-modules/eks/aws", "20.8.5")[0])
+                self.assertIn("is not in the summary table (it has 5.x, 6.x)", why)
+        eks = "terraform-aws-modules/eks/aws"
+        for v, want in (("20.8.5", 20), ("~> 20.0", 20), ("= 20.8.5", 20), (">= 20, < 21", 20), ("~> 20.8", 20),
+                        ("~> 21.0", 21), ("21.29.0", 21), (">= 21", 21), ("< 21.0", 20), (">= 20.0", 21), (None, 21)):
+            with self.subTest(v):
+                self.assertEqual(pick(eks, v)[0], (want,))
+        for v in ("~> 19.15.2", "19.0.0", "~> 18.0", "22.0.0"):
+            with self.subTest(v):
+                majors, why, _ = pick(eks, v)
+                self.assertIsNone(majors)
+                self.assertIn("is not in the summary table (it has 20.x, 21.x)", why)
+        # サブモジュールも major で選ぶ
+        for sub in ("eks-managed-node-group", "fargate-profile", "self-managed-node-group"):
+            self.assertEqual(pick(f"{eks}//modules/{sub}", "~> 20.0")[0], (20,), sub)
+            self.assertEqual(pick(f"{eks}//modules/{sub}", "~> 21.0")[0], (21,), sub)
+        self.assertIsNone(pick(f"{eks}//modules/karpenter", "~> 20.0")[0])  # 表の無いサブモジュール
         self.assertEqual(pick("terraform-aws-modules/rds/aws//modules/db_instance", "~> 7.0")[0], (7,))
         self.assertIsNone(pick("terraform-aws-modules/s3-bucket/aws", "~> 4.0")[0])
         self.assertIsNone(pick(vpc, "~> foo")[0])
+
+    def test_choose_is_unchanged_for_every_previous_pair(self):
+        # 5.x・20.x の表を足す前の表（vpc の 6、eks の 21、alb の 10、rds の 7 だけ）で選んだ結果と、今の表で選んだ結果が、
+        # 前に表が選ばれた（source, version）のすべてで同じ。前に「表に無い major」だった組だけが、5・20 の表を選ぶように変わる
+        import shutil
+        with tempfile.TemporaryDirectory() as t:
+            old = Path(t) / "old"
+            shutil.copytree(MS.SUMMARY_DIR, old)
+            for gone in ("terraform-aws-vpc/v5.md", "terraform-aws-eks/v20.md"):
+                (old / gone).unlink()
+            MS._CACHE.pop(str(old), None)
+            sources = ["terraform-aws-modules/vpc/aws", "terraform-aws-modules/alb/aws", "terraform-aws-modules/rds/aws",
+                       "terraform-aws-modules/eks/aws", "terraform-aws-modules/eks/aws//modules/fargate-profile",
+                       "terraform-aws-modules/rds/aws//modules/db_instance", "terraform-aws-modules/kms/aws",
+                       "registry.terraform.io/terraform-aws-modules/vpc/aws", "foo/bar/aws"]
+            versions = [None, "", "~> foo"] + [f"{op}{m}{rest}" for op in ("", "= ", "~> ", ">= ", "> ", "< ", "<= ", "!= ")
+                                                for m in (0, 2, 4, 5, 6, 7, 10, 11, 19, 20, 21, 22)
+                                                for rest in ("", ".0", ".8.1", ".7.3")]                 + [f">= {a}, < {b}" for a in (4, 5, 6, 7, 10, 19, 20, 21) for b in (6, 7, 8, 11, 21, 22)]                 + ["~> 6.7", "6.6.0", "~> 21.0", "21.29.0", "~> 10.0", "~> 7.0", ">= 5.0, < 7.0", ">= 20.0, < 22.0"]
+            none_both, same, newly = 0, 0, []
+            for src in sources:
+                for ver in versions:
+                    a = MR.choose(src, ver, old)
+                    b = MR.choose(src, ver)
+                    if a[0] is not None:  # 前に表が選ばれた組: 同じ表（同じファイル）、同じ前提の文
+                        self.assertEqual((b[0], b[2]), (a[0], a[2]), (src, ver))
+                        same += 1
+                    elif b[0] is not None:  # 前は「表に無い」。今は 5 か 20 の表だけが当たる
+                        self.assertIn(b[0].file, ("terraform-aws-vpc/v5.md", "terraform-aws-eks/v20.md"), (src, ver))
+                        newly.append((src, ver))
+                    else:  # 前も今も表が無い（理由の文は、持っている major の列挙だけが変わる）
+                        self.assertEqual((a[2], b[2]), (None, None))
+                        none_both += 1
+            self.assertGreater(same, 1000)
+            self.assertGreater(len(newly), 50)
+            self.assertGreater(none_both, 100)
+            MS._CACHE.pop(str(old), None)
 
     def test_source_kinds_and_iam_only(self):
         self.assertTrue(is_local("./modules/x") and is_local("../../") and not is_local("modules/x"))
@@ -138,7 +226,7 @@ class SummaryTest(unittest.TestCase):
         }
         module "old" {
           source  = "terraform-aws-modules/vpc/aws"
-          version = "5.8.1"
+          version = "4.0.2"
           name    = "old"
         }
         resource "aws_instance" "x" {
@@ -156,8 +244,8 @@ class SummaryTest(unittest.TestCase):
         self.assertIn("TF-MODULE-SUMMARY", diags)
         self.assertIn("enable_flow_log, not_a_variable", diags["TF-MODULE-SUMMARY-INPUT"]["message"])
         old = res_of(raw, "module.old")
-        self.assertEqual((old["via"], old["version"]), ("module_blackbox", "5.8.1"))
-        self.assertIn("it has 6.x", next(d["message"] for d in raw["diagnostics"] if d["address"] == "module.old"))
+        self.assertEqual((old["via"], old["version"]), ("module_blackbox", "4.0.2"))
+        self.assertIn("it has 5.x, 6.x", next(d["message"] for d in raw["diagnostics"] if d["address"] == "module.old"))
         p = props(raw, "aws_instance.x")
         self.assertEqual(p["subnet_id"], res("module.vpc.aws_subnet.public[0]", "id"))
         self.assertIn("$unknown", p["acl"])  # 要約表に無い出力
@@ -482,6 +570,298 @@ class SummaryTest(unittest.TestCase):
         self.assertFalse(res_of(off, "module.m.module.kms")["enabled"])
         ng = got['module.m.module.eks_managed_node_group["example"].aws_eks_node_group.this[0]']
         self.assertEqual(ng["props"]["scaling_config"], [{"min_size": 2, "max_size": 3, "desired_size": 2}])
+
+    # --- vpc 5.x（v5.8.1 = T16、v5.21.0 = 5.x の最新 = T18 の `~> 5.0`）
+
+    VPC5_CASES = [
+        ("a", '''
+  name = "demo"
+  cidr = "10.0.0.0/16"
+  azs  = ["ap-northeast-1a", "ap-northeast-1c"]
+  public_subnets   = ["10.0.0.0/24", "10.0.1.0/24"]
+  private_subnets  = ["10.0.10.0/24", "10.0.11.0/24"]
+  database_subnets = ["10.0.20.0/24", "10.0.21.0/24"]
+  enable_nat_gateway = true
+  single_nat_gateway = true
+  create_database_subnet_group       = true
+  create_database_subnet_route_table = true
+  tags = { Project = "demo" }''', 25),
+        ("b", '''
+  name = "ex"
+  cidr = "10.0.0.0/16"
+  azs  = slice(data.aws_availability_zones.available.names, 0, 3)
+  public_subnets  = ["10.0.0.0/20", "10.0.16.0/20", "10.0.32.0/20"]
+  private_subnets = ["10.0.48.0/20", "10.0.64.0/20", "10.0.80.0/20"]
+  intra_subnets   = ["10.0.96.0/20", "10.0.112.0/20", "10.0.128.0/20"]
+  enable_nat_gateway     = true
+  one_nat_gateway_per_az = true
+  enable_vpn_gateway     = true
+  public_subnet_tags = { "kubernetes.io/role/elb" = 1 }''', 39),
+        ("c", '''
+  name = "rds"
+  cidr = "10.1.0.0/16"
+  azs  = ["us-east-1a", "us-east-1b"]
+  public_subnets   = ["10.1.0.0/24", "10.1.1.0/24"]
+  database_subnets = ["10.1.20.0/24", "10.1.21.0/24"]
+  create_database_internet_gateway_route = true
+  create_database_subnet_route_table     = true
+  manage_default_security_group          = false''', 17),
+        # T16 と同じ入力（education-vpc）
+        ("t16", '''
+  name = "education-vpc"
+  cidr = "10.0.0.0/16"
+  azs  = slice(data.aws_availability_zones.available.names, 0, 3)
+  private_subnets = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
+  public_subnets  = ["10.0.4.0/24", "10.0.5.0/24", "10.0.6.0/24"]
+  enable_nat_gateway   = true
+  single_nat_gateway   = true
+  enable_dns_hostnames = true
+  public_subnet_tags  = { "kubernetes.io/role/elb" = 1 }
+  private_subnet_tags = { "kubernetes.io/role/internal-elb" = 1 }''', 23),
+    ]
+
+    def test_vpc5_summary_matches_source(self):
+        for tag, constraint in (("v5.8.1", "5.8.1"), ("v5.21.0", "~> 5.0"), ("v5.21.0", ">= 5, < 6")):
+            src = PUBLIC / f"terraform-aws-vpc-{tag}"
+            for name, body, n in self.VPC5_CASES:
+                with self.subTest(f"{tag} {constraint} {name}"):
+                    got = self.compare_with_source(src, "terraform-aws-modules/vpc/aws", constraint, body, set())
+                    self.assertEqual(len(got), n)
+        got = self.compare_with_source(PUBLIC / "terraform-aws-vpc-v5.8.1", "terraform-aws-modules/vpc/aws", "5.8.1",
+                                       self.VPC5_CASES[1][1], set())
+        self.assertEqual(got["module.m.aws_subnet.public[2]"]["props"]["availability_zone"], {"$az": 2})
+
+    def test_vpc5_differences_between_5_8_1_and_5_21_0(self):
+        # 表は 5.21.0 に合わせてある。5.8.1 との違いは次の 3 つだけ（docs/spec/module-summaries.md の 3）。どれも、本物の 2 つの版を
+        # 同じ入力で展開した結果の違いと一致することを確かめる
+        multi = '''
+  name = "multi"
+  azs  = ["us-east-1a", "us-east-1b", "us-east-1c"]
+  public_subnets  = ["10.2.0.0/24", "10.2.1.0/24", "10.2.2.0/24"]
+  private_subnets = ["10.2.10.0/24", "10.2.11.0/24", "10.2.12.0/24"]
+  enable_nat_gateway = true
+  create_multiple_public_route_tables = true'''
+        old, new = PUBLIC / "terraform-aws-vpc-v5.8.1", PUBLIC / "terraform-aws-vpc-v5.21.0"
+        # (1) public のルートテーブルを複数作るとき、IGW への経路は 5.8.1 が 1 つ、5.21.0 がテーブルごと。表は 5.21.0 と一致
+        got = self.compare_with_source(new, "terraform-aws-modules/vpc/aws", "~> 5.0", multi, set())
+        self.assertEqual([a for a in got if "public_internet_gateway" in a],
+                         [f"module.m.aws_route.public_internet_gateway[{i}]" for i in range(3)])
+        got = self.compare_with_source(old, "terraform-aws-modules/vpc/aws", "5.8.1", multi,
+                                       {f"module.m.aws_route.public_internet_gateway[{i}]" for i in (1, 2)})
+        self.assertIn("module.m.aws_route.public_internet_gateway[2]", got)  # 表は 3 つ作る（5.8.1 の本物は 1 つ）
+        # (2) IPv6 を有効にして NAT を使うとき、NAT64 の経路（private_dns64_nat_gateway。どちらの版も作る）は表に写していない。
+        #     5.8.1 は IPv6 の IGW 経路も 1 つ（上の (1) と同じ違い）
+        v6 = multi + "\n  enable_ipv6 = true"
+        dns64 = {f"module.m.aws_route.private_dns64_nat_gateway[{i}]" for i in range(3)}
+        self.compare_with_source(new, "terraform-aws-modules/vpc/aws", "~> 5.0", v6, dns64)
+        self.compare_with_source(old, "terraform-aws-modules/vpc/aws", "5.8.1", v6, dns64 | {
+            f"module.m.aws_route.public_internet_gateway[{i}]" for i in (1, 2)} | {
+            f"module.m.aws_route.public_internet_gateway_ipv6[{i}]" for i in (1, 2)})
+        # (3) create_private_nat_gateway_route は 5.21.0 で足された入力（5.8.1 には無い）。false なら private の NAT 経路を作らない
+        nat = '''
+  name = "x"
+  azs  = ["us-east-1a", "us-east-1b"]
+  public_subnets  = ["10.0.0.0/24", "10.0.1.0/24"]
+  private_subnets = ["10.0.10.0/24", "10.0.11.0/24"]
+  enable_nat_gateway = true
+  create_private_nat_gateway_route = false'''
+        got = self.compare_with_source(new, "terraform-aws-modules/vpc/aws", "~> 5.0", nat, set())
+        self.assertFalse([a for a in got if "private_nat_gateway" in a])
+        self.assertIn("module.m.aws_nat_gateway.this[1]", got)
+
+    def test_vpc5_not_covered_inputs_are_reported(self):
+        raw = build_module_call("terraform-aws-modules/vpc/aws", '''
+  name = "n"
+  azs  = ["us-east-1a"]
+  public_subnets = ["10.0.0.0/24"]
+  elasticache_subnets = ["10.0.9.0/24"]
+  vpc_block_public_access_options = { internet_gateway_block_mode = "block-bidirectional" }''', "~> 5.0")
+        assert_valid(self, raw)
+        msg = next(d["message"] for d in raw["diagnostics"] if d["code"] == "TF-MODULE-SUMMARY-INPUT")
+        self.assertIn("elasticache_subnets", msg)
+        self.assertIn("vpc_block_public_access_options", msg)
+        self.assertIn("5.x", next(d["message"] for d in raw["diagnostics"] if d["code"] == "TF-MODULE-SUMMARY"))
+
+    # --- eks 20.x（v20.8.5 = T16）
+
+    EKS20_BODY = '''
+  cluster_name    = "ex-eks"
+  cluster_version = "1.29"
+  cluster_endpoint_public_access           = true
+  enable_cluster_creator_admin_permissions = true
+  tags = { Env = "dev", Name = "skipped" }
+  cluster_addons = {
+    coredns    = {}
+    kube-proxy = {}
+    vpc-cni    = { before_compute = true }
+  }
+  vpc_id     = "vpc-123"
+  subnet_ids = ["subnet-1", "subnet-2"]
+  eks_managed_node_group_defaults = {
+    ami_type = "AL2023_x86_64_STANDARD"
+    iam_role_additional_policies = { ssm = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore" }
+  }
+  eks_managed_node_groups = {
+    example = {
+      instance_types = ["m6i.large"]
+      min_size     = 2
+      desired_size = 2
+    }
+    second = {
+      name                                  = "second-ng"
+      use_name_prefix                       = false
+      launch_template_name                  = "lt-second"
+      launch_template_use_name_prefix       = false
+      attach_cluster_primary_security_group = true
+      create_iam_role                       = false
+      iam_role_arn                          = "arn:aws:iam::111122223333:role/ng"
+    }
+  }
+  fargate_profiles = {
+    kube-system = {
+      selectors = [{ namespace = "kube-system" }]
+    }
+  }
+  self_managed_node_groups = {
+    smng  = { instance_type = "m6i.large" }
+    other = {
+      create_access_entry         = false
+      create_iam_instance_profile = false
+      iam_role_arn                = "arn:aws:iam::111122223333:role/x"
+    }
+  }
+  access_entries = {
+    ex = {
+      principal_arn = "arn:aws:iam::111122223333:role/ex"
+      policy_associations = {
+        view = {
+          policy_arn   = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy"
+          access_scope = { type = "cluster" }
+        }
+      }
+    }
+  }'''
+    # 意図した違い: ユーザーデータのサブモジュールの null_resource（入力の検査だけ。表に写していない）
+    EKS20_ALLOWED = {
+        'module.m.module.eks_managed_node_group["example"].module.user_data.null_resource.validate_cluster_service_cidr',
+        'module.m.module.eks_managed_node_group["second"].module.user_data.null_resource.validate_cluster_service_cidr',
+        'module.m.module.self_managed_node_group["smng"].module.user_data.null_resource.validate_cluster_service_cidr',
+        'module.m.module.self_managed_node_group["other"].module.user_data.null_resource.validate_cluster_service_cidr',
+    }
+
+    def test_eks20_summary_matches_source(self):
+        src = PUBLIC / "terraform-aws-eks-v20.8.5"  # v20.8.5（T16 の版）
+        for constraint in ("20.8.5", "~> 20.0", ">= 20, < 21"):
+            with self.subTest(constraint):
+                got = self.compare_with_source(src, "terraform-aws-modules/eks/aws", constraint, self.EKS20_BODY,
+                                               self.EKS20_ALLOWED)
+                self.assertEqual(len(got), 54)
+        kms = got["module.m.module.kms"]  # 表の中の黒箱の呼び出し（本物と同じ address。20.8.5 の版は 2.1.0）
+        self.assertEqual((kms["via"], kms["enabled"], kms["version"]), ("module_blackbox", True, "2.1.0"))
+        self.assertIn('module.m.aws_ec2_tag.cluster_primary_security_group["Env"]', got)  # tags（Name 以外）ごと
+        self.assertNotIn('module.m.aws_ec2_tag.cluster_primary_security_group["Name"]', got)
+        ng = got['module.m.module.eks_managed_node_group["example"].aws_eks_node_group.this[0]']
+        self.assertEqual(ng["props"]["scaling_config"], [{"min_size": 2, "max_size": 3, "desired_size": 2}])
+        self.assertEqual(ng["props"]["ami_type"], "AL2023_x86_64_STANDARD")  # *_defaults の値が渡る
+        # 暗号化しない（cluster_encryption_config = {}）と、黒箱の呼び出しは enabled: false、暗号化のポリシーも作らない
+        off = build_module_call("terraform-aws-modules/eks/aws", '\n  cluster_name = "x"\n  cluster_encryption_config = {}', "~> 20.0")
+        assert_valid(self, off)
+        self.assertFalse(res_of(off, "module.m.module.kms")["enabled"])
+        self.assertNotIn("module.m.aws_iam_policy.cluster_encryption[0]", [r["address"] for r in off["resources"]])
+        # 最小の入力（本物と同じ address、すべて）
+        got = self.compare_with_source(src, "terraform-aws-modules/eks/aws", "~> 20.0",
+                                       '\n  cluster_name = "min"\n  vpc_id = "vpc-1"\n  subnet_ids = ["s-1", "s-2"]', set())
+        self.assertEqual(len(got), 23)
+
+    def test_eks20_references_between_summarised_resources(self):
+        # 表のリソースの間の参照が、期待する形でできている（本物との一致は上のテスト）
+        raw = build_module_call("terraform-aws-modules/eks/aws", self.EKS20_BODY, "20.8.5")
+        assert_valid(self, raw)
+        pairs = {(r["from"], r["to"]) for r in raw["references"] if r["state"] == "active"}
+        ng = 'module.m.module.eks_managed_node_group["example"]'
+        for want in [
+            ("module.m.aws_eks_cluster.this[0]", "module.m.aws_iam_role.this[0]"),
+            ("module.m.aws_eks_cluster.this[0]", "module.m.module.kms"),
+            ("module.m.aws_eks_cluster.this[0]", "module.m.aws_security_group.cluster[0]"),
+            ("module.m.aws_security_group_rule.node[\"ingress_cluster_443\"]", "module.m.aws_security_group.cluster[0]"),
+            ("module.m.aws_eks_addon.this[\"coredns\"]", "module.m.aws_eks_cluster.this[0]"),
+            (ng + ".aws_eks_node_group.this[0]", ng + ".aws_iam_role.this[0]"),
+            (ng + ".aws_eks_node_group.this[0]", ng + ".aws_launch_template.this[0]"),
+            (ng + ".aws_launch_template.this[0]", "module.m.aws_security_group.node[0]"),
+            ("module.m.module.fargate_profile[\"kube-system\"].aws_eks_fargate_profile.this[0]",
+             "module.m.module.fargate_profile[\"kube-system\"].aws_iam_role.this[0]"),
+            ("module.m.module.self_managed_node_group[\"smng\"].aws_autoscaling_group.this[0]",
+             "module.m.module.self_managed_node_group[\"smng\"].aws_launch_template.this[0]"),
+        ]:
+            self.assertIn(want, pairs, want)
+
+    def test_eks20_not_covered_inputs_are_reported(self):
+        raw = build_module_call("terraform-aws-modules/eks/aws", '''
+  cluster_name = "n"
+  cluster_identity_providers = { oidc = { client_id = "x" } }
+  create_cni_ipv6_iam_policy = true
+  not_a_variable = 1
+  eks_managed_node_groups = {
+    a = { enable_efa_support = true, schedules = { s = { min_size = 1 } } }
+    b = {}
+  }
+  self_managed_node_group_defaults = { schedules = { s = {} } }''', "20.8.5")
+        assert_valid(self, raw)
+        diags = {d["code"]: d["message"] for d in raw["diagnostics"] if d.get("address") == "module.m"}
+        msg = diags["TF-MODULE-SUMMARY-INPUT"]
+        for name in ("cluster_identity_providers", "create_cni_ipv6_iam_policy", "not_a_variable",
+                     "eks_managed_node_groups.*.enable_efa_support", "eks_managed_node_groups.*.schedules",
+                     "self_managed_node_group_defaults.schedules"):
+            self.assertIn(name, msg)
+        self.assertIn("20.x", diags["TF-MODULE-SUMMARY"])
+
+    # --- T16・T18: vpc 5.x・eks 20.x の黒箱が無くなった
+
+    def blackboxes(self, folder: str) -> tuple:
+        raw = tf_build.build_raw(PUBLIC / folder, WS)
+        assert_valid(self, raw)
+        return {r["address"]: r for r in raw["resources"] if r["type"] == "module" and r.get("via") == "module_blackbox"}, raw
+
+    def test_t16_and_t18_have_no_blackbox_for_the_summarised_modules(self):
+        # T16: vpc 5.8.1 と eks 20.8.5 が要約表で展開される。黒箱に残るのは、要約表の 4 モジュールの外（表の中の kms と iam）だけ
+        bb, raw = self.blackboxes("learn-terraform-provision-eks-cluster")
+        self.assertEqual(sorted(bb), ["module.eks.module.kms", "module.irsa-ebs-csi"])
+        self.assertEqual(bb["module.eks.module.kms"]["version"], "2.1.0")
+        self.assertEqual(bb["module.irsa-ebs-csi"]["source"], "terraform-aws-modules/iam/aws//modules/iam-assumable-role-with-oidc")
+        summ = {r["address"].split(".")[1] for r in raw["resources"] if r.get("via") == "module_summary"}
+        self.assertEqual(summ, {"vpc", "eks"})
+        for mod in ("module.vpc", "module.eks"):
+            self.assertNotIn(mod, bb)
+            self.assertIn("TF-MODULE-SUMMARY", [d["code"] for d in raw["diagnostics"] if d.get("address") == mod])
+        self.assertEqual(len([r for r in raw["resources"] if r["address"].startswith("module.eks.module.eks_managed_node_group[")
+                              and r["type"] == "aws_eks_node_group"]), 2)
+        self.assertIn("module.vpc.aws_nat_gateway.this[0]", [r["address"] for r in raw["resources"]])
+        # eks のクラスタは、vpc のサブネットと node のグループへの参照を持つ（module の呼び出しの引数を通して）
+        refs = {(r["from"], r["to"]) for r in raw["references"] if r["state"] == "active"}
+        self.assertIn(("module.eks.aws_eks_cluster.this[0]", "module.vpc.aws_subnet.private[0]"), refs)
+        self.assertIn(("module.eks.aws_security_group.node[0]", "module.vpc.aws_vpc.this[0]"), refs)
+        # T18: environment は vpc `~> 5.0` が展開される。acm は表の外
+        bb, raw = self.blackboxes("terraform-aws-eks-blueprints/patterns/blue-green-upgrade/environment")
+        self.assertEqual(sorted(bb), ["module.acm"])
+        self.assertIn("5.x", next(d["message"] for d in raw["diagnostics"] if d["code"] == "TF-MODULE-SUMMARY"
+                                  and d["address"] == "module.vpc"))
+        self.assertIn("module.vpc.aws_vpc.this[0]", [r["address"] for r in raw["resources"]])
+        # T18 の eks-blue・eks-green の eks は `~> 19.15.2`（19.x の表は作らない）なので黒箱のまま。ほかは表の外のモジュール
+        for env in ("eks-blue", "eks-green"):
+            bb, raw = self.blackboxes(f"terraform-aws-eks-blueprints/patterns/blue-green-upgrade/{env}")
+            self.assertEqual(sorted(bb), sorted([
+                "module.eks_cluster.module.ebs_csi_driver_irsa", "module.eks_cluster.module.eks",
+                "module.eks_cluster.module.eks_blueprints_addons",
+                'module.eks_cluster.module.eks_blueprints_dev_teams["burnham"]',
+                'module.eks_cluster.module.eks_blueprints_dev_teams["riker"]',
+                'module.eks_cluster.module.eks_blueprints_ecsdemo_teams["ecsdemo-crystal"]',
+                'module.eks_cluster.module.eks_blueprints_ecsdemo_teams["ecsdemo-frontend"]',
+                'module.eks_cluster.module.eks_blueprints_ecsdemo_teams["ecsdemo-nodejs"]',
+                "module.eks_cluster.module.eks_blueprints_platform_teams",
+                "module.eks_cluster.module.gitops_bridge_bootstrap", "module.eks_cluster.module.vpc_cni_irsa"]), env)
+            self.assertEqual(bb["module.eks_cluster.module.eks"]["version"], "~> 19.15.2")
+            why = next(d["message"] for d in raw["diagnostics"] if d.get("address") == "module.eks_cluster.module.eks")
+            self.assertIn("it has 20.x, 21.x", why)
 
 
 class SummaryTableFileTest(unittest.TestCase):

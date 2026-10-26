@@ -6,9 +6,11 @@
 
 | ファイル | 上流のリポジトリ | 写した版 |
 |---|---|---|
+| `terraform-aws-vpc/v5.md` | https://github.com/terraform-aws-modules/terraform-aws-vpc | v5.21.0（コミット 7c1f791）。v5.8.1（コミット 25322b6）とも突き合わせた |
 | `terraform-aws-vpc/v6.md` | https://github.com/terraform-aws-modules/terraform-aws-vpc | v6.7.3（コミット b3abd6d） |
 | `terraform-aws-alb/v10.md` | https://github.com/terraform-aws-modules/terraform-aws-alb | v10.5.1（コミット 6c6e48c） |
 | `terraform-aws-rds/v7.md` | https://github.com/terraform-aws-modules/terraform-aws-rds | v7.2.2（コミット 175da04） |
+| `terraform-aws-eks/v20.md` | https://github.com/terraform-aws-modules/terraform-aws-eks | v20.8.5（コミット afadb14） |
 | `terraform-aws-eks/v21.md` | https://github.com/terraform-aws-modules/terraform-aws-eks | v21.29.0（コミット 91b8a8d） |
 
 - ライセンス: Apache License 2.0（https://www.apache.org/licenses/LICENSE-2.0）。著作権表示は各上流リポジトリの LICENSE にあります。
