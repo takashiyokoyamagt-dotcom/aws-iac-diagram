@@ -796,7 +796,7 @@ TF アダプタを公開サンプルの TF すべてにかけて確かめ、TF�
 ## 2026-10-26 フェーズ2b の R2: Terraform の分割
 
 ### 概要
-構成の階層化（PLAN の 1.4）の 2 番目。**中身の動きは変えずに**、`scripts/adapters/tf.py`（2,612 行。CLI と、1 クラス 1,700 行の `ModuleEval` を含む）を入口 `scripts/adapt_tf.py` と `scripts/aws_iac_diagram/adapters/terraform/` の 26 ファイルに分け、`tf_plan.py`（1,558 行）・`tf_eval.py`・`tf_modules.py` もサブパッケージ `plan/`・`evaluator/`・`modules/` に分けた。行数の免除（`EXEMPT`）は空。ローカルのブランチ `phase2b-r2`（main の `26dca6b` から。コミット 5 つ。push はしていない）。第三者レビューは別。
+構成の階層化（PLAN の 1.4）の 2 番目。**中身の動きは変えずに**、`scripts/adapters/tf.py`（2,612 行。CLI と、1 クラス 1,700 行の `ModuleEval` を含む）を入口 `scripts/adapt_tf.py` と `scripts/aws_iac_diagram/adapters/terraform/` の 26 ファイルに分け、`tf_plan.py`（1,558 行）・`tf_eval.py`・`tf_modules.py` もサブパッケージ `plan/`・`evaluator/`・`modules/` に分けた。行数の免除（`EXEMPT`）は空。ローカルのブランチ `phase2b-r2`（main の `26dca6b` から。コミット 6 つと、レビュー対応の 1 つ。push はしていない）。第三者レビューは別。
 
 ### コミット
 | # | 内容 |
@@ -805,7 +805,9 @@ TF アダプタを公開サンプルの TF すべてにかけて確かめ、TF�
 | 2 `81003bd` | `adapters/tf.py` を分ける（本体は `git mv` で `module_expr.py` へ）。入口 `adapt_tf.py`、`hcl`・`addresses`・`refs`・`model`・`build`・`module_*` 7 ファイル |
 | 3 `3848347` | `evaluator/`・`modules/`・`plan/` を責務ごとに分ける。`EXEMPT` を空に |
 | 4 `ab3dacf` | CI（bash・PowerShell）・README・ir-schema.md・module-summaries.md・PLAN・architecture.md の参照と説明 |
-| 5 | HANDOFF・WORKLOG（この節） |
+| 5 `edab37f` | HANDOFF・WORKLOG（この節） |
+| 6 `3eb043b` | PLAN の取り残しの path |
+| 7 | レビュー対応（下の「レビューの指摘への対応」） |
 
 golden は 4 つのコミットのそれぞれで 101/101 一致、単体テストは 323 → 325 → 326 → 326 件が通った。
 
@@ -869,3 +871,13 @@ golden は 4 つのコミットのそれぞれで 101/101 一致、単体テス�
 - `modules/summaries.py` の `SUMMARY_FILE` の相対の深さ（`parents[5]`）は R4（`data/` への移動）でまた直す。
 - `.tf` の側と plan の側で重複していた `collect`／`dedupe`／`block_address`／`inst_address` は 1 つにした。`PSEUDO_DATA` は両方にあるが形が違う（`.tf` は属性 → 擬似パラメータ、plan は型 → 属性）ので残した。
 - コミットのメッセージの番号は (1/4)〜(3/4) の後に (4/5) と書いた（途中で 5 つ目が増えたため）。
+
+### レビューの指摘への対応（R2 の第三者レビュー: APPROVE WITH CHANGES）
+動きの差は見つからなかった（約 110 万回の比較）。次の 5 点を 1 つのコミットで直した。
+1. **古い参照**: `references/module-summaries.md` の 4 行目が `tf_modules.py` のままだったのを `modules/summaries.py` に直した。`git grep "tf_modules|tf_eval|tf_plan\.py|adapters/tf\.py"`（skills・README・SKILL.md・NOTICE・architecture.md・.github）の残りは、`ir-schema.md` の `tests/test_tf_plan.py`（実在するテスト）と architecture.md の「R2 で免除を外した」という履歴の記述だけ。
+2. **`doctor.py` の `REQUIRED_FILES`**: 実行時に使うファイルをすべて並べた（48 の `.py`（`scripts/` の下。`maintenance/` を除く。`__init__.py` も）と、実行時に読むデータ 7 つ（アイコン辞書、2 つのスキーマ、3 つの規則表、TF の要約表）と `SKILL.md`。56 件）。新しいテスト `tests/test_doctor_required_files.py`（5 件）が、一覧とディスクの実行時ファイルが同じであること（足し忘れも、消したファイルの残しも失敗）、スクリプトが開く `references/…` のデータが `RUNTIME_DATA` にあること、一覧の全ファイルを 1 つずつ消すと `check_skill` が必ずそのファイルを error で報告すること、TF のモジュール 1 つを消した SKILL のコピーで `doctor.py` が終了コード 2 になることを確かめる。手でも、日本語とスペースを含むパスの完全なコピーで 56 ファイルを 1 つずつ消して `doctor.py` を動かした: 完全なコピーは終了コード 0（status ok）、55 ファイルは終了コード 2 で、欠けたファイルだけを報告。残りの 1 つは `scripts/doctor.py` 自身で、消すと doctor が動かない（Python が「ファイルが無い」で終了コード 2 になるだけで、doctor の報告ではない）。
+3. **`adapters/terraform` の中の順序を守るテスト**: `TERRAFORM_GROUPS`・`INTRA_TERRAFORM`（evaluator ・ base ・ modules ・ mixins ・ module_eval ・ build ・ plan の 7 グループ。今の実行時の import と同じ最小の辺。`if TYPE_CHECKING:` の中は数えない）を `tests/test_architecture.py` に足し、docs/architecture.md の表（`terraform-order` の印）と照合する。`evaluator/values.py` → `module_eval`、`plan/values.py` → `module_expr`、`hcl.py` → `build` のほか、modules → base、mixins → `module_eval`、`module_eval` → `build`、`model.py` の `import … as`、相対 import、グループに無い新しいファイルを一時フォルダのコピーに入れ、どれも失敗する。TYPE_CHECKING の中の import が通ることも確かめる。architecture のテストは 27 → 34 件。
+4. **使われていない `TYPE_CHECKING` の import**: `module_load`・`module_props`・`module_expr`・`module_vars` の 4 つから、`ModuleEval` の import と `TYPE_CHECKING` の import を外した。`pyflakes`（`skills`・`tests`・`aws-iac-diagram-workspace/tools`）は、この変更の前からある 3 件（`test_tf_adapter.py` の `v`、`test_tf_plan.py` の `pw`、`make_plan_json.py` の `moto`）だけ。
+5. 小さな直し: `test_architecture.py` の docstring（`import tf` → `import adapt_tf`）、この節の「コミット 5 つ」。
+
+単体テストは 338 件（326 + doctor 5 + architecture 7）。

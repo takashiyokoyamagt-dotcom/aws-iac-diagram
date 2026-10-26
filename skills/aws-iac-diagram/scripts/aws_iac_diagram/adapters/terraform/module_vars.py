@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import hcl2
 from lark import Tree
@@ -17,9 +16,6 @@ from aws_iac_diagram.adapters.terraform.hcl import (
 )
 from aws_iac_diagram.adapters.terraform.model import ModObj
 from aws_iac_diagram.adapters.terraform.refs import prepend_through, through_refs
-
-if TYPE_CHECKING:
-    from aws_iac_diagram.adapters.terraform.module_eval import ModuleEval
 
 
 COMPLEX_TYPES = {"list", "set", "map", "object", "tuple"}

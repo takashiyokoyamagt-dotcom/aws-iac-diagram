@@ -32,15 +32,68 @@ sys.path.insert(0, str(SKILL_DIR / "scripts"))
 # main() で UTF-8 に切り替える前の値（cp932 などの切り分けに使う）
 ORIGINAL_STDOUT_ENCODING = getattr(sys.stdout, "encoding", None)
 
-# SKILL が読む同梱ファイル（無ければ配布の取り込み方が誤っている）
+# SKILL が実行時に使う同梱ファイル（無ければ配布の取り込み方が誤っている）。doctor は PEP 723 の依存を持たず、
+# パッケージが欠けていても動かす（欠けは error にする）ので、ここではファイルの有無だけを見る。実行時のファイル（scripts/ の .py。maintenance/ を除く）と
+# この一覧が食い違うと tests/test_doctor_required_files.py が失敗する（モジュールを足したら、ここにも足す）
 REQUIRED_FILES = [
     "SKILL.md",
-    "scripts/aws_iac_diagram/platform/drawio_cli.py",
-    "scripts/adapt_tf.py",  # Terraform アダプタの入口と、その本体（欠けた取り込みを実行前に見つける）
-    "scripts/aws_iac_diagram/adapters/terraform/build.py",
+    # 実行時に読むデータ（スキーマ、規則表、アイコンの辞書、TF のモジュールの要約表）
     "references/icons/catalog.json",
-    "references/module-summaries.md",  # TF アダプタのレジストリモジュールの要約表（無いと黒箱になり、図が欠ける）
+    "references/ir-raw.schema.json",
     "references/ir.schema.json",
+    "references/edge-rules.md",
+    "references/relation-resources.md",
+    "references/resource-catalog.md",
+    "references/module-summaries.md",  # TF アダプタのレジストリモジュールの要約表（無いと黒箱になり、図が欠ける）
+    # scripts/ の .py（入口、パッケージ aws_iac_diagram/ のすべて）
+    "scripts/adapt_tf.py",
+    "scripts/adapters/cfn.py",
+    "scripts/aws_iac_diagram/__init__.py",
+    "scripts/aws_iac_diagram/adapters/__init__.py",
+    "scripts/aws_iac_diagram/adapters/cloudformation/__init__.py",
+    "scripts/aws_iac_diagram/adapters/registry.py",
+    "scripts/aws_iac_diagram/adapters/terraform/__init__.py",
+    "scripts/aws_iac_diagram/adapters/terraform/addresses.py",
+    "scripts/aws_iac_diagram/adapters/terraform/build.py",
+    "scripts/aws_iac_diagram/adapters/terraform/evaluator/__init__.py",
+    "scripts/aws_iac_diagram/adapters/terraform/evaluator/functions.py",
+    "scripts/aws_iac_diagram/adapters/terraform/evaluator/values.py",
+    "scripts/aws_iac_diagram/adapters/terraform/hcl.py",
+    "scripts/aws_iac_diagram/adapters/terraform/model.py",
+    "scripts/aws_iac_diagram/adapters/terraform/module_emit.py",
+    "scripts/aws_iac_diagram/adapters/terraform/module_eval.py",
+    "scripts/aws_iac_diagram/adapters/terraform/module_expand.py",
+    "scripts/aws_iac_diagram/adapters/terraform/module_expr.py",
+    "scripts/aws_iac_diagram/adapters/terraform/module_load.py",
+    "scripts/aws_iac_diagram/adapters/terraform/module_props.py",
+    "scripts/aws_iac_diagram/adapters/terraform/module_vars.py",
+    "scripts/aws_iac_diagram/adapters/terraform/modules/__init__.py",
+    "scripts/aws_iac_diagram/adapters/terraform/modules/resolve.py",
+    "scripts/aws_iac_diagram/adapters/terraform/modules/sources.py",
+    "scripts/aws_iac_diagram/adapters/terraform/modules/summaries.py",
+    "scripts/aws_iac_diagram/adapters/terraform/plan/__init__.py",
+    "scripts/aws_iac_diagram/adapters/terraform/plan/addresses.py",
+    "scripts/aws_iac_diagram/adapters/terraform/plan/combine.py",
+    "scripts/aws_iac_diagram/adapters/terraform/plan/consistency.py",
+    "scripts/aws_iac_diagram/adapters/terraform/plan/diagnostics.py",
+    "scripts/aws_iac_diagram/adapters/terraform/plan/masking.py",
+    "scripts/aws_iac_diagram/adapters/terraform/plan/raw.py",
+    "scripts/aws_iac_diagram/adapters/terraform/plan/read.py",
+    "scripts/aws_iac_diagram/adapters/terraform/plan/reader.py",
+    "scripts/aws_iac_diagram/adapters/terraform/plan/values.py",
+    "scripts/aws_iac_diagram/adapters/terraform/refs.py",
+    "scripts/aws_iac_diagram/core/__init__.py",
+    "scripts/aws_iac_diagram/core/ir_raw.py",
+    "scripts/aws_iac_diagram/emit/__init__.py",
+    "scripts/aws_iac_diagram/icons/__init__.py",
+    "scripts/aws_iac_diagram/layout/__init__.py",
+    "scripts/aws_iac_diagram/normalize/__init__.py",
+    "scripts/aws_iac_diagram/platform/__init__.py",
+    "scripts/aws_iac_diagram/platform/drawio_cli.py",
+    "scripts/aws_iac_diagram/validate/__init__.py",
+    "scripts/doctor.py",
+    "scripts/find_aws_icon.py",
+    "scripts/validate_ir.py",
 ]
 
 

@@ -2,7 +2,6 @@
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 
 from lark import Tree
 
@@ -11,9 +10,6 @@ from aws_iac_diagram.adapters.terraform.evaluator.values import Az, Concat, Json
 from aws_iac_diagram.adapters.terraform.hcl import identifier_name, label_text, name_of, sig
 from aws_iac_diagram.adapters.terraform.refs import ref_order
 from aws_iac_diagram.core import ir_raw
-
-if TYPE_CHECKING:
-    from aws_iac_diagram.adapters.terraform.module_eval import ModuleEval
 
 
 # 作られないブロックの中で info に下げる code（値が決まらないことによるもの。参照の誤り・循環は下げない）

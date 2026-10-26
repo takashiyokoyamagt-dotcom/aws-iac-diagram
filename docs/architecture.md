@@ -63,7 +63,21 @@ skills/aws-iac-diagram/
 | `plan/values.py`・`addresses.py`・`masking.py`・`consistency.py`・`diagnostics.py`・`raw.py`・`combine.py` | 183・65・72・59・10・78・273 | unknown・sensitive の印を持つ値／plan の address／sensitive の伏せ字／props と参照の整合／診断の部品／plan だけから raw IR／`.tf` と合わせる |
 
 - **ミックスインは状態を持たない。** `ModuleEval` の属性はすべて `module_eval.py` の `__init__` に書く（ミックスインのメソッドは `self.xxx` で互いを呼ぶ）。ミックスインは `module_eval.py` を実行時には import しない（子のモジュールは `type(self)(…)` で作る。型の注釈のためだけに `TYPE_CHECKING` で import する）。
-- 下の層から上へ: `evaluator/values` → `evaluator/functions`、`hcl`、`addresses`、`refs`、`model`、`modules/sources` → `summaries` → `resolve`、`module_*`（ミックスイン）→ `module_eval` → `build`。`plan/` は `read` → `values`・`addresses` → `reader` → `masking`・`consistency`・`raw` → `combine` の向きで、`evaluator/`・`module_*` は import しない。入口の `adapt_tf.py` だけが `build`・`plan/read` を読む。
+- **adapters/terraform の中の順序**（`tests/test_architecture.py` の `TERRAFORM_GROUPS`・`INTRA_TERRAFORM`。下の表と同じで、食い違うとテストが落ちる）: ファイルを次のグループに分け、**グループのあいだでは表の「import してよいグループ」にある向きだけ**を許す（同じグループの中は常に可。グループの中のファイルの順序は見ない）。表に無いファイルを足すと失敗する（グループを決める）。`if TYPE_CHECKING:` の中の import は実行されないので数えない（型の注釈のために `module_eval` を読むものがある）。今の実際の import と同じ最小の辺だけを書いてある。
+
+<!-- terraform-order:begin -->
+| グループ | 中身 | import してよいグループ |
+|---|---|---|
+| `evaluator` | `evaluator/`（値の型と組み込み関数） | （なし） |
+| `base` | `hcl`・`model`・`addresses`・`refs` | `evaluator` |
+| `modules` | `modules/`（source・要約表・版の選択） | （なし） |
+| `mixins` | `module_load`・`module_vars`・`module_expand`・`module_expr`・`module_props`・`module_emit` | `base` `evaluator` `modules` |
+| `module_eval` | `module_eval` | `base` `mixins` `modules` |
+| `build` | `build` | `base` `evaluator` `module_eval` `plan` |
+| `plan` | `plan/`（plan JSON） | `base` |
+<!-- terraform-order:end -->
+
+  つまり、`evaluator/`・`modules/` はほかの Terraform のファイルを import せず、`plan/` は `evaluator/`・`modules/`・`module_*` を import せず（`base` だけ）、入口の `adapt_tf.py` だけが `build`・`plan/read` を読む（入口はこの表の外。パッケージ全体の決まりは 3 の表）。
 - モジュールの属性を直接書き換えるテスト（`mock.patch.object`）は、使われる側のモジュールに当てる（`plan/read.py` の `MAX_PLAN_BYTES`・`_read_json`、`modules/summaries.py` の `SUMMARY_FILE`）。移したときは、当てた先が実際に使われているか（当てたのに落ちない、が無いか）を変異で確かめる。
 
 `doctor.py`・`validate_ir.py`・`find_aws_icon.py` は、いまは入口と本体が 1 ファイルです（R1 では動きを変えないため、そのままにした）。本体の部分は、`validate`・`icons`・`platform` が育つフェーズで層に移します。

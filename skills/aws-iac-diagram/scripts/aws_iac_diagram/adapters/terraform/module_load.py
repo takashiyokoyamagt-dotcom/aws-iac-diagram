@@ -4,7 +4,6 @@ override のファイルは、ほかのファイルをすべて読んでから T
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import hcl2
 from lark import Tree
@@ -12,9 +11,6 @@ from lark import Tree
 from aws_iac_diagram.adapters.terraform.hcl import const, fix_heredocs, label_text, merge_body, name_of, sig
 from aws_iac_diagram.adapters.terraform.model import Block
 from aws_iac_diagram.adapters.terraform.modules import summaries as MS
-
-if TYPE_CHECKING:
-    from aws_iac_diagram.adapters.terraform.module_eval import ModuleEval
 
 
 _SUMMARY_TREES: dict = {}

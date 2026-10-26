@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import TYPE_CHECKING
 
 from lark import Token, Tree
 
@@ -20,9 +19,6 @@ from aws_iac_diagram.adapters.terraform.hcl import (
 )
 from aws_iac_diagram.adapters.terraform.model import ModObj, ResList
 from aws_iac_diagram.adapters.terraform.refs import through_refs
-
-if TYPE_CHECKING:
-    from aws_iac_diagram.adapters.terraform.module_eval import ModuleEval
 
 
 # 引数や要素から選ぶ関数（選ばなかったものの中の参照を pruned にする。CFN の Fn::Select と同じ）

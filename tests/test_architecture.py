@@ -71,6 +71,29 @@ EXEMPT: dict[str, dict] = {}
 # サブパッケージ（フォルダ）を持ってよい層。層の表の外に新しい層が増えないように、ここに書いたものの直下だけ許す
 SUBPACKAGE_PARENTS = {"adapters/terraform", "adapters/cloudformation"}
 
+# adapters/terraform の中の順序（docs/architecture.md の表と同じ。食い違えば失敗）。下のグループは上のグループを import しない。
+# 同じグループの中の import は常に可（グループの中のファイルの順序は見ない）。`if TYPE_CHECKING:` の中の import は実行されない
+# ので数えない（型の注釈のためだけに module_eval を読むものがある）。表に無いファイルを足したら、失敗する（グループを決める）。
+TERRAFORM_GROUPS: dict[str, tuple[str, ...]] = {
+    "evaluator": ("evaluator",),
+    "base": ("hcl", "model", "addresses", "refs"),
+    "modules": ("modules",),
+    "mixins": ("module_load", "module_vars", "module_expand", "module_expr", "module_props", "module_emit"),
+    "module_eval": ("module_eval",),
+    "build": ("build",),
+    "plan": ("plan",),
+}
+# グループ → import してよい別のグループ。今の実際の import（実行時のもの）と同じ最小の辺だけ
+INTRA_TERRAFORM: dict[str, frozenset[str]] = {
+    "evaluator": frozenset(),
+    "base": frozenset({"evaluator"}),
+    "modules": frozenset(),
+    "mixins": frozenset({"base", "evaluator", "modules"}),
+    "module_eval": frozenset({"base", "mixins", "modules"}),
+    "build": frozenset({"base", "evaluator", "module_eval", "plan"}),
+    "plan": frozenset({"base"}),
+}
+
 LAYER_DIRS = {"core", "normalize", "layout", "emit", "validate", "icons", "platform"}
 ENTRY_DIRS = {"adapters", "maintenance", "lib"}  # scripts/ の直下の入口のフォルダ（lib は R1 で無くなった。戻さない）
 
@@ -102,7 +125,7 @@ def source_layer(path: Path, scripts: Path) -> str:
 
 def entry_names(scripts: Path) -> set[str]:
     """入口のスクリプトの名前（scripts/ の直下、adapters/、maintenance/ の .py と、入口のフォルダ）。
-    アダプタの入口どうし（cfn.py が `import tf`）や保守用の入口どうしの import も、これで見つける。"""
+    アダプタの入口どうし（cfn.py が `import adapt_tf`）や保守用の入口どうしの import も、これで見つける。"""
     stems = {p.stem for p in scripts.glob("*.py")}
     for d in ("adapters", "maintenance"):
         stems |= {p.stem for p in (scripts / d).glob("*.py")}
@@ -184,6 +207,52 @@ def violations_in_dynamic_imports(scripts: Path) -> list[str]:
             elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in DYNAMIC_CALLS:
                 problems.append(f"{rel}:{node.lineno}: {node.func.id}() を呼んでいる（動的な import・実行は禁止）")
     return problems
+
+
+class _DropTypeChecking(ast.NodeTransformer):
+    """`if TYPE_CHECKING:` のブロックを取り除く（実行されない import を数えないため）。"""
+
+    def visit_If(self, node):
+        t = node.test
+        if (isinstance(t, ast.Name) and t.id == "TYPE_CHECKING") or (isinstance(t, ast.Attribute) and t.attr == "TYPE_CHECKING"):
+            return None
+        return self.generic_visit(node)
+
+
+def terraform_group(parts: tuple[str, ...]) -> str:
+    for group, members in TERRAFORM_GROUPS.items():
+        if parts[0] in members:
+            return group
+    return f"?{parts[0]}"
+
+
+def violations_in_terraform_order(scripts: Path, allowed: dict[str, frozenset[str]] = INTRA_TERRAFORM) -> tuple[list[str], set[tuple[str, str]]]:
+    """adapters/terraform の中の import の向きの違反の一覧と、見つけた辺 (from のグループ, to のグループ) の集合。"""
+    base = scripts / PACKAGE / "adapters" / "terraform"
+    prefix = f"{PACKAGE}.adapters.terraform"
+    problems: list[str] = []
+    edges: set[tuple[str, str]] = set()
+    for path in sorted(base.rglob("*.py")):
+        if "__pycache__" in path.parts or path.name == "__init__.py":
+            continue
+        rel = path.relative_to(scripts).as_posix()
+        src = terraform_group(path.relative_to(base).with_suffix("").parts)
+        if src.startswith("?"):
+            problems.append(f"{rel}: adapters/terraform のグループに無い（TERRAFORM_GROUPS と docs/architecture.md の表に足す）")
+            continue
+        tree = _DropTypeChecking().visit(ast.parse(path.read_text(encoding="utf-8"), filename=str(path)))
+        for lineno, target in imported_targets(tree, path, scripts):
+            if not target.startswith(prefix + "."):
+                continue
+            dst = terraform_group(tuple(target[len(prefix) + 1:].split(".")))
+            if dst.startswith("?"):
+                problems.append(f"{rel}:{lineno}: import {target} は adapters/terraform のグループに無い")
+                continue
+            if dst != src:
+                edges.add((src, dst))
+                if dst not in allowed[src]:
+                    problems.append(f"{rel}:{lineno}: adapters/terraform のグループ {src} はグループ {dst} を import できない（import {target}）")
+    return problems, edges
 
 
 def stdlib_collisions(scripts: Path, allow: dict[str, str] = STDLIB_ALLOW) -> list[str]:
@@ -450,6 +519,99 @@ class DependencyDirectionTest(unittest.TestCase):
         self.assertTrue(check_allowed_table({**ALLOWED, "core": frozenset({"icons"})}))
         self.assertTrue(check_allowed_table({"core": frozenset(), "icons": frozenset({"core", "nowhere"})}))
         self.assertTrue(check_allowed_table({"core": frozenset(), "a": frozenset({"b"}), "b": frozenset({"a"})}))
+
+
+class TerraformOrderTest(unittest.TestCase):
+    """adapters/terraform の中の下の層 → 上の層の import を禁じる決まり（docs/architecture.md の「Terraform アダプタの中身」）。"""
+
+    def copy_tree(self) -> Path:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        dst = Path(tmp.name) / "scripts"
+        shutil.copytree(SCRIPTS, dst, ignore=shutil.ignore_patterns("__pycache__"))
+        return dst
+
+    def inject(self, scripts: Path, relpath: str, line: str) -> list[str]:
+        f = scripts / PACKAGE / "adapters" / "terraform" / relpath
+        f.write_text(f.read_text(encoding="utf-8") + "\n" + line + "\n", encoding="utf-8", newline="\n")
+        problems, _ = violations_in_terraform_order(scripts)
+        return problems
+
+    def test_real_tree_follows_the_order(self):
+        problems, edges = violations_in_terraform_order(SCRIPTS)
+        self.assertEqual(problems, [], "\n".join(problems))
+        # 空振りの防止: 実在する辺を見つけている。表にある辺はすべて実際に使われている（古い許可を残さない）
+        for edge in (("mixins", "base"), ("mixins", "evaluator"), ("mixins", "modules"), ("module_eval", "mixins"),
+                     ("build", "module_eval"), ("build", "plan"), ("plan", "base"), ("base", "evaluator")):
+            self.assertIn(edge, edges)
+        self.assertEqual(edges, {(a, b) for a, bs in INTRA_TERRAFORM.items() for b in bs})
+
+    def test_table_is_consistent(self):
+        self.assertEqual(set(INTRA_TERRAFORM), set(TERRAFORM_GROUPS))
+        self.assertEqual(check_allowed_table(INTRA_TERRAFORM), [])
+        members = [m for ms in TERRAFORM_GROUPS.values() for m in ms]
+        self.assertEqual(len(members), len(set(members)))
+        # 実在する最上位のファイル・フォルダがすべてどこかのグループに入っている
+        base = SCRIPTS / PACKAGE / "adapters" / "terraform"
+        tops = {p.stem if p.is_file() else p.name for p in base.iterdir()
+                if (p.suffix == ".py" or p.is_dir()) and p.name not in ("__init__.py", "__pycache__")}
+        self.assertEqual(sorted(tops - set(members)), [])
+        self.assertEqual(sorted(set(members) - tops), [])
+
+    def test_docs_table_matches(self):
+        text = ARCH_DOC.read_text(encoding="utf-8")
+        start = text.index("<!-- terraform-order:begin -->")
+        end = text.index("<!-- terraform-order:end -->")
+        groups, allowed = {}, {}
+        for line in text[start:end].splitlines():
+            m = re.match(r"^\|\s*`([a-z_]+)`\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|\s*$", line)
+            if m:
+                groups[m.group(1)] = set(re.findall(r"`([a-z_]+)/?`", m.group(2)))
+                allowed[m.group(1)] = frozenset(re.findall(r"`([a-z_]+)`", m.group(3)))
+        self.assertEqual(groups, {g: set(ms) for g, ms in TERRAFORM_GROUPS.items()},
+                         "docs/architecture.md のグループの表と TERRAFORM_GROUPS が食い違う")
+        self.assertEqual(allowed, INTRA_TERRAFORM, "docs/architecture.md の表と INTRA_TERRAFORM が食い違う")
+
+    def test_mutation_lower_layers_importing_upper_layers_fail(self):
+        tf = "from aws_iac_diagram.adapters.terraform"
+        cases = (
+            ("evaluator/values.py", f"{tf}.module_eval import ModuleEval", "グループ evaluator はグループ module_eval"),
+            ("plan/values.py", f"{tf}.module_expr import ExpressionMixin", "グループ plan はグループ mixins"),
+            ("hcl.py", f"{tf} import build", "グループ base はグループ build"),
+            ("plan/reader.py", f"{tf}.evaluator import functions", "グループ plan はグループ evaluator"),
+            ("modules/resolve.py", f"{tf}.hcl import sig", "グループ modules はグループ base"),
+            ("module_expr.py", f"{tf}.module_eval import ModuleEval", "グループ mixins はグループ module_eval"),
+            ("module_eval.py", f"{tf}.build import dump", "グループ module_eval はグループ build"),
+            ("model.py", "import aws_iac_diagram.adapters.terraform.module_vars as mv", "グループ base はグループ mixins"),
+        )
+        for relpath, line, expect in cases:
+            s = self.copy_tree()
+            problems = self.inject(s, relpath, line)
+            self.assertTrue(any(expect in p and p.startswith("aws_iac_diagram/adapters/terraform/" + relpath + ":") for p in problems),
+                            (relpath, problems))
+
+    def test_mutation_relative_imports_are_resolved(self):
+        s = self.copy_tree()
+        problems = self.inject(s, "hcl.py", "from . import build")
+        self.assertTrue(any("グループ base はグループ build" in p for p in problems), problems)
+        s = self.copy_tree()
+        problems = self.inject(s, "plan/combine.py", "from .. import module_eval")
+        self.assertTrue(any("グループ plan はグループ module_eval" in p for p in problems), problems)
+
+    def test_type_checking_imports_are_not_counted(self):
+        line = "from aws_iac_diagram.adapters.terraform.module_eval import ModuleEval"
+        s = self.copy_tree()
+        self.assertEqual(self.inject(s, "hcl.py", "if TYPE_CHECKING:\n    " + line), [])
+        # TYPE_CHECKING の外の import は数える
+        s = self.copy_tree()
+        problems = self.inject(s, "hcl.py", "if True:\n    " + line)
+        self.assertTrue(any("グループ base はグループ module_eval" in p for p in problems), problems)
+
+    def test_mutation_new_file_outside_the_groups_fails(self):
+        s = self.copy_tree()
+        (s / PACKAGE / "adapters" / "terraform" / "newthing.py").write_text("X = 1\n", encoding="utf-8")
+        problems, _ = violations_in_terraform_order(s)
+        self.assertTrue(any("newthing.py" in p and "グループに無い" in p for p in problems), problems)
 
 
 class FileSizeTest(unittest.TestCase):
