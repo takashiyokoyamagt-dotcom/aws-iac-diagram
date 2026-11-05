@@ -7,6 +7,7 @@ docs/architecture.md の「テストの置き場」）。
 from __future__ import annotations
 
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -56,6 +57,40 @@ class DrawioCommandTest(unittest.TestCase):
         with mock.patch.object(dc.shutil, "which", return_value=None):
             with self.assertRaises(dc.DrawioError):
                 dc.drawio_command(EXE, "linux", {})
+
+
+class ExportPngArgsTest(unittest.TestCase):
+    """export_png が draw.io に渡す引数を固定する（PLAN 2.2 の 12）。subprocess は呼ばない。"""
+
+    def run_export(self, **kw) -> list[str]:
+        calls: list[list[str]] = []
+
+        def fake_run(cmd, **_):
+            calls.append(cmd)
+            Path(cmd[cmd.index("-o") + 1]).write_bytes(b"png")
+            return mock.Mock(returncode=0, stderr="")
+
+        # OS によらず、画面のある Linux の起動コマンド（--no-sandbox 付き）で組み立てる
+        linux_command = dc.drawio_command
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.object(dc, "drawio_command", lambda exe: linux_command(exe, "linux", {"DISPLAY": ":0"})), \
+                mock.patch.object(dc.subprocess, "run", fake_run):
+            dc.export_png(Path(tmp, "in.drawio"), Path(tmp, "out.png"), exe=EXE, **kw)
+        self.assertEqual(len(calls), 1)
+        return calls[0]
+
+    def test_forbidden_options_are_not_passed(self):
+        # -e（XML の埋め込み）は PNG の末尾が欠ける、-w は引数の解析を黙って壊す、--scale はハングする報告がある
+        for cmd in (self.run_export(), self.run_export(page_index=2, border=10)):
+            tail = cmd[cmd.index("-x"):]  # xvfb-run の -s は -x より前にあるので除く
+            for opt in ("-e", "--embed-diagram", "-w", "--width", "--scale", "-s"):
+                self.assertFalse([a for a in tail if a == opt or a.startswith(opt + "=")], opt)
+
+    def test_no_sandbox_before_export_and_input_last(self):
+        # この並び（--no-sandbox は実行ファイルの直後、入力は最後）を draw.io 32.4.1（WSL、xvfb）で確かめた
+        cmd = self.run_export(page_index=1)
+        self.assertLess(cmd.index("--no-sandbox"), cmd.index("-x"))
+        self.assertTrue(cmd[-1].endswith("in.drawio"))
 
 
 if __name__ == "__main__":

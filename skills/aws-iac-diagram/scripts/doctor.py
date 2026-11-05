@@ -11,7 +11,8 @@
 
 終了コード:
   0  必要なものがそろっている
-  1  任意の外部ツールが足りない（PNG の書き出しや .mmd の描画確認がスキップされる）
+  1  任意の外部ツールが足りないか、draw.io の PNG の書き出しが失敗扱いになる環境（Linux で HOME が無い）
+     （PNG の書き出しや .mmd の描画確認がスキップされる）
   2  SKILL の実行に必要なものが足りない、または doctor 自体が失敗した
 """
 from __future__ import annotations
@@ -200,12 +201,19 @@ def check_drawio(dc, issues: list[dict]) -> dict:
     return info
 
 
-def check_linux(dc) -> dict | None:
+def check_linux(dc, drawio: dict | None, issues: list[dict]) -> dict | None:
     if not sys.platform.startswith("linux"):
         return None
+    home = os.environ.get("HOME")
+    # HOME が無いと draw.io は PNG を正しく出しても終了コード 1 を返し（fontconfig のキャッシュを書けない。
+    # 32.4.1 で確認）、export_png は失敗として扱う。draw.io を使えるときだけ知らせる（PLAN 2.2 の 12）
+    if not home and drawio and drawio.get("path"):
+        issues.append({"level": "warn", "item": "home",
+                       "message": "環境変数 HOME が設定されていないため、draw.io の PNG の書き出しが失敗扱いになります。"
+                                  "HOME を書き込めるフォルダに設定してください（.drawio と .mmd は出せます）。"})
     return {"DISPLAY": os.environ.get("DISPLAY"), "WAYLAND_DISPLAY": os.environ.get("WAYLAND_DISPLAY"),
             dc.XVFB_ENV: os.environ.get(dc.XVFB_ENV), "xvfb_run": shutil.which("xvfb-run"),
-            "needs_xvfb": dc.needs_xvfb()}
+            "needs_xvfb": dc.needs_xvfb(), "HOME": home}
 
 
 def check_mermaid(issues: list[dict]) -> dict:
@@ -239,8 +247,8 @@ def diagnose() -> dict:
         "environment": {"GITHUB_ACTIONS": os.environ.get("GITHUB_ACTIONS"),
                         "CLAUDECODE": os.environ.get("CLAUDECODE")},
         "skill": check_skill(issues),
-        "drawio": check_drawio(dc, issues) if dc else None,
-        "linux": check_linux(dc) if dc else None,
+        "drawio": (drawio := check_drawio(dc, issues) if dc else None),
+        "linux": check_linux(dc, drawio, issues) if dc else None,
         "mermaid": check_mermaid(issues),
     }
     levels = {i["level"] for i in issues}
