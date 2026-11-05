@@ -82,8 +82,9 @@ class ExportPngArgsTest(unittest.TestCase):
     def test_forbidden_options_are_not_passed(self):
         # -e（XML の埋め込み）は PNG の末尾が欠ける、-w は引数の解析を黙って壊す、--scale はハングする報告がある
         for cmd in (self.run_export(), self.run_export(page_index=2, border=10)):
+            tail = cmd[cmd.index("-x"):]  # xvfb-run の -s は -x より前にあるので除く
             for opt in ("-e", "--embed-diagram", "-w", "--width", "--scale", "-s"):
-                self.assertNotIn(opt, cmd[cmd.index("-x"):])
+                self.assertFalse([a for a in tail if a == opt or a.startswith(opt + "=")], opt)
 
     def test_no_sandbox_before_export_and_input_last(self):
         # この並び（--no-sandbox は実行ファイルの直後、入力は最後）を draw.io 32.4.1（WSL、xvfb）で確かめた

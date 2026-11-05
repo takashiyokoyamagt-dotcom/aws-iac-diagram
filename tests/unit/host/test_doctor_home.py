@@ -34,6 +34,10 @@ class CheckLinuxHomeTest(unittest.TestCase):
         self.assertIsNone(info["HOME"])
         self.assertEqual([(i["level"], i["item"]) for i in issues], [("warn", "home")])
 
+    def test_home_empty_is_missing(self):
+        _, issues = self.check({"HOME": ""}, FOUND)
+        self.assertEqual([i["item"] for i in issues], ["home"])
+
     def test_home_set_is_quiet(self):
         info, issues = self.check({"HOME": "/home/u"}, FOUND)
         self.assertEqual(info["HOME"], "/home/u")
