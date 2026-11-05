@@ -14,6 +14,8 @@ description: Terraform（.tf、plan JSON）や CloudFormation（YAML／JSON、SA
 
 図を頼まれたら、まだ作れないことをユーザーに伝えます。そのうえで、下の「環境の確認」を行って結果を報告するか、ユーザーが望めば raw IR を作って見せます。
 
+スクリプトで作れないとき（準備中のとき、失敗したとき）に、図を自分で描いて（Mermaid や draw.io の XML を書いて）代わりにしないでください。スクリプトの出力したファイルも、手で書き換えないでください。この SKILL の図は、同じ入力から同じ図が出ることを前提にしています。ユーザーがそれでも手で描いた図を求めたときは、この SKILL の出力ではなく、IaC との対応を確かめていない図だと伝えてから描きます。
+
 # コマンドの書き方（必ず守る）
 
 - `scripts/` はこの SKILL.md と同じフォルダの下にあります。コマンドでは、このフォルダの**絶対パス**を使ってください（以下では `<SKILL>` と書きます）。パスにスペースや日本語が含まれる場合は、パスを `"` で囲みます。
@@ -27,7 +29,7 @@ description: Terraform（.tf、plan JSON）や CloudFormation（YAML／JSON、SA
    `uv run "<SKILL>/scripts/doctor.py" --out "<出力先>/doctor.json"`
 2. 出力した JSON を読み、`status` と `issues` を報告します。
    - 終了コード 0（`ok`）: 必要なものはすべてそろっています。
-   - 終了コード 1（`warn`）: draw.io や mmdc が使えません。今ある処理には影響しません（図の出力ができるようになったときは、PNG の書き出しと `.mmd` の描画確認がスキップされます）。
+   - 終了コード 1（`warn`）: draw.io や mmdc が使えないか、Linux で環境変数 `HOME` が無く draw.io の PNG の書き出しが失敗扱いになります（`issues` の `item` が `home`）。今ある処理には影響しません（図の出力ができるようになったときは、PNG の書き出しと `.mmd` の描画確認がスキップされます）。
    - 終了コード 2（`error`）: SKILL のファイルが足りないか、doctor 自体が失敗しました。`issues` の内容をそのまま伝えます。
 3. `uv` が見つからないときは、インストールの方法を案内します（Windows: `winget install --id=astral-sh.uv -e`、Linux／macOS: https://docs.astral.sh/uv/ の手順）。自分でインストールするのは、ユーザーの了承を得てからにします。`GITHUB_ACTIONS` が `true` のときはインストールせず、uv が無いことを失敗として報告します（ワークフロー側の設定の問題です）。
 
