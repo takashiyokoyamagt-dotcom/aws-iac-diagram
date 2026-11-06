@@ -64,7 +64,7 @@
 - 推定の辺の適合率を分けるのは、推定の辺はもともと誤りを含みうる（破線と凡例で区別して描く）ため。確定・導出の辺は、より厳しくする。
 - E の参考値として、向きを無視した一致率も出す。向きを無視すると一致する辺が多いときは、A2（向きの表）の誤りを疑う。
 - ラベルに基準を設けないのは、書式の違い（`HTTPS 443` と `HTTPS:443` など）を誤りに数えないため。ラベルの書式は自作の fixture（1.1）で縛る。
-- `unknown` 0 件は、SELECTION.md の 4 の 4（T09 の `opensearch_index`・`time_sleep`、T16 など）の型を resource-catalog.md に入れることが前提。
+- `unknown` 0 件は、SELECTION.md の 4 の 4（T09 の `opensearch_index`・`time_sleep`、T16 など）の型を規則表の型の表（`skills/aws-iac-diagram/data/rules/types/`。説明は [types.md](../../docs/spec/rules/types.md)）に入れることが前提。
 
 ### 1.3 大きいサンプル（T17、T19、C05）。半自動の基準
 
@@ -157,7 +157,7 @@
 
 1. 辺の根拠になった（正規化後の IR の `sources.*.edges[].evidence` に、`<参照の from>.<参照の path>` で始まる根拠がある。ir-schema の 4章の根拠の書き方による前方一致。2026-10-17 にユーザーの了承を得て、照合のしかたを決めた）
 2. 入れ子に使った（P-*。E-NOEDGE-PLACEMENT）
-3. 辺にしない参照の規則（edge-rules.md の `E-NOEDGE-*`、`E-REF-NONODE`）に当たった
+3. 辺にしない参照の規則（`skills/aws-iac-diagram/data/rules/refs.toml` の `E-NOEDGE-*`、`E-REF-NONODE`。説明は [refs.md](../../docs/spec/rules/refs.md)）に当たった
 4. 「使わなかった参照」として `diagnostics`（`NORM-UNUSED-REF`）に残した
 
 4 の件数は基準にしないが、件数と属性名の内訳を `result.json` に出し、**フェーズ3 の完了基準を確かめるときに必ず見る**（どの参照も 4 に入れてしまえば基準を満たせてしまうため）。多い属性名は、規則表に足す候補にする。図の正しさは、これまでどおり 1.1・1.2 の正解 IR との比較で測る。

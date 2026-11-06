@@ -121,6 +121,40 @@ class RequiredFilesTest(unittest.TestCase):
             finally:
                 doctor.SKILL_DIR = old
 
+    def test_doctor_reports_a_broken_rules_table(self):
+        # 規則表（data/rules/）が検査に通らなければ（validate_ir.py が終了コード 2 で止まる）、doctor も error にする。
+        # ファイルの欠けは missing_files だけが知らせる（規則表の検査の文を重ねない）
+        with tempfile.TemporaryDirectory() as t:
+            fake = Path(t) / "日本語 パス" / "skill"
+            for rel in doctor.REQUIRED_FILES:
+                (fake / rel).parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(SKILL / rel, fake / rel)
+            old = doctor.SKILL_DIR
+            doctor.SKILL_DIR = fake
+            try:
+                issues: list[dict] = []
+                self.assertEqual(doctor.check_skill(issues)["rules_problems"], [])
+                self.assertEqual(issues, [])
+                rel = fake / "data/rules/relations.toml"
+                rel.write_text(rel.read_text(encoding="utf-8").replace('fallback = "H-RT-NOROUTE"', 'fallback = { a = "b" }', 1)
+                               .replace('id = "R-ROUTE"', 'id = "R-SG"', 1), encoding="utf-8", newline="\n")
+                issues = []
+                report = doctor.check_skill(issues)
+                self.assertEqual(report["missing_files"], [])
+                self.assertEqual(report["table_problems"], [])
+                got = report["rules_problems"]
+                self.assertTrue(any("'fallback' は空でない文字列" in p for p in got), got)
+                self.assertTrue(any("'R-SG' が重複" in p for p in got), got)  # 1 件ずつ、すべて集めて出す
+                self.assertEqual([i["level"] for i in issues], ["error"] * len(got))
+                self.assertTrue(all(i["message"].startswith("規則表（data/rules/）に誤りがあります") for i in issues))
+                (fake / "data/rules/edges.toml").unlink()  # 欠けがあれば規則表は調べない
+                issues = []
+                report = doctor.check_skill(issues)
+                self.assertEqual((report["missing_files"], report["rules_problems"]), (["data/rules/edges.toml"], []))
+                self.assertEqual(len(issues), 1)
+            finally:
+                doctor.SKILL_DIR = old
+
     def test_each_missing_file_is_reported(self):
         # 一覧の全ファイルを 1 つずつ消して、doctor の確認（check_skill）が必ずそのファイルを欠けとして報告する
         with tempfile.TemporaryDirectory() as t:

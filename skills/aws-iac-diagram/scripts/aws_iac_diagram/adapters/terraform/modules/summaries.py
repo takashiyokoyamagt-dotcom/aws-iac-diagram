@@ -158,7 +158,8 @@ def problems(path: Path | None = None) -> list[str]:
 
     調べること: ① 読まれない .md がある（名前の綴り・大文字小文字・深さの誤り。`NOTICE.md` は除く）、② 読まれるファイルが空・読めない・
     コードブロックの無いマーカーがある、③ ファイル名の major と `majors` が合わない、④ フォルダ名と source が合わない
-    （`terraform-aws-modules/vpc/aws` は `terraform-aws-vpc/`）、⑤ 同じ (source, major) の表が複数ある、⑥ `v06.md` のような正規でない名前。
+    （`terraform-aws-modules/vpc/aws` は `terraform-aws-vpc/`）、⑤ 同じ (source, major) の表が複数ある、⑥ `v06.md` のような正規でない名前、
+    ⑦ `iam-only-sources.md` 以外の要約表に `<!-- iam-only-sources -->` がある（core は iam-only-sources.md だけを読むので効かない）。
     ファイルが無いこと（欠け）は調べない（doctor の `REQUIRED_FILES` が知らせる）。"""
     path = path or SUMMARY_DIR
     out: list[str] = []
@@ -180,6 +181,12 @@ def problems(path: Path | None = None) -> list[str]:
             if not iam:
                 out.append(f"{rel}: source が 1 つも無い")
             continue
+        try:
+            text = f.read_text(encoding="utf-8")
+        except OSError:
+            text = ""
+        if _IAM_MARK.search(text):  # core（module_sources.load_iam_sources・H-IAM）は iam-only-sources.md だけを読むので、ほかでは効かない
+            out.append(f"{rel}: <!-- iam-only-sources --> は {IAM_FILE} だけに書く（ここに書いた source は H-IAM の判定に使われない）")
         mod, major, _ = key
         if rel != f"{mod}/v{major}.md":
             out.append(f"{rel}: 正規でない名前（v{major}.md）")

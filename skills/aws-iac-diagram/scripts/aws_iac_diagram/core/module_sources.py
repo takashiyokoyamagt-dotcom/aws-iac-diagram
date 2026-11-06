@@ -7,6 +7,7 @@ IAM だけを作るモジュールの source は、`data/module-summaries/iam-on
   <!-- iam-only-sources -->
 の直後のコードブロックに 1 行に 1 つ書く（サブモジュール "//…" も含む。`#` で始まる行は読まない）。要約表（`<モジュール>/v<数字>.md`）の
 読み込みはアダプタの `modules/summaries.py` にあり、そこも同じマーカーの読み方（`IAM_MARK`・`fenced_after`・`iam_entries`）をここから使う。
+ここは `iam-only-sources.md` だけを読む（要約表の中のマーカーは読まない。そこに書いた誤りは `summaries.problems()` が知らせる）。
 
 標準ライブラリと core 自身（paths）だけを使う（core の決まり）。
 """
