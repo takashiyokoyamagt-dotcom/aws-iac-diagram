@@ -1498,3 +1498,18 @@ tests/ 平ら 10 ファイル、最大 2,381 行（281 件）            tests/ 
 7. **`module_sources_file` が SKILL の外を指せる。** → `resolve()` して SKILL のフォルダの下か（`is_relative_to`）を確かめ、外（`../x.md`・絶対パス・`data/../../x.md`）は、ファイルがあっても誤り。
 
 確かめたこと: 単体テスト 518 → **525**（`test_rules.py` +4、`test_cli_paths.py` +1、`test_doctor_required_files.py` +1、`test_module_summaries.py` +1）。新しいテストは、直す前のコードでは落ちる（例外で落ちる 11、RulesError にならない 3）。golden 101/101、`render_rules.py --check` OK、`validate_ir.py` の正解 IR 5 件の出力と終了コードが直す前と同じ。
+
+### 2 回目の第三者レビュー（上の修正 `0f13f96` に対して）
+
+承認。約 2 万 4 千通りの型の違う値を入れても落ちないことをレビュー側で確かめた。直したもの:
+
+1. **1 つの誤りが別の誤りを連鎖させる。** 確信度の行の別の列（`basis = 1`、未知の列）が誤ると、その行が表どうしの検査から外れ、R-* などすべての行が「確信度の rules に無い」と出た（1 件のはずが 15 件）。辺にしない参照の `except_rules` も同じ。→ ほかの行が引く表は、すべての行から正しい型の値（`_strs_of`）だけで作る。`test_one_wrong_value_gives_one_error`（3 通り、どれも 1 件）。
+2. **`Row` のハッシュが列の順に依る**（eq は依らない）。→ `frozenset(self.fields)`。列の順だけ違う 2 行のテスト。
+3. **`types/.network.toml` が黙って読まれない。** → `.` で始まり `.toml` で終わる名前は OS・エディタのファイルとみなさず、`types/` では「読まれない」の誤りにする。
+4. `__getattr__` の `_` のガードはテストで区別できない（列に無い名前なので、ガードが無くても AttributeError）。テストの注記をそう直した。
+5. `iam_action_default` に何でも書けた → `"none"` だけにする（v0.1）。
+6. `Row` は pickle できない → 注記だけ（いまは使わない）。
+7. `summaries.problems()` のマーカー探しは文章中の言及にも当たる → いまは許す（要約表に書く理由が無い）。
+
+確かめたこと: 修正を戻すと新しいテストが 4 件落ちる。単体テスト 525 → **527**、golden 101/101、`render_rules.py --check` OK、正解 IR 5 つの `validate_ir.py` の出力と終了コードは修正の前と同じ。
+

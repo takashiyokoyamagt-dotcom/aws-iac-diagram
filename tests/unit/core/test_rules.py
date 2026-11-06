@@ -12,6 +12,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import MappingProxyType
 from unittest import mock
 
 # tests/ を import の道に入れる（`python tests/.../test_x.py` で直接動かすときのため。discover では要らないが害は無い）
@@ -137,13 +138,17 @@ class ShippedRulesTest(unittest.TestCase):
                 self.assertIs(copy.deepcopy(row), row)
                 self.assertIs(copy.deepcopy([row])[0], row)
         self.assertEqual(hash(rules.load().row("alb")), hash(self.r.row("alb")))  # 等しい行は同じハッシュ
+        a = rules.Row("t", "f", MappingProxyType({"a": 1, "b": 2}))
+        b = rules.Row("t", "f", MappingProxyType({"b": 2, "a": 1}))
+        self.assertEqual(a, b)
+        self.assertEqual(hash(a), hash(b))  # 列の順に依らない（eq と同じ）
         row = copy.deepcopy(self.r.row("alb"))
         with self.assertRaises(TypeError):
             row.fields["id"] = "x"  # type: ignore[index]
         with self.assertRaises(AttributeError):
             row.id = "x"  # type: ignore[misc]
         with self.assertRaises(AttributeError):
-            row.__setstate__  # noqa: B018  列の名前でない（_ で始まる）ものは探さない
+            row.__setstate__  # noqa: B018  列の名前でない（_ で始まる）ものは AttributeError（列に無い名前なので、ガードが無くても同じ）
         bare = object.__new__(rules.Row)  # fields の無い作りかけ（copy・pickle が経る形）でも、属性の問い合わせは AttributeError
         with self.assertRaises(AttributeError):
             bare.category  # noqa: B018
@@ -371,6 +376,33 @@ class StructureTest(unittest.TestCase):
                 edit(self.dir, rel, old, new)
                 self.assertBroken(needle)
 
+    def test_one_wrong_value_gives_one_error(self):
+        # ほかの行が引く行（確信度の rules、辺にしない参照の except_rules）の別の列が誤っていても、引く側の行に
+        # 「無い」「指していない」の誤りが連鎖しない（第三者レビュー 2 回目の 1）
+        cases = [
+            ("edges.toml", 'level = "derived"', "basis", "basis = 1", "'basis'"),
+            ("edges.toml", 'level = "derived"', None, "draw2 = 1", "draw2"),
+            ("refs.toml", 'id = "E-NOEDGE-FROM-RULE"', "match", "match = 1", "'match'"),
+        ]
+        for rel, anchor, key, line, needle in cases:
+            with self.subTest(line):
+                self.setUp()
+                # anchor の行の後ろで、key の行を line に差し替える（key が None なら anchor の次に line を足す）
+                p = self.dir / rel
+                text = p.read_text(encoding="utf-8")
+                at = text.index(anchor) + len(anchor) + 1
+                if key is not None:
+                    at = text.index(f"\n{key} = ", at - 1) + 1
+                    text = text[:at] + text[text.index("\n", at) + 1:]
+                p.write_text(text[:at] + line + "\n" + text[at:], encoding="utf-8", newline="\n")
+                problems = self.assertBroken(needle)
+                self.assertEqual(len(problems), 1, problems)
+
+    def test_dot_toml_in_types_is_an_error(self):
+        # `.` で始まる .toml は OS・エディタのファイルとして黙らせず、読まれないことを知らせる（型の表を隠したつもりのない誤り）
+        (self.dir / "types" / "compute.toml").rename(self.dir / "types" / ".compute.toml")
+        self.assertBroken("types/.compute.toml: 読まれない")
+
     def test_module_sources_file_must_stay_inside_the_skill(self):
         # SKILL の外（`..`・絶対パス）は、ファイルがあっても誤り（SKILL の外のファイルを規則として読ませない）
         for name in ("..", "absolute", "data/.."):
@@ -470,6 +502,10 @@ class StructureTest(unittest.TestCase):
         self.setUp()
         edit(self.dir, "edges.toml", 'iam_action_priority = "first_row_wins"', 'iam_action_priority = "last_row_wins"')
         self.assertBroken("iam_action_priority")
+        for bad in ("1", "[]", '"all"'):
+            self.setUp()
+            edit(self.dir, "edges.toml", 'iam_action_default = "none"', f"iam_action_default = {bad}")
+            self.assertBroken("iam_action_default")
         self.setUp()
         edit(self.dir, "edges.toml", '    "dynamodb:*",\n', '    "dynamodb:*",\n    "sns:Publish",\n')
         self.assertBroken("アクション 'sns:Publish' が重複")

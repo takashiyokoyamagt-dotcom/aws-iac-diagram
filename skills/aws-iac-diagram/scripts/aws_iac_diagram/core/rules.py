@@ -17,7 +17,7 @@
 
 **フォルダに置いてよいもの**: 直下は `types/`・`README.md`・上の 4 つの .toml、`types/` の中は `.toml` のファイルだけ。ほかの名前
 （`foo.toml`・`notes.txt` など）は書き手の誤り（置き場所・綴りの違い。黙って読まないと規則が効かない）なので `RulesError`。
-ただし OS やエディタが勝手に作るもの（`_is_junk`: `.` で始まる名前（`.DS_Store`・`.edges.toml.swp` など）、`Thumbs.db`・
+ただし OS やエディタが勝手に作るもの（`_is_junk`: `.` で始まる名前（`.DS_Store`・`.edges.toml.swp` など。`.x.toml` は除く）、`Thumbs.db`・
 `desktop.ini`（大文字小文字を問わない）、末尾が `~`・`.swp`・`.swo` の名前、`#…#`）は、規則表の誤りではないので黙って読まない。
 
 ここは標準ライブラリと core 自身（paths）だけを使う（core の決まり）。`validate_ir.py`（と将来の `normalize/`）が同じ関数を使い、
@@ -62,10 +62,16 @@ JUNK_NAMES = frozenset({"thumbs.db", "desktop.ini"})  # Windows が作る（小�
 JUNK_SUFFIXES = ("~", ".swp", ".swo")  # エディタの控え・スワップ
 
 
+def _strs_of(v) -> tuple[str, ...]:
+    """配列（_freeze で tuple）の中の文字列だけ。列の検査に落ちた行の値を、ほかの行の検査の引き先に使うとき用。"""
+    return tuple(x for x in v if isinstance(x, str)) if isinstance(v, tuple) else ()
+
+
 def _is_junk(name: str) -> bool:
     """OS やエディタが作るファイル（黙って読まない）。`.` で始まる名前（`.DS_Store`・vim の `.x.toml.swp`）、`Thumbs.db`・`desktop.ini`、
-    末尾が `~`・`.swp`・`.swo`、emacs の `#x#`。"""
-    return (name.startswith(".") or name.lower() in JUNK_NAMES or name.endswith(JUNK_SUFFIXES)
+    末尾が `~`・`.swp`・`.swo`、emacs の `#x#`。ただし `.` で始まり `.toml` で終わる名前（`.network.toml`）は、型の表を隠した
+    つもりのない誤りかもしれないので黙らない（`_files` が誤りにする）。"""
+    return ((name.startswith(".") and not name.endswith(".toml")) or name.lower() in JUNK_NAMES or name.endswith(JUNK_SUFFIXES)
             or (len(name) > 1 and name.startswith("#") and name.endswith("#")))
 
 
@@ -218,7 +224,8 @@ def _freeze(v):
 
 @dataclass(frozen=True)
 class Row:
-    """表の 1 行（読み込み後は変えられない。列は `get` と属性の両方で読める）。`table` は表の名前、`file` は SKILL の data/rules/ からの相対パス。"""
+    """表の 1 行（読み込み後は変えられない。列は `get` と属性の両方で読める）。`table` は表の名前、`file` は SKILL の data/rules/ からの相対パス。
+    pickle はできない（MappingProxyType を持つ。いまの使い方では要らない。並列処理で渡すようになったら考える）。"""
     table: str
     file: str
     fields: MappingProxyType
@@ -236,7 +243,7 @@ class Row:
     def __hash__(self) -> int:
         # 等しさ（dataclass の eq）は列の中身で比べる（別々に読んだ結果が等しい）。列には MappingProxyType（ハッシュできない）があり、
         # `id` の無い表（[[confidence]]・[[attr]] など）もあるので、ハッシュは表・ファイル・列の名前から作る（等しい行は同じ値になる）
-        return hash((self.table, self.file, tuple(self.fields)))
+        return hash((self.table, self.file, frozenset(self.fields)))  # 列の順に依らない（eq も順に依らない）
 
     def __copy__(self) -> Row:
         return self  # 変えられないので、写す必要が無い
@@ -412,7 +419,7 @@ def _files(rules_dir: Path, errs: list[str]) -> list[tuple[str, Path, str]]:
     for f in sorted(tdir.iterdir(), key=lambda p: p.name):
         if _is_junk(f.name):
             continue
-        if f.is_file() and f.name.endswith(".toml"):
+        if f.is_file() and f.name.endswith(".toml") and not f.name.startswith("."):
             tfiles.append((f"{TYPES_DIR_NAME}/{f.name}", f, "types"))
         else:
             errs.append(f"{TYPES_DIR_NAME}/{f.name}: 読まれない（{TYPES_DIR_NAME}/ に置くのは .toml のファイルだけ）")
@@ -629,9 +636,12 @@ def _cross_checks(rules: Rules, good: Rules, rules_dir: Path, errs: list[str]) -
     order = rules.edges_options.get("confidence_order")
     if order is not None and (not isinstance(order, tuple) or order != tuple(CONFIDENCES)):  # 配列は _freeze で tuple
         errs.append(f"edges.toml: confidence_order は {list(CONFIDENCES)}（値: {list(order) if isinstance(order, tuple) else order!r}）")
-    by_level = {r.get("level"): r.get("rules", ()) for r in good.confidences}
-    for lv, pats in by_level.items():
-        for p in pats:
+    # ほかの行が引く表（確信度の rules）は、列の検査に落ちた行も含めて正しい型の値だけで作る（1 行の別の列の誤りで行ごと消すと、
+    # その行の規則を引くすべての行が「無い」と誤って報告される）
+    by_level = {r.get("level"): _strs_of(r.get("rules")) for r in rules.confidences if isinstance(r.get("level"), str)}
+    for r in good.confidences:
+        lv = r.get("level")
+        for p in r.get("rules", ()):
             if not _glob_hits(p, rule_ids):
                 errs.append(f"edges.toml: [[confidence]] {lv} の rules の {p!r} に当たる規則 ID が無い")
 
@@ -679,6 +689,8 @@ def _cross_checks(rules: Rules, good: Rules, rules_dir: Path, errs: list[str]) -
             seen_actions.add(a)
     if rules.iam_action_kinds and rules.edges_options.get("iam_action_priority") != "first_row_wins":
         errs.append("edges.toml: iam_action_priority = \"first_row_wins\" が要る（[[iam_action_kind]] は上の行が優先）")
+    if rules.iam_action_kinds and rules.edges_options.get("iam_action_default") != "none":
+        errs.append("edges.toml: iam_action_default = \"none\" が要る（どの行にも当たらなければ辺を作らない。v0.1 はこれだけ）")
     ranks = [r.get("rank") for r in rules.merge_priority]
     if ranks != list(range(1, len(ranks) + 1)):
         errs.append(f"edges.toml: [[merge_priority]] の rank は 1 から順に 1 つずつ（値: {ranks}）")
@@ -716,7 +728,7 @@ def _cross_checks(rules: Rules, good: Rules, rules_dir: Path, errs: list[str]) -
                 errs.append(f"{r.file}: {r.id} の except_rules {x!r} が統合の規則（M-*）にない")
         if not r.get("attrs") and not has_fc:
             errs.append(f"{r.file}: {r.id} は attrs が空なのに from_class が無い（何にも当たらない規則）")
-    if refs_as and not any(x in refs_as for r in good.noedge for x in r.get("except_rules", ())):
+    if refs_as and not any(x in refs_as for r in rules.noedge for x in _strs_of(r.get("except_rules"))):  # 確信度と同じ理由ですべての行
         errs.append(f"types: refs_as_target の {refs_as} を、辺にしない参照の except_rules が指していない")
 
     # --- 入れ子
