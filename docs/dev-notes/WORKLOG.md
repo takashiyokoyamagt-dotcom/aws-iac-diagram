@@ -1484,3 +1484,17 @@ tests/ 平ら 10 ファイル、最大 2,381 行（281 件）            tests/ 
 
 ### 次（手順 2: 規則表の拡張と凍結）
 主セット 12 入力の raw IR の全リソースが型の表のどれかに入る（`unknown` 0）ように、約 40 型の行を足す（`types/edge-web.toml` など）。描く／統合／非表示の判断が多いので、機械的なものとユーザーの確認が要るものに分けて報告する。8 章の 3 の `data = true` の範囲と、黒箱の描き方も決める。足し方は `docs/architecture.md` の「規則表（`data/rules/`）」。凍結したら、主セットの正解 IR の作成（別のサブエージェント）を始められる。
+
+## 2026-11-06 フェーズ3 の手順1 の第三者レビュー
+
+承認。ただし次の 7 点を直すこと、という指摘。正しいデータでの動き（golden・`validate_ir.py` の出力）は変えていない。
+
+1. **型の違う値で検査そのものが落ちる。** `relations.toml` の `fallback = {a="b"}`（ハッシュできない）、`attrs = [1, …]`（`neutral_key` の `lower`）、`use = [1]`（`_matches`）、`when` に `prop` だけで `in` が無い（`_disjoint` の KeyError）が、`RulesError` でなく例外で落ちていた（`validate_ir.py` は終了コード 1 とトレースバック）。→ 列の検査（`_check_fields`・`_check_when`）に落ちた行は、表どうしの検査に回さない（`load` が 2 つの `Rules` を作る: すべての行は規則 ID の集合と型を問わない検査に、検査を通った行だけを 1 行ずつの検査に。ID の集合には残すので、参照の切れが重ねて出ない）。`confidence_order` の型も確かめる。テスト: 8 通りの変異（`test_wrongly_typed_values_are_errors_not_crashes`）と、SKILL の複製で `validate_ir.py` が終了コード 2・トレースバック無し（`test_cli_paths.py`）。
+2. **OS やエディタのファイルで読み込みが落ちる**（`.DS_Store`・`Thumbs.db`・`desktop.ini`・`edges.toml~`・`.swp`）。→ `rules._is_junk`（`.` で始まる名前、`Thumbs.db`・`desktop.ini`（大文字小文字を問わない）、末尾 `~`・`.swp`・`.swo`、`#…#`）は黙って読まない。`foo.toml`・`types/x.toml.bak` のようなほかの名前は、これまでどおり誤り（置き場所・綴りの誤りを黙って読まないと規則が効かないため）。`.bak` は人が作る控えなので誤りのままにした。決まりは `core/rules.py` の docstring と `data/rules/README.md` に書いた。
+3. **`Row` がハッシュ・copy・deepcopy できない**（`copy.copy` は `__getattr__` が作りかけの行で `fields` を探し続けて再帰）。→ `__getattr__` は `fields` と `_` で始まる名前を探さない。ハッシュは (表, ファイル, 列の名前) から作る（`id` の無い表があり、列に MappingProxyType があるため。等しさは列の中身のままで、別々に読んだ結果が等しい、を保つ）。`__copy__`・`__deepcopy__` は自分を返す（変えられないので写す必要が無い）。
+4. **H-IAM のマーカーを要約表（`v*.md`）に書いても効かない**（core は `iam-only-sources.md` だけを読む。以前の読み込みは全ファイルから集めていた）。→ `summaries.problems()` が、`iam-only-sources.md` 以外のマーカーを知らせる（出荷した表には無い。doctor の `table_problems` にも出る）。
+5. **消した `references/*.md` を指す文**: HANDOFF の「できているもの」の規則表の行、`docs/spec/ir-schema/07-raw-output.md` の SAM、CRITERIA.md の 2 か所（1.2 の `unknown`、1.8 の 3）を `data/rules/` と `docs/spec/rules/` に向けた。CRITERIA の決定の記録（2026-10-16・17）と正解 IR の `note` は、経緯・fixture なので変えていない。
+6. **doctor が規則表を調べない。** → `skill.rules_problems`（`rules.load` の `RulesError` の 1 件ずつ。`table_problems` と同じく error）。パッケージを import できなければ調べない。ファイルが欠けているときも調べない（欠けた表への参照の切れが重なるだけ。欠けは `missing_files` が error にする）。doctor の JSON に増えたキーはこれだけ。
+7. **`module_sources_file` が SKILL の外を指せる。** → `resolve()` して SKILL のフォルダの下か（`is_relative_to`）を確かめ、外（`../x.md`・絶対パス・`data/../../x.md`）は、ファイルがあっても誤り。
+
+確かめたこと: 単体テスト 518 → **525**（`test_rules.py` +4、`test_cli_paths.py` +1、`test_doctor_required_files.py` +1、`test_module_summaries.py` +1）。新しいテストは、直す前のコードでは落ちる（例外で落ちる 11、RulesError にならない 3）。golden 101/101、`render_rules.py --check` OK、`validate_ir.py` の正解 IR 5 件の出力と終了コードが直す前と同じ。

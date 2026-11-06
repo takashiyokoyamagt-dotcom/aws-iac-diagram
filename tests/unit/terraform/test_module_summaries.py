@@ -1085,6 +1085,22 @@ class SummaryTableFileTest(unittest.TestCase):
         self.assertIn("terraform-aws-modules/vpc/aws", summaries)
         self.assertTrue(iam)
 
+    def test_iam_marker_outside_the_iam_file_is_a_problem(self):
+        # H-IAM の source の一覧は core（module_sources.load_iam_sources）が iam-only-sources.md だけから読む。要約表（v*.md）に
+        # マーカーを書いても効かないので、置き方の誤りとして知らせる（以前の読み込みは全ファイルから集めていた）
+        import shutil
+        with tempfile.TemporaryDirectory() as t:
+            d = Path(t) / "日本語 パス" / "module-summaries"
+            shutil.copytree(MS.SUMMARY_DIR, d)
+            self.assertEqual(MS.problems(d), [])
+            v6 = d / "terraform-aws-vpc" / "v6.md"
+            v6.write_text(v6.read_text(encoding="utf-8") + "\n<!-- iam-only-sources -->\n```text\nfoo/bar/aws\n```\n",
+                          encoding="utf-8", newline="\n")
+            got = MS.problems(d)
+            self.assertEqual(len(got), 1, got)
+            self.assertIn("terraform-aws-vpc/v6.md: <!-- iam-only-sources --> は iam-only-sources.md だけに書く", got[0])
+            self.assertFalse(iam_only("foo/bar/aws", d))  # 実際に効かない（core は iam-only-sources.md だけを読む）
+
     def test_doctor_requires_every_summary_file(self):
         import doctor
         on_disk = sorted(p.relative_to(SCRIPTS.parent).as_posix() for p in MS.SUMMARY_DIR.rglob("*.md"))

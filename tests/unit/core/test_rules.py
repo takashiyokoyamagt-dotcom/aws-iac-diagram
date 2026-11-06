@@ -125,6 +125,29 @@ class ShippedRulesTest(unittest.TestCase):
             row.id = "x"  # type: ignore[misc]
         self.assertIsInstance(row.tf, tuple)
 
+    def test_rows_can_be_hashed_and_copied(self):
+        # 行はハッシュでき（集合や辞書のキーにできる）、copy・deepcopy は同じ行を返す（変えられないので写さない。作りかけの行で
+        # __getattr__ が自分を呼び続けない）。id の無い表（[[confidence]]）の行も同じ
+        import copy
+        for row in (self.r.row("alb"), self.r.confidences[0], self.r.attrs[0]):
+            with self.subTest(row.table):
+                self.assertEqual(hash(row), hash(row))
+                self.assertIn(row, {row})
+                self.assertIs(copy.copy(row), row)
+                self.assertIs(copy.deepcopy(row), row)
+                self.assertIs(copy.deepcopy([row])[0], row)
+        self.assertEqual(hash(rules.load().row("alb")), hash(self.r.row("alb")))  # 等しい行は同じハッシュ
+        row = copy.deepcopy(self.r.row("alb"))
+        with self.assertRaises(TypeError):
+            row.fields["id"] = "x"  # type: ignore[index]
+        with self.assertRaises(AttributeError):
+            row.id = "x"  # type: ignore[misc]
+        with self.assertRaises(AttributeError):
+            row.__setstate__  # noqa: B018  列の名前でない（_ で始まる）ものは探さない
+        bare = object.__new__(rules.Row)  # fields の無い作りかけ（copy・pickle が経る形）でも、属性の問い合わせは AttributeError
+        with self.assertRaises(AttributeError):
+            bare.category  # noqa: B018
+
     def test_default_is_cached_and_equal_to_load(self):
         self.assertIs(rules.default(), rules.default())
         self.assertEqual([r.id for r in rules.default().types], [r.id for r in self.r.types])
@@ -313,6 +336,52 @@ class StructureTest(unittest.TestCase):
         self.assertBroken("types/: 無い")
         with self.assertRaises(rules.RulesError):
             rules.load(self.dir.parent / "nowhere")  # 規則表のフォルダごと無い
+
+    def test_os_and_editor_junk_files_are_ignored(self):
+        # OS やエディタが作るファイル（.DS_Store、Thumbs.db、desktop.ini、控え edges.toml~、vim の .swp、emacs の #…#）は黙って読まない
+        junk = (".DS_Store", "Thumbs.db", "Desktop.ini", "edges.toml~", ".edges.toml.swp", "edges.toml.swp", "#refs.toml#", ".hidden")
+        for d in (self.dir, self.dir / "types"):
+            for n in junk:
+                (d / n).write_bytes(b"\x00\xff junk")
+        (self.dir / ".cache").mkdir()
+        (self.dir / "types" / ".backup").mkdir()
+        (self.dir / "types" / ".backup" / "compute.toml").write_text("not = [toml", encoding="utf-8")
+        self.assertEqual(rules.load(self.dir), rules.load())
+        # ほかの名前は、これまでどおり誤り（置き場所・綴りの違い）
+        (self.dir / "foo.toml").write_text("", encoding="utf-8")
+        (self.dir / "types" / "compute.toml.bak").write_text("", encoding="utf-8")
+        self.assertBroken("foo.toml: 規則表のフォルダに置いてよい名前ではない", "types/compute.toml.bak: 読まれない")
+
+    def test_wrongly_typed_values_are_errors_not_crashes(self):
+        # 列の型の違う値は、表どうしの検査（ハッシュ・文字列の操作をする）に回さず、列の検査の文だけになる（TypeError などで落ちない）
+        cases = [
+            ("relations.toml", 'fallback = "H-RT-NOROUTE"', 'fallback = {a="b"}', "'fallback' は空でない文字列"),
+            ("refs.toml", 'attrs = ["role", ', 'attrs = [1, "role", ', "'attrs' は文字列の配列"),
+            ("refs.toml", 'use = ["R-SG"]', "use = [1]", "'use' は文字列の配列"),
+            ("relations.toml", 'prop = { tf = "type" }, in = ["ingress"]', 'prop = { tf = "type" }', "when.prop があるのに when.in が無い"),
+            ("types/merged-and-hidden.toml", 'node_types = ["nat_gateway"]', "node_types = [1]", "'into' は"),
+            ("edges.toml", 'level = "derived"', "level = [1]", "'level' は空でない文字列"),
+            ("edges.toml", 'confidence_order = ["confirmed", "derived", "inferred"]', "confidence_order = 1", "confidence_order は"),
+            ("types/merged-and-hidden.toml", 'module_sources_file = "data/module-summaries/iam-only-sources.md"',
+             "module_sources_file = [1]", "'module_sources_file' は空でない文字列"),
+        ]
+        for rel, old, new, needle in cases:
+            with self.subTest(new):
+                self.setUp()
+                edit(self.dir, rel, old, new)
+                self.assertBroken(needle)
+
+    def test_module_sources_file_must_stay_inside_the_skill(self):
+        # SKILL の外（`..`・絶対パス）は、ファイルがあっても誤り（SKILL の外のファイルを規則として読ませない）
+        for name in ("..", "absolute", "data/.."):
+            with self.subTest(name):
+                self.setUp()
+                outside = self.dir.parent.parent.parent / "x.md"  # <tmp>/日本語 パス/x.md（SKILL = <tmp>/日本語 パス/skill の外）
+                outside.write_text("x\n", encoding="utf-8")
+                f = {"..": "../x.md", "absolute": outside.as_posix(), "data/..": "data/../../x.md"}[name]
+                edit(self.dir, "types/merged-and-hidden.toml", 'module_sources_file = "data/module-summaries/iam-only-sources.md"',
+                     f'module_sources_file = "{f}"')
+                self.assertBroken(f"module_sources_file {f!r} が SKILL の外を指す")
 
     def test_bad_references(self):
         cases = [

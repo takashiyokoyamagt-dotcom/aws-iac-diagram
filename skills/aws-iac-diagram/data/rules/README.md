@@ -11,5 +11,6 @@
 | `placement.toml` | 入れ子の規則（N-AZ・P-*）と、ノードの `attrs` の取り方 |
 
 - 規則 ID（`H-IAM`・`R-LB-TG` など）は、IR の `sources` が指す名前です。名前も意味も変えず、消さないでください。
-- 行を足したり直したりしたら、`scripts/validate_ir.py`（規則表を読み込んで検査します。壊れていれば終了コード 2）と `scripts/doctor.py` で確かめます。
+- 行を足したり直したりしたら、`scripts/validate_ir.py`（規則表を読み込んで検査します。壊れていれば終了コード 2）と `scripts/doctor.py`（同じ検査の結果を `skill.rules_problems` に出し、error にします）で確かめます。
+- このフォルダに置いてよいのは、上の表のファイル（`types/` の中は `.toml` だけ）とこの README だけです。ほかの名前（`foo.toml`・`notes.txt`・`types/x.toml.bak` など）は置き場所や綴りの誤りとして検査に落ちます。ただし OS やエディタが作るもの（`.` で始まる名前（`.DS_Store`・`.edges.toml.swp` など）、`Thumbs.db`・`desktop.ini`、末尾が `~`・`.swp`・`.swo` の名前、`#…#`）は読まずに無視します。
 - 規則の理由・列の説明・表の一覧は、この SKILL を配るリポジトリの `docs/spec/rules/`（SKILL の外。配りません）にあります。

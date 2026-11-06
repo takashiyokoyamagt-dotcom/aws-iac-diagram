@@ -155,6 +155,24 @@ def _table_problems() -> list[str]:
         return []
 
 
+def _rules_problems() -> list[str]:
+    """規則表（data/rules/）の検査の誤り（core.rules.load の RulesError の 1 件ずつ。標準ライブラリだけの関数）。
+
+    規則表が壊れていると validate_ir.py（と正規化）が動かないので、doctor でも読んでみる。パッケージが読み込めなければ調べない
+    （欠けは missing_files が知らせる）。"""
+    try:
+        from aws_iac_diagram.core import rules
+    except Exception:  # noqa: BLE001  パッケージの欠け・壊れは missing_files の側で報告する
+        return []
+    try:
+        rules.load(SKILL_DIR / "data" / "rules")
+    except rules.RulesError as e:
+        return list(e.problems)
+    except Exception as e:  # noqa: BLE001  検査そのものが落ちても、doctor は止めずに誤りとして知らせる
+        return [f"規則表の読み込みが失敗しました: {type(e).__name__}: {e}"]
+    return []
+
+
 def check_skill(issues: list[dict]) -> dict:
     missing = [f for f in REQUIRED_FILES if not (SKILL_DIR / f).is_file()]
     for f in missing:
@@ -164,8 +182,13 @@ def check_skill(issues: list[dict]) -> dict:
     for msg in table_problems:
         issues.append({"level": "error", "item": "skill",
                        "message": f"要約表（data/module-summaries/）の置き方に誤りがあります: {msg}。SKILL のフォルダを丸ごと取り込み直してください。"})
+    # ファイルが欠けているときは、規則表の検査はしない（欠けた表・H-IAM の一覧への参照の切れが重なって出るだけ。欠けは上で error にした）
+    rules_problems = [] if missing else _rules_problems()
+    for msg in rules_problems:
+        issues.append({"level": "error", "item": "skill",
+                       "message": f"規則表（data/rules/）に誤りがあります: {msg}。SKILL のフォルダを丸ごと取り込み直してください。"})
     return {"dir": str(SKILL_DIR), "non_ascii_path": not str(SKILL_DIR).isascii(),
-            "missing_files": missing, "table_problems": table_problems}
+            "missing_files": missing, "table_problems": table_problems, "rules_problems": rules_problems}
 
 
 def check_uv() -> dict:

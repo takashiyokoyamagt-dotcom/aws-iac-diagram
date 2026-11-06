@@ -110,6 +110,19 @@ class JapanesePathTest(unittest.TestCase):
         self.assertIn("refs.toml: [[noedge]] #1（E-NOEDGE-FROM-RULE）: 未知のフィールド 'bogus'", res.stderr)
         self.assertEqual(res.stdout, "")
 
+    def test_validate_ir_with_a_wrongly_typed_rules_value_exits_2_without_a_traceback(self):
+        # 列の型が違う値（表どうしの検査で落ちていたもの）も、例外の落ち方（終了コード 1 とトレースバック）ではなく、終了コード 2 と文になる
+        skill = self.dir / "aws-iac-diagram"
+        shutil.copytree(SCRIPTS.parent, skill, ignore=shutil.ignore_patterns("__pycache__"))
+        rel = skill / "data" / "rules" / "relations.toml"
+        rel.write_text(rel.read_text(encoding="utf-8").replace('fallback = "H-RT-NOROUTE"', 'fallback = { a = "b" }', 1),
+                       encoding="utf-8", newline="\n")
+        res = subprocess.run([sys.executable, str(skill / "scripts" / "validate_ir.py"), str(EXPECTED / "three-tier.ir.json")],
+                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300, check=False)
+        self.assertEqual(res.returncode, 2, res.stdout + res.stderr)
+        self.assertIn("'fallback' は空でない文字列", res.stderr)
+        self.assertNotIn("Traceback", res.stderr)
+
     def test_adapt_tf_from_a_copy_of_the_skill_alone(self):
         # SKILL のフォルダだけを日本語とスペースを含む場所にコピーして動かす（リポジトリの tests・fixture・ツールに頼らない）。
         # 入口 adapt_tf.py は自分の場所から scripts/ を sys.path に入れるので、cwd にも元の場所にも依らない

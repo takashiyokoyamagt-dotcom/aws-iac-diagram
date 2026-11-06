@@ -12,6 +12,13 @@
 読む順は決まっている（`types/` の中は名前の昇順、ほかは固定の名前、行は書いた順）。ディレクトリの列挙の順や OS には依らない。
 決まりに合わないデータ（TOML として読めない、ID の重複、未知のフィールド、必須の列が無い、型の重複、`class` と接頭辞の不整合、
 存在しない ID や型への参照など）は、読み込みのときにすべて `RulesError` にする（検査を通ったデータだけが使える）。
+列の型の検査（`_check_fields`・`_check_when`）に落ちた行は、表どうしの検査に回さない（型の違う値で検査そのものが落ちないように。
+その行の誤りは列の検査が報告する。規則 ID の集合には入れるので、ほかの行からの参照は切れにならない）。
+
+**フォルダに置いてよいもの**: 直下は `types/`・`README.md`・上の 4 つの .toml、`types/` の中は `.toml` のファイルだけ。ほかの名前
+（`foo.toml`・`notes.txt` など）は書き手の誤り（置き場所・綴りの違い。黙って読まないと規則が効かない）なので `RulesError`。
+ただし OS やエディタが勝手に作るもの（`_is_junk`: `.` で始まる名前（`.DS_Store`・`.edges.toml.swp` など）、`Thumbs.db`・
+`desktop.ini`（大文字小文字を問わない）、末尾が `~`・`.swp`・`.swo` の名前、`#…#`）は、規則表の誤りではないので黙って読まない。
 
 ここは標準ライブラリと core 自身（paths）だけを使う（core の決まり）。`validate_ir.py`（と将来の `normalize/`）が同じ関数を使い、
 規則表を 2 か所で読まない。
@@ -51,6 +58,16 @@ TABLE_PREFIX = {"type:merged_into": ("M-",), "type:hidden": ("H-",), "relation":
 TYPES_DIR_NAME = "types"
 FIXED_FILES = ("relations.toml", "edges.toml", "refs.toml", "placement.toml")
 ALLOWED_ROOT_NAMES = frozenset({TYPES_DIR_NAME, "README.md", *FIXED_FILES})
+JUNK_NAMES = frozenset({"thumbs.db", "desktop.ini"})  # Windows が作る（小文字にして比べる）
+JUNK_SUFFIXES = ("~", ".swp", ".swo")  # エディタの控え・スワップ
+
+
+def _is_junk(name: str) -> bool:
+    """OS やエディタが作るファイル（黙って読まない）。`.` で始まる名前（`.DS_Store`・vim の `.x.toml.swp`）、`Thumbs.db`・`desktop.ini`、
+    末尾が `~`・`.swp`・`.swo`、emacs の `#x#`。"""
+    return (name.startswith(".") or name.lower() in JUNK_NAMES or name.endswith(JUNK_SUFFIXES)
+            or (len(name) > 1 and name.startswith("#") and name.endswith("#")))
+
 
 EDGES_TOP_LEVEL = {"confidence_order", "iam_action_priority", "iam_action_default"}
 FILE_TABLES = {  # ファイル（types/ の中は共通）→ 置いてよい表
@@ -207,10 +224,25 @@ class Row:
     fields: MappingProxyType
 
     def __getattr__(self, name: str):
+        # 列の名前だけを探す。`fields` 自身と `_`・`__` で始まる名前（copy・pickle が無いことを確かめる `__setstate__` など）は
+        # 探さない（作りかけで `fields` がまだ無いときに、ここが自分を呼び続けないように）
+        if name == "fields" or name.startswith("_"):
+            raise AttributeError(name)
         try:
             return self.fields[name]
         except KeyError:
             raise AttributeError(name) from None
+
+    def __hash__(self) -> int:
+        # 等しさ（dataclass の eq）は列の中身で比べる（別々に読んだ結果が等しい）。列には MappingProxyType（ハッシュできない）があり、
+        # `id` の無い表（[[confidence]]・[[attr]] など）もあるので、ハッシュは表・ファイル・列の名前から作る（等しい行は同じ値になる）
+        return hash((self.table, self.file, tuple(self.fields)))
+
+    def __copy__(self) -> Row:
+        return self  # 変えられないので、写す必要が無い
+
+    def __deepcopy__(self, memo) -> Row:
+        return self  # 同上（中の MappingProxyType は deepcopy できない）
 
     def get(self, name: str, default=None):
         return self.fields.get(name, default)
@@ -360,6 +392,7 @@ def _files(rules_dir: Path, errs: list[str]) -> list[tuple[str, Path, str]]:
     except OSError as e:
         errs.append(f"{rules_dir.name}/: 開けない: {e}")
         return out
+    entries = [e for e in entries if not _is_junk(e.name)]
     names = {p.name for p in entries}
     for e in entries:
         if e.name not in ALLOWED_ROOT_NAMES:
@@ -377,6 +410,8 @@ def _files(rules_dir: Path, errs: list[str]) -> list[tuple[str, Path, str]]:
         return out
     tfiles = []
     for f in sorted(tdir.iterdir(), key=lambda p: p.name):
+        if _is_junk(f.name):
+            continue
         if f.is_file() and f.name.endswith(".toml"):
             tfiles.append((f"{TYPES_DIR_NAME}/{f.name}", f, "types"))
         else:
@@ -393,6 +428,7 @@ def load(rules_dir: Path | None = None) -> Rules:
     tables: dict[str, list[Row]] = {k: [] for k in ("type", "relation", "confidence", "edge", "kind_by_target", "iam_action_kind",
                                                      "merge_priority", "synthetic", "label_format", "noedge", "nonode", "placement", "attr")}
     options: dict = {}
+    bad: set[int] = set()  # 列の検査に落ちた行（id(Row)）。表どうしの検査には回さない
     for rel, path, kind in _files(rules_dir, errs):
         data = _read_toml(path, rel, errs)
         allowed = FILE_TABLES[kind]
@@ -402,18 +438,23 @@ def load(rules_dir: Path | None = None) -> Rules:
                     errs.append(f"{rel}: {key} は [[{key}]]（表の配列）で書く")
                     continue
                 for n, row in enumerate(value, 1):
-                    tables[key].append(_row(key, rel, n, row, errs))
+                    before = len(errs)
+                    r = _row(key, rel, n, row, errs)
+                    tables[key].append(r)
+                    if len(errs) != before:
+                        bad.add(id(r))
             elif kind == "edges.toml" and key in EDGES_TOP_LEVEL:
                 options[key] = value
             else:
                 errs.append(f"{rel}: 未知のキー {key!r}（このファイルに置いてよいのは {sorted(allowed | (EDGES_TOP_LEVEL if kind == 'edges.toml' else set()))}）")
-    rules = Rules(types=tuple(tables["type"]), relations=tuple(tables["relation"]), confidences=tuple(tables["confidence"]),
-                  edges=tuple(tables["edge"]), kind_by_target=tuple(tables["kind_by_target"]),
-                  iam_action_kinds=tuple(tables["iam_action_kind"]), merge_priority=tuple(tables["merge_priority"]),
-                  synthetic=tuple(tables["synthetic"]), label_formats=tuple(tables["label_format"]), noedge=tuple(tables["noedge"]),
-                  nonode=tuple(tables["nonode"]), placement=tuple(tables["placement"]), attrs=tuple(tables["attr"]),
-                  edges_options=_freeze(options))
-    _cross_checks(rules, rules_dir, errs)
+    def build(keep) -> Rules:
+        t = {k: tuple(r for r in v if keep(r)) for k, v in tables.items()}
+        return Rules(types=t["type"], relations=t["relation"], confidences=t["confidence"], edges=t["edge"],
+                     kind_by_target=t["kind_by_target"], iam_action_kinds=t["iam_action_kind"], merge_priority=t["merge_priority"],
+                     synthetic=t["synthetic"], label_formats=t["label_format"], noedge=t["noedge"], nonode=t["nonode"],
+                     placement=t["placement"], attrs=t["attr"], edges_options=_freeze(options))
+    rules = build(lambda r: True)
+    _cross_checks(rules, build(lambda r: id(r) not in bad) if bad else rules, rules_dir, errs)
     if errs:
         raise RulesError(errs)
     return rules
@@ -469,7 +510,9 @@ def _glob_hits(pattern: str, ids: frozenset[str]) -> bool:
     return any(_matches(pattern, i) for i in ids)
 
 
-def _cross_checks(rules: Rules, rules_dir: Path, errs: list[str]) -> None:
+def _cross_checks(rules: Rules, good: Rules, rules_dir: Path, errs: list[str]) -> None:
+    """表どうしの検査。`rules` はすべての行（規則 ID の集合と、型を問わない検査に使う）、`good` は列の検査を通った行だけ
+    （1 行ずつ列の値を見る検査は `good` を回す。型の違う値で落ちないように）。"""
     # --- ID の形・接頭辞と class・重複
     seen: dict[str, str] = {}
 
@@ -507,7 +550,7 @@ def _cross_checks(rules: Rules, rules_dir: Path, errs: list[str]) -> None:
 
     # --- 入力の型の形と、重複（同じ型が複数の行に当たるのは、`when` で同時に成り立たないときだけ）
     entries: list[tuple[str, Row]] = []
-    for r in (*rules.types, *rules.relations):
+    for r in (*good.types, *good.relations):
         for key, shape in (("tf", TF_TYPE), ("cfn", CFN_TYPE), ("tf_data", TF_TYPE)):
             vals = r.get(key, ())
             if not (isinstance(vals, tuple) and all(isinstance(v, str) for v in vals)):
@@ -531,7 +574,7 @@ def _cross_checks(rules: Rules, rules_dir: Path, errs: list[str]) -> None:
                         "同時に成り立たない when（同じ prop の in が重ならない、via と via_not など）で分ける")
 
     # --- 型の行
-    for r in rules.drawn:
+    for r in good.drawn:
         if r.get("category") not in CATEGORIES and "category" in r.fields:
             errs.append(f"{r.file}: {r.id} の category は {list(CATEGORIES)} のどれか（値: {r.category!r}）")
         syn = r.get("synthetic")
@@ -542,23 +585,29 @@ def _cross_checks(rules: Rules, rules_dir: Path, errs: list[str]) -> None:
                 errs.append(f"{r.file}: 合成ノード {r.id} に入力の型（tf・cfn）は書かない")
         elif "tf" in r.fields and not (r.tf or r.cfn):
             errs.append(f"{r.file}: 描く型 {r.id} に入力の型（tf・cfn）が 1 つも無い（合成ノードなら synthetic を書く）")
-    for r in rules.merged:
+    for r in good.merged:
         into = r.get("into")
         if isinstance(into, MappingProxyType):
             bad = [t for t in into.get("node_types", ()) if t not in drawn_ids]
             if bad:
                 errs.append(f"{r.file}: {r.id} の into.node_types {bad} が描く型にない")
-    refs_as = [r.id for r in rules.merged if r.get("refs_as_target")]
+    refs_as = [r.id for r in good.merged if r.get("refs_as_target")]
     if any(r.get("data") for r in rules.drawn) and not any(r.get("data_block") for r in rules.hidden):
         errs.append("types: data = true の型があるのに、data_block = true の H-* の行（H-DATA）が無い")
-    for r in rules.hidden:
+    for r in good.hidden:
         f = r.get("module_sources_file")
-        if f is not None and not (rules_dir.parent.parent / f).is_file():
+        if f is None:
+            continue
+        skill_dir = rules_dir.parent.parent.resolve()
+        target = (skill_dir / f).resolve()  # 絶対パスや `..` で SKILL の外を指させない（SKILL の外のファイルを読ませない）
+        if not target.is_relative_to(skill_dir):
+            errs.append(f"{r.file}: {r.id} の module_sources_file {f!r} が SKILL の外を指す（SKILL のフォルダからの相対パスで書く）")
+        elif not target.is_file():
             errs.append(f"{r.file}: {r.id} の module_sources_file {f!r} が SKILL の下に無い")
 
     # --- 関係リソース
     hidden_ids = rules.hidden_ids
-    for r in rules.relations:
+    for r in good.relations:
         k = r.get("kind")
         if k not in (None, "") and k not in KINDS:
             errs.append(f"{r.file}: {r.id} の kind {k!r} は {list(KINDS)} のどれか（または空）")
@@ -571,16 +620,16 @@ def _cross_checks(rules: Rules, rules_dir: Path, errs: list[str]) -> None:
             errs.append(f"{r.file}: {r.id} の fallback {fb!r} が非表示の規則（H-*）にない")
 
     # --- 確信度
-    levels = [r.get("level") for r in rules.confidences]
+    levels = [r.get("level") for r in good.confidences]
     for lv in levels:
         if lv not in CONFIDENCES:
             errs.append(f"edges.toml: [[confidence]] の level {lv!r} は {list(CONFIDENCES)} のどれか")
     if len(set(levels)) != len(levels):
         errs.append("edges.toml: [[confidence]] の level が重複")
     order = rules.edges_options.get("confidence_order")
-    if order is not None and tuple(order) != tuple(CONFIDENCES):
-        errs.append(f"edges.toml: confidence_order は {list(CONFIDENCES)}（値: {list(order)}）")
-    by_level = {r.get("level"): r.get("rules", ()) for r in rules.confidences}
+    if order is not None and (not isinstance(order, tuple) or order != tuple(CONFIDENCES)):  # 配列は _freeze で tuple
+        errs.append(f"edges.toml: confidence_order は {list(CONFIDENCES)}（値: {list(order) if isinstance(order, tuple) else order!r}）")
+    by_level = {r.get("level"): r.get("rules", ()) for r in good.confidences}
     for lv, pats in by_level.items():
         for p in pats:
             if not _glob_hits(p, rule_ids):
@@ -589,10 +638,10 @@ def _cross_checks(rules: Rules, rules_dir: Path, errs: list[str]) -> None:
     def covered(level: str, id_: str) -> bool:
         return any(_matches(p, id_) for p in by_level.get(level, ()))
 
-    for r in rules.relations:
+    for r in good.relations:
         if r.get("confidence") in CONFIDENCES and not covered(r.confidence, r.id):
             errs.append(f"{r.file}: {r.id} の confidence {r.confidence} が、edges.toml の確信度の表の rules に無い")
-    for r in rules.edges:
+    for r in good.edges:
         c = r.get("confidence")
         if c not in (None, ""):
             if c not in CONFIDENCES:
@@ -610,7 +659,7 @@ def _cross_checks(rules: Rules, rules_dir: Path, errs: list[str]) -> None:
 
     # --- kind の対応表・優先順
     seen_types: dict[str, str] = {}
-    for r in rules.kind_by_target:
+    for r in good.kind_by_target:
         if r.get("kind") not in KINDS:
             errs.append(f"edges.toml: [[kind_by_target]] の kind {r.get('kind')!r} は {list(KINDS)} のどれか")
         for t in r.get("types", ()):
@@ -619,11 +668,11 @@ def _cross_checks(rules: Rules, rules_dir: Path, errs: list[str]) -> None:
             if t in seen_types:
                 errs.append(f"edges.toml: [[kind_by_target]] の型 {t!r} が重複（{seen_types[t]} にもある）")
             seen_types[t] = str(r.get("kind"))
-    for r in rules.iam_action_kinds:
+    for r in good.iam_action_kinds:
         if r.get("kind") not in KINDS:
             errs.append(f"edges.toml: [[iam_action_kind]] の kind {r.get('kind')!r} は {list(KINDS)} のどれか")
     seen_actions: set[str] = set()
-    for r in rules.iam_action_kinds:
+    for r in good.iam_action_kinds:
         for a in r.get("actions", ()):
             if a in seen_actions:
                 errs.append(f"edges.toml: [[iam_action_kind]] のアクション {a!r} が重複")
@@ -633,11 +682,11 @@ def _cross_checks(rules: Rules, rules_dir: Path, errs: list[str]) -> None:
     ranks = [r.get("rank") for r in rules.merge_priority]
     if ranks != list(range(1, len(ranks) + 1)):
         errs.append(f"edges.toml: [[merge_priority]] の rank は 1 から順に 1 つずつ（値: {ranks}）")
-    for r in rules.merge_priority:
+    for r in good.merge_priority:
         for p in r.get("rules", ()):
             if not _glob_hits(p, rule_ids):
                 errs.append(f"edges.toml: [[merge_priority]] の rules の {p!r} に当たる規則 ID が無い")
-    for r in rules.edges:
+    for r in good.edges:
         kb = r.get("kind_by")
         tbl = {"kind_by_target": rules.kind_by_target, "iam_action_kind": rules.iam_action_kinds, "merge_priority": rules.merge_priority}.get(kb)
         if kb in KIND_TABLES and not tbl:
@@ -645,7 +694,7 @@ def _cross_checks(rules: Rules, rules_dir: Path, errs: list[str]) -> None:
 
     # --- 辺にしない参照
     seen_keys: dict[str, str] = {}
-    for r in rules.noedge:
+    for r in good.noedge:
         keys = [neutral_key(a) for a in r.get("attrs", ())]
         if len(set(keys)) != len(keys):
             errs.append(f"{r.file}: {r.id} の attrs に、中立キー（小文字にして _ を除く）が同じ属性名が 2 回ある: {list(r.get('attrs', ()))}")
@@ -667,15 +716,15 @@ def _cross_checks(rules: Rules, rules_dir: Path, errs: list[str]) -> None:
                 errs.append(f"{r.file}: {r.id} の except_rules {x!r} が統合の規則（M-*）にない")
         if not r.get("attrs") and not has_fc:
             errs.append(f"{r.file}: {r.id} は attrs が空なのに from_class が無い（何にも当たらない規則）")
-    if refs_as and not any(x in refs_as for r in rules.noedge for x in r.get("except_rules", ())):
+    if refs_as and not any(x in refs_as for r in good.noedge for x in r.get("except_rules", ())):
         errs.append(f"types: refs_as_target の {refs_as} を、辺にしない参照の except_rules が指していない")
 
     # --- 入れ子
-    for r in rules.placement:
+    for r in good.placement:
         for t in r.get("types", ()):
             if t not in drawn_ids:
                 errs.append(f"{r.file}: {r.id} の types の {t!r} が描く型にない")
-    for r in rules.attrs:
+    for r in good.attrs:
         if r.get("type") not in drawn_ids:
             errs.append(f"{r.file}: [[attr]] の type {r.get('type')!r} が描く型にない")
         if r.get("source") not in rule_ids:
