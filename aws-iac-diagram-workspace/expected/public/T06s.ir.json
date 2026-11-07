@@ -1,0 +1,123 @@
+{
+  "description": "serverless-patterns eventbridge-sns-lambda（SAM）。EventBridge ルール → SNS トピック → Lambda。",
+  "edges": [
+    {
+      "confidence": "derived",
+      "from": "eventbridge_rule/eventbridgerule",
+      "id": "eventbridge_rule/eventbridgerule->sns_topic/snstopic",
+      "kind": "event",
+      "label": "",
+      "note": "ルールの Targets（R-EVENTS-TARGET）",
+      "to": "sns_topic/snstopic"
+    },
+    {
+      "confidence": "derived",
+      "from": "sns_topic/snstopic",
+      "id": "sns_topic/snstopic->lambda_function/lambdafunction",
+      "kind": "event",
+      "label": "",
+      "note": "SAM の Events（Type: SNS）。R-SNS-SUBSCRIPTION",
+      "to": "lambda_function/lambdafunction"
+    }
+  ],
+  "evaluation": {
+    "assumptions": [
+      "パラメータは無い"
+    ],
+    "cfn": {
+      "parameters": {}
+    }
+  },
+  "ir_version": "1.0",
+  "name": "t06s",
+  "nodes": [
+    {
+      "category": "resource",
+      "id": "eventbridge_rule/eventbridgerule",
+      "label": "EventBridgeRule",
+      "name": "EventBridgeRule",
+      "note": "Name が無いので論理名（K-NAME の 3）",
+      "parent": null,
+      "type": "eventbridge_rule"
+    },
+    {
+      "category": "resource",
+      "id": "lambda_function/lambdafunction",
+      "label": "LambdaFunction",
+      "name": "LambdaFunction",
+      "parent": null,
+      "type": "lambda_function"
+    },
+    {
+      "category": "resource",
+      "id": "sns_topic/snstopic",
+      "label": "SNSTopic",
+      "name": "SNSTopic",
+      "note": "TopicName が無いので論理名（K-NAME の 3）",
+      "parent": null,
+      "type": "sns_topic"
+    }
+  ],
+  "notes": [
+    "ルールとトピックに名前の属性（Name・TopicName）が無いので、名前は論理名（EventBridgeRule、SNSTopic）。DisplayName は名前属性ではない。",
+    "トピックポリシーは Principal.Service（events.amazonaws.com）だけで aws:SourceArn の条件が無いので、送信元を決めない（R-SNS-TOPIC-POLICY の fallback の H-IAM。relations.md の実装の決定 ③）。ルール → トピックの辺は Targets からできるので、実際の関係は図に出る。",
+    "SAM の Events（SNS）が作る Subscription と Lambda の権限、関数のロールは変換前のテンプレートに無いので網羅分類の対象外。"
+  ],
+  "sources": {
+    "cfn": {
+      "edges": [
+        {
+          "edge": "eventbridge_rule/eventbridgerule->sns_topic/snstopic",
+          "evidence": [
+            "EventBridgeRule.Properties.Targets[0].Arn"
+          ],
+          "rules": [
+            "R-EVENTS-TARGET"
+          ]
+        },
+        {
+          "edge": "sns_topic/snstopic->lambda_function/lambdafunction",
+          "evidence": [
+            "LambdaFunction.Properties.Events.SNSTOpicEvent.Properties.Topic (Type: SNS)"
+          ],
+          "rules": [
+            "R-SNS-SUBSCRIPTION"
+          ]
+        }
+      ],
+      "resources": [
+        {
+          "address": "EventBridgeRule",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "eventbridge_rule/eventbridgerule",
+          "type": "AWS::Events::Rule"
+        },
+        {
+          "address": "LambdaFunction",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "lambda_function/lambdafunction",
+          "type": "AWS::Serverless::Function"
+        },
+        {
+          "address": "SNSTopic",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "sns_topic/snstopic",
+          "type": "AWS::SNS::Topic"
+        },
+        {
+          "address": "SNSTopicPolicy",
+          "class": "hidden",
+          "file": "template.yaml",
+          "note": "aws:SourceArn の条件が無く送信元が決まらない（R-SNS-TOPIC-POLICY の fallback）",
+          "rule": "H-IAM",
+          "type": "AWS::SNS::TopicPolicy"
+        }
+      ],
+      "root": "fixtures/public/serverless-patterns/eventbridge-sns-lambda/template.yaml"
+    }
+  },
+  "stage": "normalized"
+}

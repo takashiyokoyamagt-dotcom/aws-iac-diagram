@@ -1,0 +1,381 @@
+{
+  "description": "serverless-patterns/apigw-sfn-crud-terraform。REST API（ANY / と ANY /{id}）が AWS 統合で Step Functions（EXPRESS）を StartExecution し、ステートマシンが DynamoDB を読み書きする CRUD。",
+  "edges": [
+    {
+      "confidence": "derived",
+      "from": "apigw_rest_api/api_sf_crud-tf_api",
+      "id": "apigw_rest_api/api_sf_crud-tf_api->sfn_state_machine/api_sf_crud-tf_cf",
+      "kind": "request",
+      "label": "ANY /, ANY /{id}",
+      "note": "R-APIGW-REST。ルートのメソッド ANY（/）と子リソース {id} のメソッド ANY。統合先は request_templates のステートマシンへの参照で決まる",
+      "to": "sfn_state_machine/api_sf_crud-tf_cf"
+    },
+    {
+      "confidence": "derived",
+      "from": "external/internet",
+      "id": "external/internet->apigw_rest_api/api_sf_crud-tf_api",
+      "kind": "request",
+      "label": "HTTPS",
+      "to": "apigw_rest_api/api_sf_crud-tf_api"
+    },
+    {
+      "confidence": "inferred",
+      "from": "sfn_state_machine/api_sf_crud-tf_cf",
+      "id": "sfn_state_machine/api_sf_crud-tf_cf->dynamodb_table/api_sf_crud-db",
+      "kind": "data",
+      "label": "",
+      "note": "E-IAM（dynamodb:GetItem など → data）。真の関係は定義ファイルのタスク（規則表に定義から作る規則が無いので推定）",
+      "to": "dynamodb_table/api_sf_crud-db"
+    }
+  ],
+  "evaluation": {
+    "assumptions": [
+      "変数は無い。region・アカウントは data から引く"
+    ],
+    "tf": {
+      "var_files": [],
+      "vars": {}
+    }
+  },
+  "ir_version": "1.0",
+  "name": "t11",
+  "nodes": [
+    {
+      "category": "resource",
+      "id": "apigw_rest_api/api_sf_crud-tf_api",
+      "label": "API_SF_CRUD-tf_API",
+      "name": "API_SF_CRUD-tf_API",
+      "note": "ステージ 2・デプロイ（M-APIGW-STAGE）と応答 8（M-APIGW-RESPONSE）を統合",
+      "parent": null,
+      "type": "apigw_rest_api"
+    },
+    {
+      "category": "resource",
+      "id": "dynamodb_table/api_sf_crud-db",
+      "label": "API_SF_CRUD-DB",
+      "name": "API_SF_CRUD-DB",
+      "note": "Name タグ = name",
+      "parent": null,
+      "type": "dynamodb_table"
+    },
+    {
+      "category": "external",
+      "id": "external/internet",
+      "label": "Internet",
+      "name": "internet",
+      "note": "N-EXT-INTERNET（パブリックな REST API。endpoint_configuration 未指定で既定は EDGE）",
+      "parent": null,
+      "synthetic": true,
+      "type": "external"
+    },
+    {
+      "category": "resource",
+      "id": "sfn_state_machine/api_sf_crud-tf_cf",
+      "label": "API_SF_CRUD-tf_CF",
+      "name": "API_SF_CRUD-tf_CF",
+      "note": "Name タグ = name。type EXPRESS",
+      "parent": null,
+      "type": "sfn_state_machine"
+    }
+  ],
+  "notes": [
+    "REST API の統合は uri がアクションの文字列（states:action/StartExecution）でリソースを指さないが、request_templates の中で aws_sfn_state_machine.API_SF_CRUD-tf_CF.name を参照しており、統合先はそのステートマシン（R-APIGW-REST）。統合の credentials のロールのポリシーも states:StartExecution をそのステートマシンに許す。",
+    "ステートマシン → DynamoDB の真の関係は定義（crud-asl.json の dynamodb:putItem/getItem/deleteItem と aws-sdk:dynamodb:scan）にあるが、定義は file() で読む外部ファイルで、規則表に定義から辺を作る規則も無い。ロールの inline_policy の Resource（table/${aws_dynamodb_table.API_SF_CRUD-DB.name}）から E-IAM の推定の辺（data）にする。",
+    "注意: この TF 版は crud-asl.json の ${DDBTable} を templatefile で置き換えていない（file() のまま）ので、実際にデプロイすると TableName が文字列 \"${DDBTable}\" になる。作者の意図（と SAM 版 T11s）はこのテーブルなので、真の関係として辺を描く。",
+    "ステージ 2（Prod・Stage）とデプロイは API に統合（M-APIGW-STAGE）。メソッド応答・統合応答 8 個は M-APIGW-RESPONSE。"
+  ],
+  "sources": {
+    "tf": {
+      "edges": [
+        {
+          "edge": "apigw_rest_api/api_sf_crud-tf_api->sfn_state_machine/api_sf_crud-tf_cf",
+          "evidence": [
+            "aws_api_gateway_integration.API_SF_CRUD-tf_APIInt.request_templates[\"application/json\"]",
+            "aws_api_gateway_integration.API_SF_CRUD-tf_APIIntChild.request_templates[\"application/json\"]",
+            "aws_api_gateway_method.API_SF_CRUD-tf_API_method.http_method (ANY /)",
+            "aws_api_gateway_method.API_SF_CRUD-tf_API_method_child.http_method (ANY /{id})",
+            "aws_api_gateway_resource.API_SF_CRUD-tf_APIRes_Child.path_part ({id})",
+            "aws_iam_role_policy.API_SF_CRUD-tf_APIPolicy.policy.Statement[0].Resource (統合の credentials のロールの states:StartExecution。同じ組の裏付け)"
+          ],
+          "rules": [
+            "R-APIGW-REST"
+          ]
+        },
+        {
+          "edge": "external/internet->apigw_rest_api/api_sf_crud-tf_api",
+          "evidence": [
+            "aws_api_gateway_rest_api.API_SF_CRUD-tf_API.endpoint_configuration (未指定。既定は EDGE)"
+          ],
+          "rules": [
+            "N-EXT-INTERNET"
+          ]
+        },
+        {
+          "edge": "sfn_state_machine/api_sf_crud-tf_cf->dynamodb_table/api_sf_crud-db",
+          "evidence": [
+            "aws_iam_role.API_SF_CRUD-tf_CFRole.inline_policy[0].policy.Statement[0].Resource[0] (dynamodb:GetItem 他。ロールは aws_sfn_state_machine.API_SF_CRUD-tf_CF.role_arn)",
+            "aws_sfn_state_machine.API_SF_CRUD-tf_CF.definition (file(\"./crud-asl.json\")。dynamodb のタスク。規則に無いので根拠の補足のみ)"
+          ],
+          "rules": [
+            "E-IAM"
+          ]
+        }
+      ],
+      "resources": [
+        {
+          "address": "aws_api_gateway_deployment.API_SF_CRUD-tf_API_deployment_Prod",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "apigw_rest_api/api_sf_crud-tf_api"
+          ],
+          "rule": "M-APIGW-STAGE",
+          "type": "aws_api_gateway_deployment"
+        },
+        {
+          "address": "aws_api_gateway_integration.API_SF_CRUD-tf_APIInt",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "apigw_rest_api/api_sf_crud-tf_api->sfn_state_machine/api_sf_crud-tf_cf"
+          ],
+          "rule": "R-APIGW-REST",
+          "type": "aws_api_gateway_integration"
+        },
+        {
+          "address": "aws_api_gateway_integration.API_SF_CRUD-tf_APIIntChild",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "apigw_rest_api/api_sf_crud-tf_api->sfn_state_machine/api_sf_crud-tf_cf"
+          ],
+          "rule": "R-APIGW-REST",
+          "type": "aws_api_gateway_integration"
+        },
+        {
+          "address": "aws_api_gateway_integration_response.API_SF_CRUD-tf_APIIntChildRes200",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "apigw_rest_api/api_sf_crud-tf_api"
+          ],
+          "rule": "M-APIGW-RESPONSE",
+          "type": "aws_api_gateway_integration_response"
+        },
+        {
+          "address": "aws_api_gateway_integration_response.API_SF_CRUD-tf_APIIntChildRes400",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "apigw_rest_api/api_sf_crud-tf_api"
+          ],
+          "rule": "M-APIGW-RESPONSE",
+          "type": "aws_api_gateway_integration_response"
+        },
+        {
+          "address": "aws_api_gateway_integration_response.API_SF_CRUD-tf_APIIntRes200",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "apigw_rest_api/api_sf_crud-tf_api"
+          ],
+          "rule": "M-APIGW-RESPONSE",
+          "type": "aws_api_gateway_integration_response"
+        },
+        {
+          "address": "aws_api_gateway_integration_response.API_SF_CRUD-tf_APIIntRes400",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "apigw_rest_api/api_sf_crud-tf_api"
+          ],
+          "rule": "M-APIGW-RESPONSE",
+          "type": "aws_api_gateway_integration_response"
+        },
+        {
+          "address": "aws_api_gateway_method.API_SF_CRUD-tf_API_method",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "apigw_rest_api/api_sf_crud-tf_api->sfn_state_machine/api_sf_crud-tf_cf"
+          ],
+          "rule": "R-APIGW-REST",
+          "type": "aws_api_gateway_method"
+        },
+        {
+          "address": "aws_api_gateway_method.API_SF_CRUD-tf_API_method_child",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "apigw_rest_api/api_sf_crud-tf_api->sfn_state_machine/api_sf_crud-tf_cf"
+          ],
+          "rule": "R-APIGW-REST",
+          "type": "aws_api_gateway_method"
+        },
+        {
+          "address": "aws_api_gateway_method_response.API_SF_CRUD-tf_APIMethChildRes200",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "apigw_rest_api/api_sf_crud-tf_api"
+          ],
+          "rule": "M-APIGW-RESPONSE",
+          "type": "aws_api_gateway_method_response"
+        },
+        {
+          "address": "aws_api_gateway_method_response.API_SF_CRUD-tf_APIMethChildRes400",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "apigw_rest_api/api_sf_crud-tf_api"
+          ],
+          "rule": "M-APIGW-RESPONSE",
+          "type": "aws_api_gateway_method_response"
+        },
+        {
+          "address": "aws_api_gateway_method_response.API_SF_CRUD-tf_APIMethRes200",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "apigw_rest_api/api_sf_crud-tf_api"
+          ],
+          "rule": "M-APIGW-RESPONSE",
+          "type": "aws_api_gateway_method_response"
+        },
+        {
+          "address": "aws_api_gateway_method_response.API_SF_CRUD-tf_APIMethRes400",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "apigw_rest_api/api_sf_crud-tf_api"
+          ],
+          "rule": "M-APIGW-RESPONSE",
+          "type": "aws_api_gateway_method_response"
+        },
+        {
+          "address": "aws_api_gateway_resource.API_SF_CRUD-tf_APIRes_Child",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "apigw_rest_api/api_sf_crud-tf_api->sfn_state_machine/api_sf_crud-tf_cf"
+          ],
+          "rule": "R-APIGW-REST",
+          "type": "aws_api_gateway_resource"
+        },
+        {
+          "address": "aws_api_gateway_rest_api.API_SF_CRUD-tf_API",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "apigw_rest_api/api_sf_crud-tf_api",
+          "type": "aws_api_gateway_rest_api"
+        },
+        {
+          "address": "aws_api_gateway_stage.API_SF_CRUD-tf_API_Stage_Prod",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "apigw_rest_api/api_sf_crud-tf_api"
+          ],
+          "rule": "M-APIGW-STAGE",
+          "type": "aws_api_gateway_stage"
+        },
+        {
+          "address": "aws_api_gateway_stage.API_SF_CRUD-tf_API_Stage_Stage",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "apigw_rest_api/api_sf_crud-tf_api"
+          ],
+          "rule": "M-APIGW-STAGE",
+          "type": "aws_api_gateway_stage"
+        },
+        {
+          "address": "aws_cloudwatch_log_group.API_SF_CRUD-tf_APILogGroup",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-LOGS",
+          "type": "aws_cloudwatch_log_group"
+        },
+        {
+          "address": "aws_cloudwatch_log_group.API_SF_CRUD-tf_CFLogGroup",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-LOGS",
+          "type": "aws_cloudwatch_log_group"
+        },
+        {
+          "address": "aws_dynamodb_table.API_SF_CRUD-DB",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "dynamodb_table/api_sf_crud-db",
+          "type": "aws_dynamodb_table"
+        },
+        {
+          "address": "aws_iam_role.API_SF_CRUD-tf_APIRole",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role"
+        },
+        {
+          "address": "aws_iam_role.API_SF_CRUD-tf_CFRole",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role"
+        },
+        {
+          "address": "aws_iam_role_policy.API_SF_CRUD-tf_APIPolicy",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role_policy"
+        },
+        {
+          "address": "aws_iam_role_policy_attachment.API_SF_CRUD-tf_APIPolicyAttachment1",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role_policy_attachment"
+        },
+        {
+          "address": "aws_iam_role_policy_attachment.API_SF_CRUD-tf_APIPolicyAttachment2",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role_policy_attachment"
+        },
+        {
+          "address": "aws_iam_role_policy_attachment.API_SF_CRUD-tf_StateMachineRolePolicyAttachment",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role_policy_attachment"
+        },
+        {
+          "address": "aws_sfn_state_machine.API_SF_CRUD-tf_CF",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "sfn_state_machine/api_sf_crud-tf_cf",
+          "type": "aws_sfn_state_machine"
+        },
+        {
+          "address": "data.aws_caller_identity.current",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-DATA",
+          "type": "aws_caller_identity"
+        },
+        {
+          "address": "data.aws_region.current",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-DATA",
+          "type": "aws_region"
+        }
+      ],
+      "root": "fixtures/public/serverless-patterns/apigw-sfn-crud-terraform"
+    }
+  },
+  "stage": "normalized"
+}

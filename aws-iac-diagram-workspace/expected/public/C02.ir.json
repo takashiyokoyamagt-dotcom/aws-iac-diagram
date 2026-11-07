@@ -1,0 +1,677 @@
+{
+  "description": "C02 aws-cloudformation-templates の Solutions/WebApp/webapp.yaml（CFN、単一テンプレート）。WAF → CloudFront → S3 の静的サイト、REST API（Cognito のオーソライザー）→ Lambda 2 つ、Lambda → DynamoDB・Cognito。ログ用・複製用の S3 バケットが 4 つ。",
+  "edges": [
+    {
+      "confidence": "confirmed",
+      "from": "apigw_rest_api/rain-webapp-sample",
+      "id": "apigw_rest_api/rain-webapp-sample->cognito_user_pool/rain-webapp-sample",
+      "kind": "request",
+      "label": "",
+      "note": "オーソライザー（COGNITO_USER_POOLS。TestResourceGet が使う）のユーザープール（E-AUTHORIZER）",
+      "to": "cognito_user_pool/rain-webapp-sample"
+    },
+    {
+      "confidence": "derived",
+      "from": "apigw_rest_api/rain-webapp-sample",
+      "id": "apigw_rest_api/rain-webapp-sample->lambda_function/rain-webapp-sample-jwt-handler",
+      "kind": "request",
+      "label": "GET /jwt, OPTIONS /jwt",
+      "to": "lambda_function/rain-webapp-sample-jwt-handler"
+    },
+    {
+      "confidence": "derived",
+      "from": "apigw_rest_api/rain-webapp-sample",
+      "id": "apigw_rest_api/rain-webapp-sample->lambda_function/rain-webapp-sample-test-handler",
+      "kind": "request",
+      "label": "GET /test, OPTIONS /test",
+      "note": "メソッド GET・OPTIONS（どちらも AWS_PROXY）を 1 本にまとめる（R-APIGW-REST）。Lambda の許可 2 つは同じ組の根拠に加えるだけ（R-LAMBDA-PERMISSION）",
+      "to": "lambda_function/rain-webapp-sample-test-handler"
+    },
+    {
+      "confidence": "confirmed",
+      "from": "cloudfront_distribution/sitedistribution",
+      "id": "cloudfront_distribution/sitedistribution->s3_bucket/sitecontentbucket",
+      "kind": "request",
+      "label": "",
+      "note": "オリジン（OAC で署名）。バケットポリシーの aws:SourceArn も同じディストリビューションを指すが、統合された M-S3-CONFIG の中の参照なので根拠にしない（E-NOEDGE-FROM-RULE）",
+      "to": "s3_bucket/sitecontentbucket"
+    },
+    {
+      "confidence": "derived",
+      "from": "external/internet",
+      "id": "external/internet->apigw_rest_api/rain-webapp-sample",
+      "kind": "request",
+      "label": "HTTPS",
+      "to": "apigw_rest_api/rain-webapp-sample"
+    },
+    {
+      "confidence": "confirmed",
+      "from": "lambda_function/rain-webapp-sample-jwt-handler",
+      "id": "lambda_function/rain-webapp-sample-jwt-handler->cognito_user_pool/rain-webapp-sample",
+      "kind": "request",
+      "label": "",
+      "note": "環境変数 COGNITO_POOL_ID と COGNITO_APP_CLIENT_ID（クライアントは M-COGNITO-CONFIG でプールに統合）。COGNITO_REDIRECT_URI の CloudFront のドメイン名は、cloudfront_distribution が kind の表に無いので辺にしない。COGNITO_DOMAIN_PREFIX（rain-webapp-sample）は API・ユーザープールの 2 つの名前に当たるので E-ENV-STR の辺にしない（ir-schema 8 章）",
+      "to": "cognito_user_pool/rain-webapp-sample"
+    },
+    {
+      "confidence": "confirmed",
+      "from": "lambda_function/rain-webapp-sample-test-handler",
+      "id": "lambda_function/rain-webapp-sample-test-handler->dynamodb_table/rain-webapp-sample-test",
+      "kind": "data",
+      "label": "",
+      "note": "環境変数 TABLE_NAME が参照（E-ENV-REF）。ロールのポリシー（dynamodb:GetItem など）も同じ向きで、確定が勝つ",
+      "to": "dynamodb_table/rain-webapp-sample-test"
+    },
+    {
+      "confidence": "confirmed",
+      "from": "waf_web_acl/rain-webapp-sample",
+      "id": "waf_web_acl/rain-webapp-sample->cloudfront_distribution/sitedistribution",
+      "kind": "request",
+      "label": "",
+      "to": "cloudfront_distribution/sitedistribution"
+    }
+  ],
+  "evaluation": {
+    "assumptions": [
+      "パラメータはすべて既定値（AppName = rain-webapp-sample）"
+    ],
+    "cfn": {
+      "parameters": {
+        "AppName": "rain-webapp-sample",
+        "LambdaCodeS3Bucket": "rain-artifacts-207567786752-us-east-1",
+        "LambdaCodeS3Key": "512113b95e9fc6345b2e19a43350af82aaa815011120288f16b1f281d5efdc95"
+      }
+    }
+  },
+  "ir_version": "1.0",
+  "name": "c02",
+  "nodes": [
+    {
+      "category": "resource",
+      "id": "apigw_rest_api/rain-webapp-sample",
+      "label": "rain-webapp-sample",
+      "name": "rain-webapp-sample",
+      "note": "Name = !Ref AppName。EndpointConfiguration が無いので既定の EDGE（パブリック）。ステージ・デプロイ（M-APIGW-STAGE）とオーソライザー（M-APIGW-AUTHORIZER）を統合。ユーザープール・WAF と同じ名前だが型が違うので id は重ならない",
+      "parent": null,
+      "type": "apigw_rest_api"
+    },
+    {
+      "category": "resource",
+      "id": "cloudfront_distribution/sitedistribution",
+      "label": "SiteDistribution",
+      "name": "SiteDistribution",
+      "note": "名前の属性が無く Name タグも無いので論理名（K-NAME の 3）。オリジンアクセス制御を統合（M-CLOUDFRONT-CONFIG）。利用者（インターネット）→ WAF → CloudFront の入口は N-EXT-INTERNET の対象（LB・API）に無いので internet の辺は無い",
+      "parent": null,
+      "type": "cloudfront_distribution"
+    },
+    {
+      "category": "resource",
+      "id": "cognito_user_pool/rain-webapp-sample",
+      "label": "rain-webapp-sample",
+      "name": "rain-webapp-sample",
+      "note": "UserPoolClient・UserPoolDomain を統合（M-COGNITO-CONFIG）",
+      "parent": null,
+      "type": "cognito_user_pool"
+    },
+    {
+      "category": "resource",
+      "id": "dynamodb_table/rain-webapp-sample-test",
+      "label": "rain-webapp-sample-test",
+      "name": "rain-webapp-sample-test",
+      "parent": null,
+      "type": "dynamodb_table"
+    },
+    {
+      "category": "external",
+      "id": "external/internet",
+      "label": "Internet",
+      "name": "internet",
+      "note": "N-EXT-INTERNET（パブリックな REST API。既定の EDGE）",
+      "parent": null,
+      "synthetic": true,
+      "type": "external"
+    },
+    {
+      "category": "resource",
+      "id": "lambda_function/rain-webapp-sample-jwt-handler",
+      "label": "rain-webapp-sample-jwt-handler",
+      "name": "rain-webapp-sample-jwt-handler",
+      "parent": null,
+      "type": "lambda_function"
+    },
+    {
+      "category": "resource",
+      "id": "lambda_function/rain-webapp-sample-test-handler",
+      "label": "rain-webapp-sample-test-handler",
+      "name": "rain-webapp-sample-test-handler",
+      "parent": null,
+      "type": "lambda_function"
+    },
+    {
+      "category": "resource",
+      "id": "s3_bucket/sitecloudfrontlogsbucket",
+      "label": "SiteCloudFrontLogsBucket",
+      "name": "SiteCloudFrontLogsBucket",
+      "note": "CloudFront のアクセスログの置き場（DistributionConfig.Logging.Bucket）。真の関係として CloudFront → このバケット（ログの書き込み）、このバケット → SiteCloudFrontLogsLogBucket（アクセスログ）、→ SiteCloudFrontLogsReplicaBucket（複製）があるが、辺の規則が無いので辺にしない",
+      "parent": null,
+      "type": "s3_bucket"
+    },
+    {
+      "category": "resource",
+      "id": "s3_bucket/sitecloudfrontlogslogbucket",
+      "label": "SiteCloudFrontLogsLogBucket",
+      "name": "SiteCloudFrontLogsLogBucket",
+      "parent": null,
+      "type": "s3_bucket"
+    },
+    {
+      "category": "resource",
+      "id": "s3_bucket/sitecloudfrontlogsreplicabucket",
+      "label": "SiteCloudFrontLogsReplicaBucket",
+      "name": "SiteCloudFrontLogsReplicaBucket",
+      "parent": null,
+      "type": "s3_bucket"
+    },
+    {
+      "category": "resource",
+      "id": "s3_bucket/sitecontentbucket",
+      "label": "SiteContentBucket",
+      "name": "SiteContentBucket",
+      "note": "BucketName（!Sub ${AppName}-content-${AWS::Region}-${AWS::AccountId}）はリージョンとアカウントの擬似パラメータを含み静的に決まらないので、論理名に落ちる（K-NAME の 3。ほかの 5 つのバケットも同じ）。CloudFront のオリジン。真の関係として、サーバーアクセスログを SiteContentLogBucket に書き（LoggingConfiguration）、SiteContentReplicaBucket へ複製する（ReplicationConfiguration）が、どちらも辺の規則が無いので辺にしない",
+      "parent": null,
+      "type": "s3_bucket"
+    },
+    {
+      "category": "resource",
+      "id": "s3_bucket/sitecontentlogbucket",
+      "label": "SiteContentLogBucket",
+      "name": "SiteContentLogBucket",
+      "parent": null,
+      "type": "s3_bucket"
+    },
+    {
+      "category": "resource",
+      "id": "s3_bucket/sitecontentreplicabucket",
+      "label": "SiteContentReplicaBucket",
+      "name": "SiteContentReplicaBucket",
+      "parent": null,
+      "type": "s3_bucket"
+    },
+    {
+      "category": "resource",
+      "id": "waf_web_acl/rain-webapp-sample",
+      "label": "rain-webapp-sample",
+      "name": "rain-webapp-sample",
+      "note": "Name タグ（!Ref AppName）が名前属性 Name（rain-webapp-sample-WebACLWithAMR）より先（B3 の 1）。Scope: CLOUDFRONT",
+      "parent": null,
+      "type": "waf_web_acl"
+    }
+  ],
+  "notes": [
+    "S3 バケットの名前は擬似パラメータ（AWS::Region・AWS::AccountId）を含み静的に決まらないので、6 つとも論理名にした。バケットポリシー（M-S3-CONFIG）は !Sub の名前の文字列の一致で統合先を決めた。",
+    "規則表に辺の規則が無いので辺にしなかった真の関係: CloudFront → SiteCloudFrontLogsBucket（DistributionConfig.Logging.Bucket。アクセスログ）、バケット → ログ用バケット（LoggingConfiguration、2 組）、バケット → 複製先バケット（ReplicationConfiguration、2 組。複製ロールの s3:ReplicateObject は E-IAM のアクションの表に無い）、インターネット → WAF／CloudFront（N-EXT-INTERNET は LB・API だけ）。",
+    "CognitoClient の CallbackURLs と CognitoUserPool の DependsOn は CloudFront を指すが、前者は統合された M-COGNITO-CONFIG の中の参照、後者は DependsOn なので辺にしない。",
+    "TestResourceGet は COGNITO_USER_POOLS のオーソライザーを使う（JwtResourceGet は NONE）。オーソライザーは API に統合し、API → ユーザープールの辺（E-AUTHORIZER）にした。"
+  ],
+  "sources": {
+    "cfn": {
+      "edges": [
+        {
+          "edge": "apigw_rest_api/rain-webapp-sample->cognito_user_pool/rain-webapp-sample",
+          "evidence": [
+            "RestApiAuthorizer.Properties.ProviderARNs[0]"
+          ],
+          "rules": [
+            "E-AUTHORIZER"
+          ]
+        },
+        {
+          "edge": "apigw_rest_api/rain-webapp-sample->lambda_function/rain-webapp-sample-jwt-handler",
+          "evidence": [
+            "JwtResourceGet.Properties.Integration.Uri",
+            "JwtResourceGet.Properties.ResourceId (JwtResourceResource: /jwt)",
+            "JwtResourceOptions.Properties.Integration.Uri",
+            "JwtResourcePermission.Properties.SourceArn",
+            "JwtResourceRootPermission.Properties.SourceArn"
+          ],
+          "rules": [
+            "R-APIGW-REST",
+            "R-LAMBDA-PERMISSION"
+          ]
+        },
+        {
+          "edge": "apigw_rest_api/rain-webapp-sample->lambda_function/rain-webapp-sample-test-handler",
+          "evidence": [
+            "TestResourceGet.Properties.Integration.Uri",
+            "TestResourceGet.Properties.ResourceId (TestResourceResource: /test)",
+            "TestResourceOptions.Properties.Integration.Uri",
+            "TestResourcePermission.Properties.SourceArn",
+            "TestResourceRootPermission.Properties.SourceArn"
+          ],
+          "rules": [
+            "R-APIGW-REST",
+            "R-LAMBDA-PERMISSION"
+          ]
+        },
+        {
+          "edge": "cloudfront_distribution/sitedistribution->s3_bucket/sitecontentbucket",
+          "evidence": [
+            "SiteDistribution.Properties.DistributionConfig.Origins[0].DomainName"
+          ],
+          "rules": [
+            "E-CDN-ORIGIN"
+          ]
+        },
+        {
+          "edge": "external/internet->apigw_rest_api/rain-webapp-sample",
+          "evidence": [
+            "RestApi.Properties.EndpointConfiguration (無し。既定の EDGE)"
+          ],
+          "rules": [
+            "N-EXT-INTERNET"
+          ]
+        },
+        {
+          "edge": "lambda_function/rain-webapp-sample-jwt-handler->cognito_user_pool/rain-webapp-sample",
+          "evidence": [
+            "JwtResourceHandler.Properties.Environment.Variables.COGNITO_APP_CLIENT_ID (CognitoClient → 統合先のユーザープール)",
+            "JwtResourceHandler.Properties.Environment.Variables.COGNITO_POOL_ID"
+          ],
+          "rules": [
+            "E-ENV-REF"
+          ]
+        },
+        {
+          "edge": "lambda_function/rain-webapp-sample-test-handler->dynamodb_table/rain-webapp-sample-test",
+          "evidence": [
+            "TestResourceHandler.Properties.Environment.Variables.TABLE_NAME",
+            "TestResourceHandlerPolicy.Properties.PolicyDocument.Statement[0].Resource[0]"
+          ],
+          "rules": [
+            "E-ENV-REF",
+            "E-IAM"
+          ]
+        },
+        {
+          "edge": "waf_web_acl/rain-webapp-sample->cloudfront_distribution/sitedistribution",
+          "evidence": [
+            "SiteDistribution.Properties.DistributionConfig.WebACLId"
+          ],
+          "rules": [
+            "E-CDN-WAF"
+          ]
+        }
+      ],
+      "resources": [
+        {
+          "address": "CognitoClient",
+          "class": "merged_into",
+          "file": "webapp.yaml",
+          "into": [
+            "cognito_user_pool/rain-webapp-sample"
+          ],
+          "rule": "M-COGNITO-CONFIG",
+          "type": "AWS::Cognito::UserPoolClient"
+        },
+        {
+          "address": "CognitoDomain",
+          "class": "merged_into",
+          "file": "webapp.yaml",
+          "into": [
+            "cognito_user_pool/rain-webapp-sample"
+          ],
+          "rule": "M-COGNITO-CONFIG",
+          "type": "AWS::Cognito::UserPoolDomain"
+        },
+        {
+          "address": "CognitoUserPool",
+          "class": "drawn",
+          "file": "webapp.yaml",
+          "node": "cognito_user_pool/rain-webapp-sample",
+          "type": "AWS::Cognito::UserPool"
+        },
+        {
+          "address": "JwtResourceGet",
+          "class": "merged_into",
+          "file": "webapp.yaml",
+          "into": [
+            "apigw_rest_api/rain-webapp-sample->lambda_function/rain-webapp-sample-jwt-handler"
+          ],
+          "rule": "R-APIGW-REST",
+          "type": "AWS::ApiGateway::Method"
+        },
+        {
+          "address": "JwtResourceHandler",
+          "class": "drawn",
+          "file": "webapp.yaml",
+          "node": "lambda_function/rain-webapp-sample-jwt-handler",
+          "type": "AWS::Lambda::Function"
+        },
+        {
+          "address": "JwtResourceHandlerRole",
+          "class": "hidden",
+          "file": "webapp.yaml",
+          "rule": "H-IAM",
+          "type": "AWS::IAM::Role"
+        },
+        {
+          "address": "JwtResourceOptions",
+          "class": "merged_into",
+          "file": "webapp.yaml",
+          "into": [
+            "apigw_rest_api/rain-webapp-sample->lambda_function/rain-webapp-sample-jwt-handler"
+          ],
+          "rule": "R-APIGW-REST",
+          "type": "AWS::ApiGateway::Method"
+        },
+        {
+          "address": "JwtResourcePermission",
+          "class": "merged_into",
+          "file": "webapp.yaml",
+          "into": [
+            "apigw_rest_api/rain-webapp-sample->lambda_function/rain-webapp-sample-jwt-handler"
+          ],
+          "rule": "R-LAMBDA-PERMISSION",
+          "type": "AWS::Lambda::Permission"
+        },
+        {
+          "address": "JwtResourceResource",
+          "class": "merged_into",
+          "file": "webapp.yaml",
+          "into": [
+            "apigw_rest_api/rain-webapp-sample->lambda_function/rain-webapp-sample-jwt-handler"
+          ],
+          "rule": "R-APIGW-REST",
+          "type": "AWS::ApiGateway::Resource"
+        },
+        {
+          "address": "JwtResourceRootPermission",
+          "class": "merged_into",
+          "file": "webapp.yaml",
+          "into": [
+            "apigw_rest_api/rain-webapp-sample->lambda_function/rain-webapp-sample-jwt-handler"
+          ],
+          "rule": "R-LAMBDA-PERMISSION",
+          "type": "AWS::Lambda::Permission"
+        },
+        {
+          "address": "RestApi",
+          "class": "drawn",
+          "file": "webapp.yaml",
+          "node": "apigw_rest_api/rain-webapp-sample",
+          "type": "AWS::ApiGateway::RestApi"
+        },
+        {
+          "address": "RestApiAuthorizer",
+          "class": "merged_into",
+          "file": "webapp.yaml",
+          "into": [
+            "apigw_rest_api/rain-webapp-sample"
+          ],
+          "rule": "M-APIGW-AUTHORIZER",
+          "type": "AWS::ApiGateway::Authorizer"
+        },
+        {
+          "address": "RestApiDeployment",
+          "class": "merged_into",
+          "file": "webapp.yaml",
+          "into": [
+            "apigw_rest_api/rain-webapp-sample"
+          ],
+          "rule": "M-APIGW-STAGE",
+          "type": "AWS::ApiGateway::Deployment"
+        },
+        {
+          "address": "RestApiStage",
+          "class": "merged_into",
+          "file": "webapp.yaml",
+          "into": [
+            "apigw_rest_api/rain-webapp-sample"
+          ],
+          "rule": "M-APIGW-STAGE",
+          "type": "AWS::ApiGateway::Stage"
+        },
+        {
+          "address": "SiteCloudFrontLogsBucket",
+          "class": "drawn",
+          "file": "webapp.yaml",
+          "node": "s3_bucket/sitecloudfrontlogsbucket",
+          "type": "AWS::S3::Bucket"
+        },
+        {
+          "address": "SiteCloudFrontLogsBucketAccessPolicy",
+          "class": "merged_into",
+          "file": "webapp.yaml",
+          "into": [
+            "s3_bucket/sitecloudfrontlogsbucket"
+          ],
+          "note": "Bucket は !Sub の名前の文字列で、同じ !Sub の BucketName を持つバケットに当たる（参照ではない）",
+          "rule": "M-S3-CONFIG",
+          "type": "AWS::S3::BucketPolicy"
+        },
+        {
+          "address": "SiteCloudFrontLogsLogBucket",
+          "class": "drawn",
+          "file": "webapp.yaml",
+          "node": "s3_bucket/sitecloudfrontlogslogbucket",
+          "type": "AWS::S3::Bucket"
+        },
+        {
+          "address": "SiteCloudFrontLogsLogBucketAccessPolicy",
+          "class": "merged_into",
+          "file": "webapp.yaml",
+          "into": [
+            "s3_bucket/sitecloudfrontlogslogbucket"
+          ],
+          "note": "Bucket は !Sub の名前の文字列で、同じ !Sub の BucketName を持つバケットに当たる（参照ではない）",
+          "rule": "M-S3-CONFIG",
+          "type": "AWS::S3::BucketPolicy"
+        },
+        {
+          "address": "SiteCloudFrontLogsReplicaBucket",
+          "class": "drawn",
+          "file": "webapp.yaml",
+          "node": "s3_bucket/sitecloudfrontlogsreplicabucket",
+          "type": "AWS::S3::Bucket"
+        },
+        {
+          "address": "SiteCloudFrontLogsReplicaBucketAccessPolicy",
+          "class": "merged_into",
+          "file": "webapp.yaml",
+          "into": [
+            "s3_bucket/sitecloudfrontlogsreplicabucket"
+          ],
+          "note": "Bucket は !Sub の名前の文字列で、同じ !Sub の BucketName を持つバケットに当たる（参照ではない）",
+          "rule": "M-S3-CONFIG",
+          "type": "AWS::S3::BucketPolicy"
+        },
+        {
+          "address": "SiteCloudFrontLogsReplicationPolicy",
+          "class": "hidden",
+          "file": "webapp.yaml",
+          "rule": "H-IAM",
+          "type": "AWS::IAM::RolePolicy"
+        },
+        {
+          "address": "SiteCloudFrontLogsReplicationRole",
+          "class": "hidden",
+          "file": "webapp.yaml",
+          "rule": "H-IAM",
+          "type": "AWS::IAM::Role"
+        },
+        {
+          "address": "SiteContentBucket",
+          "class": "drawn",
+          "file": "webapp.yaml",
+          "node": "s3_bucket/sitecontentbucket",
+          "type": "AWS::S3::Bucket"
+        },
+        {
+          "address": "SiteContentBucketAccessPolicy",
+          "class": "merged_into",
+          "file": "webapp.yaml",
+          "into": [
+            "s3_bucket/sitecontentbucket"
+          ],
+          "note": "Bucket は !Sub の名前の文字列で、同じ !Sub の BucketName を持つバケットに当たる（参照ではない）",
+          "rule": "M-S3-CONFIG",
+          "type": "AWS::S3::BucketPolicy"
+        },
+        {
+          "address": "SiteContentLogBucket",
+          "class": "drawn",
+          "file": "webapp.yaml",
+          "node": "s3_bucket/sitecontentlogbucket",
+          "type": "AWS::S3::Bucket"
+        },
+        {
+          "address": "SiteContentLogBucketAccessPolicy",
+          "class": "merged_into",
+          "file": "webapp.yaml",
+          "into": [
+            "s3_bucket/sitecontentlogbucket"
+          ],
+          "note": "Bucket は !Sub の名前の文字列で、同じ !Sub の BucketName を持つバケットに当たる（参照ではない）",
+          "rule": "M-S3-CONFIG",
+          "type": "AWS::S3::BucketPolicy"
+        },
+        {
+          "address": "SiteContentReplicaBucket",
+          "class": "drawn",
+          "file": "webapp.yaml",
+          "node": "s3_bucket/sitecontentreplicabucket",
+          "type": "AWS::S3::Bucket"
+        },
+        {
+          "address": "SiteContentReplicaBucketAccessPolicy",
+          "class": "merged_into",
+          "file": "webapp.yaml",
+          "into": [
+            "s3_bucket/sitecontentreplicabucket"
+          ],
+          "note": "Bucket は !Sub の名前の文字列で、同じ !Sub の BucketName を持つバケットに当たる（参照ではない）",
+          "rule": "M-S3-CONFIG",
+          "type": "AWS::S3::BucketPolicy"
+        },
+        {
+          "address": "SiteContentReplicationPolicy",
+          "class": "hidden",
+          "file": "webapp.yaml",
+          "rule": "H-IAM",
+          "type": "AWS::IAM::RolePolicy"
+        },
+        {
+          "address": "SiteContentReplicationRole",
+          "class": "hidden",
+          "file": "webapp.yaml",
+          "rule": "H-IAM",
+          "type": "AWS::IAM::Role"
+        },
+        {
+          "address": "SiteDistribution",
+          "class": "drawn",
+          "file": "webapp.yaml",
+          "node": "cloudfront_distribution/sitedistribution",
+          "type": "AWS::CloudFront::Distribution"
+        },
+        {
+          "address": "SiteOriginAccessControl",
+          "class": "merged_into",
+          "file": "webapp.yaml",
+          "into": [
+            "cloudfront_distribution/sitedistribution"
+          ],
+          "rule": "M-CLOUDFRONT-CONFIG",
+          "type": "AWS::CloudFront::OriginAccessControl"
+        },
+        {
+          "address": "SiteWebACL",
+          "class": "drawn",
+          "file": "webapp.yaml",
+          "node": "waf_web_acl/rain-webapp-sample",
+          "type": "AWS::WAFv2::WebACL"
+        },
+        {
+          "address": "TestResourceGet",
+          "class": "merged_into",
+          "file": "webapp.yaml",
+          "into": [
+            "apigw_rest_api/rain-webapp-sample->lambda_function/rain-webapp-sample-test-handler"
+          ],
+          "rule": "R-APIGW-REST",
+          "type": "AWS::ApiGateway::Method"
+        },
+        {
+          "address": "TestResourceHandler",
+          "class": "drawn",
+          "file": "webapp.yaml",
+          "node": "lambda_function/rain-webapp-sample-test-handler",
+          "type": "AWS::Lambda::Function"
+        },
+        {
+          "address": "TestResourceHandlerPolicy",
+          "class": "hidden",
+          "file": "webapp.yaml",
+          "rule": "H-IAM",
+          "type": "AWS::IAM::RolePolicy"
+        },
+        {
+          "address": "TestResourceHandlerRole",
+          "class": "hidden",
+          "file": "webapp.yaml",
+          "rule": "H-IAM",
+          "type": "AWS::IAM::Role"
+        },
+        {
+          "address": "TestResourceOptions",
+          "class": "merged_into",
+          "file": "webapp.yaml",
+          "into": [
+            "apigw_rest_api/rain-webapp-sample->lambda_function/rain-webapp-sample-test-handler"
+          ],
+          "rule": "R-APIGW-REST",
+          "type": "AWS::ApiGateway::Method"
+        },
+        {
+          "address": "TestResourcePermission",
+          "class": "merged_into",
+          "file": "webapp.yaml",
+          "into": [
+            "apigw_rest_api/rain-webapp-sample->lambda_function/rain-webapp-sample-test-handler"
+          ],
+          "rule": "R-LAMBDA-PERMISSION",
+          "type": "AWS::Lambda::Permission"
+        },
+        {
+          "address": "TestResourceResource",
+          "class": "merged_into",
+          "file": "webapp.yaml",
+          "into": [
+            "apigw_rest_api/rain-webapp-sample->lambda_function/rain-webapp-sample-test-handler"
+          ],
+          "rule": "R-APIGW-REST",
+          "type": "AWS::ApiGateway::Resource"
+        },
+        {
+          "address": "TestResourceRootPermission",
+          "class": "merged_into",
+          "file": "webapp.yaml",
+          "into": [
+            "apigw_rest_api/rain-webapp-sample->lambda_function/rain-webapp-sample-test-handler"
+          ],
+          "rule": "R-LAMBDA-PERMISSION",
+          "type": "AWS::Lambda::Permission"
+        },
+        {
+          "address": "TestTable",
+          "class": "drawn",
+          "file": "webapp.yaml",
+          "node": "dynamodb_table/rain-webapp-sample-test",
+          "type": "AWS::DynamoDB::Table"
+        }
+      ],
+      "root": "fixtures/public/aws-cloudformation-templates/Solutions/WebApp/webapp.yaml"
+    }
+  },
+  "stage": "normalized"
+}

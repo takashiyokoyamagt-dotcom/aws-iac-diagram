@@ -35,7 +35,7 @@ EXPECTED = {
     "T07s": (3, 0, 0, 0),  # 関数 → テーブル（SAM の Policies が 1 つの mapping の形。E-IAM）
     "T09": (3, 0, 0, 0),   # KB → 基盤モデル（N-BEDROCK-MODEL）・ベクトルストア、バケット → KB
     "T11": (3, 0, 0, 0),   # REST API → Step Functions（request_templates の中の参照）、Step Functions → テーブル（E-IAM の $concat の ARN）
-    "T11s": (1, 1, 0, 0),  # internet → API だけ。API は OpenAPI（AWS::Include）の中で raw に載らない（既知の制約）。DefinitionSubstitutions は辺の規則が無い
+    "T11s": (2, 1, 0, 0),  # internet → API と、ステートマシンの Policies からの E-IAM（ステートマシン → テーブル）。API は OpenAPI（AWS::Include）の中で raw に載らない（既知の制約）。DefinitionSubstitutions は辺の規則が無い
     "T12": (4, 6, 1, 0),   # Glue のクローラ（E-GLUE-TARGET）と E-IAM。ジョブの script_location・default_arguments は辺の規則が無い。
                            # 条件の無い Glue のトリガー（辺を作らない。fallback が無いので H-RELATION-NOEDGE）
     "T16": (6, 1, 0, 0),   # SG 2 つ・ingress ルール 10 件は、クラスタの SG（クラスタ）とノードの SG（起動テンプレート → M-* で

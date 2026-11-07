@@ -1,0 +1,168 @@
+{
+  "description": "serverless-patterns/apigw-sfn-crud（SAM）。REST API（OpenAPI の定義を AWS::Include で読む。ANY / と ANY /{id}）が AWS 統合で Step Functions（EXPRESS）を StartSyncExecution し、ステートマシンが DynamoDB（SimpleTable）を読み書きする CRUD。T11 の SAM 版。",
+  "edges": [
+    {
+      "confidence": "derived",
+      "from": "apigw_rest_api/api",
+      "id": "apigw_rest_api/api->sfn_state_machine/statemachine",
+      "kind": "request",
+      "label": "ANY /, ANY /{id}",
+      "note": "R-APIGW-REST。OpenAPI（AWS::Include）の / と /{id} の x-amazon-apigateway-any-method の統合が requestTemplates で ${StateMachine} を指す。raw に根拠が無い（既知の制約）",
+      "to": "sfn_state_machine/statemachine"
+    },
+    {
+      "confidence": "derived",
+      "from": "external/internet",
+      "id": "external/internet->apigw_rest_api/api",
+      "kind": "request",
+      "label": "HTTPS",
+      "to": "apigw_rest_api/api"
+    },
+    {
+      "confidence": "inferred",
+      "from": "sfn_state_machine/statemachine",
+      "id": "sfn_state_machine/statemachine->dynamodb_table/database",
+      "kind": "data",
+      "label": "",
+      "note": "E-IAM（DynamoDBCrudPolicy → data）。DefinitionSubstitutions の直接の参照もあるが辺の規則が無い",
+      "to": "dynamodb_table/database"
+    }
+  ],
+  "evaluation": {
+    "assumptions": [
+      "パラメータは無い"
+    ],
+    "cfn": {
+      "parameters": {}
+    }
+  },
+  "ir_version": "1.0",
+  "name": "t11s",
+  "nodes": [
+    {
+      "category": "resource",
+      "id": "apigw_rest_api/api",
+      "label": "Api",
+      "name": "Api",
+      "note": "論理名（Name 無し）。定義は AWS::Include の OpenAPI",
+      "parent": null,
+      "type": "apigw_rest_api"
+    },
+    {
+      "category": "resource",
+      "id": "dynamodb_table/database",
+      "label": "DataBase",
+      "name": "DataBase",
+      "note": "AWS::Serverless::SimpleTable。TableName 無しで論理名",
+      "parent": null,
+      "type": "dynamodb_table"
+    },
+    {
+      "category": "external",
+      "id": "external/internet",
+      "label": "Internet",
+      "name": "internet",
+      "note": "N-EXT-INTERNET（パブリックな REST API。SAM の Api は EndpointConfiguration 未指定で既定は EDGE）",
+      "parent": null,
+      "synthetic": true,
+      "type": "external"
+    },
+    {
+      "category": "resource",
+      "id": "sfn_state_machine/statemachine",
+      "label": "StateMachine",
+      "name": "StateMachine",
+      "note": "AWS::Serverless::StateMachine。Name 無しで論理名。type EXPRESS",
+      "parent": null,
+      "type": "sfn_state_machine"
+    }
+  ],
+  "notes": [
+    "API の定義（DefinitionBody）は Fn::Transform AWS::Include で ./api.openapi.yaml を読む。統合（x-amazon-apigateway-integration）の requestTemplates の Fn::Sub ${StateMachine} が統合先のステートマシンで、真の関係は API → ステートマシン（R-APIGW-REST、ラベル ANY /, ANY /{id}）。raw には定義の中身も参照も載らない（CFN-UNEVALUATED）ので、ツールには根拠が無い既知の制約（08 章）。正解には真の関係として書く。",
+    "ApiRole は OpenAPI の credentials（Fn::GetAtt ApiRole.Arn）で統合が使うロールで、ポリシーが StateMachine.Arn への states:StartSyncExecution を許す。API からロールへの参照も Include の中なので raw には無い。",
+    "名前: Api・StateMachine・DataBase はどれも名前の属性（Name／TableName）も Name タグも無いので論理名（K-NAME の 3）。API の実際の名前は OpenAPI の info.title（sf-crud）になるが、B3 の採用順には無いので使わない。",
+    "ステートマシン → DynamoDB は、ポリシーテンプレート DynamoDBCrudPolicy の TableName（!Ref DataBase）から E-IAM の推定の辺（data）。DefinitionSubstitutions の DDBTable: !Ref DataBase は定義の TableName に入る直接の参照で真の関係を裏付けるが、規則表に Step Functions の定義・置換から辺を作る規則が無いので確信度は inferred のまま（規則の追加の候補）。",
+    "SAM が暗黙に作るデプロイ・ステージ（Prod）とロールは入力の Resources に無いので網羅分類に載せない。"
+  ],
+  "sources": {
+    "cfn": {
+      "edges": [
+        {
+          "edge": "apigw_rest_api/api->sfn_state_machine/statemachine",
+          "evidence": [
+            "Api.Properties.DefinitionBody (Fn::Transform AWS::Include ./api.openapi.yaml。paths の / と /{id} の x-amazon-apigateway-any-method、requestTemplates の ${StateMachine})",
+            "ApiRole.Properties.Policies[0].PolicyDocument.Statement.Resource[0] (states:StartSyncExecution。ロールは OpenAPI の credentials で統合が使う。同じ組の裏付け)"
+          ],
+          "rules": [
+            "R-APIGW-REST"
+          ]
+        },
+        {
+          "edge": "external/internet->apigw_rest_api/api",
+          "evidence": [
+            "Api (AWS::Serverless::Api。EndpointConfiguration 未指定で既定は EDGE)"
+          ],
+          "rules": [
+            "N-EXT-INTERNET"
+          ]
+        },
+        {
+          "edge": "sfn_state_machine/statemachine->dynamodb_table/database",
+          "evidence": [
+            "StateMachine.Properties.DefinitionSubstitutions.DDBTable (定義の TableName に代入。規則に無いので根拠の補足のみ)",
+            "StateMachine.Properties.Policies[0].DynamoDBCrudPolicy.TableName"
+          ],
+          "rules": [
+            "E-IAM"
+          ]
+        }
+      ],
+      "resources": [
+        {
+          "address": "Api",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "apigw_rest_api/api",
+          "type": "AWS::Serverless::Api"
+        },
+        {
+          "address": "ApiLogGroup",
+          "class": "hidden",
+          "file": "template.yaml",
+          "rule": "H-LOGS",
+          "type": "AWS::Logs::LogGroup"
+        },
+        {
+          "address": "ApiRole",
+          "class": "hidden",
+          "file": "template.yaml",
+          "rule": "H-IAM",
+          "type": "AWS::IAM::Role"
+        },
+        {
+          "address": "DataBase",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "dynamodb_table/database",
+          "type": "AWS::Serverless::SimpleTable"
+        },
+        {
+          "address": "StateMachine",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "sfn_state_machine/statemachine",
+          "type": "AWS::Serverless::StateMachine"
+        },
+        {
+          "address": "StateMachineLogGroup",
+          "class": "hidden",
+          "file": "template.yaml",
+          "rule": "H-LOGS",
+          "type": "AWS::Logs::LogGroup"
+        }
+      ],
+      "root": "fixtures/public/serverless-patterns/apigw-sfn-crud/template.yaml"
+    }
+  },
+  "stage": "normalized"
+}

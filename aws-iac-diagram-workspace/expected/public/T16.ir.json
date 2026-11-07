@@ -1,0 +1,886 @@
+{
+  "description": "T16 learn-terraform-provision-eks-cluster（TF）。レジストリの vpc 5.8.1 と eks 20.8.5 を A5 の要約表で展開した VPC（3 AZ × パブリック／プライベート、NAT 1 つ）と EKS クラスタ（マネージドノードグループ 2 つ）。eks の中の kms は黒箱、IRSA のロールのモジュールは IAM だけなので非表示。",
+  "edges": [
+    {
+      "confidence": "derived",
+      "from": "subnet/vpc.private-0",
+      "id": "subnet/vpc.private-0->nat_gateway/vpc.this-0",
+      "kind": "route",
+      "label": "0.0.0.0/0",
+      "note": "single_nat_gateway なので 3 つのプライベートサブネットが同じ NAT へ（ルートテーブル private[0] を共有）",
+      "to": "nat_gateway/vpc.this-0"
+    },
+    {
+      "confidence": "derived",
+      "from": "subnet/vpc.private-1",
+      "id": "subnet/vpc.private-1->nat_gateway/vpc.this-0",
+      "kind": "route",
+      "label": "0.0.0.0/0",
+      "to": "nat_gateway/vpc.this-0"
+    },
+    {
+      "confidence": "derived",
+      "from": "subnet/vpc.private-2",
+      "id": "subnet/vpc.private-2->nat_gateway/vpc.this-0",
+      "kind": "route",
+      "label": "0.0.0.0/0",
+      "to": "nat_gateway/vpc.this-0"
+    },
+    {
+      "confidence": "derived",
+      "from": "subnet/vpc.public-0",
+      "id": "subnet/vpc.public-0->internet_gateway/education-vpc",
+      "kind": "route",
+      "label": "0.0.0.0/0",
+      "to": "internet_gateway/education-vpc"
+    },
+    {
+      "confidence": "derived",
+      "from": "subnet/vpc.public-1",
+      "id": "subnet/vpc.public-1->internet_gateway/education-vpc",
+      "kind": "route",
+      "label": "0.0.0.0/0",
+      "to": "internet_gateway/education-vpc"
+    },
+    {
+      "confidence": "derived",
+      "from": "subnet/vpc.public-2",
+      "id": "subnet/vpc.public-2->internet_gateway/education-vpc",
+      "kind": "route",
+      "label": "0.0.0.0/0",
+      "to": "internet_gateway/education-vpc"
+    }
+  ],
+  "evaluation": {
+    "assumptions": [
+      "変数はすべて既定値（region = us-east-2）"
+    ],
+    "tf": {
+      "var_files": [],
+      "vars": {}
+    }
+  },
+  "ir_version": "1.0",
+  "name": "t16",
+  "nodes": [
+    {
+      "category": "group",
+      "id": "availability_zone/education-vpc.az1",
+      "label": "AZ 1",
+      "name": "az1",
+      "note": "azs = slice(data.aws_availability_zones.available.names, 0, 3) で AZ 名が静的に決まらないので、位置の番号で az1〜az3（2 章）",
+      "parent": "vpc/education-vpc",
+      "synthetic": true,
+      "type": "availability_zone"
+    },
+    {
+      "category": "group",
+      "id": "availability_zone/education-vpc.az2",
+      "label": "AZ 2",
+      "name": "az2",
+      "parent": "vpc/education-vpc",
+      "synthetic": true,
+      "type": "availability_zone"
+    },
+    {
+      "category": "group",
+      "id": "availability_zone/education-vpc.az3",
+      "label": "AZ 3",
+      "name": "az3",
+      "parent": "vpc/education-vpc",
+      "synthetic": true,
+      "type": "availability_zone"
+    },
+    {
+      "category": "resource",
+      "id": "eks_cluster/eks.this-0",
+      "label": "eks.this-0",
+      "name": "eks.this-0",
+      "note": "名前 education-eks-${random_string.suffix.result} は random_string の値が決まらないので論理名 eks.this-0（K-NAME の 3）。P-SPANS: vpc_config.subnet_ids の 3 つのプライベートサブネット（AZ が違うので parent は VPC）。ノードグループ 2 つ・アドオン・アクセスエントリ（M-EKS-PARTS）と起動テンプレート（M-LAUNCH-TEMPLATE、ノードグループ経由の 2 段）を統合",
+      "parent": "vpc/education-vpc",
+      "spans": [
+        "subnet/vpc.private-0",
+        "subnet/vpc.private-1",
+        "subnet/vpc.private-2"
+      ],
+      "type": "eks_cluster"
+    },
+    {
+      "category": "resource",
+      "id": "internet_gateway/education-vpc",
+      "label": "education-vpc",
+      "name": "education-vpc",
+      "note": "P-VPC",
+      "parent": "vpc/education-vpc",
+      "type": "internet_gateway"
+    },
+    {
+      "attrs": {
+        "module_source": "terraform-aws-modules/kms/aws",
+        "module_version": "2.1.0"
+      },
+      "category": "resource",
+      "id": "module/eks.kms",
+      "label": "eks.kms",
+      "name": "eks.kms",
+      "note": "eks モジュールの中の黒箱のモジュール（kms は A5 の要約表に無い）。入力にサブネット・VPC が無いので parent は null。真の関係として、クラスタは secrets の暗号化（encryption_config.provider.key_arn）にこのキーを使うが、E-ENV-REF などの規則に当たらない参照なので辺は作らない（2 章: 黒箱の出力への参照は E-ENV-REF などに当たるときだけ辺。クラスタのロールの kms:* は E-IAM のアクションの表に無い）",
+      "parent": null,
+      "type": "module"
+    },
+    {
+      "category": "resource",
+      "id": "nat_gateway/vpc.this-0",
+      "label": "vpc.this-0",
+      "name": "vpc.this-0",
+      "note": "single_nat_gateway = true で 1 つ。P-SUBNET（public[0]）。Name タグ education-vpc-<AZ 名> は AZ 名（data.aws_availability_zones の names[0]）が静的に決まらないので評価できず、論理名 vpc.this-0 に落ちる（K-NAME の 3）。EIP は M-EIP-NAT",
+      "parent": "subnet/vpc.public-0",
+      "type": "nat_gateway"
+    },
+    {
+      "attrs": {
+        "access": "private",
+        "cidr": "10.0.1.0/24"
+      },
+      "category": "group",
+      "id": "subnet/vpc.private-0",
+      "label": "vpc.private-0",
+      "name": "vpc.private-0",
+      "note": "Name タグ education-vpc-private-<AZ 名> は AZ 名が静的に決まらないので評価できず、論理名 vpc.private-0 に落ちる（K-NAME の 3。サブネットに名前属性は無い）。ほかのサブネットも同じ",
+      "parent": "availability_zone/education-vpc.az1",
+      "type": "subnet"
+    },
+    {
+      "attrs": {
+        "access": "private",
+        "cidr": "10.0.2.0/24"
+      },
+      "category": "group",
+      "id": "subnet/vpc.private-1",
+      "label": "vpc.private-1",
+      "name": "vpc.private-1",
+      "parent": "availability_zone/education-vpc.az2",
+      "type": "subnet"
+    },
+    {
+      "attrs": {
+        "access": "private",
+        "cidr": "10.0.3.0/24"
+      },
+      "category": "group",
+      "id": "subnet/vpc.private-2",
+      "label": "vpc.private-2",
+      "name": "vpc.private-2",
+      "parent": "availability_zone/education-vpc.az3",
+      "type": "subnet"
+    },
+    {
+      "attrs": {
+        "access": "public",
+        "cidr": "10.0.4.0/24"
+      },
+      "category": "group",
+      "id": "subnet/vpc.public-0",
+      "label": "vpc.public-0",
+      "name": "vpc.public-0",
+      "parent": "availability_zone/education-vpc.az1",
+      "type": "subnet"
+    },
+    {
+      "attrs": {
+        "access": "public",
+        "cidr": "10.0.5.0/24"
+      },
+      "category": "group",
+      "id": "subnet/vpc.public-1",
+      "label": "vpc.public-1",
+      "name": "vpc.public-1",
+      "parent": "availability_zone/education-vpc.az2",
+      "type": "subnet"
+    },
+    {
+      "attrs": {
+        "access": "public",
+        "cidr": "10.0.6.0/24"
+      },
+      "category": "group",
+      "id": "subnet/vpc.public-2",
+      "label": "vpc.public-2",
+      "name": "vpc.public-2",
+      "parent": "availability_zone/education-vpc.az3",
+      "type": "subnet"
+    },
+    {
+      "attrs": {
+        "cidr": "10.0.0.0/16"
+      },
+      "category": "group",
+      "id": "vpc/education-vpc",
+      "label": "education-vpc",
+      "name": "education-vpc",
+      "parent": null,
+      "type": "vpc"
+    }
+  ],
+  "notes": [
+    "辺はルート（R-ROUTE）の 6 本だけ。インターネット向けの LB・API が無いので external/internet は無い（クラスタのエンドポイントの公開 cluster_endpoint_public_access は N-EXT-INTERNET の対象外）。",
+    "EKS のクラスタの SG とノードの SG のルールは、どちらの SG もクラスタのノード（ノードグループ・起動テンプレートを統合）に付くので自己ループになり辺にしない（H-SG-NOEDGE）。egress_all は H-SG-EGRESS。",
+    "サブネット・NAT の Name タグは AZ 名（$az）を含み静的に決まらないので、名前は論理名（vpc.private-0 など）に落とした。AZ のノードは位置の番号で az1〜az3。",
+    "クラスタ → kms モジュール（暗号化キー）の関係は規則に当たらないので辺にしていない（module/eks.kms の note）。モジュールの入力からの推定の辺は作らない（WORKLOG の判断 ⑤）。"
+  ],
+  "sources": {
+    "tf": {
+      "edges": [
+        {
+          "edge": "subnet/vpc.private-0->nat_gateway/vpc.this-0",
+          "evidence": [
+            "module.vpc.aws_route.private_nat_gateway[0].nat_gateway_id",
+            "module.vpc.aws_route_table_association.private[0].subnet_id"
+          ],
+          "rules": [
+            "R-ROUTE"
+          ]
+        },
+        {
+          "edge": "subnet/vpc.private-1->nat_gateway/vpc.this-0",
+          "evidence": [
+            "module.vpc.aws_route.private_nat_gateway[0].nat_gateway_id",
+            "module.vpc.aws_route_table_association.private[1].subnet_id"
+          ],
+          "rules": [
+            "R-ROUTE"
+          ]
+        },
+        {
+          "edge": "subnet/vpc.private-2->nat_gateway/vpc.this-0",
+          "evidence": [
+            "module.vpc.aws_route.private_nat_gateway[0].nat_gateway_id",
+            "module.vpc.aws_route_table_association.private[2].subnet_id"
+          ],
+          "rules": [
+            "R-ROUTE"
+          ]
+        },
+        {
+          "edge": "subnet/vpc.public-0->internet_gateway/education-vpc",
+          "evidence": [
+            "module.vpc.aws_route.public_internet_gateway[0].gateway_id",
+            "module.vpc.aws_route_table_association.public[0].subnet_id"
+          ],
+          "rules": [
+            "R-ROUTE"
+          ]
+        },
+        {
+          "edge": "subnet/vpc.public-1->internet_gateway/education-vpc",
+          "evidence": [
+            "module.vpc.aws_route.public_internet_gateway[0].gateway_id",
+            "module.vpc.aws_route_table_association.public[1].subnet_id"
+          ],
+          "rules": [
+            "R-ROUTE"
+          ]
+        },
+        {
+          "edge": "subnet/vpc.public-2->internet_gateway/education-vpc",
+          "evidence": [
+            "module.vpc.aws_route.public_internet_gateway[0].gateway_id",
+            "module.vpc.aws_route_table_association.public[2].subnet_id"
+          ],
+          "rules": [
+            "R-ROUTE"
+          ]
+        }
+      ],
+      "resources": [
+        {
+          "address": "data.aws_availability_zones.available",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-DATA",
+          "type": "aws_availability_zones"
+        },
+        {
+          "address": "data.aws_iam_policy.ebs_csi_policy",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_policy"
+        },
+        {
+          "address": "module.eks.aws_cloudwatch_log_group.this[0]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-LOGS",
+          "type": "aws_cloudwatch_log_group",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.aws_eks_access_entry.this[\"cluster_creator\"]",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "eks_cluster/eks.this-0"
+          ],
+          "rule": "M-EKS-PARTS",
+          "type": "aws_eks_access_entry",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.aws_eks_access_policy_association.this[\"cluster_creator_admin\"]",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "eks_cluster/eks.this-0"
+          ],
+          "rule": "M-EKS-PARTS",
+          "type": "aws_eks_access_policy_association",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.aws_eks_addon.this[\"aws-ebs-csi-driver\"]",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "eks_cluster/eks.this-0"
+          ],
+          "rule": "M-EKS-PARTS",
+          "type": "aws_eks_addon",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.aws_eks_cluster.this[0]",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "eks_cluster/eks.this-0",
+          "type": "aws_eks_cluster",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.aws_iam_openid_connect_provider.oidc_provider[0]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_openid_connect_provider",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.aws_iam_policy.cluster_encryption[0]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_policy",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.aws_iam_role.this[0]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.aws_iam_role_policy_attachment.cluster_encryption[0]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role_policy_attachment",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.aws_iam_role_policy_attachment.this[\"AmazonEKSClusterPolicy\"]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role_policy_attachment",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.aws_iam_role_policy_attachment.this[\"AmazonEKSVPCResourceController\"]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role_policy_attachment",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.aws_security_group.cluster[0]",
+          "class": "hidden",
+          "file": "main.tf",
+          "note": "クラスタの SG（クラスタに付く）とノードの SG（起動テンプレート → クラスタに付く）は同じノードに付くので、ルールはすべて自己ループで辺にならない",
+          "rule": "H-SG-NOEDGE",
+          "type": "aws_security_group",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.aws_security_group.node[0]",
+          "class": "hidden",
+          "file": "main.tf",
+          "note": "クラスタの SG（クラスタに付く）とノードの SG（起動テンプレート → クラスタに付く）は同じノードに付くので、ルールはすべて自己ループで辺にならない",
+          "rule": "H-SG-NOEDGE",
+          "type": "aws_security_group",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.aws_security_group_rule.cluster[\"ingress_nodes_443\"]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-SG-NOEDGE",
+          "type": "aws_security_group_rule",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.aws_security_group_rule.node[\"egress_all\"]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-SG-EGRESS",
+          "type": "aws_security_group_rule",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.aws_security_group_rule.node[\"ingress_cluster_443\"]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-SG-NOEDGE",
+          "type": "aws_security_group_rule",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.aws_security_group_rule.node[\"ingress_cluster_4443_webhook\"]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-SG-NOEDGE",
+          "type": "aws_security_group_rule",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.aws_security_group_rule.node[\"ingress_cluster_6443_webhook\"]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-SG-NOEDGE",
+          "type": "aws_security_group_rule",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.aws_security_group_rule.node[\"ingress_cluster_8443_webhook\"]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-SG-NOEDGE",
+          "type": "aws_security_group_rule",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.aws_security_group_rule.node[\"ingress_cluster_9443_webhook\"]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-SG-NOEDGE",
+          "type": "aws_security_group_rule",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.aws_security_group_rule.node[\"ingress_cluster_kubelet\"]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-SG-NOEDGE",
+          "type": "aws_security_group_rule",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.aws_security_group_rule.node[\"ingress_nodes_ephemeral\"]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-SG-NOEDGE",
+          "type": "aws_security_group_rule",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.aws_security_group_rule.node[\"ingress_self_coredns_tcp\"]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-SG-NOEDGE",
+          "type": "aws_security_group_rule",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.aws_security_group_rule.node[\"ingress_self_coredns_udp\"]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-SG-NOEDGE",
+          "type": "aws_security_group_rule",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.module.eks_managed_node_group[\"one\"].aws_eks_node_group.this[0]",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "eks_cluster/eks.this-0"
+          ],
+          "note": "cluster_name は time_sleep（H-UTILITY）の triggers を通してクラスタを指す",
+          "rule": "M-EKS-PARTS",
+          "type": "aws_eks_node_group",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.module.eks_managed_node_group[\"one\"].aws_iam_role.this[0]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.module.eks_managed_node_group[\"one\"].aws_iam_role_policy_attachment.this[\"AmazonEC2ContainerRegistryReadOnly\"]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role_policy_attachment",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.module.eks_managed_node_group[\"one\"].aws_iam_role_policy_attachment.this[\"AmazonEKSWorkerNodePolicy\"]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role_policy_attachment",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.module.eks_managed_node_group[\"one\"].aws_iam_role_policy_attachment.this[\"AmazonEKS_CNI_Policy\"]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role_policy_attachment",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.module.eks_managed_node_group[\"one\"].aws_launch_template.this[0]",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "eks_cluster/eks.this-0"
+          ],
+          "note": "ノードグループ（M-EKS-PARTS）の launch_template が指す。2 段の統合でクラスタへ",
+          "rule": "M-LAUNCH-TEMPLATE",
+          "type": "aws_launch_template",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.module.eks_managed_node_group[\"two\"].aws_eks_node_group.this[0]",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "eks_cluster/eks.this-0"
+          ],
+          "note": "cluster_name は time_sleep（H-UTILITY）の triggers を通してクラスタを指す",
+          "rule": "M-EKS-PARTS",
+          "type": "aws_eks_node_group",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.module.eks_managed_node_group[\"two\"].aws_iam_role.this[0]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.module.eks_managed_node_group[\"two\"].aws_iam_role_policy_attachment.this[\"AmazonEC2ContainerRegistryReadOnly\"]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role_policy_attachment",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.module.eks_managed_node_group[\"two\"].aws_iam_role_policy_attachment.this[\"AmazonEKSWorkerNodePolicy\"]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role_policy_attachment",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.module.eks_managed_node_group[\"two\"].aws_iam_role_policy_attachment.this[\"AmazonEKS_CNI_Policy\"]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role_policy_attachment",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.module.eks_managed_node_group[\"two\"].aws_launch_template.this[0]",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "eks_cluster/eks.this-0"
+          ],
+          "note": "ノードグループ（M-EKS-PARTS）の launch_template が指す。2 段の統合でクラスタへ",
+          "rule": "M-LAUNCH-TEMPLATE",
+          "type": "aws_launch_template",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.eks.module.kms",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "module/eks.kms",
+          "type": "module",
+          "via": "module_blackbox"
+        },
+        {
+          "address": "module.eks.time_sleep.this[0]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-UTILITY",
+          "type": "time_sleep",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.irsa-ebs-csi",
+          "class": "hidden",
+          "file": "main.tf",
+          "note": "source terraform-aws-modules/iam/aws//modules/iam-assumable-role-with-oidc は IAM だけを作るモジュール（iam-only-sources.md）。黒箱のノードにせず H-IAM",
+          "rule": "H-IAM",
+          "type": "module",
+          "via": "module_blackbox"
+        },
+        {
+          "address": "module.vpc.aws_default_network_acl.this[0]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-VPC-DEFAULTS",
+          "type": "aws_default_network_acl",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_default_route_table.default[0]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-VPC-DEFAULTS",
+          "type": "aws_default_route_table",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_default_security_group.this[0]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-VPC-DEFAULTS",
+          "type": "aws_default_security_group",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_eip.nat[0]",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "nat_gateway/vpc.this-0"
+          ],
+          "rule": "M-EIP-NAT",
+          "type": "aws_eip",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_internet_gateway.this[0]",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "internet_gateway/education-vpc",
+          "type": "aws_internet_gateway",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_nat_gateway.this[0]",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "nat_gateway/vpc.this-0",
+          "type": "aws_nat_gateway",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_route.private_nat_gateway[0]",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "subnet/vpc.private-0->nat_gateway/vpc.this-0",
+            "subnet/vpc.private-1->nat_gateway/vpc.this-0",
+            "subnet/vpc.private-2->nat_gateway/vpc.this-0"
+          ],
+          "rule": "R-ROUTE",
+          "type": "aws_route",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_route.public_internet_gateway[0]",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "subnet/vpc.public-0->internet_gateway/education-vpc",
+            "subnet/vpc.public-1->internet_gateway/education-vpc",
+            "subnet/vpc.public-2->internet_gateway/education-vpc"
+          ],
+          "rule": "R-ROUTE",
+          "type": "aws_route",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_route_table.private[0]",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "subnet/vpc.private-0->nat_gateway/vpc.this-0",
+            "subnet/vpc.private-1->nat_gateway/vpc.this-0",
+            "subnet/vpc.private-2->nat_gateway/vpc.this-0"
+          ],
+          "rule": "R-ROUTE",
+          "type": "aws_route_table",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_route_table.public[0]",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "subnet/vpc.public-0->internet_gateway/education-vpc",
+            "subnet/vpc.public-1->internet_gateway/education-vpc",
+            "subnet/vpc.public-2->internet_gateway/education-vpc"
+          ],
+          "rule": "R-ROUTE",
+          "type": "aws_route_table",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_route_table_association.private[0]",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "subnet/vpc.private-0->nat_gateway/vpc.this-0"
+          ],
+          "rule": "R-ROUTE",
+          "type": "aws_route_table_association",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_route_table_association.private[1]",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "subnet/vpc.private-1->nat_gateway/vpc.this-0"
+          ],
+          "rule": "R-ROUTE",
+          "type": "aws_route_table_association",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_route_table_association.private[2]",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "subnet/vpc.private-2->nat_gateway/vpc.this-0"
+          ],
+          "rule": "R-ROUTE",
+          "type": "aws_route_table_association",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_route_table_association.public[0]",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "subnet/vpc.public-0->internet_gateway/education-vpc"
+          ],
+          "rule": "R-ROUTE",
+          "type": "aws_route_table_association",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_route_table_association.public[1]",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "subnet/vpc.public-1->internet_gateway/education-vpc"
+          ],
+          "rule": "R-ROUTE",
+          "type": "aws_route_table_association",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_route_table_association.public[2]",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "subnet/vpc.public-2->internet_gateway/education-vpc"
+          ],
+          "rule": "R-ROUTE",
+          "type": "aws_route_table_association",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_subnet.private[0]",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "subnet/vpc.private-0",
+          "type": "aws_subnet",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_subnet.private[1]",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "subnet/vpc.private-1",
+          "type": "aws_subnet",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_subnet.private[2]",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "subnet/vpc.private-2",
+          "type": "aws_subnet",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_subnet.public[0]",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "subnet/vpc.public-0",
+          "type": "aws_subnet",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_subnet.public[1]",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "subnet/vpc.public-1",
+          "type": "aws_subnet",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_subnet.public[2]",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "subnet/vpc.public-2",
+          "type": "aws_subnet",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_vpc.this[0]",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "vpc/education-vpc",
+          "type": "aws_vpc",
+          "via": "module_summary"
+        },
+        {
+          "address": "random_string.suffix",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-UTILITY",
+          "type": "random_string"
+        }
+      ],
+      "root": "fixtures/public/learn-terraform-provision-eks-cluster"
+    }
+  },
+  "stage": "normalized"
+}

@@ -183,6 +183,15 @@ class ReviewFixesTest(unittest.TestCase):
         ], [ref("Fn", "Properties.Policies.DynamoDBCrudPolicy.TableName", "T")])
         self.assertEqual(e, {"lambda_function/fn->dynamodb_table/t": ("data", "", "inferred")})
 
+    def test_sam_state_machine_policies(self):
+        # SAM のステートマシンも Policies を書ける（T11s の形）。ステートマシン自身が引き受ける
+        e, r, _ = norm("cfn", [
+            resource("Sm", "AWS::Serverless::StateMachine",
+                     {"Name": "sm", "Policies": [{"DynamoDBCrudPolicy": {"TableName": {"$res": "T", "attr": None}}}]}, fmt="cfn"),
+            resource("T", "AWS::DynamoDB::Table", {"TableName": "t"}, fmt="cfn"),
+        ], [ref("Sm", "Properties.Policies[0].DynamoDBCrudPolicy.TableName", "T")])
+        self.assertEqual(e, {"sfn_state_machine/sm->dynamodb_table/t": ("data", "", "inferred")})
+
     def test_blackbox_endpoints_are_inferred_requests(self):
         e, r, _ = norm("tf", [
             resource("aws_route53_record.r", "aws_route53_record", {"name": "www"}),

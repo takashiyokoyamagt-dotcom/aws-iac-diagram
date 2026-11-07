@@ -1,0 +1,398 @@
+{
+  "description": "T12（sample-build-aws-glue-data-quality-pipeline-using-terraform の examples）。ローカルモジュール 3 つ（s3-bucket・iam・glue-data-quality）を展開し、terraform.tfvars（catalog_dq_enabled = true）で評価した。S3 バケット 1 つを、ETL の DQ ジョブ・カタログの DQ ジョブ・クローラが読み書きし、クローラがカタログのデータベースにテーブルを書く。",
+  "edges": [
+    {
+      "confidence": "confirmed",
+      "from": "glue_crawler/data-quality-pipeline-catalog-crawler",
+      "id": "glue_crawler/data-quality-pipeline-catalog-crawler->glue_catalog_database/sample_data_catalog",
+      "kind": "data",
+      "label": "",
+      "note": "クローラの database_name がデータベースを参照（E-GLUE-TARGET。クローラがテーブルを書く）",
+      "to": "glue_catalog_database/sample_data_catalog"
+    },
+    {
+      "confidence": "confirmed",
+      "from": "glue_crawler/data-quality-pipeline-catalog-crawler",
+      "id": "glue_crawler/data-quality-pipeline-catalog-crawler->s3_bucket/s3_bucket.this",
+      "kind": "data",
+      "label": "",
+      "note": "クローラの s3_target の path がバケットを参照（E-GLUE-TARGET）。ロールの ListBucket（E-IAM）も同じ組",
+      "to": "s3_bucket/s3_bucket.this"
+    },
+    {
+      "confidence": "inferred",
+      "from": "glue_job/data-quality-pipeline",
+      "id": "glue_job/data-quality-pipeline->s3_bucket/s3_bucket.this",
+      "kind": "data",
+      "label": "",
+      "note": "ロールの S3ListBucket（Resource がバケットの ARN そのもの）による E-IAM（inferred）。default_arguments（--S3_BUCKET_NAME・--TempDir）と script_location もバケットを参照するが、Glue ジョブの引数は E-ENV-REF の「Lambda・ECS の環境変数」に当たらないので辺の規則にしない（レビューの方針。notes の 3）",
+      "to": "s3_bucket/s3_bucket.this"
+    },
+    {
+      "confidence": "inferred",
+      "from": "glue_job/data-quality-pipeline-catalog",
+      "id": "glue_job/data-quality-pipeline-catalog->glue_catalog_database/sample_data_catalog",
+      "kind": "data",
+      "label": "",
+      "note": "どの規則も作らない真の関係（既知の限界。再現率に数える）。--DATABASE_NAME の文字列がデータベース名と一致し、スクリプトがこのデータベースのテーブルを読む。確信度は最も近い規則（E-ENV-STR。文字列の一致）の inferred にした。IAM の GlueCatalogAccess は database/* のワイルドカードで E-IAM では照合しない",
+      "to": "glue_catalog_database/sample_data_catalog"
+    },
+    {
+      "confidence": "inferred",
+      "from": "glue_job/data-quality-pipeline-catalog",
+      "id": "glue_job/data-quality-pipeline-catalog->s3_bucket/s3_bucket.this",
+      "kind": "data",
+      "label": "",
+      "note": "ロールの S3ListBucket（Resource がバケットの ARN そのもの）による E-IAM（inferred）。default_arguments（--S3_BUCKET_NAME・--TempDir）と script_location もバケットを参照するが、Glue ジョブの引数は E-ENV-REF の「Lambda・ECS の環境変数」に当たらないので辺の規則にしない（レビューの方針。notes の 3）",
+      "to": "s3_bucket/s3_bucket.this"
+    }
+  ],
+  "evaluation": {
+    "assumptions": [
+      "変数は terraform.tfvars と既定値（environment = dev、glue_job_name = data-quality-pipeline、catalog_dq_enabled = true、catalog_enable_schedule = false、enable_schedule = false（既定）、catalog_database_name = sample_data_catalog）。tfvars の kms_deletion_window・enable_key_rotation は宣言の無い変数で使われない"
+    ],
+    "tf": {
+      "var_files": [
+        "terraform.tfvars"
+      ],
+      "vars": {}
+    }
+  },
+  "ir_version": "1.0",
+  "name": "t12",
+  "nodes": [
+    {
+      "category": "resource",
+      "id": "glue_catalog_database/sample_data_catalog",
+      "label": "sample_data_catalog",
+      "name": "sample_data_catalog",
+      "parent": null,
+      "type": "glue_catalog_database"
+    },
+    {
+      "category": "resource",
+      "id": "glue_crawler/data-quality-pipeline-catalog-crawler",
+      "label": "data-quality-pipeline-catalog-crawler",
+      "name": "data-quality-pipeline-catalog-crawler",
+      "parent": null,
+      "type": "glue_crawler"
+    },
+    {
+      "category": "resource",
+      "id": "glue_job/data-quality-pipeline",
+      "label": "data-quality-pipeline",
+      "name": "data-quality-pipeline",
+      "note": "ETL の DQ ジョブ。トリガー（enable_schedule = false）は count 0",
+      "parent": null,
+      "type": "glue_job"
+    },
+    {
+      "category": "resource",
+      "id": "glue_job/data-quality-pipeline-catalog",
+      "label": "data-quality-pipeline-catalog",
+      "name": "data-quality-pipeline-catalog",
+      "note": "カタログの DQ ジョブ（catalog_dq_enabled = true で [0]）。トリガー（catalog_enable_schedule = false）は count 0",
+      "parent": null,
+      "type": "glue_job"
+    },
+    {
+      "category": "resource",
+      "id": "s3_bucket/s3_bucket.this",
+      "label": "s3_bucket.this",
+      "name": "s3_bucket.this",
+      "note": "バケット名がアカウント ID を含み静的に決まらないので論理名（K-NAME の 3。module.s3_bucket の this）。バージョニング・暗号化・公開アクセスブロック・ライフサイクル（M-S3-CONFIG）と S3 のオブジェクト 3 つ（M-S3-OBJECT）を統合",
+      "parent": null,
+      "type": "s3_bucket"
+    }
+  ],
+  "notes": [
+    "terraform.tfvars は自動で読まれる（raw の evaluation.var_files）。catalog_dq_enabled = true なのでカタログ側（データベース・クローラ・カタログのジョブ・クローラのトリガー・アラーム 2・スクリプト）は [0] で作られる。enable_schedule（tfvars に無く既定 false）と catalog_enable_schedule = false で、ジョブのトリガー 2 つは count 0（H-COND-FALSE）。",
+    "バケット名は \"${var.bucket_prefix}-${data.aws_caller_identity.current.account_id}-${var.environment}\" でアカウント ID が静的に決まらないので、K-NAME の 3（論理名 s3_bucket.this）に落とした。Name タグも無い（tags・default_tags とも Name なし）。",
+    "Glue ジョブ → バケットの辺: Glue ジョブの default_arguments（--S3_BUCKET_NAME・--TempDir）と command.script_location もバケットを参照するが、Glue ジョブの引数は E-ENV-REF の「計算リソース（Lambda、ECS サービス）の環境変数」に当たらない（レビューの方針で確定）。辺はロールの S3ListBucket（Resource がバケットの ARN）による E-IAM（inferred、kind data）だけで作る。",
+    "カタログの DQ ジョブ → カタログのデータベースの辺: --DATABASE_NAME は var.catalog_database_name の文字列（参照ではない）で、値 sample_data_catalog がデータベースの名前と一致する。スクリプト（CatalogDataQuality.py）は get_tables・from_catalog でこのデータベースを読む。どの規則も作らない真の関係（Glue ジョブの引数は環境変数ではないので E-ENV-STR も文字どおりには当たらない）だが、データの流れなので辺として残し、確信度は最も近い E-ENV-STR の inferred にした（既知の限界）。IAM の GlueCatalogAccess は database/* のワイルドカードなので E-IAM では照合しない（v0.1）。",
+    "IAM のポリシーの S3ReadAccess（<bucket>/data/*・/glue-scripts/*）と S3WriteResults（/dq-results/* など）は、接尾辞が /* だけでないので E-IAM では照合しない（edges.md の 6 の ④）。S3ListBucket（Resource がバケットの ARN）だけが当たる。ロールはジョブ 2 つ（role_arn）とクローラ（role）が引き受ける。",
+    "crawler_schedule[0] は type SCHEDULED で predicate が無い（条件の無いトリガー）ので、R-GLUE-TRIGGER の文のとおり辺を作らず H-RELATION-NOEDGE。真の関係でも起動元はスケジュールで、描くノードが無い。",
+    "CloudWatch のアラーム（root の data_quality_failure は namespace Glue・JobName = data-quality-pipeline）とダッシュボードは H-OBSERVABILITY、ロググループは H-LOGS。S3 のオブジェクト（サンプルデータ・スクリプト 2）は M-S3-OBJECT でバケットに統合。"
+  ],
+  "sources": {
+    "tf": {
+      "edges": [
+        {
+          "edge": "glue_crawler/data-quality-pipeline-catalog-crawler->glue_catalog_database/sample_data_catalog",
+          "evidence": [
+            "module.glue_data_quality.aws_glue_crawler.catalog_crawler[0].database_name"
+          ],
+          "rules": [
+            "E-GLUE-TARGET"
+          ]
+        },
+        {
+          "edge": "glue_crawler/data-quality-pipeline-catalog-crawler->s3_bucket/s3_bucket.this",
+          "evidence": [
+            "module.glue_data_quality.aws_glue_crawler.catalog_crawler[0].s3_target[0].path (var.s3_bucket_name ← module.s3_bucket.bucket_id)",
+            "module.iam.data.aws_iam_policy_document.glue_minimal_policy.statement[2].resources[0] (s3:ListBucket。クローラの role ← module.iam.glue_role_arn)"
+          ],
+          "rules": [
+            "E-GLUE-TARGET",
+            "E-IAM"
+          ]
+        },
+        {
+          "edge": "glue_job/data-quality-pipeline->s3_bucket/s3_bucket.this",
+          "evidence": [
+            "module.iam.data.aws_iam_policy_document.glue_minimal_policy.statement[2].resources[0] (s3:ListBucket。ジョブの role_arn ← module.iam.glue_role_arn)"
+          ],
+          "rules": [
+            "E-IAM"
+          ]
+        },
+        {
+          "edge": "glue_job/data-quality-pipeline-catalog->glue_catalog_database/sample_data_catalog",
+          "evidence": [
+            "module.glue_data_quality.aws_glue_job.catalog_data_quality_job[0].default_arguments[\"--DATABASE_NAME\"] (文字列 sample_data_catalog がデータベースの名前と一致。参照ではない)"
+          ],
+          "rules": [
+            "E-ENV-STR"
+          ]
+        },
+        {
+          "edge": "glue_job/data-quality-pipeline-catalog->s3_bucket/s3_bucket.this",
+          "evidence": [
+            "module.iam.data.aws_iam_policy_document.glue_minimal_policy.statement[2].resources[0] (s3:ListBucket。ジョブの role_arn ← module.iam.glue_role_arn)"
+          ],
+          "rules": [
+            "E-IAM"
+          ]
+        }
+      ],
+      "resources": [
+        {
+          "address": "aws_cloudwatch_metric_alarm.data_quality_failure",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-OBSERVABILITY",
+          "type": "aws_cloudwatch_metric_alarm"
+        },
+        {
+          "address": "aws_s3_object.sample_data",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "s3_bucket/s3_bucket.this"
+          ],
+          "rule": "M-S3-OBJECT",
+          "type": "aws_s3_object"
+        },
+        {
+          "address": "data.aws_caller_identity.current",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-DATA",
+          "type": "aws_caller_identity"
+        },
+        {
+          "address": "data.aws_region.current",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-DATA",
+          "type": "aws_region"
+        },
+        {
+          "address": "module.glue_data_quality.aws_cloudwatch_dashboard.data_quality_dashboard",
+          "class": "hidden",
+          "file": "../modules/glue-data-quality/main.tf",
+          "rule": "H-OBSERVABILITY",
+          "type": "aws_cloudwatch_dashboard"
+        },
+        {
+          "address": "module.glue_data_quality.aws_cloudwatch_log_group.glue_log_group",
+          "class": "hidden",
+          "file": "../modules/glue-data-quality/main.tf",
+          "rule": "H-LOGS",
+          "type": "aws_cloudwatch_log_group"
+        },
+        {
+          "address": "module.glue_data_quality.aws_cloudwatch_metric_alarm.catalog_crawler_failure[0]",
+          "class": "hidden",
+          "file": "../modules/glue-data-quality/main.tf",
+          "rule": "H-OBSERVABILITY",
+          "type": "aws_cloudwatch_metric_alarm"
+        },
+        {
+          "address": "module.glue_data_quality.aws_cloudwatch_metric_alarm.catalog_data_quality_failure[0]",
+          "class": "hidden",
+          "file": "../modules/glue-data-quality/main.tf",
+          "rule": "H-OBSERVABILITY",
+          "type": "aws_cloudwatch_metric_alarm"
+        },
+        {
+          "address": "module.glue_data_quality.aws_glue_catalog_database.data_quality_db[0]",
+          "class": "drawn",
+          "file": "../modules/glue-data-quality/main.tf",
+          "node": "glue_catalog_database/sample_data_catalog",
+          "type": "aws_glue_catalog_database"
+        },
+        {
+          "address": "module.glue_data_quality.aws_glue_crawler.catalog_crawler[0]",
+          "class": "drawn",
+          "file": "../modules/glue-data-quality/main.tf",
+          "node": "glue_crawler/data-quality-pipeline-catalog-crawler",
+          "type": "aws_glue_crawler"
+        },
+        {
+          "address": "module.glue_data_quality.aws_glue_job.catalog_data_quality_job[0]",
+          "class": "drawn",
+          "file": "../modules/glue-data-quality/main.tf",
+          "node": "glue_job/data-quality-pipeline-catalog",
+          "type": "aws_glue_job"
+        },
+        {
+          "address": "module.glue_data_quality.aws_glue_job.data_quality_job",
+          "class": "drawn",
+          "file": "../modules/glue-data-quality/main.tf",
+          "node": "glue_job/data-quality-pipeline",
+          "type": "aws_glue_job"
+        },
+        {
+          "address": "module.glue_data_quality.aws_glue_trigger.catalog_data_quality_schedule",
+          "class": "hidden",
+          "file": "../modules/glue-data-quality/main.tf",
+          "rule": "H-COND-FALSE",
+          "type": "aws_glue_trigger"
+        },
+        {
+          "address": "module.glue_data_quality.aws_glue_trigger.crawler_schedule[0]",
+          "class": "hidden",
+          "file": "../modules/glue-data-quality/main.tf",
+          "rule": "H-RELATION-NOEDGE",
+          "type": "aws_glue_trigger"
+        },
+        {
+          "address": "module.glue_data_quality.aws_glue_trigger.data_quality_schedule",
+          "class": "hidden",
+          "file": "../modules/glue-data-quality/main.tf",
+          "rule": "H-COND-FALSE",
+          "type": "aws_glue_trigger"
+        },
+        {
+          "address": "module.glue_data_quality.aws_s3_object.catalog_glue_script[0]",
+          "class": "merged_into",
+          "file": "../modules/glue-data-quality/main.tf",
+          "into": [
+            "s3_bucket/s3_bucket.this"
+          ],
+          "rule": "M-S3-OBJECT",
+          "type": "aws_s3_object"
+        },
+        {
+          "address": "module.glue_data_quality.aws_s3_object.glue_script",
+          "class": "merged_into",
+          "file": "../modules/glue-data-quality/main.tf",
+          "into": [
+            "s3_bucket/s3_bucket.this"
+          ],
+          "rule": "M-S3-OBJECT",
+          "type": "aws_s3_object"
+        },
+        {
+          "address": "module.glue_data_quality.data.aws_region.current",
+          "class": "hidden",
+          "file": "../modules/glue-data-quality/main.tf",
+          "rule": "H-DATA",
+          "type": "aws_region"
+        },
+        {
+          "address": "module.iam.aws_iam_role.glue_role",
+          "class": "hidden",
+          "file": "../modules/iam/main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role"
+        },
+        {
+          "address": "module.iam.aws_iam_role_policy.glue_minimal_access",
+          "class": "hidden",
+          "file": "../modules/iam/main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role_policy"
+        },
+        {
+          "address": "module.iam.data.aws_caller_identity.current",
+          "class": "hidden",
+          "file": "../modules/iam/main.tf",
+          "rule": "H-DATA",
+          "type": "aws_caller_identity"
+        },
+        {
+          "address": "module.iam.data.aws_iam_policy_document.glue_assume_role",
+          "class": "hidden",
+          "file": "../modules/iam/main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_policy_document"
+        },
+        {
+          "address": "module.iam.data.aws_iam_policy_document.glue_minimal_policy",
+          "class": "hidden",
+          "file": "../modules/iam/main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_policy_document"
+        },
+        {
+          "address": "module.iam.data.aws_region.current",
+          "class": "hidden",
+          "file": "../modules/iam/main.tf",
+          "rule": "H-DATA",
+          "type": "aws_region"
+        },
+        {
+          "address": "module.s3_bucket.aws_s3_bucket.this",
+          "class": "drawn",
+          "file": "../modules/s3-bucket/main.tf",
+          "node": "s3_bucket/s3_bucket.this",
+          "type": "aws_s3_bucket"
+        },
+        {
+          "address": "module.s3_bucket.aws_s3_bucket_lifecycle_configuration.this",
+          "class": "merged_into",
+          "file": "../modules/s3-bucket/main.tf",
+          "into": [
+            "s3_bucket/s3_bucket.this"
+          ],
+          "rule": "M-S3-CONFIG",
+          "type": "aws_s3_bucket_lifecycle_configuration"
+        },
+        {
+          "address": "module.s3_bucket.aws_s3_bucket_public_access_block.this",
+          "class": "merged_into",
+          "file": "../modules/s3-bucket/main.tf",
+          "into": [
+            "s3_bucket/s3_bucket.this"
+          ],
+          "rule": "M-S3-CONFIG",
+          "type": "aws_s3_bucket_public_access_block"
+        },
+        {
+          "address": "module.s3_bucket.aws_s3_bucket_server_side_encryption_configuration.this",
+          "class": "merged_into",
+          "file": "../modules/s3-bucket/main.tf",
+          "into": [
+            "s3_bucket/s3_bucket.this"
+          ],
+          "rule": "M-S3-CONFIG",
+          "type": "aws_s3_bucket_server_side_encryption_configuration"
+        },
+        {
+          "address": "module.s3_bucket.aws_s3_bucket_versioning.this",
+          "class": "merged_into",
+          "file": "../modules/s3-bucket/main.tf",
+          "into": [
+            "s3_bucket/s3_bucket.this"
+          ],
+          "rule": "M-S3-CONFIG",
+          "type": "aws_s3_bucket_versioning"
+        }
+      ],
+      "root": "fixtures/public/sample-build-aws-glue-data-quality-pipeline-using-terraform/examples"
+    }
+  },
+  "stage": "normalized"
+}
