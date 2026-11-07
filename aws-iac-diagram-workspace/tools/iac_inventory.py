@@ -78,7 +78,9 @@ def _load_tf_dir(d: Path) -> list[tuple[Path, dict]]:
 
 
 def tf_inventory(root: Path, _dir: Path | None = None, _prefix: str = "", _seen=None) -> list[TfBlock]:
-    root = Path(root)
+    # 子のモジュールの場所は resolve() で作るので、root も resolve() して揃える（Windows の 8.3 の短い名前の TEMP
+    # `RUNNER~1` と長い名前が混ざると、relpath が `../../…` になる）
+    root = Path(root).resolve()
     d = Path(_dir) if _dir else root
     seen = _seen if _seen is not None else set()
     blocks: list[TfBlock] = []
