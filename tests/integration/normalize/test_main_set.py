@@ -1,4 +1,4 @@
-"""正規化 × 公開サンプルの主セット（CRITERIA の 1.2。12 入力）の回帰テスト（フェーズ 3 の手順 4b の時点）。
+"""正規化 × 公開サンプルの主セット（CRITERIA の 1.2。12 入力）の回帰テスト（フェーズ 3 の手順 5 の時点）。
 
 主セットの正解 IR はまだ無いので、出力の形の数を入力ごとに固定する: 辺の数、`NORM-UNUSED-REF`（使わなかった参照）、
 `NORM-RELATION-NOEDGE`（辺ができず fallback の無い関係リソース）、仮のままの分類の数。数が変わったら、意図した変更か確かめて
@@ -20,22 +20,27 @@ from aws_iac_diagram.normalize import build  # noqa: E402
 
 cov = load_tool("check_coverage")
 
-# 入力 → (辺, NORM-UNUSED-REF, NORM-RELATION-NOEDGE, 仮のままの分類)。仮の分類は R-SG（手順 5）と NORM-RELATION-NOEDGE のもの
+# 入力 → (辺, NORM-UNUSED-REF, NORM-RELATION-NOEDGE, 仮のままの分類)。仮の分類は NORM-RELATION-NOEDGE のものだけ。
+# 手順 5 で API Gateway のある 5 入力（T07・T07s・T11・T11s・C02）に internet → API（N-EXT-INTERNET）が 1 本ずつ増えた。
+# R-SG の辺は主セットでは 0 本（T03・T16 の SG は H-SG-NOEDGE。理由は各行）
 EXPECTED = {
-    "T03": (3, 0, 0, 1),
+    "T03": (3, 0, 0, 0),   # RDS の SG は 0.0.0.0/0 から 5432 を許すが、RDS は「公開」（インターネット向けの LB・パブリック IP の EC2）
+                           # に入らないので internet の辺にしない（relations.md の R-SG の文）。SG は H-SG-NOEDGE
     "T06": (2, 0, 0, 0),
     "T06s": (2, 0, 0, 0),
-    "T07": (2, 2, 0, 0),   # 使わなかった参照: Lambda のコードの置き場所（s3_bucket・s3_key）。関数 → テーブルは E-IAM だけ
+    "T07": (3, 2, 0, 0),   # 使わなかった参照: Lambda のコードの置き場所（s3_bucket・s3_key）。関数 → テーブルは E-IAM だけ
                            # （環境変数の "Movies" は英字だけなので E-ENV-STR にしない）
-    "T07s": (2, 0, 0, 0),  # 関数 → テーブル（SAM の Policies が 1 つの mapping の形。E-IAM）
+    "T07s": (3, 0, 0, 0),  # 関数 → テーブル（SAM の Policies が 1 つの mapping の形。E-IAM）
     "T09": (3, 0, 0, 0),   # KB → 基盤モデル（N-BEDROCK-MODEL）・ベクトルストア、バケット → KB
-    "T11": (2, 0, 0, 0),   # REST API → Step Functions（request_templates の中の参照）、Step Functions → テーブル（E-IAM の $concat の ARN）
-    "T11s": (0, 1, 0, 0),  # API は OpenAPI（AWS::Include）の中で raw に載らない（既知の制約）。DefinitionSubstitutions は辺の規則が無い
+    "T11": (3, 0, 0, 0),   # REST API → Step Functions（request_templates の中の参照）、Step Functions → テーブル（E-IAM の $concat の ARN）
+    "T11s": (1, 1, 0, 0),  # internet → API だけ。API は OpenAPI（AWS::Include）の中で raw に載らない（既知の制約）。DefinitionSubstitutions は辺の規則が無い
     "T12": (4, 6, 1, 1),   # Glue のクローラ（E-GLUE-TARGET）と E-IAM。ジョブの script_location・default_arguments は辺の規則が無い。
                            # 条件の無い Glue のトリガー（辺を作らない。fallback が無い）
-    "T16": (6, 1, 0, 12),  # 仮の 12 件は R-SG。使わなかった参照は KMS の黒箱のモジュールの出力（暗号化の設定）
+    "T16": (6, 1, 0, 0),   # SG 2 つ・ingress ルール 10 件は、クラスタの SG（クラスタ）とノードの SG（起動テンプレート → M-* で
+                           # 統合先は同じクラスタ）の間だけなので自己ループで辺にならず、すべて H-SG-NOEDGE（egress 1 件は H-SG-EGRESS）。
+                           # 使わなかった参照は KMS の黒箱のモジュールの出力（暗号化の設定）
     "C01": (3, 2, 0, 0),   # CloudFront → オリジン、Route 53 → CloudFront、関数 → バケット。使わなかった参照はログのバケット
-    "C02": (7, 6, 0, 0),   # 使わなかった参照はログ・レプリケーションのバケットと、環境変数の CloudFront のドメイン名（kind の表に無い型）
+    "C02": (8, 6, 0, 0),   # 使わなかった参照はログ・レプリケーションのバケットと、環境変数の CloudFront のドメイン名（kind の表に無い型）
 }
 
 
@@ -63,6 +68,7 @@ class MainSetTest(unittest.TestCase):
         _, ir = self.out["T11"]
         self.assertEqual([(e["from"].split("/")[0], e["to"].split("/")[0], e["kind"], e["label"], e["confidence"]) for e in ir["edges"]],
                          [("apigw_rest_api", "sfn_state_machine", "request", "ANY /, ANY /{id}", "derived"),
+                          ("external", "apigw_rest_api", "request", "HTTPS", "derived"),
                           ("sfn_state_machine", "dynamodb_table", "data", "", "inferred")])
 
     def test_independent_coverage_check(self):

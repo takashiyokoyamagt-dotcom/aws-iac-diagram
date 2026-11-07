@@ -1,7 +1,8 @@
 """正規化の段階 3（辺）: 関係リソース（R-*）のハンドラを呼び、辺の候補を 1 組 1 本にまとめる（E-MERGE。ir-schema の 3 章）。
 
-- 作る辺: 関係リソースの規則（`HANDLED`。手順 4a）、属性の参照から作る E-*（attr_edges.py）、E-IAM と E-IAM-SUPPRESS（iam.py）、
-  合成ノード N-BEDROCK-MODEL（手順 4b）。R-SG・N-EXT-INTERNET はまだ（手順 5）。
+- 作る辺: 関係リソースの規則（`HANDLED`。手順 4a・R-SG は手順 5 の relations_sg.py）、属性の参照から作る E-*（attr_edges.py）、
+  E-IAM と E-IAM-SUPPRESS（iam.py）、合成ノード N-BEDROCK-MODEL（手順 4b）と N-EXT-INTERNET（手順 5。synthetic.py）。
+  合成ノードは、そのノードへの（からの）辺が残ったときだけ出す。
 - 端点が黒箱のモジュール（型 `module`）の候補は、どの規則でも `inferred`・`request` にする（ir-schema の 2 章。中身が分からない）。
 - まとめ方（edges.toml の `[[merge_priority]]` と `confidence_order`）: 同じ順序付きの組の候補は 1 本にし、`rules` はすべての規則、
   `evidence` はすべての根拠。`kind` は優先順の高い規則の候補のもの（R-LAMBDA-PERMISSION などの「既存の辺に従う」候補は、ほかの
@@ -19,16 +20,17 @@ import fnmatch
 from dataclasses import dataclass, replace
 
 from aws_iac_diagram.core.rules import Rules
-from aws_iac_diagram.normalize import attr_edges, iam, relations_api, relations_events, relations_lb, relations_route
+from aws_iac_diagram.normalize import (attr_edges, iam, relations_api, relations_events, relations_lb, relations_route, relations_sg,
+                                       synthetic)
 from aws_iac_diagram.normalize.relations_base import Candidate, Context
 
 MODULE = "module"
 
-# この手順でハンドラを持つ関係リソースの規則（ここに無い R-* は、分類を仮のまま残す）
+# ハンドラを持つ関係リソースの規則（ここに無い R-* は、分類を仮のまま残す）
 HANDLED = frozenset({
     "R-ROUTE", "R-VPCE-GATEWAY", "R-LB-LISTENER", "R-LB-TG", "R-APIGW-HTTP", "R-APIGW-REST", "R-LAMBDA-PERMISSION",
     "R-LAMBDA-ESM", "R-SNS-SUBSCRIPTION", "R-SQS-QUEUE-POLICY", "R-S3-NOTIFICATION", "R-BEDROCK-DATA-SOURCE",
-    "R-EVENTS-TARGET", "R-SNS-TOPIC-POLICY", "R-GLUE-TRIGGER",
+    "R-EVENTS-TARGET", "R-SNS-TOPIC-POLICY", "R-GLUE-TRIGGER", "R-SG",
 })
 
 
@@ -39,7 +41,7 @@ class EdgeResult:
     into: dict[str, list[str]]  # 関係リソースの address → 辺の id
     used_refs: frozenset  # 辺の根拠に使った参照 (from, path, to)
     access: dict[str, str]  # サブネットのノード → public／private
-    synthetic_nodes: list[dict]  # 辺の段階で作った合成ノード（N-BEDROCK-MODEL）
+    synthetic_nodes: list[dict]  # 辺の段階で作った合成ノード（N-BEDROCK-MODEL・N-EXT-INTERNET）
 
 
 def _rank(rules: Rules, rule: str) -> int:
@@ -96,9 +98,13 @@ def build_edges(ctx: Context) -> EdgeResult:
     """関係リソースのハンドラをすべて呼んで、辺をまとめる。"""
     route, access = relations_route.route_candidates(ctx)
     models: dict[str, dict] = {}
+    sg = relations_sg.sg_candidates(ctx, access)
     cands = route + relations_lb.lb_candidates(ctx) + relations_api.api_candidates(ctx) + relations_events.event_candidates(ctx)
+    cands += sg.candidates + synthetic.internet_candidates(ctx, sg)
     cands += attr_edges.attr_candidates(ctx, models) + iam.iam_candidates(ctx, models)
     cands = blackbox(iam.suppress(cands), ctx.node_type)
     r = merge(cands, ctx.rules)
-    used_models = {e["to"] for e in r.edges} | {e["from"] for e in r.edges}
-    return EdgeResult(r.edges, r.evidence, r.into, r.used_refs, access, [models[m] for m in sorted(models) if m in used_models])
+    used = {e["to"] for e in r.edges} | {e["from"] for e in r.edges}
+    if relations_sg.INTERNET in used:
+        models[relations_sg.INTERNET] = synthetic.internet_node(ctx.rules)
+    return EdgeResult(r.edges, r.evidence, r.into, r.used_refs, access, [models[m] for m in sorted(models) if m in used])

@@ -157,6 +157,7 @@
 <!-- /rules-table -->
 
 - インターネットゲートウェイと `external/internet` は結ばない（ルートの辺がサブネット → IGW で止まる）。経路の終点が IGW であることで外に出られることを表す。
+- **実装（フェーズ 3 の手順 5。`scripts/aws_iac_diagram/normalize/synthetic.py`・`relations_sg.py`・`relations_lb.py`）で決めたこと:** ① internet → LB は、(a) の条件に加えて、SG の `0.0.0.0/0`／`::/0` のルール（TCP のポートの範囲が決まるものと全プロトコル）が許すポートのリスナーが 1 つ以上あるときだけ作る（根拠の規則は N-EXT-INTERNET・R-LB-LISTENER・R-SG。kind・ラベルは優先順 1 の R-LB-LISTENER の `request`・`<PROTOCOL> <port>`。リスナーが複数なら辞書順に `, ` でつなぐ）。`::/0` も `0.0.0.0/0` と同じに扱う（relations.md の R-SG の文）。② パブリックな API は、HTTP API（TF・CFN の `protocol_type`／`ProtocolType` が HTTP、SAM の `AWS::Serverless::HttpApi`）と、REST API でエンドポイントの種類に `REGIONAL`／`EDGE` があるもの（書かなければ既定の `EDGE`。SAM の `EndpointConfiguration: <種類>`・`Type` も読む）。`PRIVATE` だけ、または値が決まらないものは作らない。WebSocket の API（`protocol_type` が `WEBSOCKET`）にも作らない（ir-schema の 8 章）。③ パブリック IP の EC2 への internet の辺は R-SG だけが作る（kind `network`、ラベルは SG のもの）。④ `external/internet` のノードは、そこからの辺が 1 本でも残ったときだけ出す（構成ごとに 1 つ）。⑤ N-EXT-INTERNET は `[[merge_priority]]` に無いので、まとめるときは最も低い順位として扱う（いつもほかの規則の候補と一緒か、単独で `request`）。
 
 ## 4. まとめ方（E-MERGE）
 

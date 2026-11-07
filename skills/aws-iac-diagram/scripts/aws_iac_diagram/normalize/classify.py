@@ -285,7 +285,7 @@ def finalize(decisions: dict[str, Decision], index: Index, nodes: dict[str, dict
 def apply_edges(decisions: dict[str, Decision], rules: Rules, edges: dict[str, list[str]],
                 handled: frozenset[str] | None = None) -> tuple[dict[str, Decision], list[dict]]:
     """関係リソース（R-*）の分類を、辺の段階の結果で確定する。`edges` は関係リソースの address → 統合された辺の id、`handled` は
-    辺の段階がハンドラを持つ規則（None ならすべて。ほかの R-* は仮のまま残す。手順 4a の R-SG）。
+    辺の段階がハンドラを持つ規則（None ならすべて。ほかの R-* は仮のまま残す）。
 
     辺があれば `merged_into`（into は辺）。無ければ規則の `fallback`（H-SG-NOEDGE・H-RT-NOROUTE・H-IAM）。fallback の無い規則
     （R-LB-LISTENER・R-GLUE-TRIGGER など）は、凍結した規則表に行き先の H-* が無いので仮のまま残し、`NORM-RELATION-NOEDGE`（warn）を

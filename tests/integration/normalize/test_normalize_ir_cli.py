@@ -37,22 +37,33 @@ class NormalizeIrCliTest(unittest.TestCase):
         p.write_text(doc if isinstance(doc, str) else json.dumps(doc, ensure_ascii=False), encoding="utf-8")
         return p
 
-    def test_provisional_relations_exit_1_but_the_file_is_written(self):
+    def test_custom_input_exits_0(self):
+        # 自作の構成は、R-SG と N-EXT-INTERNET（手順 5）までで仮の分類が残らない
         raw = custom_raw("three-tier", "tf")
         src = self.write("three-tier.raw.json", raw)
         out = self.dir / "three-tier.ir.json"
         res = call("--input", str(src), "--out", str(out), "--name", "three-tier")
-        self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
-        self.assertIn("仮のままの分類が 4 件", res.stderr)  # R-SG（SG のハンドラは手順 5）
-        self.assertIn("provisional=4", res.stdout)
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+        self.assertIn("provisional=0", res.stdout)
         # 書いたものは、同じ入力をパッケージで正規化した正規の文字列と同じ
         self.assertEqual(out.read_text(encoding="utf-8"), ir_norm.canonical_dump(build.normalize(raw, None, "three-tier")))
+        res = call("--input", str(src), "--out", str(out))
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+        self.assertEqual(json.loads(out.read_text(encoding="utf-8"))["name"], "three-tier")  # 名前は root から
+
+    def test_provisional_relations_exit_1_but_the_file_is_written(self):
+        # 転送の無いリスナー（辺ができず、R-LB-LISTENER に fallback が無い）は仮のまま
+        raw = raw_ir("tf", [resource("aws_lb_listener.l", "aws_lb_listener")], root="fixtures/tf/lone")
+        src = self.write("lone.raw.json", raw)
+        out = self.dir / "lone.ir.json"
+        res = call("--input", str(src), "--out", str(out))
+        self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+        self.assertIn("仮のままの分類が 1 件", res.stderr)
+        self.assertIn("provisional=1", res.stdout)
+        self.assertEqual(out.read_text(encoding="utf-8"), ir_norm.canonical_dump(build.normalize(raw, None, "lone")))
         # 仮の分類を許すオプションは無い（スキーマに通らない IR を 0 で返さない）
         res = call("--input", str(src), "--out", str(out), "--allow-provisional")
         self.assertEqual(res.returncode, 2, res.stdout + res.stderr)
-        res = call("--input", str(src), "--out", str(out))
-        self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
-        self.assertEqual(json.loads(out.read_text(encoding="utf-8"))["name"], "three-tier")  # 名前は root から
 
     def test_clean_input_exits_0(self):
         # raw IR の検査（core/ir_raw.semantic_errors）に通る形: 参照は props の $res と対応し、resources は address の順
@@ -98,9 +109,9 @@ class NormalizeIrCliTest(unittest.TestCase):
 
 class CheckTest(unittest.TestCase):
     def test_check_reports_coverage_problems_and_provisional_entries(self):
-        raw = raw_ir("tf", [resource("aws_vpc.v", "aws_vpc"), resource("aws_security_group.s", "aws_security_group")])
+        raw = raw_ir("tf", [resource("aws_lb_listener.l", "aws_lb_listener"), resource("aws_vpc.v", "aws_vpc")])
         ir = build.normalize(raw, None, "t")
-        self.assertEqual(build.check(raw, ir), ([], ["aws_security_group.s（R-SG）"]))
+        self.assertEqual(build.check(raw, ir), ([], ["aws_lb_listener.l（R-LB-LISTENER）"]))
         broken = json.loads(json.dumps(ir))
         res = broken["sources"]["tf"]["resources"]
         res.append(dict(res[0]))

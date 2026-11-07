@@ -89,7 +89,7 @@ class AccountingTest(unittest.TestCase):
             # 環境変数（map）の名前は属性名ではない: SUBNET_ID でも E-NOEDGE-PLACEMENT にしない（E-ENV-REF の材料。手順 4b）
             reference("aws_lambda_function.fn", "environment[0].variables.SUBNET_ID", "aws_subnet.s", "id"),
             reference("aws_lambda_function.fn", "tags.vpc_id", "aws_subnet.s", "id"),
-            # 参照先が仮の R-SG（まだ辺に変換していない）なら E-REF-NONODE ではなく、属性名の E-NOEDGE-SG
+            # 辺を生まない SG は H-SG-NOEDGE（非表示）なので、SG を付ける参照は E-REF-NONODE（E-NOEDGE の表より先。手順 5）
             reference("aws_instance.i", "vpc_security_group_ids[0]", "aws_security_group.sg", "id"),
             # M-* から自分の統合先への参照（オーソライザー → その API）は E-NOEDGE-FROM-RULE（M-APIGW-AUTHORIZER は除外の規則でも）
             reference("aws_api_gateway_authorizer.a", "rest_api_id", "aws_api_gateway_rest_api.api", "id"),
@@ -99,7 +99,7 @@ class AccountingTest(unittest.TestCase):
         self.assertEqual(got, {
             ("aws_lambda_function.fn", "environment[0].variables.SUBNET_ID"): ("unused", None),
             ("aws_lambda_function.fn", "tags.vpc_id"): ("unused", None),
-            ("aws_instance.i", "vpc_security_group_ids[0]"): ("noedge", "E-NOEDGE-SG"),
+            ("aws_instance.i", "vpc_security_group_ids[0]"): ("nonode", "E-REF-NONODE"),
             ("aws_api_gateway_authorizer.a", "rest_api_id"): ("noedge", "E-NOEDGE-FROM-RULE"),
         })
 

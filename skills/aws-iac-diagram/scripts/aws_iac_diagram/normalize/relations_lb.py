@@ -5,9 +5,9 @@
   ② ターゲット（ECS サービスの `load_balancer[].target_group_arn`／`LoadBalancers[].TargetGroupArn`、
   `aws_lb_target_group_attachment` の `target_id`、CFN のグループの `Targets[].Id`）を集め、LB × ターゲットの辺を作る。
   **参照はターゲット → グループだが、向きは LB → ターゲット**（A2）。
-- ラベルはターゲットグループの `<PROTOCOL> <port>`（`HTTP 8080`）。リスナーのラベル（`HTTP 80`）は internet → LB の辺のもので、
-  その辺（N-EXT-INTERNET）は SG の手順（手順 5）で作る。
-- `members`: グループと attachment（R-LB-TG）、転送するリスナー（R-LB-LISTENER）。
+- ラベルはターゲットグループの `<PROTOCOL> <port>`（`HTTP 8080`）。リスナーのラベル（`HTTP 80`）は internet → LB の辺のもの
+  （`listener_candidates`。インターネット向けで SG が `0.0.0.0/0` を許す LB だけ。辺を作るかは N-EXT-INTERNET（synthetic.py）が決める）。
+- `members`: グループと attachment（R-LB-TG）、転送するリスナー（R-LB-LISTENER）。internet → LB の辺はそのリスナー。
 
 ここは標準ライブラリと core と normalize の view・classify・relations_base だけを使う。
 """
@@ -51,4 +51,24 @@ def lb_candidates(ctx: Context) -> list[Candidate]:
             for t, t_refs, att in targets:
                 out.append(make(lb, t, TG_RULE, "request", label, t_refs, (g,) + ((att,) if att else ())))
                 out.append(make(lb, t, LISTENER_RULE, "request", "", lst_refs, (lst,)))
+    return out
+
+
+def listener_candidates(ctx: Context, lb: str, frm: str, allowed) -> list[tuple[int | None, Candidate]]:
+    """LB（address `lb`）のリスナーのうち、ポートが `allowed`（ポートか None（決まらない）→ 許すか）に当たるものの、
+    (ポート, `frm` → LB の候補)（R-LB-LISTENER、`request`、ラベルはリスナーの `<PROTOCOL> <port>`）。"""
+    out = []
+    nodes = ctx.nodes_of(lb)
+    for lst in ctx.resources(LISTENER_RULE):
+        lb_refs = [r for r in ctx.refs(lst.address, ("loadbalancerarn",)) if r["to"] == lb]
+        if not lb_refs:
+            continue
+        port = ctx.value(lst.address, "port")
+        port = int(port) if isinstance(port, int) and not isinstance(port, bool) or (isinstance(port, str) and port.isdigit()) else None
+        if not allowed(port):
+            continue
+        label = label_protocol_port(ctx.value(lst.address, "protocol"), port)
+        port_text = (f"{lst.address}.{'Properties.Port' if lst.fmt == 'cfn' else 'port'} ({port})",) if port is not None else ()
+        for n in nodes:
+            out.append((port, make(frm, n, LISTENER_RULE, "request", label, lb_refs, (lst.address,), texts=port_text)))
     return out
