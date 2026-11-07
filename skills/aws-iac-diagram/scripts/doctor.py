@@ -141,6 +141,7 @@ REQUIRED_FILES = [
     "scripts/aws_iac_diagram/normalize/relations_events.py",
     "scripts/aws_iac_diagram/normalize/relations_lb.py",
     "scripts/aws_iac_diagram/normalize/relations_route.py",
+    "scripts/aws_iac_diagram/normalize/relations_sg.py",
     "scripts/aws_iac_diagram/normalize/synthetic.py",
     "scripts/aws_iac_diagram/normalize/view.py",
     "scripts/aws_iac_diagram/platform/__init__.py",

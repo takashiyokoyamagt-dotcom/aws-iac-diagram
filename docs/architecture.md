@@ -45,7 +45,7 @@ aws-iac-diagram/
 | `adapters/terraform` | Terraform アダプタの中身（下の「Terraform アダプタの中身」）。入口は `scripts/adapt_tf.py` | 26 ファイル（`__init__.py` を除く） |
 | `adapters/cloudformation` | CloudFormation アダプタの中身（下の「CloudFormation アダプタの中身」）。入口は `scripts/adapt_cfn.py` | 15 ファイル（同上） |
 | `adapters`（`registry.py`） | 入力の形式 → アダプタのパッケージ名の表。形式を見分けて振り分ける処理は、入口 `diagram.py` を作るときに足す | 名前の表だけ |
-| `normalize` | 正規化（型別の表、A1〜A3、AZ の挿入、SG を辺に変換）。下の「正規化の中身」 | フェーズ 3 の手順 3b まで（段階 0〜4。辺は R-SG・N-EXT-INTERNET（手順 5）のほかすべて）。入口は `scripts/normalize_ir.py`。17 ファイル（`__init__.py` を除く） |
+| `normalize` | 正規化（型別の表、A1〜A3、AZ の挿入、SG を辺に変換）。下の「正規化の中身」 | フェーズ 3 の手順 5 まで（段階 0〜4。辺は R-SG・N-EXT-INTERNET を含む）。入口は `scripts/normalize_ir.py`。18 ファイル（`__init__.py` を除く） |
 | `layout` | 配置（枠と階層のグリッド計算、候補のスコア） | 空。フェーズ 4 |
 | `emit` | 出力（`drawio.py`・`mermaid.py`・`png.py`） | 空。フェーズ 4・5 |
 | `validate` | 検証（IR、`.drawio` の重なり・貫通） | 空。今の IR の検査は `scripts/validate_ir.py` にある（中身を移すのはフェーズ 4・5） |
@@ -135,7 +135,7 @@ aws-iac-diagram/
 
 ### 正規化の中身（`aws_iac_diagram/normalize/`）
 
-raw IR → normalized IR。段階は設計草案（`docs/dev-notes/phase3-design-draft.md`）の 4.1。規則表は `core/rules.py` で読む（表を自分では読まない）。いまは段階 0〜4（手順 3a・3b・4a・4b）。辺は関係リソース（R-*）、属性の参照（E-*）、E-IAM と、基盤モデルの合成ノード（N-BEDROCK-MODEL）まで。R-SG と `external/internet`（N-EXT-INTERNET）は手順 5 で足す。入口 `scripts/normalize_ir.py` は引数の処理・検査・終了コードだけ。
+raw IR → normalized IR。段階は設計草案（`docs/dev-notes/phase3-design-draft.md`）の 4.1。規則表は `core/rules.py` で読む（表を自分では読まない）。いまは段階 0〜4（手順 3a〜5）。辺は関係リソース（R-*。R-SG を含む）、属性の参照（E-*）、E-IAM と、合成ノードの基盤モデル（N-BEDROCK-MODEL）・インターネット（N-EXT-INTERNET）まで。自作の 5 構成は CRITERIA の 1.1 を満たす。入口 `scripts/normalize_ir.py` は引数の処理・検査・終了コードだけ。
 
 | ファイル | 中身 |
 |---|---|
@@ -146,8 +146,8 @@ raw IR → normalized IR。段階は設計草案（`docs/dev-notes/phase3-design
 | `nodes.py` | 段階 2。ノード（id・type・category・name・label・attrs・multiplicity） |
 | `nesting.py` | 段階 4。入れ子（P-VPC・P-SUBNET・P-SPANS・P-REGIONAL の `parent`・`spans`）と AZ のノード（N-AZ） |
 | `relations_base.py` | 関係リソースのハンドラの共有部品（辺の候補 `Candidate`、参照・ノードを引く `Context`、参照の位置の中立キー） |
-| `relations_route.py`・`relations_lb.py`・`relations_api.py`・`relations_events.py` | 関係リソース（R-*）のハンドラ: ルートと Gateway 型の VPC エンドポイント（とサブネットの `access`）、LB、API Gateway（SAM の Events を含む）、イベント・許可の関係リソース |
-| `synthetic.py` | ARN の文字列の読み方（名前で描くノードを引く）と、合成ノード N-BEDROCK-MODEL（基盤モデル） |
+| `relations_route.py`・`relations_lb.py`・`relations_api.py`・`relations_events.py`・`relations_sg.py` | 関係リソース（R-*）のハンドラ: ルートと Gateway 型の VPC エンドポイント（とサブネットの `access`）、LB（internet → LB のリスナーの候補を含む）、API Gateway（SAM の Events を含む）、イベント・許可の関係リソース、SG（R-SG。インライン・別リソースの ingress ルール、SG を付けたリソース、`0.0.0.0/0` の公開） |
+| `synthetic.py` | ARN の文字列の読み方（名前で描くノードを引く）と、合成ノード N-BEDROCK-MODEL（基盤モデル）・N-EXT-INTERNET（`external/internet` と internet → LB・API の辺） |
 | `attr_edges.py` | 属性の参照から作る辺: E-ENV-REF・E-ENV-STR・E-KB-STORAGE・E-BEDROCK-EMBEDDING・E-CDN-ORIGIN・E-CDN-WAF・E-DNS-ALIAS・E-GLUE-TARGET・E-AUTHORIZER |
 | `iam.py` | E-IAM（ロールのポリシーの Resource から推定の辺）と E-IAM-SUPPRESS |
 | `edges.py` | 段階 3。ハンドラの候補を 1 組 1 本にまとめる（E-MERGE）。関係リソース → 辺の対応 |
@@ -163,7 +163,7 @@ raw IR → normalized IR。段階は設計草案（`docs/dev-notes/phase3-design
 | `classify` | `classify`・`merge`・`names` | `view` |
 | `nodes` | `nodes` | `view` `classify` |
 | `nesting` | `nesting` | `view` `classify` |
-| `relations` | `relations_base`・`relations_route`・`relations_lb`・`relations_api`・`relations_events`・`synthetic`・`attr_edges`・`iam` | `view` `classify` |
+| `relations` | `relations_base`・`relations_route`・`relations_lb`・`relations_api`・`relations_events`・`relations_sg`・`synthetic`・`attr_edges`・`iam` | `view` `classify` |
 | `edges` | `edges`・`refs` | `view` `classify` `relations` |
 | `build` | `build` | `view` `classify` `nodes` `nesting` `relations` `edges` |
 <!-- normalize-order:end -->

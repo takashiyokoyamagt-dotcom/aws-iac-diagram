@@ -17,9 +17,10 @@ RULES = rules_mod.default()
 
 
 def norm(fmt, resources, references):
-    """正規化して (辺 id → (kind, label, confidence), 辺 id → rules, ノード id → ノード)。"""
+    """正規化して (辺 id → (kind, label, confidence), 辺 id → rules, ノード id → ノード)。internet からの辺（N-EXT-INTERNET。
+    パブリックな API Gateway に付く）は test_sg.py で確かめるので、辺から除く。"""
     ir = build.normalize(raw_ir(fmt, resources, references), RULES, "t")
-    e = {x["id"]: (x["kind"], x["label"], x["confidence"]) for x in ir["edges"]}
+    e = {x["id"]: (x["kind"], x["label"], x["confidence"]) for x in ir["edges"] if x["from"] != "external/internet"}
     r = {x["edge"]: x["rules"] for x in ir["sources"][fmt]["edges"]}
     return e, r, {n["id"]: n for n in ir["nodes"]}
 

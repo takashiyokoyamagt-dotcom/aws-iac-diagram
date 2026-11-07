@@ -1,23 +1,18 @@
-"""正規化（段階 0〜4。フェーズ 3 の手順 3a・3b・4a・4b）× 自作の構成 5 種 × TF／CFN: 正解 IR（expected）と比べる。
+"""正規化（段階 0〜4。フェーズ 3 の手順 3a〜5）× 自作の構成 5 種 × TF／CFN: 正解 IR（expected）と比べる（CRITERIA の 1.1）。
 
-比べ方は `aws-iac-diagram-workspace/tools/compare_ir.py` の `compare`（CRITERIA.md の 1.0 の数え方）。R-SG と N-EXT-INTERNET（手順 5）
-のほかの辺を作るので、次を基準 1.0（CRITERIA の 1.1）で縛る:
+比べ方は `aws-iac-diagram-workspace/tools/compare_ir.py` の `compare`（CRITERIA.md の 1.0 の数え方）。手順 5（R-SG と
+N-EXT-INTERNET）で自作の 5 構成が完了したので、許可リストは無く、次をすべて 1.0／0 で縛る:
 
-- N（再現率・適合率）、名前の一致率、ノードの label、P（入れ子）: 1.0。合成ノードのうち `external/internet`（N-EXT-INTERNET。手順 5）
-  だけは正解 IR から除いて比べる（AZ と基盤モデル `bedrock_model` は含める）。
-- E: 正解の辺のうち、internet からの辺と、R-SG だけを根拠にする辺（`step4_edges` の外。手順 5）を除いたものの再現率と、出力の辺の
-  適合率（確定・導出と推定の両方。出力の辺はすべてそこに入る）、一致した辺の kind・confidence: 1.0。label も 1.0 だが、根拠に R-SG を
-  含む辺（ECS → RDS の `TCP 5432`）は R-SG のラベルなので、出力は空（`SG_LABEL`。手順 5）。
-- C（網羅分類）: 次の許しだけを除いて 1.0。許しは address と理由を固定する（`ALLOWED_C`）:
-  ① R-SG（正解は into が辺の merged_into、H-SG-NOEDGE）→ 出力は仮の R-SG（into が空）。R-SG のハンドラは手順 5。
-  ② R-LB-LISTENER → 出力の into は、正解の into から internet の辺（N-EXT-INTERNET。手順 5）を除いたもの。
-- attrs（`access` を含む）: 正解と同じ。X1 のうち ② サブネットの access と ③ サブネット → IGW の辺は 0（internet の辺の ① は手順 5）。
-- 参照の会計（CRITERIA の 1.8）: 自作 10 入力の `NORM-UNUSED-REF` は 0 件。
+- a: N（再現率・適合率。合成ノードの AZ・`external/internet`・`bedrock_model` を含む）、E（再現率、確定・導出と推定の適合率）、
+  P（入れ子）、名前の一致率、C（網羅分類）、一致した辺の confidence・label・kind、ノードの label。`unknown` は 0。
+- b: 重大な誤り X1〜X3（compare の critical）が 0、X4（`check_coverage.check_ir`。入力から独立に数えた網羅分類との照合）が 0。
+- c: TF 版と CFN 版の canonical 部（`core/ir_norm.canonical_part`）がバイト列で一致。
+- ほか: attrs（`access` を含む）が正解と同じ、辺の根拠の規則が正解の規則の中、参照の会計（CRITERIA の 1.8）で `NORM-UNUSED-REF` 0、
+  仮のままの分類・`NORM-RELATION-NOEDGE`・`NORM-MERGE-TARGET` が 0、`build.check` が問題なし、出力が決定論的。
 """
 
 from __future__ import annotations
 
-import copy
 import sys
 import unittest
 from pathlib import Path
@@ -30,138 +25,88 @@ from aws_iac_diagram.core import ir_norm, rules as rules_mod  # noqa: E402
 from aws_iac_diagram.normalize import build, edges as edges_mod  # noqa: E402
 
 cmp = load_tool("compare_ir")
+cov = load_tool("check_coverage")
 
-# 合成ノードの型 → 作る段階。EDGE_SYNTHETIC（internet）は手順 5 なので、正解 IR から除いて比べる
-SYNTHETIC_TYPES = {"availability_zone": "N-AZ（入れ子の段階 4。手順 3b）", "external": "N-EXT-INTERNET（手順 5）",
+# 合成ノードの型 → 作る段階
+SYNTHETIC_TYPES = {"availability_zone": "N-AZ（入れ子の段階 4。手順 3b）", "external": "N-EXT-INTERNET（辺の段階 3。手順 5）",
                    "bedrock_model": "N-BEDROCK-MODEL（辺の段階 3。手順 4b）"}
-EDGE_SYNTHETIC = {"external"}
-SG_LABEL = "R-SG"  # 根拠にこの規則を含む正解の辺のラベルは R-SG のもの（手順 5）
 
 # 入力ごとの AZ のノードの数（正解 IR と同じ。three-tier・three-tier-modules・vpc-endpoints は 2 つの AZ）
 AZ_COUNTS = {"three-tier": 2, "three-tier-modules": 2, "serverless-api": 0, "rag": 0, "vpc-endpoints": 2}
-
-# 正解 IR の規則 → 手順 4a の出力の仮の規則（R-SG のハンドラは手順 5）
-PROVISIONAL = {"H-SG-NOEDGE": "R-SG", "R-SG": "R-SG"}
 INTERNET = "external/internet"
-
-# 入力ごとの、R-SG の仮の分類の件数（正解 IR の sources から数えたもの）と、internet の辺を除いた R-LB-LISTENER の件数
-ALLOWED_C = {
-    ("three-tier", "tf"): (4, 1), ("three-tier", "cfn"): (4, 1),
-    ("three-tier-modules", "tf"): (5, 1), ("three-tier-modules", "cfn"): (4, 1),
-    ("serverless-api", "tf"): (0, 0), ("serverless-api", "cfn"): (0, 0),
-    ("rag", "tf"): (0, 0), ("rag", "cfn"): (0, 0),
-    ("vpc-endpoints", "tf"): (2, 0), ("vpc-endpoints", "cfn"): (2, 0),
-}
-
-def step4_edges(g: dict, fmt: str) -> set[tuple]:
-    """正解の辺のうち、手順 4 までで作るもの (from, to, kind): internet からの辺（N-EXT-INTERNET。手順 5）と、形式 fmt の根拠の規則が
-    R-SG だけの辺（手順 5）を除く。"""
-    rules_of = {e["edge"]: set(e["rules"]) for e in g["sources"][fmt]["edges"]}
-    return {(e["from"], e["to"], e["kind"]) for e in g["edges"]
-            if e["from"] != INTERNET and rules_of.get(e["id"], set()) - {SG_LABEL}}
-
-
-def without_edge_synthetic(g: dict) -> dict:
-    """辺の段階で作る合成ノード（internet・基盤モデル）を除いた写し（AZ は残す）。"""
-    g = copy.deepcopy(g)
-    g["nodes"] = [n for n in g["nodes"] if n["type"] not in EDGE_SYNTHETIC]
-    return g
+# 1.0 で縛る数（CRITERIA の 1.1 の a）
+EXACT = ("N.recall", "N.precision", "name", "E.recall", "E.precision.confirmed_derived", "E.precision.inferred", "P.recall",
+         "P.precision", "C", "edge.confidence", "edge.label", "node.label")
 
 
 class ExpectedIrTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.rules = rules_mod.default()
+        cls.raw: dict[tuple[str, str], dict] = {}
         cls.out: dict[tuple[str, str], dict] = {}
         for name in NAMES:
             for fmt in ("tf", "cfn"):
-                cls.out[(name, fmt)] = build.normalize(custom_raw(name, fmt), cls.rules, name)
+                cls.raw[(name, fmt)] = custom_raw(name, fmt)
+                cls.out[(name, fmt)] = build.normalize(cls.raw[(name, fmt)], cls.rules, name)
 
-    def test_provisional_table_matches_the_rules(self):
+    def test_all_relation_rules_have_handlers(self):
         self.assertEqual(self.rules.row("R-SG").get("fallback"), "H-SG-NOEDGE")
-        self.assertNotIn("R-SG", edges_mod.HANDLED)
-        self.assertEqual(set(ALLOWED_C), {(n, f) for n in NAMES for f in ("tf", "cfn")})
+        self.assertIn("R-SG", edges_mod.HANDLED)
 
-    def test_nodes_names_labels_and_placement_are_exact(self):
-        for (name, fmt), o in self.out.items():
-            with self.subTest(name, fmt=fmt):
-                g = expected_ir(name)
-                for n in g["nodes"]:
-                    if n.get("synthetic"):
-                        self.assertIn(n["type"], SYNTHETIC_TYPES, n["id"])
-                self.assertFalse([n for n in o["nodes"] if n["type"] in EDGE_SYNTHETIC])
-                self.assertEqual(len([n for n in o["nodes"] if n["type"] == "availability_zone"]), AZ_COUNTS[name])
-                r = cmp.compare(without_edge_synthetic(g), o, fmt)
-                c = r["counts"]
-                for k in ("N.recall", "N.precision", "name", "node.label", "P.recall", "P.precision"):
-                    hit, den = c[k]
-                    self.assertGreater(den, 0, k)
-                    self.assertEqual(hit, den, (k, r["missing"]["N"], r["extra"]["N"]))
-                # 名前の一致は、正解の（合成でない）ノードのすべてで数えている
-                self.assertEqual(c["name"][1], len([n for n in g["nodes"] if not n.get("synthetic")]))
-                # AZ のノードの形（合成、group、親は VPC）も正解と同じ
-                want = sorted((n["id"], n["name"], n["label"], n["parent"]) for n in g["nodes"] if n["type"] == "availability_zone")
-                got = sorted((n["id"], n["name"], n["label"], n["parent"]) for n in o["nodes"] if n["type"] == "availability_zone")
-                self.assertEqual(got, want)
-                self.assertTrue(all(n.get("synthetic") and n["category"] == "group" for n in o["nodes"] if n["type"] == "availability_zone"))
-                self.assertEqual([d for d in o["diagnostics"] if d["code"] in ("NORM-PLACEMENT", "NORM-AZ-UNKNOWN")], [])
-
-    def test_classification_is_exact_except_the_allowed_ones(self):
+    def test_criteria_1_1_a_and_b_are_exact(self):
         for (name, fmt), o in self.out.items():
             with self.subTest(name, fmt=fmt):
                 g = expected_ir(name)
                 r = cmp.compare(g, o, fmt)
                 self.assertEqual(r["unknown"], 0)
-                m, _ = cmp.id_map(g, o, fmt)
-                gc, oc = cmp.class_map(g, fmt, {}), cmp.class_map(o, fmt, m)
-                self.assertEqual(set(gc), set(oc), "網羅分類の address が正解と同じ（漏れ・余りが無い）")
-                sg, listener = [], []
-                for a in sorted(a for a in gc if gc[a] != oc[a]):
-                    g_cls, g_into, g_rule = gc[a]
-                    if g_rule in PROVISIONAL:  # ① R-SG（手順 5）
-                        self.assertEqual(oc[a], ("merged_into", (), "R-SG"), a)
-                        sg.append(a)
-                    elif g_rule == "R-LB-LISTENER":  # ② internet の辺（手順 5）を除いたもの
-                        self.assertEqual(oc[a], ("merged_into", tuple(x for x in g_into if not x.startswith(INTERNET + "->")), g_rule), a)
-                        self.assertTrue(any(x.startswith(INTERNET + "->") for x in g_into), a)
-                        listener.append(a)
-                    else:
-                        self.fail(f"許していない網羅分類の違い: {a} 正解 {gc[a]}、出力 {oc[a]}")
-                self.assertEqual((len(sg), len(listener)), ALLOWED_C[(name, fmt)])
-                hit, den = r["counts"]["C"]
-                self.assertEqual(den - hit, len(sg) + len(listener))
-                # 仮のまま残るのは R-SG だけ（ほかの R-* は辺か fallback に確定。辺ができず fallback も無いものは無い）
-                self.assertEqual(sorted(a for a, v in oc.items() if v[0] == "merged_into" and not v[1]), sorted(sg))
-                self.assertEqual([d for d in o["diagnostics"] if d["code"] in ("NORM-RELATION-NOEDGE", "NORM-MERGE-TARGET")], [])
+                for k in EXACT:
+                    hit, den = r["counts"][k]
+                    self.assertEqual(hit, den, (k, r["missing"], r["extra"]))
+                for k in ("N.recall", "E.recall", "P.recall", "C", "name", "node.label"):
+                    self.assertGreater(r["counts"][k][1], 0, k)
+                # 名前の一致は、正解の（合成でない）ノードのすべてで数えている
+                self.assertEqual(r["counts"]["name"][1], len([n for n in g["nodes"] if not n.get("synthetic")]))
+                self.assertEqual({k: v for k, v in r["critical"].items() if v}, {})  # X1〜X3
+                self.assertEqual([e for _, _, es, _ in cov.check_ir(o) for e in es], [])  # X4
+                self.assertEqual(build.check(self.raw[(name, fmt)], o), ([], []))
+                self.assertEqual([d for d in o["diagnostics"] if d["code"] in ("NORM-RELATION-NOEDGE", "NORM-MERGE-TARGET",
+                                                                              "NORM-PLACEMENT", "NORM-AZ-UNKNOWN")], [])
 
-    def test_relation_edges_match(self):
+    def test_edge_kinds_match(self):
+        # compare は辺を (from, to, kind) で数えるが、kind の取り違えを直接も確かめる
         for (name, fmt), o in self.out.items():
             with self.subTest(name, fmt=fmt):
                 g = expected_ir(name)
                 m, _ = cmp.id_map(g, o, fmt)
-                want = step4_edges(g, fmt)
-                got = set(cmp.edge_list(o, m))
-                self.assertTrue(want)
-                self.assertEqual(got, want)  # 再現率・適合率（確定・導出と推定の両方。手順 4 の辺の範囲で）とも 1.0
-                g_by = {(e["from"], e["to"]): e for e in g["edges"]}
-                g_rules = {x["edge"]: set(x["rules"]) for x in g["sources"][fmt]["edges"]}
-                for e in o["edges"]:
-                    ge = g_by[(m.get(e["from"], e["from"]), m.get(e["to"], e["to"]))]
-                    # R-SG を根拠に含む辺で、ほかの規則にラベルが無いもの（ECS → RDS の TCP 5432）は、R-SG のラベル（手順 5）なので空
-                    want_label = "" if SG_LABEL in g_rules[ge["id"]] and e["label"] == "" else ge["label"]
-                    self.assertEqual((e["kind"], e["label"], e["confidence"]), (ge["kind"], want_label, ge["confidence"]), e["id"])
-                # 辺の根拠: すべての辺に 1 件、規則は正解の規則の中、根拠は空でない
+                want = {(e["from"], e["to"]): (e["kind"], e["label"], e["confidence"]) for e in g["edges"]}
+                got = {(m.get(e["from"], e["from"]), m.get(e["to"], e["to"])): (e["kind"], e["label"], e["confidence"]) for e in o["edges"]}
+                self.assertEqual(got, want)
+                # 辺の根拠: すべての辺に 1 件、規則は正解の規則の中（正解は N-BEDROCK-MODEL・E-REF-NONODE も書くことがある）、根拠は空でない
                 ev = {x["edge"]: x for x in o["sources"][fmt]["edges"]}
                 g_ev = {x["edge"]: x for x in g["sources"][fmt]["edges"]}
                 self.assertEqual(set(ev), {e["id"] for e in o["edges"]})
                 for e in o["edges"]:
                     gid = f"{m.get(e['from'], e['from'])}->{m.get(e['to'], e['to'])}"
                     self.assertTrue(set(ev[e["id"]]["rules"]) <= set(g_ev[gid]["rules"]), (e["id"], ev[e["id"]]["rules"]))
+                    if INTERNET in (e["from"], e["to"]) or "R-SG" in g_ev[gid]["rules"]:  # 手順 5 の辺は根拠の規則まで正解と同じ
+                        self.assertEqual(ev[e["id"]]["rules"], g_ev[gid]["rules"], e["id"])
                     self.assertTrue(ev[e["id"]]["evidence"])
-                crit = cmp.compare(g, o, fmt)["critical"]
-                self.assertEqual((crit["X2"], crit["X3"]), ([], []))
-                # X1: サブネットの access（②）とサブネット → IGW（③）は 0。internet の辺（①）だけが手順 5 を待つ
-                self.assertEqual([x for x in crit["X1"] if not x.startswith("internet の辺: 正解だけ")], [])
+
+    def test_synthetic_nodes(self):
+        for (name, fmt), o in self.out.items():
+            with self.subTest(name, fmt=fmt):
+                g = expected_ir(name)
+                for n in g["nodes"]:
+                    if n.get("synthetic"):
+                        self.assertIn(n["type"], SYNTHETIC_TYPES, n["id"])
+                self.assertEqual(len([n for n in o["nodes"] if n["type"] == "availability_zone"]), AZ_COUNTS[name])
+                keys = ("id", "type", "category", "name", "label", "parent", "synthetic")
+                want = sorted(tuple(n.get(k) for k in keys) for n in g["nodes"] if n.get("synthetic"))
+                got = sorted(tuple(n.get(k) for k in keys) for n in o["nodes"] if n.get("synthetic"))
+                self.assertEqual(got, want)
+                # internet のノードは、そこからの辺があるときだけ（構成ごとに 1 つ）
+                self.assertEqual(any(n["id"] == INTERNET for n in o["nodes"]), any(e["from"] == INTERNET for e in o["edges"]))
 
     def test_reference_accounting(self):
         for name in NAMES:
@@ -189,25 +134,26 @@ class ExpectedIrTest(unittest.TestCase):
                             self.assertTrue(any(head.startswith(a + ".") for a in addresses), (x["edge"], ev))
 
     def test_tf_and_cfn_nodes_and_edges_are_the_same(self):
-        # canonical 部（いまは internet・基盤モデルと E-*・R-SG の辺が無い）が TF 版と CFN 版で一致する（CRITERIA の 1.1 の c）
+        # canonical 部（合成ノード・R-SG・internet の辺を含む）が TF 版と CFN 版でバイト列で一致する（CRITERIA の 1.1 の c）
         for name in NAMES:
             with self.subTest(name):
                 tf, cfn = (ir_norm.canonical_part(self.out[(name, f)]) for f in ("tf", "cfn"))
                 self.assertEqual(tf, cfn)
+                self.assertEqual(ir_norm.canonical_dump(tf).encode("utf-8"), ir_norm.canonical_dump(cfn).encode("utf-8"))
 
     def test_attrs_match(self):
-        # attrs（cidr・endpoint_type・service と、R-ROUTE で決まる access）は正解と同じ
+        # attrs（cidr・endpoint_type・service と、R-ROUTE で決まる access）は正解と同じ（X1 の ② も 0）
         for (name, fmt), o in self.out.items():
             with self.subTest(name, fmt=fmt):
                 g = expected_ir(name)
                 m, _ = cmp.id_map(g, o, fmt)
-                want = {n["id"]: n.get("attrs", {}) for n in g["nodes"] if n["type"] not in EDGE_SYNTHETIC}
+                want = {n["id"]: n.get("attrs", {}) for n in g["nodes"]}
                 got = {m.get(n["id"], n["id"]): n.get("attrs", {}) for n in o["nodes"]}
                 self.assertEqual(got, want)
 
     def test_output_is_deterministic(self):
         # 同じ入力から同じ文字列。リソースと参照の順を逆にしても同じ（集合・入力の順に頼らない。C5）
-        for name in ("three-tier", "vpc-endpoints"):
+        for name in NAMES:
             for fmt in ("tf", "cfn"):
                 with self.subTest(name, fmt=fmt):
                     raw = custom_raw(name, fmt)

@@ -37,7 +37,8 @@ class Out:
     def __init__(self, fmt, resources, references):
         self.ir = build.normalize(raw_ir(fmt, resources, references), RULES, "t")
         self.fmt = fmt
-        self.edges = {e["id"]: (e["kind"], e["label"], e["confidence"]) for e in self.ir["edges"]}
+        # internet からの辺（N-EXT-INTERNET。パブリックな API Gateway に付く）は test_sg.py で確かめるので除く
+        self.edges = {e["id"]: (e["kind"], e["label"], e["confidence"]) for e in self.ir["edges"] if e["from"] != "external/internet"}
         self.ev = {e["edge"]: e for e in self.ir["sources"][fmt]["edges"]}
         self.cls = {r["address"]: (r["class"], r.get("rule"), tuple(r.get("into", ()))) for r in self.ir["sources"][fmt]["resources"]}
         self.diags = [(d["code"], d["address"]) for d in self.ir["diagnostics"] if d["code"] != "NORM-NAME-FALLBACK"]

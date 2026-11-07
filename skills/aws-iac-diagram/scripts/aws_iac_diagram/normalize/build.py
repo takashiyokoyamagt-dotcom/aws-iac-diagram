@@ -3,10 +3,9 @@
   0 読み込み（view.Index）→ 1 仮分類（classify.classify）→ 2 ノード（nodes.build_nodes）→ 確定（classify.finalize）
   → 4 入れ子（nesting.place。AZ のノードを含む）
 
-**いまは段階 0〜2 と 4（フェーズ 3 の手順 3a・3b）。** 辺（段階 3）と、辺で決まる合成ノード（`external/internet`・`bedrock_model`）・
-サブネットの `attrs.access` はまだ作らないので、出力は `edges` が空、R-* の分類が仮（`into` が空）で、`validate_ir.py` の検査はまだ
-通らない（R-* の `into` は 1 つ以上が要る）。形は normalized IR と同じ（`nodes`・`edges`・`sources.<形式>.resources`・`evaluation`・
-`diagnostics`）なので、正解 IR との比較（`aws-iac-diagram-workspace/tools/compare_ir.py`）には使える。
+段階 3（辺）は edges.py（関係リソース R-*、E-*、E-IAM、合成ノード N-BEDROCK-MODEL・N-EXT-INTERNET。手順 4a〜5）。辺ができた後に
+R-* の分類を確定し（`classify.apply_edges`）、辺の段階の合成ノードとサブネットの `attrs.access` を足す。辺ができず fallback の無い
+R-* は仮のまま残る（`NORM-RELATION-NOEDGE`。`check` が仮の分類として返す）。
 
 決定論（C5）: 出力の配列は `core/ir_norm.sort_lists` で決まった順にする（書き出しは `canonical_dump`）。集合の走査順に頼らない。
 ここは標準ライブラリと core と normalize の各段階だけを使う。
@@ -74,7 +73,7 @@ def run(raw: dict, rules: Rules | None = None, name: str | None = None) -> Resul
     final, more = classify.apply_edges(fin.decisions, rules, er.into, edges_mod.HANDLED)
     diags += more
     placed, place_diags = nesting.place(index, final, node_by_address, rules)
-    placed += er.synthetic_nodes  # 基盤モデル（N-BEDROCK-MODEL。parent は null）
+    placed += er.synthetic_nodes  # 基盤モデル（N-BEDROCK-MODEL）とインターネット（N-EXT-INTERNET）。parent は null
     diags += place_diags
     for n in placed:
         if n["id"] in er.access:

@@ -1579,3 +1579,12 @@ tests/ 平ら 10 ファイル、最大 2,381 行（281 件）            tests/ 
 - レビューの指摘: 止めるもの 2（SAM の `Policies` が mapping 1 つのとき E-IAM が出ない、黒箱のモジュールへの辺が confirmed で出る）、should-fix 5、nit 4 → すべて直した（アクションのワイルドカード、kind は行の順、参照 1 つの ARN の `$concat`、ARN の名前の一致はちょうど 1 つ、E-ENV-STR は 3 文字以上で英字だけでない値）。
 - **ユーザーの判断を待つもの（規則表の凍結を解く必要があるもの。手順4a の 4 つに加えて）:** ⑤ 黒箱のモジュール → 入力に渡したノードの推定の辺（ir-schema 2 章）の規則 ID（いまは作らない）。⑥ `TEMPLATE_ACTIONS` を edges.toml へ移す。
 - 単体テスト 672 件、golden 101/101。
+
+## 2026-11-08 フェーズ3 の手順5: R-SG・N-EXT-INTERNET（自作 5 構成の完了）
+
+- 実装はサブエージェント（新しく起こした）、レビューは別のサブエージェント（1 回）。`normalize/relations_sg.py`（ingress の 5 つの形、SG・`self`・`0.0.0.0/0`／`::/0` の送信元、ラベル `TCP 5432` など、自己ループは H-SG-NOEDGE、egress は H-SG-EGRESS）、`synthetic.py` の N-EXT-INTERNET（インターネット向けで SG が 0.0.0.0/0 を許し、許すポートのリスナーがある LB と、公開の API。パブリック IP の EC2 は R-SG だけ）。
+- **自作 10 入力で CRITERIA 1.1 をすべて満たす**: N・E・P・名前・C・付随が 1.0、X1〜X4 が 0、`NORM-UNUSED-REF` 0、TF／CFN の canonical 部が 5 構成ともバイト一致、`normalize_ir.py` は終了コード 0、出力は `validate_ir.py` に通る。統合テストの許可リストはすべて外した。私（統括）も CLI で別に作り直して確かめた（three-tier の TF は正解の `env/dev.tfvars` を渡す）。
+- 主セット: R-SG の辺は 0 本（T03 の RDS の SG は 0.0.0.0/0 だが公開の対象は LB と EC2 だけ、T16 のクラスタとノードの SG は同じクラスタのノードへの自己ループ）。internet → API が API のある 5 入力で 1 本ずつ。
+- レビューの指摘（止めるもの無し）: ICMP・UDP・決まらないポートを全ポート扱いしない、`associate_public_ip_address = false` を優先、リスナーのポートに当たらないルールを internet の辺に入れない、テストの追加、根拠の綴り、WebSocket の API → すべて直した。
+- **ユーザーの判断を待つもの（規則表の凍結を解く必要があるもの。手順4a・4b の 6 つに加えて）:** ⑦ インターネットへの公開の範囲（RDS の `publicly_accessible`、ECS の `assign_public_ip`、SG の無い NLB、CFN の `NetworkInterfaces[].GroupSet` の SG）。
+- 単体テスト 686 件、golden 101/101。
