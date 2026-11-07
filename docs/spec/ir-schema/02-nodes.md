@@ -60,9 +60,9 @@
 
 ### ID の作り方（K-NAME）
 
-- `key` = `name` を小文字にし、`[a-z0-9._-]` 以外の文字を `-` にしたもの（表示用の `label` からは作らない。省略や日本語化で ID が変わると C5 と採点が壊れるため）。`name` は B3 の順で決める:
+- `key` = `name` を小文字にし、`[a-z0-9._-]` 以外の文字を `-` にし、先頭の英数字でない文字を除いたもの（id の形 `[a-z0-9][a-z0-9._-]*` に合わせるため。`_x` → `x`、`本番-app` → `app`）。表示用の `label` からは作らない（省略や日本語化で ID が変わると C5 と採点が壊れるため）。`name` が英数字を 1 つも含まない（`Name` タグが「本番」など）ときは、`name`・`label` はそのまま使い、`key` だけを B3 の次の候補（名前属性、無ければ論理名）から作る（論理名から作ったときは `NORM-NAME-FALLBACK`）。`name` は B3 の順で決める:
   1. `Name` タグ（TF の `tags.Name`、CFN の `Tags` の `Key: Name`）
-  2. 型ごとの名前属性（`function_name`／`FunctionName`、`bucket`／`BucketName`、`identifier`／`DBInstanceIdentifier`、`name`／`Name` など。規則表の描く型の `name_attr`。`data/rules/types/`）
+  2. 型ごとの名前属性（`function_name`／`FunctionName`、`bucket`／`BucketName`、`identifier`／`DBInstanceIdentifier`、`name`／`Name` など。規則表の描く型の `name_attr`。`data/rules/types/`）。TF の awscc の型は、同じ名前の CFN の型の属性名で引く（`awscc_s3_bucket` の `bucket_name` は `BucketName`）
   3. 論理名（TF: モジュールのパスを `.` でつないだもの＋リソース名、CFN: ネストスタックの論理ID を `.` でつないだもの＋論理ID）。インデックスは `-0` のように付ける
 - 名前は A4 で評価した後の値を使う（`"${local.name}-alb"` → `demo-alb`）。評価できなければ 3 に落ちる。
 - 同じ型で key が重なったら、重なったリソースを入力のアドレス（TF）／論理ID（CFN）の辞書順に並べ、2つ目以降の key の末尾に `.<論理名の key>`（論理名は上の 3 の形）を付ける。論理名は TF と CFN で違うので、**この場合は canonical 部が TF 版と CFN 版で一致しない**（フェーズ2 の比較では、重なりを解いたノードを対応表で突き合わせる）。自作の fixture には重なりは無い。

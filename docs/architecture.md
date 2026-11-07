@@ -45,7 +45,7 @@ aws-iac-diagram/
 | `adapters/terraform` | Terraform アダプタの中身（下の「Terraform アダプタの中身」）。入口は `scripts/adapt_tf.py` | 26 ファイル（`__init__.py` を除く） |
 | `adapters/cloudformation` | CloudFormation アダプタの中身（下の「CloudFormation アダプタの中身」）。入口は `scripts/adapt_cfn.py` | 15 ファイル（同上） |
 | `adapters`（`registry.py`） | 入力の形式 → アダプタのパッケージ名の表。形式を見分けて振り分ける処理は、入口 `diagram.py` を作るときに足す | 名前の表だけ |
-| `normalize` | 正規化（型別の表、A1〜A3、AZ の挿入、SG を辺に変換） | 空。フェーズ 3（規則表のデータ化〈手順 1〉は済み。`normalize` は `core/rules.py` の読み込みを使う） |
+| `normalize` | 正規化（型別の表、A1〜A3、AZ の挿入、SG を辺に変換）。下の「正規化の中身」 | フェーズ 3 の手順 3a まで（段階 0〜2: 読み込み・仮分類・ノード）。辺・入れ子・入口 `normalize_ir.py` はまだ。6 ファイル（`__init__.py` を除く） |
 | `layout` | 配置（枠と階層のグリッド計算、候補のスコア） | 空。フェーズ 4 |
 | `emit` | 出力（`drawio.py`・`mermaid.py`・`png.py`） | 空。フェーズ 4・5 |
 | `validate` | 検証（IR、`.drawio` の重なり・貫通） | 空。今の IR の検査は `scripts/validate_ir.py` にある（中身を移すのはフェーズ 4・5） |
@@ -133,6 +133,30 @@ aws-iac-diagram/
   つまり、`base` の関数は評価の本体を知らず、ミックスインは `evaluator`・`stack`・`build` を import せず、入口の `adapt_cfn.py` だけが `build`・`params` を読む。
 - CloudFormation の側の `base` に置いた `model.py` の `Context` は、`StackEval` を型の注釈にだけ使う（`TYPE_CHECKING`）。
 
+### 正規化の中身（`aws_iac_diagram/normalize/`）
+
+raw IR → normalized IR。段階は設計草案（`docs/dev-notes/phase3-design-draft.md`）の 4.1。規則表は `core/rules.py` で読む（表を自分では読まない）。いまは段階 0〜2 だけ（手順 3a）で、辺（段階 3）・入れ子（段階 4）・合成ノードと入口 `normalize_ir.py` は後の手順で足す。
+
+| ファイル | 中身 |
+|---|---|
+| `view.py` | 段階 0。中立キーで属性を引く、印（`$unknown` など）の扱い、`Name` タグ（TF の map と CFN の `Key`／`Value`）、参照の索引 `Index` |
+| `classify.py` | 段階 1 の仮分類（`enabled: false` → H-COND-FALSE、黒箱 → `module`／H-IAM、TF の data、型の表の `when`、awscc、H-NONAWS、`unknown`）と、確定 `finalize`（M-* の統合先、R-* は辺の段階の結果で確定） |
+| `merge.py` | M-* の統合先の探し方（主の属性の参照、参照、名前の一致、H-UTILITY の素通り、DependsOn の最後の手） |
+| `names.py` | B3 の名前と K-NAME の id、id の重なりの解決 |
+| `nodes.py` | 段階 2。ノード（id・type・category・name・label・attrs・multiplicity） |
+| `build.py` | `normalize(raw, rules, name)`。段階の組み立てと出力の形 |
+
+- **normalize の中の順序**（`tests/support/arch_layers.py` の `NORMALIZE_GROUPS`・`INTRA_NORMALIZE`。テストは `tests/architecture/test_normalize_order.py`。下の表と同じで、食い違うとテストが落ちる）: アダプタと同じ決まり。後の段階が前の段階を import し、逆は不可。表に無いファイルを足すと失敗する（グループを決める）。今の実際の import と同じ最小の辺だけを書いてある。
+
+<!-- normalize-order:begin -->
+| グループ | 中身 | import してよいグループ |
+|---|---|---|
+| `view` | `view` | （なし） |
+| `classify` | `classify`・`merge`・`names` | `view` |
+| `nodes` | `nodes` | `view` `classify` |
+| `build` | `build` | `view` `classify` `nodes` |
+<!-- normalize-order:end -->
+
 ## 3. 依存の向き
 
 `tests/architecture/test_dependency_direction.py` が、`ast` で import を読んで確かめます（実行しません）。下の表が許す向きのすべてで、**表と `ALLOWED`（`tests/support/arch_layers.py`）は同じでなければならず**、食い違うとテストが落ちます。自分の層の中の import は常に可。入口のスクリプトだけが、どの層でも import できます。
@@ -211,7 +235,7 @@ aws-iac-diagram/
 
 ## 4. 1 ファイルの大きさ
 
-`scripts/` の下の `.py` は、800 行を超えたら注意（テストが印字するだけ）、1,500 行を超えたら失敗です。超えるファイルは、`tests/support/arch_size.py` の `EXEMPT` に日付・理由・外す手順を付けて書けます（決めた日の行数を超えて増えたら失敗、1,500 行以内になった免除は消さないと失敗）が、**今の `EXEMPT` は空です**（空であることも `test_no_exemptions_remain` が確かめる）。800 行を超えるファイルは無く、最大は `adapters/terraform/evaluator/functions.py` の 763 行です（`scripts/` の `.py` は 67 ファイル）。
+`scripts/` の下の `.py` は、800 行を超えたら注意（テストが印字するだけ）、1,500 行を超えたら失敗です。超えるファイルは、`tests/support/arch_size.py` の `EXEMPT` に日付・理由・外す手順を付けて書けます（決めた日の行数を超えて増えたら失敗、1,500 行以内になった免除は消さないと失敗）が、**今の `EXEMPT` は空です**（空であることも `test_no_exemptions_remain` が確かめる）。800 行を超えるファイルは無く、最大は `adapters/terraform/evaluator/functions.py` の 763 行です（`scripts/` の `.py` は 76 ファイル）。
 
 ## 5. 出力の固定（golden）
 
@@ -252,19 +276,20 @@ tests/
 │   ├── paths.py            リポジトリの場所の定数。import すると scripts/ と tools/ が sys.path に入る（sys.path をいじるのはここだけ）
 │   ├── tools.py            tools/ の道具を別名で読む（load_tool）
 │   ├── builders.py  terraform.py  cloudformation.py  tf_plan.py  ir.py     文字列から raw IR を作る、plan JSON を組み立てる、検査する
+│   ├── raw_builders.py  custom_inputs.py                                   正規化のテスト用: 小さな raw IR を手で組む、自作の構成 5 種の raw IR を作る
 │   ├── md_links.py                                                         Markdown の相対リンクと docs/ のパスの実在を調べる
 │   └── arch_layers.py  arch_size.py  arch_diagnostics.py                   構成の検査（architecture/）のやり方と、許す向きの表
 ├── unit/           1 つの領域につき 1 つのファイル。入力は文字列や一時フォルダで作る
-│   ├── terraform/ （plan/）  cloudformation/  core/  validate/  icons/  host/
+│   ├── terraform/ （plan/）  cloudformation/  core/  normalize/  validate/  icons/  host/
 ├── integration/    自作 fixture・plan JSON の fixture・公開サンプルを、入口のスクリプトや CLI（adapt_tf.py など）から通す
-│   ├── test_cli_paths.py（日本語とスペースを含むパス）  terraform/  cloudformation/
+│   ├── test_cli_paths.py（日本語とスペースを含むパス）  terraform/  cloudformation/  normalize/（正規化 × 正解 IR）
 ├── golden/         manifest.json と test_golden.py（5 の、固定した raw IR とのバイト単位の比較）
-└── architecture/   依存の向き、core の import（標準ライブラリだけ）、アダプタの中の順序、診断コードの一覧、行数、doctor の同梱ファイル、規則表と文書の一致、SKILL.md、文書のリンクとパス、tests/ 自体の置き場
+└── architecture/   依存の向き、core の import（標準ライブラリだけ）、アダプタと正規化の中の順序、診断コードの一覧、行数、doctor の同梱ファイル、規則表と文書の一致、SKILL.md、文書のリンクとパス、tests/ 自体の置き場
 ```
 
 | 書きたいテスト | 置く所 |
 |---|---|
-| パッケージの 1 つの領域（Terraform の式、CloudFormation の組み込み関数、`core/paths.py` など）の動き | `unit/<領域>/test_<名前>.py`。アダプタの領域は `unit/terraform/`・`unit/cloudformation/`（plan JSON は `unit/terraform/plan/`）、`core` は `unit/core/`、`validate` と `validate_ir.py` は `unit/validate/`、アイコンの辞書は `unit/icons/`、`platform`（draw.io）は `unit/host/` |
+| パッケージの 1 つの領域（Terraform の式、CloudFormation の組み込み関数、`core/paths.py` など）の動き | `unit/<領域>/test_<名前>.py`。アダプタの領域は `unit/terraform/`・`unit/cloudformation/`（plan JSON は `unit/terraform/plan/`）、`core` は `unit/core/`、`normalize` は `unit/normalize/`、`validate` と `validate_ir.py` は `unit/validate/`、アイコンの辞書は `unit/icons/`、`platform`（draw.io）は `unit/host/` |
 | コミットした fixture（`aws-iac-diagram-workspace/fixtures/`）・公開サンプル・正解 IR を主役にするもの、入口のスクリプトを動かすもの | `integration/` |
 | 出力（raw IR）が変わらないこと | 新しいケースは `aws-iac-diagram-workspace/tools/golden.py` の対象に足し、`golden/manifest.json` を更新する（5） |
 | 構成の決まり（import の向き、行数、診断コードの一覧、同梱ファイル、SKILL.md、文書のリンク、テストの置き場） | `architecture/` |
