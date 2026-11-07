@@ -7,7 +7,8 @@
                分類された。M-ECS-TASKDEF・M-APIGW-AUTHORIZER を除く）、次から属性名で当てる: path の最後の要素の中立キー、当たらなければ
                最初の要素（SAM の `Policies` の中の参照は E-NOEDGE-ROLE、`vpc_config` の中は E-NOEDGE-PLACEMENT）。`["aws:SourceArn"]` の
                ような引用符つきの添字と、map の属性（環境変数・タグなど）の中のキーは属性名にしない。M-* から自分の統合先への
-               参照（除外の規則 M-APIGW-AUTHORIZER を含む）も E-NOEDGE-FROM-RULE。DependsOn は、ほかより先に E-NOEDGE-DEPENDS
+               参照（除外の規則 M-APIGW-AUTHORIZER を含む）も E-NOEDGE-FROM-RULE。描くリソースから自分に統合された M-* への参照
+               （CloudFront → オリジンアクセス制御など）は E-NOEDGE-MERGE。DependsOn は、ほかより先に E-NOEDGE-DEPENDS
                （1.8 の数える対象の外）
   4. `unused`  どれにも当たらない（`NORM-UNUSED-REF`、info。address は参照の from、path は raw の path、message に to と attr）
 
@@ -28,6 +29,7 @@ from aws_iac_diagram.normalize.view import Index, is_depends_on
 
 FROM_RULE = "E-NOEDGE-FROM-RULE"
 DEPENDS = "E-NOEDGE-DEPENDS"
+MERGE = "E-NOEDGE-MERGE"
 NONODE = "E-REF-NONODE"
 
 
@@ -96,6 +98,12 @@ def _classify(ref: dict, decisions, used, attr_rules, from_rule, node_of) -> Ent
     if (from_rule is not None and d is not None and d.cls == "merged_into" and (d.rule or "").startswith("M-")
             and _nodes_of(ref["to"], decisions, node_of) & set(d.into)):
         return Entry(ref, "noedge", FROM_RULE)
+    # 描くリソースから、自分に統合された M-* への参照（CloudFront → そのオリジンアクセス制御、関数 → そのレイヤー、DB → そのパラメータ
+    # グループ）は、統合先（自分）への参照で辺にしない。E-NOEDGE-MERGE（参照する側を統合先にする参照）に数える
+    mine = _nodes_of(ref["from"], decisions, node_of)
+    if (ref["from"] in node_of and t is not None and t.cls == "merged_into" and (t.rule or "").startswith("M-")
+            and set(t.into) and set(t.into) <= mine):
+        return Entry(ref, "noedge", MERGE)
     for key in _keys(ref["path"]):
         for row, keys in attr_rules:
             if key in keys:

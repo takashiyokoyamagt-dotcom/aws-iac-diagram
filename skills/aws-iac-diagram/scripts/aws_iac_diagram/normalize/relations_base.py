@@ -61,12 +61,12 @@ class Candidate:
 
 
 def make(frm: str, to: str, rule: str, kind: str | None, label: str, refs: list[dict], members=(), weak_kind: str | None = None,
-         notes: dict | None = None, texts: tuple[str, ...] = ()) -> Candidate:
+         notes: dict | None = None, texts: tuple[str, ...] = (), confidence: str = "derived") -> Candidate:
     """参照の並びから候補を作る（根拠の文字列は `<from>.<path>`、notes で参照ごとに説明を足せる。参照の無い根拠は texts）。"""
     notes = notes or {}
     ev = tuple(sorted({f"{r['from']}.{r['path']}" + (f" ({notes[ref_key(r)]})" if ref_key(r) in notes else "") for r in refs}
                       | set(texts)))
-    return Candidate(frm, to, rule, kind, label, ev, tuple(sorted(set(members))), weak_kind,
+    return Candidate(frm, to, rule, kind, label, ev, tuple(sorted(set(members))), weak_kind, confidence,
                      refs=tuple(sorted({ref_key(r) for r in refs})))
 
 

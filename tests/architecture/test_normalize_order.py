@@ -91,9 +91,9 @@ class NormalizeOrderTest(unittest.TestCase):
 
     def test_mutation_new_file_outside_the_groups_fails(self):
         s = self.copy_tree()
-        (s / PACKAGE / "normalize" / "synthetic.py").write_text("X = 1\n", encoding="utf-8")
+        (s / PACKAGE / "normalize" / "output.py").write_text("X = 1\n", encoding="utf-8")
         problems, _ = violations_in_normalize_order(s)
-        self.assertTrue(any("synthetic.py" in p and "normalize のグループに無い" in p for p in problems), problems)
+        self.assertTrue(any("output.py" in p and "normalize のグループに無い" in p for p in problems), problems)
 
 
 if __name__ == "__main__":

@@ -18,6 +18,11 @@ def reference(frm: str, path: str, to: str, attr=None, fn: str = "ref", state: s
     return {"from": frm, "path": path, "to": to, "attr": attr, "fn": fn, "state": state}
 
 
+def ref(frm: str, path: str, to: str, attr=None) -> dict:
+    """active の参照（fn は CFN の位置なら Ref、TF なら ref）。"""
+    return reference(frm, path, to, attr, fn="Ref" if path.startswith("Properties.") else "ref")
+
+
 def raw_ir(fmt: str, resources: list[dict], references: list[dict] | None = None, root: str = "fixtures/x") -> dict:
     """raw IR（stage: raw）。evaluation は形式ごとの空のもの。"""
     ev = {"var_files": [], "vars": {}, "assumptions": []} if fmt == "tf" else {"parameters": {}, "conditions": {}, "assumptions": []}

@@ -8,7 +8,7 @@
 
 - `level` の意味は 7.5 と同じ（`info` = 結果に影響しない読み替え、`warn` = 図が不完全・不確かになりうる、`error` = 読めなかった）。`address` は入力のリソースの address（AZ など入力に無いものは使わない）。
 - **一覧の正は `scripts/aws_iac_diagram/core/diagnostics.py`**（7.5 と同じ。下の一覧と同じであること、正規化のコードにある `NORM-…` の文字列がそこにあることをテストが確かめる）。
-- 状態: フェーズ 3 の手順 4a の時点のもの。辺の段階が育つときに、設計草案の 5.3 の案（使わなかった pruned・unevaluated の参照など）を足す（章・節の番号は変えない）。
+- 状態: フェーズ 3 の手順 4b の時点のもの。辺の段階が育つときに、設計草案の 5.3 の案（使わなかった pruned・unevaluated の参照など）を足す（章・節の番号は変えない）。
 - 正規化の `code` の一覧（10 個。書き方は 7.5 と同じ「`コード`（level。説明）」）:
   - 網羅分類（A6）と統合（M-*）: `NORM-MERGE-TARGET`（warn。M-* の統合先が見つからず、分類が仮のまま（`into` が空）。統合先が無いときの H-* の規則は 8 章）、`NORM-MERGE-DEPENDS-ON`（info。参照が無いので、統合されるものが自分で宣言した DependsOn の先（候補がちょうど 1 つ）を統合先にした）、`NORM-MERGE-AMBIGUOUS`（warn。統合先が 1 つの規則（親を名指す属性を持つ M-*）で候補が 2 つ以上あり、決まった順の最初の 1 つにした）。
   - ノード（N）と名前（B3・K-NAME。2 章）: `NORM-COND-UNKNOWN`（warn。作られるか（count・for_each・Condition）が決まらない（raw の `enabled: null`）リソースを描いた。7.2）、`NORM-NAME-FALLBACK`（info。名前が論理名に落ちた。名前が記号だけで、id の key を論理名から作ったときも）、`NORM-KEY-COLLISION`（info。同じ型で id の key が重なり、2 つ目以降に `.<論理名の key>` を付けた）。
