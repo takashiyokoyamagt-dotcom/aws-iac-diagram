@@ -1596,3 +1596,15 @@ tests/ 平ら 10 ファイル、最大 2,381 行（281 件）            tests/ 
   - ③〜⑦ はいまの扱いのまま（③ IPv6 の `::/0` だけは public にしない、④ SNS トピックのポリシーの送信元は `aws:SourceArn` だけ、⑤ 黒箱のモジュール → 入力のノードの推定の辺は作らない、⑥ `TEMPLATE_ACTIONS` はコードに置く、⑦ RDS の `publicly_accessible` などは公開とみなさない）。ir-schema 08 に限界として書いてある。測定（手順 6）の後に見直せる。
 - **規則表はこの版（`H-RELATION-NOEDGE`・`H-NO-TARGET` を足した版）で改めて凍結し、主セットの正解 IR はこれに従って書く。**
 - 実装はサブエージェント。変更が小さいので第三者レビューは省き、統括が差分（規則の行と classify.py）を読んで確かめた。単体テスト 687 件、golden 101/101。
+
+## 2026-11-08 フェーズ3 の手順6（前半）: 主セットの正解 IR と CRITERIA 1.2 の測定
+
+- 正解 IR 12 ファイル（`aws-iac-diagram-workspace/expected/public/<ID>.ir.json`）を、4 人の書き手（サブエージェント）が正規化のコード・出力を見ずに書き（入力・凍結した規則表・ir-schema・アダプタの raw だけ。設計草案 7.3）、2 人のレビュアー（同じ隔離）が入力の行と突き合わせて直した（最上位の `name` を小文字の ID に、T12 の Glue ジョブ → バケットを E-ENV-REF の confirmed から E-IAM の inferred に（Glue の default_arguments は E-ENV-REF の対象外）、C02 の evaluation の既定値など）。12 ファイルとも `validate_ir.py` OK、`check_coverage.py --ir` 0 件。
+- 隔離の記録（透明性のため）: 規則の追加の確認で実装者がスクラッチに置いた T12 の正規化の出力（`t12.ir.json`、06:42）が、書き手の起動（06:47）の前から共有のスクラッチにあった。T16 の書き手はファイル一覧で先頭の数行が目に入ったと申告、T12 の書き手は見ていないと申告。どちらも内容を使った形跡は無く、レビューの前に消した。
+- レビューで決めた運用: 規則が作らない真の流れは「最も近い規則の確信度」で辺に残し note を付ける（再現率に効く既知の限界）。ログ・複製の送り先、暗号化のキーは辺にしない。C01 は既定のパラメータ（CreateApex = no）なので Route 53 のノードは 1 つ（手順2 の WORKLOG の「2 つ」は誤り）。
+- **測定（`compare_ir.py --set main`、12 入力）: CRITERIA 1.2 を満たす。** N・P・名前・C・付随がすべて 1.000、E の適合率（確定・導出 36/36、推定 6/6）1.000、E の再現率 0.955（42/44）、X1〜X3 0、unknown 0。
+  - 足りない辺は既知の限界の 2 本だけ: T11s の API → ステートマシン（OpenAPI の `AWS::Include`。草案 8 章の 2）、T12 のカタログのジョブ → データベース（Glue の引数の文字列。規則の対象外）。
+  - **出力を見た後の訂正は 1 件（ツール側）:** 1 回目の測定で T11s のステートマシン → テーブル（E-IAM）が欠けた。SAM のステートマシンの `Policies` を E-IAM が読んでいなかった（関数だけ）。規則の範囲（E-IAM の「Step Functions などのサービスロール」）の中の実装漏れとして直した（`iam.py` の `SAM_POLICY_TYPES`、単体テスト 1 件）。正解 IR と基準は変えていない。1 回目の E の再現率は 0.932（41/44）で、T11s が入力ごとの下限（母数 3、誤り 1 件以内）を満たしていなかった。
+  - `tests/integration/normalize/test_main_set_criteria.py` が基準と「足りない辺は既知の 2 本だけ、余分な辺・ノード 0」を固定する。
+- 規則表の改善候補（レビューから。凍結中なので記録だけ）: Glue ジョブの default_arguments を E-ENV-REF／E-ENV-STR の対象に、E-IAM の S3 の `<bucket>/<prefix>/*`、Step Functions の DefinitionSubstitutions からの確定の辺、API Gateway の統合の credentials のロール、公開の RDS（T03 の真の構成は internet → DB）、CloudFront を入口に、R-APIGW-REST の `request_templates` を relations.md の規則の文に明記。
+- 単体テスト 690 件、golden 101/101。残り（手順6 の後半）: 1.4 の TF／SAM の対の比較、補助セットと全公開サンプルの X4・unknown・1.8、T19・T20 の辺の数。

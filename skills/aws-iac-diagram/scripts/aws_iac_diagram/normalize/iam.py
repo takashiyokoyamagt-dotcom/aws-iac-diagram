@@ -6,7 +6,7 @@
 
 - ポリシーの集め方: TF は `aws_iam_role_policy`（`policy` は `data.aws_iam_policy_document` への参照か `jsonencode`）、ロールの
   `inline_policy`、`aws_iam_role_policy_attachment` → `aws_iam_policy`。CFN はロールの `Policies[].PolicyDocument`、`Roles` でロールを
-  指す `AWS::IAM::Policy`・`ManagedPolicy`、ロールの `ManagedPolicyArns`。SAM の関数の `Policies`（ポリシーの文と、ポリシーテンプレート
+  指す `AWS::IAM::Policy`・`ManagedPolicy`、ロールの `ManagedPolicyArns`。SAM の関数・ステートマシンの `Policies`（ポリシーの文と、ポリシーテンプレート
   `DynamoDBCrudPolicy` など。テンプレートは `TEMPLATE_ACTIONS` の代表のアクションで kind を決める）。
 - 文は Allow だけ。kind は文のアクションを `[[iam_action_kind]]` の上の行から当てる（`iam_action_priority = "first_row_wins"`）。どの行にも
   当たらなければ辺を作らない（`iam_action_default = "none"`）。
@@ -26,6 +26,7 @@ from aws_iac_diagram.normalize.attr_edges import walk
 from aws_iac_diagram.normalize.relations_base import Candidate, Context, path_keys, ref_key
 
 RULE = "E-IAM"
+SAM_POLICY_TYPES = ("AWS::Serverless::Function", "AWS::Serverless::StateMachine")  # Policies を書ける SAM の型
 ROLE_KEYS = frozenset({"role", "rolearn", "executionrolearn", "taskrolearn"})
 ROLE_TYPES = ("aws_iam_role", "AWS::IAM::Role")
 PROFILE_TYPES = ("aws_iam_instance_profile", "AWS::IAM::InstanceProfile")
@@ -211,9 +212,9 @@ def iam_candidates(ctx: Context, models: dict) -> list[Candidate]:
                 for path, value in resources:
                     for t, refs, text in _targets(ctx, owner, path, value, models):
                         out += [_make(a, t, kind, refs, text) for a in who]
-    # SAM の関数の Policies（関数自身が引き受ける）
-    for fn in ctx.drawn("lambda_function"):
-        if fn.type != "AWS::Serverless::Function":
+    # SAM の関数・ステートマシンの Policies（そのリソース自身が引き受ける。どちらも同じ書き方）
+    for fn in [*ctx.drawn("lambda_function"), *ctx.drawn("sfn_state_machine")]:
+        if fn.type not in SAM_POLICY_TYPES:
             continue
         me = ctx.nodes[fn.address]["id"]
         pols = fn.get("Policies")

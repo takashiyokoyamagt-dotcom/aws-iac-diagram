@@ -1,0 +1,272 @@
+{
+  "description": "serverless-patterns apigw-lambda-dynamodb-terraform。HTTP API → Lambda → DynamoDB。Lambda のコードは S3 バケットに置く。",
+  "edges": [
+    {
+      "confidence": "derived",
+      "from": "apigw_http_api/http_lambda",
+      "id": "apigw_http_api/http_lambda->lambda_function/apigw_lambda_ddb",
+      "kind": "request",
+      "label": "POST /movies",
+      "note": "統合とルート（R-APIGW-HTTP）。Lambda の権限の source_arn が API の execution_arn（R-LAMBDA-PERMISSION）",
+      "to": "lambda_function/apigw_lambda_ddb"
+    },
+    {
+      "confidence": "derived",
+      "from": "external/internet",
+      "id": "external/internet->apigw_http_api/http_lambda",
+      "kind": "request",
+      "label": "HTTPS",
+      "to": "apigw_http_api/http_lambda"
+    },
+    {
+      "confidence": "inferred",
+      "from": "lambda_function/apigw_lambda_ddb",
+      "id": "lambda_function/apigw_lambda_ddb->dynamodb_table/movies",
+      "kind": "data",
+      "label": "",
+      "note": "ロールに付けた管理ポリシーの Resource の ARN 文字列 arn:aws:dynamodb:*:*:table/Movies がテーブル名と一致（E-IAM。dynamodb:PutItem など → data）。環境変数 DDB_TABLE = \"Movies\" も同じテーブルを指すが、英字だけの値なので E-ENV-STR は当てない（edges.md の実装の決定 ⑦）",
+      "to": "dynamodb_table/movies"
+    }
+  ],
+  "evaluation": {
+    "assumptions": [
+      "変数はすべて既定値（dynamodb_table = Movies、lambda_name = pattern-movies-post、apigw_name = apigw-http-lambda）"
+    ],
+    "tf": {
+      "var_files": [],
+      "vars": {}
+    }
+  },
+  "ir_version": "1.0",
+  "name": "t07",
+  "nodes": [
+    {
+      "category": "resource",
+      "id": "apigw_http_api/http_lambda",
+      "label": "http_lambda",
+      "name": "http_lambda",
+      "note": "name = \"${var.apigw_name}-${random_string.random.id}\" が評価できないので論理名。ステージ（$default）は統合（M-APIGW-STAGE）",
+      "parent": null,
+      "type": "apigw_http_api"
+    },
+    {
+      "category": "resource",
+      "id": "dynamodb_table/movies",
+      "label": "Movies",
+      "name": "Movies",
+      "parent": null,
+      "type": "dynamodb_table"
+    },
+    {
+      "category": "external",
+      "id": "external/internet",
+      "label": "Internet",
+      "name": "internet",
+      "note": "N-EXT-INTERNET（HTTP API）",
+      "parent": null,
+      "synthetic": true,
+      "type": "external"
+    },
+    {
+      "category": "resource",
+      "id": "lambda_function/apigw_lambda_ddb",
+      "label": "apigw_lambda_ddb",
+      "name": "apigw_lambda_ddb",
+      "note": "function_name が random_string を含み評価できないので論理名",
+      "parent": null,
+      "type": "lambda_function"
+    },
+    {
+      "category": "resource",
+      "id": "s3_bucket/lambda_bucket",
+      "label": "lambda_bucket",
+      "name": "lambda_bucket",
+      "note": "Lambda のコードの置き場。bucket_prefix だけなので論理名",
+      "parent": null,
+      "type": "s3_bucket"
+    }
+  ],
+  "notes": [
+    "API・関数・ロググループの名前は random_string.random.id を含んで評価できないので、API と関数は論理名（http_lambda、apigw_lambda_ddb）。S3 バケットは bucket_prefix だけで名前属性 bucket が無いので論理名 lambda_bucket。",
+    "Lambda → S3 バケット（s3_bucket・s3_key）はデプロイ時にコードを読むための参照で、実行時のデータの流れではないので辺にしない（E-ENV-REF の環境変数でも IAM でもない）。aws_s3_object はバケットに統合（M-S3-OBJECT）。",
+    "Lambda → DynamoDB は IAM の ARN の文字列の一致だけなので inferred。環境変数 DDB_TABLE も実際には同じテーブルを指す（真の関係は書き込み）。",
+    "対の SAM 版（T07s）は REST API（暗黙の ServerlessRestApi）で、TF 版の HTTP API とは型が違う。"
+  ],
+  "sources": {
+    "tf": {
+      "edges": [
+        {
+          "edge": "apigw_http_api/http_lambda->lambda_function/apigw_lambda_ddb",
+          "evidence": [
+            "aws_apigatewayv2_integration.apigw_lambda.integration_uri",
+            "aws_apigatewayv2_route.post.target (route_key = \"POST /movies\")",
+            "aws_lambda_permission.api_gw.source_arn"
+          ],
+          "rules": [
+            "R-APIGW-HTTP",
+            "R-LAMBDA-PERMISSION"
+          ]
+        },
+        {
+          "edge": "external/internet->apigw_http_api/http_lambda",
+          "evidence": [
+            "aws_apigatewayv2_api.http_lambda.protocol_type (\"HTTP\")"
+          ],
+          "rules": [
+            "N-EXT-INTERNET"
+          ]
+        },
+        {
+          "edge": "lambda_function/apigw_lambda_ddb->dynamodb_table/movies",
+          "evidence": [
+            "aws_iam_policy.lambda_exec_role.policy.Statement[0].Resource (\"arn:aws:dynamodb:*:*:table/Movies\"。aws_iam_role_policy_attachment.lambda_policy で関数のロールに付く)"
+          ],
+          "rules": [
+            "E-IAM"
+          ]
+        }
+      ],
+      "resources": [
+        {
+          "address": "aws_apigatewayv2_api.http_lambda",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "apigw_http_api/http_lambda",
+          "type": "aws_apigatewayv2_api"
+        },
+        {
+          "address": "aws_apigatewayv2_integration.apigw_lambda",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "apigw_http_api/http_lambda->lambda_function/apigw_lambda_ddb"
+          ],
+          "rule": "R-APIGW-HTTP",
+          "type": "aws_apigatewayv2_integration"
+        },
+        {
+          "address": "aws_apigatewayv2_route.post",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "apigw_http_api/http_lambda->lambda_function/apigw_lambda_ddb"
+          ],
+          "rule": "R-APIGW-HTTP",
+          "type": "aws_apigatewayv2_route"
+        },
+        {
+          "address": "aws_apigatewayv2_stage.default",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "apigw_http_api/http_lambda"
+          ],
+          "rule": "M-APIGW-STAGE",
+          "type": "aws_apigatewayv2_stage"
+        },
+        {
+          "address": "aws_cloudwatch_log_group.api_gw",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-LOGS",
+          "type": "aws_cloudwatch_log_group"
+        },
+        {
+          "address": "aws_cloudwatch_log_group.lambda_logs",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-LOGS",
+          "type": "aws_cloudwatch_log_group"
+        },
+        {
+          "address": "aws_dynamodb_table.movie_table",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "dynamodb_table/movies",
+          "type": "aws_dynamodb_table"
+        },
+        {
+          "address": "aws_iam_policy.lambda_exec_role",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_policy"
+        },
+        {
+          "address": "aws_iam_role.lambda_exec",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role"
+        },
+        {
+          "address": "aws_iam_role_policy_attachment.lambda_policy",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role_policy_attachment"
+        },
+        {
+          "address": "aws_lambda_function.apigw_lambda_ddb",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "lambda_function/apigw_lambda_ddb",
+          "type": "aws_lambda_function"
+        },
+        {
+          "address": "aws_lambda_permission.api_gw",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "apigw_http_api/http_lambda->lambda_function/apigw_lambda_ddb"
+          ],
+          "rule": "R-LAMBDA-PERMISSION",
+          "type": "aws_lambda_permission"
+        },
+        {
+          "address": "aws_s3_bucket.lambda_bucket",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "s3_bucket/lambda_bucket",
+          "type": "aws_s3_bucket"
+        },
+        {
+          "address": "aws_s3_bucket_public_access_block.private_bucket",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "s3_bucket/lambda_bucket"
+          ],
+          "rule": "M-S3-CONFIG",
+          "type": "aws_s3_bucket_public_access_block"
+        },
+        {
+          "address": "aws_s3_object.this",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "s3_bucket/lambda_bucket"
+          ],
+          "rule": "M-S3-OBJECT",
+          "type": "aws_s3_object"
+        },
+        {
+          "address": "data.archive_file.lambda_zip",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-DATA",
+          "type": "archive_file"
+        },
+        {
+          "address": "random_string.random",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-UTILITY",
+          "type": "random_string"
+        }
+      ],
+      "root": "fixtures/public/serverless-patterns/apigw-lambda-dynamodb-terraform"
+    }
+  },
+  "stage": "normalized"
+}

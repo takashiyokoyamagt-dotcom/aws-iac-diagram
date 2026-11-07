@@ -1,0 +1,196 @@
+{
+  "description": "serverless-patterns eventbridge-sns-lambda-terraform。EventBridge ルール → SNS トピック → Lambda。",
+  "edges": [
+    {
+      "confidence": "derived",
+      "from": "eventbridge_rule/myeventrule",
+      "id": "eventbridge_rule/myeventrule->sns_topic/mysnstopic",
+      "kind": "event",
+      "label": "",
+      "note": "ターゲット（R-EVENTS-TARGET）。トピックポリシーの aws:SourceArn がルールなので、同じ辺の根拠（R-SNS-TOPIC-POLICY）",
+      "to": "sns_topic/mysnstopic"
+    },
+    {
+      "confidence": "derived",
+      "from": "sns_topic/mysnstopic",
+      "id": "sns_topic/mysnstopic->lambda_function/topicsubscriberfunction",
+      "kind": "event",
+      "label": "",
+      "note": "サブスクリプション（R-SNS-SUBSCRIPTION）。Lambda の権限の source_arn がトピックなので同じ辺の根拠（R-LAMBDA-PERMISSION）",
+      "to": "lambda_function/topicsubscriberfunction"
+    }
+  ],
+  "evaluation": {
+    "assumptions": [
+      "変数・locals は無い。provider の region は us-east-1"
+    ],
+    "tf": {
+      "var_files": [],
+      "vars": {}
+    }
+  },
+  "ir_version": "1.0",
+  "name": "t06",
+  "nodes": [
+    {
+      "category": "resource",
+      "id": "eventbridge_rule/myeventrule",
+      "label": "MyEventRule",
+      "name": "MyEventRule",
+      "note": "name 属性が無いので論理名（K-NAME の 3）",
+      "parent": null,
+      "type": "eventbridge_rule"
+    },
+    {
+      "category": "resource",
+      "id": "lambda_function/topicsubscriberfunction",
+      "label": "TopicSubscriberFunction",
+      "name": "TopicSubscriberFunction",
+      "parent": null,
+      "type": "lambda_function"
+    },
+    {
+      "category": "resource",
+      "id": "sns_topic/mysnstopic",
+      "label": "MySNSTopic",
+      "name": "MySNSTopic",
+      "parent": null,
+      "type": "sns_topic"
+    }
+  ],
+  "notes": [
+    "ルールに name が無いので、名前は論理名 MyEventRule。",
+    "Lambda のロールには AWSLambdaBasicExecutionRole（ログ）だけが付くので E-IAM の辺は無い。",
+    "ルールのイベントパターン（source: demo.sns）にイベントを送るリソースは入力に無い（CLI で送る想定）ので、ルールへの辺は無い。"
+  ],
+  "sources": {
+    "tf": {
+      "edges": [
+        {
+          "edge": "eventbridge_rule/myeventrule->sns_topic/mysnstopic",
+          "evidence": [
+            "aws_cloudwatch_event_target.MyRuleTarget.arn",
+            "aws_cloudwatch_event_target.MyRuleTarget.rule",
+            "aws_sns_topic_policy.default.policy.Statement[0].Condition.ArnEquals[\"aws:SourceArn\"]"
+          ],
+          "rules": [
+            "R-EVENTS-TARGET",
+            "R-SNS-TOPIC-POLICY"
+          ]
+        },
+        {
+          "edge": "sns_topic/mysnstopic->lambda_function/topicsubscriberfunction",
+          "evidence": [
+            "aws_lambda_permission.with_sns.source_arn",
+            "aws_sns_topic_subscription.sns-topic.endpoint",
+            "aws_sns_topic_subscription.sns-topic.topic_arn"
+          ],
+          "rules": [
+            "R-LAMBDA-PERMISSION",
+            "R-SNS-SUBSCRIPTION"
+          ]
+        }
+      ],
+      "resources": [
+        {
+          "address": "aws_cloudwatch_event_rule.MyEventRule",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "eventbridge_rule/myeventrule",
+          "type": "aws_cloudwatch_event_rule"
+        },
+        {
+          "address": "aws_cloudwatch_event_target.MyRuleTarget",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "eventbridge_rule/myeventrule->sns_topic/mysnstopic"
+          ],
+          "rule": "R-EVENTS-TARGET",
+          "type": "aws_cloudwatch_event_target"
+        },
+        {
+          "address": "aws_iam_role.lambda_iam_role",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role"
+        },
+        {
+          "address": "aws_iam_role_policy_attachment.lambda_basic_execution",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_role_policy_attachment"
+        },
+        {
+          "address": "aws_lambda_function.lambda_function",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "lambda_function/topicsubscriberfunction",
+          "type": "aws_lambda_function"
+        },
+        {
+          "address": "aws_lambda_permission.with_sns",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "sns_topic/mysnstopic->lambda_function/topicsubscriberfunction"
+          ],
+          "rule": "R-LAMBDA-PERMISSION",
+          "type": "aws_lambda_permission"
+        },
+        {
+          "address": "aws_sns_topic.MySNSTopic",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "sns_topic/mysnstopic",
+          "type": "aws_sns_topic"
+        },
+        {
+          "address": "aws_sns_topic_policy.default",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "eventbridge_rule/myeventrule->sns_topic/mysnstopic"
+          ],
+          "rule": "R-SNS-TOPIC-POLICY",
+          "type": "aws_sns_topic_policy"
+        },
+        {
+          "address": "aws_sns_topic_subscription.sns-topic",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "sns_topic/mysnstopic->lambda_function/topicsubscriberfunction"
+          ],
+          "rule": "R-SNS-SUBSCRIPTION",
+          "type": "aws_sns_topic_subscription"
+        },
+        {
+          "address": "data.archive_file.lambda_zip_file",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-DATA",
+          "type": "archive_file"
+        },
+        {
+          "address": "data.aws_caller_identity.current",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-DATA",
+          "type": "aws_caller_identity"
+        },
+        {
+          "address": "data.aws_iam_policy.lambda_basic_execution_role_policy",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-IAM",
+          "type": "aws_iam_policy"
+        }
+      ],
+      "root": "fixtures/public/serverless-patterns/eventbridge-sns-lambda-terraform"
+    }
+  },
+  "stage": "normalized"
+}

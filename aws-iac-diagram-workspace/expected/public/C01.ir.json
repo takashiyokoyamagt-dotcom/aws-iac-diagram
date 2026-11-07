@@ -1,0 +1,272 @@
+{
+  "description": "C01（amazon-cloudfront-secure-static-site の templates/main.yaml）。ネストスタック 3 つ（custom-resource・acm-certificate・cloudfront-site）を展開した。Route 53 のレコード → CloudFront → S3 のバケット（OAC）の静的サイトと、サイトの中身をバケットへコピーするカスタムリソースの Lambda。",
+  "edges": [
+    {
+      "confidence": "confirmed",
+      "from": "cloudfront_distribution/cloudfrontstack.cloudfrontdistribution",
+      "id": "cloudfront_distribution/cloudfrontstack.cloudfrontdistribution->s3_bucket/customresourcestack.s3bucketroot",
+      "kind": "request",
+      "label": "",
+      "note": "オリジンの DomainName がバケットの DomainName を参照（E-CDN-ORIGIN。親スタックのパラメータと子の出力を通る）",
+      "to": "s3_bucket/customresourcestack.s3bucketroot"
+    },
+    {
+      "confidence": "confirmed",
+      "from": "lambda_function/customresourcestack.copyfunction",
+      "id": "lambda_function/customresourcestack.copyfunction->s3_bucket/customresourcestack.s3bucketroot",
+      "kind": "data",
+      "label": "",
+      "note": "環境変数 BUCKET がバケットを参照（E-ENV-REF）。ロールの s3:GetObject・PutObject など（E-IAM）も同じ組",
+      "to": "s3_bucket/customresourcestack.s3bucketroot"
+    },
+    {
+      "confidence": "confirmed",
+      "from": "route53_record/cloudfrontstack.route53recordsetgroup",
+      "id": "route53_record/cloudfrontstack.route53recordsetgroup->cloudfront_distribution/cloudfrontstack.cloudfrontdistribution",
+      "kind": "request",
+      "label": "",
+      "note": "エイリアスの DNSName がディストリビューションの DomainName を参照（E-DNS-ALIAS）",
+      "to": "cloudfront_distribution/cloudfrontstack.cloudfrontdistribution"
+    }
+  ],
+  "evaluation": {
+    "assumptions": [
+      "パラメータは既定値（SubDomain = www、CreateApex = no）。DomainName・HostedZoneId は既定値が無く未評価（名前・辺には使わない）"
+    ],
+    "cfn": {
+      "conditions": {
+        "AcmCertificateStack/CreateApexConfig": false,
+        "CloudFrontStack/CreateApexConfig": false
+      },
+      "parameters": {
+        "CreateApex": "no",
+        "SubDomain": "www"
+      }
+    }
+  },
+  "ir_version": "1.0",
+  "name": "c01",
+  "nodes": [
+    {
+      "category": "resource",
+      "id": "cloudfront_distribution/cloudfrontstack.cloudfrontdistribution",
+      "label": "CloudFrontStack.CloudFrontDistribution",
+      "name": "CloudFrontStack.CloudFrontDistribution",
+      "note": "名前の属性・Name タグが無いので論理名。OAC・レスポンスヘッダーポリシー（M-CLOUDFRONT-CONFIG）と ACM の証明書（M-ACM-CERT）を統合",
+      "parent": null,
+      "type": "cloudfront_distribution"
+    },
+    {
+      "category": "resource",
+      "id": "lambda_function/customresourcestack.copyfunction",
+      "label": "CustomResourceStack.CopyFunction",
+      "name": "CustomResourceStack.CopyFunction",
+      "note": "SAM の関数。FunctionName が無いので論理名。レイヤー（M-LAMBDA-LAYER）を統合",
+      "parent": null,
+      "type": "lambda_function"
+    },
+    {
+      "category": "resource",
+      "id": "route53_record/cloudfrontstack.route53recordsetgroup",
+      "label": "CloudFrontStack.Route53RecordSetGroup",
+      "name": "CloudFrontStack.Route53RecordSetGroup",
+      "note": "RecordSetGroup は 1 ノード（www の A レコードのエイリアス）。apex のグループは Condition が偽",
+      "parent": null,
+      "type": "route53_record"
+    },
+    {
+      "category": "resource",
+      "id": "s3_bucket/customresourcestack.s3bucketlogs",
+      "label": "CustomResourceStack.S3BucketLogs",
+      "name": "CustomResourceStack.S3BucketLogs",
+      "note": "ログ用のバケット。ログの配送は辺にしない判断（notes の 6）で、辺の無いノード",
+      "parent": null,
+      "type": "s3_bucket"
+    },
+    {
+      "category": "resource",
+      "id": "s3_bucket/customresourcestack.s3bucketroot",
+      "label": "CustomResourceStack.S3BucketRoot",
+      "name": "CustomResourceStack.S3BucketRoot",
+      "note": "サイトの中身のバケット。バケットポリシー（M-S3-CONFIG）を統合",
+      "parent": null,
+      "type": "s3_bucket"
+    }
+  ],
+  "notes": [
+    "パラメータは既定値で評価した（SubDomain = www、CreateApex = no。DomainName・HostedZoneId は既定値が無く未評価）。CreateApex = no なので CloudFrontStack/CreateApexConfig は偽で、ApexRoute53RecordSetGroup は H-COND-FALSE。WORKLOG（2026-11 の正解 IR を書く前の確認事項）は『C01 の Route 53 のノードは 2 つ（apex と www）』と書いているが、既定のパラメータでは apex は作られないので 1 つにした（CreateApex = yes で評価すれば 2 つ）。",
+    "名前: バケット・関数・ディストリビューション・レコードのグループはどれも名前の属性も Name タグも無い（Tags は Solution だけ。RecordSetGroup の名前は RecordSets[].Name の中）ので、K-NAME の 3（ネストスタックの論理ID . 論理ID）に落ちる。",
+    "ACM の証明書（AcmCertificateStack/Certificate、us-east-1）は ViewerCertificate.AcmCertificateArn で使うディストリビューションに統合（M-ACM-CERT）。別リージョンの描き分けはフェーズ 3 ではしない。",
+    "CopyCustomResource（AWS::CloudFormation::CustomResource）は H-CFN-CUSTOM。ServiceToken の参照先の CopyFunction は描く型として描く（デプロイの時だけ動くが、規則表の H-CFN-CUSTOM の理由のとおり）。CopyFunction → S3BucketRoot は環境変数 BUCKET（E-ENV-REF）とロールの S3 の権限（E-IAM）。",
+    "S3BucketPolicy（M-S3-CONFIG）の Condition の AWS:SourceArn はディストリビューションを指すが、統合された側からの参照なので辺にしない（E-NOEDGE-FROM-RULE）。CloudFront → バケットの辺は E-CDN-ORIGIN で既にある。",
+    "判断（レビューの方針で確定）: アクセスログの送り先（CloudFront の Logging.Bucket → S3BucketLogs、S3BucketRoot の LoggingConfiguration.DestinationBucketName → S3BucketLogs）は辺にしなかった。規則表にログの配送を辺にする規則が無く、ログは運用の付属品として描かない方針（H-LOGS・E-NOEDGE-LOG）に合わせた。そのため s3_bucket/customresourcestack.s3bucketlogs は辺の無いノードになる。真の関係として描くなら、cloudfront_distribution → S3BucketLogs と S3BucketRoot → S3BucketLogs（どちらも data）の 2 本。",
+    "判断: CloudFront は利用者に公開されているが、N-EXT-INTERNET の契機は LB と API Gateway だけなので external/internet は作らない（規則表どおり）。"
+  ],
+  "sources": {
+    "cfn": {
+      "edges": [
+        {
+          "edge": "cloudfront_distribution/cloudfrontstack.cloudfrontdistribution->s3_bucket/customresourcestack.s3bucketroot",
+          "evidence": [
+            "CloudFrontStack/CloudFrontDistribution.Properties.DistributionConfig.Origins[0].DomainName (CloudFrontStack.Parameters.S3BucketRootName ← CustomResourceStack.Outputs.S3BucketRootName)"
+          ],
+          "rules": [
+            "E-CDN-ORIGIN"
+          ]
+        },
+        {
+          "edge": "lambda_function/customresourcestack.copyfunction->s3_bucket/customresourcestack.s3bucketroot",
+          "evidence": [
+            "CustomResourceStack/CopyFunction.Properties.Environment.Variables.BUCKET",
+            "CustomResourceStack/CopyRole.Properties.Policies[0].PolicyDocument.Statement[0].Resource[0] (arn:aws:s3:::${S3BucketRoot}/*。s3:GetObject・PutObject。関数の Role ← CopyRole)",
+            "CustomResourceStack/CopyRole.Properties.Policies[0].PolicyDocument.Statement[0].Resource[1] (arn:aws:s3:::${S3BucketRoot})"
+          ],
+          "rules": [
+            "E-ENV-REF",
+            "E-IAM"
+          ]
+        },
+        {
+          "edge": "route53_record/cloudfrontstack.route53recordsetgroup->cloudfront_distribution/cloudfrontstack.cloudfrontdistribution",
+          "evidence": [
+            "CloudFrontStack/Route53RecordSetGroup.Properties.RecordSets[0].AliasTarget.DNSName"
+          ],
+          "rules": [
+            "E-DNS-ALIAS"
+          ]
+        }
+      ],
+      "resources": [
+        {
+          "address": "AcmCertificateStack",
+          "class": "hidden",
+          "file": "main.yaml",
+          "rule": "H-NESTED-STACK",
+          "type": "AWS::CloudFormation::Stack"
+        },
+        {
+          "address": "AcmCertificateStack/Certificate",
+          "class": "merged_into",
+          "file": "acm-certificate.yaml",
+          "into": [
+            "cloudfront_distribution/cloudfrontstack.cloudfrontdistribution"
+          ],
+          "rule": "M-ACM-CERT",
+          "type": "AWS::CertificateManager::Certificate"
+        },
+        {
+          "address": "CloudFrontStack",
+          "class": "hidden",
+          "file": "main.yaml",
+          "rule": "H-NESTED-STACK",
+          "type": "AWS::CloudFormation::Stack"
+        },
+        {
+          "address": "CloudFrontStack/ApexRoute53RecordSetGroup",
+          "class": "hidden",
+          "file": "cloudfront-site.yaml",
+          "rule": "H-COND-FALSE",
+          "type": "AWS::Route53::RecordSetGroup"
+        },
+        {
+          "address": "CloudFrontStack/CloudFrontDistribution",
+          "class": "drawn",
+          "file": "cloudfront-site.yaml",
+          "node": "cloudfront_distribution/cloudfrontstack.cloudfrontdistribution",
+          "type": "AWS::CloudFront::Distribution"
+        },
+        {
+          "address": "CloudFrontStack/OriginAccessControl",
+          "class": "merged_into",
+          "file": "cloudfront-site.yaml",
+          "into": [
+            "cloudfront_distribution/cloudfrontstack.cloudfrontdistribution"
+          ],
+          "rule": "M-CLOUDFRONT-CONFIG",
+          "type": "AWS::CloudFront::OriginAccessControl"
+        },
+        {
+          "address": "CloudFrontStack/ResponseHeadersPolicy",
+          "class": "merged_into",
+          "file": "cloudfront-site.yaml",
+          "into": [
+            "cloudfront_distribution/cloudfrontstack.cloudfrontdistribution"
+          ],
+          "rule": "M-CLOUDFRONT-CONFIG",
+          "type": "AWS::CloudFront::ResponseHeadersPolicy"
+        },
+        {
+          "address": "CloudFrontStack/Route53RecordSetGroup",
+          "class": "drawn",
+          "file": "cloudfront-site.yaml",
+          "node": "route53_record/cloudfrontstack.route53recordsetgroup",
+          "type": "AWS::Route53::RecordSetGroup"
+        },
+        {
+          "address": "CloudFrontStack/S3BucketPolicy",
+          "class": "merged_into",
+          "file": "cloudfront-site.yaml",
+          "into": [
+            "s3_bucket/customresourcestack.s3bucketroot"
+          ],
+          "rule": "M-S3-CONFIG",
+          "type": "AWS::S3::BucketPolicy"
+        },
+        {
+          "address": "CustomResourceStack",
+          "class": "hidden",
+          "file": "main.yaml",
+          "rule": "H-NESTED-STACK",
+          "type": "AWS::CloudFormation::Stack"
+        },
+        {
+          "address": "CustomResourceStack/CopyCustomResource",
+          "class": "hidden",
+          "file": "custom-resource.yaml",
+          "rule": "H-CFN-CUSTOM",
+          "type": "AWS::CloudFormation::CustomResource"
+        },
+        {
+          "address": "CustomResourceStack/CopyFunction",
+          "class": "drawn",
+          "file": "custom-resource.yaml",
+          "node": "lambda_function/customresourcestack.copyfunction",
+          "type": "AWS::Serverless::Function"
+        },
+        {
+          "address": "CustomResourceStack/CopyLayerVersion",
+          "class": "merged_into",
+          "file": "custom-resource.yaml",
+          "into": [
+            "lambda_function/customresourcestack.copyfunction"
+          ],
+          "rule": "M-LAMBDA-LAYER",
+          "type": "AWS::Serverless::LayerVersion"
+        },
+        {
+          "address": "CustomResourceStack/CopyRole",
+          "class": "hidden",
+          "file": "custom-resource.yaml",
+          "rule": "H-IAM",
+          "type": "AWS::IAM::Role"
+        },
+        {
+          "address": "CustomResourceStack/S3BucketLogs",
+          "class": "drawn",
+          "file": "custom-resource.yaml",
+          "node": "s3_bucket/customresourcestack.s3bucketlogs",
+          "type": "AWS::S3::Bucket"
+        },
+        {
+          "address": "CustomResourceStack/S3BucketRoot",
+          "class": "drawn",
+          "file": "custom-resource.yaml",
+          "node": "s3_bucket/customresourcestack.s3bucketroot",
+          "type": "AWS::S3::Bucket"
+        }
+      ],
+      "root": "fixtures/public/amazon-cloudfront-secure-static-site/templates/main.yaml"
+    }
+  },
+  "stage": "normalized"
+}

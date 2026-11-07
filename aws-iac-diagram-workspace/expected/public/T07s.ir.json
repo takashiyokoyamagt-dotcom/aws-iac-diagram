@@ -1,0 +1,143 @@
+{
+  "description": "serverless-patterns apigw-lambda-dynamodb（SAM）。REST API（暗黙の ServerlessRestApi）→ Lambda → DynamoDB。",
+  "edges": [
+    {
+      "confidence": "derived",
+      "from": "apigw_rest_api/serverlessrestapi",
+      "id": "apigw_rest_api/serverlessrestapi->lambda_function/weatherfunction",
+      "kind": "request",
+      "label": "POST /",
+      "note": "SAM の Events（Type: Api）。R-APIGW-REST",
+      "to": "lambda_function/weatherfunction"
+    },
+    {
+      "confidence": "derived",
+      "from": "external/internet",
+      "id": "external/internet->apigw_rest_api/serverlessrestapi",
+      "kind": "request",
+      "label": "HTTPS",
+      "to": "apigw_rest_api/serverlessrestapi"
+    },
+    {
+      "confidence": "inferred",
+      "from": "lambda_function/weatherfunction",
+      "id": "lambda_function/weatherfunction->dynamodb_table/weatherdata",
+      "kind": "data",
+      "label": "",
+      "note": "SAM のポリシーテンプレート DynamoDBCrudPolicy の TableName がテーブルを参照（E-IAM。参照でも E-IAM は inferred）。環境変数は無い",
+      "to": "dynamodb_table/weatherdata"
+    }
+  ],
+  "evaluation": {
+    "assumptions": [
+      "パラメータは無い"
+    ],
+    "cfn": {
+      "parameters": {}
+    }
+  },
+  "ir_version": "1.0",
+  "name": "t07s",
+  "nodes": [
+    {
+      "category": "resource",
+      "id": "apigw_rest_api/serverlessrestapi",
+      "label": "ServerlessRestApi",
+      "name": "ServerlessRestApi",
+      "note": "SAM の暗黙の API（implicit）。名前属性が無いので論理名",
+      "parent": null,
+      "type": "apigw_rest_api"
+    },
+    {
+      "category": "resource",
+      "id": "dynamodb_table/weatherdata",
+      "label": "WeatherData",
+      "name": "WeatherData",
+      "parent": null,
+      "type": "dynamodb_table"
+    },
+    {
+      "category": "external",
+      "id": "external/internet",
+      "label": "Internet",
+      "name": "internet",
+      "note": "N-EXT-INTERNET（REST API、既定の EDGE）",
+      "parent": null,
+      "synthetic": true,
+      "type": "external"
+    },
+    {
+      "category": "resource",
+      "id": "lambda_function/weatherfunction",
+      "label": "WeatherFunction",
+      "name": "WeatherFunction",
+      "parent": null,
+      "type": "lambda_function"
+    }
+  ],
+  "notes": [
+    "Events（Type: Api）に RestApiId が無いので、SAM が暗黙に作る ServerlessRestApi（AWS::Serverless::Api）を描く。名前属性が無いので論理名。EndpointConfiguration を書かないので既定の EDGE で、パブリックな API（N-EXT-INTERNET）。",
+    "Lambda → DynamoDB は SAM のポリシーテンプレートからの E-IAM だけなので inferred（関数のコードは TABLE_NAME を環境変数でなく固定で持つ）。",
+    "SAM が変換時に作る IAM ロール・Lambda の権限・デプロイ・ステージは変換前のテンプレートに無いので網羅分類の対象外。",
+    "対の TF 版（T07）は HTTP API で、型（apigw_http_api／apigw_rest_api）とラベルが違う。"
+  ],
+  "sources": {
+    "cfn": {
+      "edges": [
+        {
+          "edge": "apigw_rest_api/serverlessrestapi->lambda_function/weatherfunction",
+          "evidence": [
+            "LambdaFunction.Properties.Events.ApiEvent (Type: Api, ServerlessRestApi, POST /)"
+          ],
+          "rules": [
+            "R-APIGW-REST"
+          ]
+        },
+        {
+          "edge": "external/internet->apigw_rest_api/serverlessrestapi",
+          "evidence": [
+            "ServerlessRestApi (AWS::Serverless::Api、implicit。EndpointConfiguration が無いので既定の EDGE)"
+          ],
+          "rules": [
+            "N-EXT-INTERNET"
+          ]
+        },
+        {
+          "edge": "lambda_function/weatherfunction->dynamodb_table/weatherdata",
+          "evidence": [
+            "LambdaFunction.Properties.Policies.DynamoDBCrudPolicy.TableName"
+          ],
+          "rules": [
+            "E-IAM"
+          ]
+        }
+      ],
+      "resources": [
+        {
+          "address": "DynamoDBTable",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "dynamodb_table/weatherdata",
+          "type": "AWS::Serverless::SimpleTable"
+        },
+        {
+          "address": "LambdaFunction",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "lambda_function/weatherfunction",
+          "type": "AWS::Serverless::Function"
+        },
+        {
+          "address": "ServerlessRestApi",
+          "class": "drawn",
+          "file": "template.yaml",
+          "node": "apigw_rest_api/serverlessrestapi",
+          "note": "SAM の暗黙のリソース（raw の implicit: true）",
+          "type": "AWS::Serverless::Api"
+        }
+      ],
+      "root": "fixtures/public/serverless-patterns/apigw-lambda-dynamodb/template.yaml"
+    }
+  },
+  "stage": "normalized"
+}

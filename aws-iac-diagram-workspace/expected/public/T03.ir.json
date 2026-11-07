@@ -1,0 +1,355 @@
+{
+  "description": "learn-terraform-rds。VPC モジュール（パブリックサブネット 3 つ・IGW）と、そのサブネットの DB サブネットグループに置いた公開設定の RDS（PostgreSQL）。",
+  "edges": [
+    {
+      "confidence": "derived",
+      "from": "subnet/vpc.public-0",
+      "id": "subnet/vpc.public-0->internet_gateway/education",
+      "kind": "route",
+      "label": "0.0.0.0/0",
+      "to": "internet_gateway/education"
+    },
+    {
+      "confidence": "derived",
+      "from": "subnet/vpc.public-1",
+      "id": "subnet/vpc.public-1->internet_gateway/education",
+      "kind": "route",
+      "label": "0.0.0.0/0",
+      "to": "internet_gateway/education"
+    },
+    {
+      "confidence": "derived",
+      "from": "subnet/vpc.public-2",
+      "id": "subnet/vpc.public-2->internet_gateway/education",
+      "kind": "route",
+      "label": "0.0.0.0/0",
+      "to": "internet_gateway/education"
+    }
+  ],
+  "evaluation": {
+    "assumptions": [
+      "変数はすべて既定値。db_password は sensitive で値を使わない（構成図に影響しない）"
+    ],
+    "tf": {
+      "var_files": [],
+      "vars": {}
+    }
+  },
+  "ir_version": "1.0",
+  "name": "t03",
+  "nodes": [
+    {
+      "category": "group",
+      "id": "availability_zone/education.az1",
+      "label": "AZ 1",
+      "name": "az1",
+      "note": "azs = data.aws_availability_zones.available.names なので AZ 名は静的に決まらない（$az 0）→ az1",
+      "parent": "vpc/education",
+      "synthetic": true,
+      "type": "availability_zone"
+    },
+    {
+      "category": "group",
+      "id": "availability_zone/education.az2",
+      "label": "AZ 2",
+      "name": "az2",
+      "note": "azs = data.aws_availability_zones.available.names なので AZ 名は静的に決まらない（$az 1）→ az2",
+      "parent": "vpc/education",
+      "synthetic": true,
+      "type": "availability_zone"
+    },
+    {
+      "category": "group",
+      "id": "availability_zone/education.az3",
+      "label": "AZ 3",
+      "name": "az3",
+      "note": "azs = data.aws_availability_zones.available.names なので AZ 名は静的に決まらない（$az 2）→ az3",
+      "parent": "vpc/education",
+      "synthetic": true,
+      "type": "availability_zone"
+    },
+    {
+      "category": "resource",
+      "id": "db_instance/education",
+      "label": "education",
+      "name": "education",
+      "note": "P-SPANS。DB サブネットグループ（M-DB-SUBNET-GROUP）の 3 つのパブリックサブネット。AZ が違うので parent は VPC。publicly_accessible = true だが、RDS の公開は R-SG の「公開」に入らないので internet の辺は作らない（WORKLOG の決定）",
+      "parent": "vpc/education",
+      "spans": [
+        "subnet/vpc.public-0",
+        "subnet/vpc.public-1",
+        "subnet/vpc.public-2"
+      ],
+      "type": "db_instance"
+    },
+    {
+      "category": "resource",
+      "id": "internet_gateway/education",
+      "label": "education",
+      "name": "education",
+      "note": "P-VPC",
+      "parent": "vpc/education",
+      "type": "internet_gateway"
+    },
+    {
+      "attrs": {
+        "access": "public",
+        "cidr": "10.0.4.0/24"
+      },
+      "category": "group",
+      "id": "subnet/vpc.public-0",
+      "label": "vpc.public-0",
+      "name": "vpc.public-0",
+      "note": "Name タグは \"education-public-<AZ 名>\" で AZ 名が決まらず評価できないので、名前属性の無い subnet は論理名（<モジュールのパス>.<リソース名>-<インデックス>）に落ちる（K-NAME の 3）",
+      "parent": "availability_zone/education.az1",
+      "type": "subnet"
+    },
+    {
+      "attrs": {
+        "access": "public",
+        "cidr": "10.0.5.0/24"
+      },
+      "category": "group",
+      "id": "subnet/vpc.public-1",
+      "label": "vpc.public-1",
+      "name": "vpc.public-1",
+      "parent": "availability_zone/education.az2",
+      "type": "subnet"
+    },
+    {
+      "attrs": {
+        "access": "public",
+        "cidr": "10.0.6.0/24"
+      },
+      "category": "group",
+      "id": "subnet/vpc.public-2",
+      "label": "vpc.public-2",
+      "name": "vpc.public-2",
+      "parent": "availability_zone/education.az3",
+      "type": "subnet"
+    },
+    {
+      "attrs": {
+        "cidr": "10.0.0.0/16"
+      },
+      "category": "group",
+      "id": "vpc/education",
+      "label": "education",
+      "name": "education",
+      "note": "モジュール vpc（terraform-aws-modules/vpc/aws 6.6.0。要約表で展開）の aws_vpc.this[0]。Name タグ = var.name",
+      "parent": null,
+      "type": "vpc"
+    }
+  ],
+  "notes": [
+    "VPC モジュールは要約表（terraform-aws-modules/vpc/aws 6.x）で展開した（via: module_summary）。private_subnets などを渡していないので、作られるのは VPC・パブリックサブネット 3・IGW・パブリックのルートテーブルとルート・関連付け 3・既定の 3 種だけ。",
+    "AZ は data.aws_availability_zones の names なので静的に決まらず、az1〜az3 の合成ノードにした。サブネットの Name タグも AZ 名を含むので評価できず、論理名 vpc.public-0〜2 になる。",
+    "RDS は publicly_accessible = true でパブリックサブネットに置かれ、SG は 0.0.0.0/0 から 5432 を許すので、実際にはインターネットから届く。しかし規則（R-SG の「公開」の範囲。WORKLOG と ir-schema 8 章の決定）では RDS を公開として扱わないので、external/internet のノードと辺は作らない。真の構成としてはインターネット → DB（TCP 5432）があり、規則表を見直す候補。",
+    "DB に向かう辺も DB から出る辺も無い（この構成に DB を使う計算リソースが無い）。"
+  ],
+  "sources": {
+    "tf": {
+      "edges": [
+        {
+          "edge": "subnet/vpc.public-0->internet_gateway/education",
+          "evidence": [
+            "module.vpc.aws_route.public_internet_gateway[0].gateway_id",
+            "module.vpc.aws_route_table_association.public[0].subnet_id"
+          ],
+          "rules": [
+            "R-ROUTE"
+          ]
+        },
+        {
+          "edge": "subnet/vpc.public-1->internet_gateway/education",
+          "evidence": [
+            "module.vpc.aws_route.public_internet_gateway[0].gateway_id",
+            "module.vpc.aws_route_table_association.public[1].subnet_id"
+          ],
+          "rules": [
+            "R-ROUTE"
+          ]
+        },
+        {
+          "edge": "subnet/vpc.public-2->internet_gateway/education",
+          "evidence": [
+            "module.vpc.aws_route.public_internet_gateway[0].gateway_id",
+            "module.vpc.aws_route_table_association.public[2].subnet_id"
+          ],
+          "rules": [
+            "R-ROUTE"
+          ]
+        }
+      ],
+      "resources": [
+        {
+          "address": "aws_db_instance.education",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "db_instance/education",
+          "type": "aws_db_instance"
+        },
+        {
+          "address": "aws_db_parameter_group.education",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "db_instance/education"
+          ],
+          "rule": "M-DB-PARAMETER-GROUP",
+          "type": "aws_db_parameter_group"
+        },
+        {
+          "address": "aws_db_subnet_group.education",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "db_instance/education"
+          ],
+          "rule": "M-DB-SUBNET-GROUP",
+          "type": "aws_db_subnet_group"
+        },
+        {
+          "address": "aws_security_group.rds",
+          "class": "hidden",
+          "file": "main.tf",
+          "note": "ingress は 0.0.0.0/0 からの TCP 5432 だけ。付いているのは RDS で、R-SG の「公開されている」（インターネット向けの LB・パブリック IP の EC2）に当たらないので辺を生まない",
+          "rule": "H-SG-NOEDGE",
+          "type": "aws_security_group"
+        },
+        {
+          "address": "data.aws_availability_zones.available",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-DATA",
+          "type": "aws_availability_zones"
+        },
+        {
+          "address": "module.vpc.aws_default_network_acl.this[0]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-VPC-DEFAULTS",
+          "type": "aws_default_network_acl",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_default_route_table.default[0]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-VPC-DEFAULTS",
+          "type": "aws_default_route_table",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_default_security_group.this[0]",
+          "class": "hidden",
+          "file": "main.tf",
+          "rule": "H-VPC-DEFAULTS",
+          "type": "aws_default_security_group",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_internet_gateway.this[0]",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "internet_gateway/education",
+          "type": "aws_internet_gateway",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_route.public_internet_gateway[0]",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "subnet/vpc.public-0->internet_gateway/education",
+            "subnet/vpc.public-1->internet_gateway/education",
+            "subnet/vpc.public-2->internet_gateway/education"
+          ],
+          "rule": "R-ROUTE",
+          "type": "aws_route",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_route_table.public[0]",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "subnet/vpc.public-0->internet_gateway/education",
+            "subnet/vpc.public-1->internet_gateway/education",
+            "subnet/vpc.public-2->internet_gateway/education"
+          ],
+          "rule": "R-ROUTE",
+          "type": "aws_route_table",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_route_table_association.public[0]",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "subnet/vpc.public-0->internet_gateway/education"
+          ],
+          "rule": "R-ROUTE",
+          "type": "aws_route_table_association",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_route_table_association.public[1]",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "subnet/vpc.public-1->internet_gateway/education"
+          ],
+          "rule": "R-ROUTE",
+          "type": "aws_route_table_association",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_route_table_association.public[2]",
+          "class": "merged_into",
+          "file": "main.tf",
+          "into": [
+            "subnet/vpc.public-2->internet_gateway/education"
+          ],
+          "rule": "R-ROUTE",
+          "type": "aws_route_table_association",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_subnet.public[0]",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "subnet/vpc.public-0",
+          "type": "aws_subnet",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_subnet.public[1]",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "subnet/vpc.public-1",
+          "type": "aws_subnet",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_subnet.public[2]",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "subnet/vpc.public-2",
+          "type": "aws_subnet",
+          "via": "module_summary"
+        },
+        {
+          "address": "module.vpc.aws_vpc.this[0]",
+          "class": "drawn",
+          "file": "main.tf",
+          "node": "vpc/education",
+          "type": "aws_vpc",
+          "via": "module_summary"
+        }
+      ],
+      "root": "fixtures/public/learn-terraform-rds"
+    }
+  },
+  "stage": "normalized"
+}
