@@ -4,15 +4,13 @@
 # ///
 """raw IR（アダプタの出力。docs/spec/ir-schema/ の 7章）を正規化し、normalized IR（同 1〜6章）を書く（フェーズ 3）。
 
-いまの範囲（手順 3a・3b）: 網羅分類（A6）、ノード（B3・K-NAME）、入れ子（P-*）と AZ のノード（N-AZ）。辺（A1〜A3）と、
-辺で決まる分類（R-*。関係リソース → 辺）・合成ノード（`external/internet`・`bedrock_model`）・サブネットの `attrs.access` は
-まだ作らない。そのため、関係リソースのある入力では、R-* の分類が「仮」（`into` が空）のまま残り、出力は検査
-（`validate_ir.py`。`into` は 1 つ以上）に通らない。**それを隠さず、終了コード 1 で知らせる**（出力のファイルは書く）。
+いまの範囲（手順 3a〜5）: 網羅分類（A6）、ノード（B3・K-NAME）、辺（関係リソース R-*、E-*、E-IAM、合成ノード）、入れ子（P-*）と
+AZ のノード（N-AZ）。辺のできない R-*（fallback が無いもの）は `H-RELATION-NOEDGE`、統合先の見つからない M-* は `H-NO-TARGET` に
+確定する（warn の診断を出す）ので、仮の分類（`into` が空）は残らない。残れば正規化の誤りなので、**それを隠さず、終了コード 1 で
+知らせる**（出力のファイルは書く）。
 
 終了コード 0 と `validate_ir.py` の関係: ここが見るのは網羅分類（入力の全リソースがちょうど 1 回ずつ）と仮の分類（`into` が空）だけで、
-スキーマと参照の整合の全部は `validate_ir.py` が見る。仮の分類があれば必ず 1 なので、関係リソース（R-*）のある入力は、辺の段階
-（手順 4）ができるまで 0 にならない。0 になるのは関係リソースも統合先の見つからない M-* も無い入力だけで、そのときも
-`validate_ir.py` に通ることまでは約束しない（辺・合成ノードがまだ無いため、正解 IR とも違う）。
+スキーマと参照の整合の全部は `validate_ir.py` が見る。0 のときも `validate_ir.py` に通ることまでは約束しない。
 
 使い方:
   uv run scripts/normalize_ir.py --input <raw IR の JSON> --out <normalized IR の JSON> [--name <名前>]
@@ -92,7 +90,7 @@ def main(argv: list[str] | None = None) -> int:
     for p in problems:
         print(f"問題: {p}", file=sys.stderr)
     if provisional:
-        print(f"仮のままの分類が {len(provisional)} 件あります（辺の段階が未実装のため。検査に通る IR ではありません）: "
+        print(f"仮のままの分類が {len(provisional)} 件あります（正規化の誤り。検査に通る IR ではありません）: "
               + ", ".join(provisional[:10]) + (" ほか" if len(provisional) > 10 else ""), file=sys.stderr)
     return 1 if problems or provisional else 0
 

@@ -115,10 +115,10 @@ class TfSgTest(unittest.TestCase):
         self.assertEqual(o.cls["aws_security_group.db"], ("merged_into", "R-SG", ("ecs_service/svc->db_instance/db",)))
         self.assertEqual(o.cls["aws_vpc_security_group_ingress_rule.app_from_alb"], ("merged_into", "R-SG", ("alb/alb->ecs_service/svc",)))
         self.assertEqual(o.cls["aws_lb_listener.http"][2], ("alb/alb->ecs_service/svc", "external/internet->alb/alb"))
-        # egress は辺にしない（別リソースは H-SG-EGRESS）。転送も internet の辺も無いリスナーは仮のまま
+        # egress は辺にしない（別リソースは H-SG-EGRESS）。転送も internet の辺も無いリスナーは H-RELATION-NOEDGE
         self.assertEqual(o.cls["aws_vpc_security_group_egress_rule.out"], ("hidden", "H-SG-EGRESS", ()))
         self.assertEqual(o.cls["aws_security_group_rule.db_egress"], ("hidden", "H-SG-EGRESS", ()))
-        self.assertEqual(o.cls["aws_lb_listener.admin"], ("merged_into", "R-LB-LISTENER", ()))
+        self.assertEqual(o.cls["aws_lb_listener.admin"], ("hidden", "H-RELATION-NOEDGE", ()))
         # 根拠は参照の `<from>.<path>` と、参照の無いもの（CIDR・internal）の `<address>.<位置> (<説明>)`
         ev = o.ev["external/internet->alb/alb"]["evidence"]
         self.assertIn("aws_security_group.alb.ingress[0].cidr_blocks (0.0.0.0/0)", ev)
@@ -352,7 +352,7 @@ class InternetTest(unittest.TestCase):
                 o = self.lb(fmt, lb_props, ingress)
                 self.assertEqual("external/internet->alb/alb" in o.edges, want, o.edges)
                 self.assertEqual(INTERNET in o.nodes, want)
-                if not want:  # 辺を生まない SG は H-SG-NOEDGE、リスナーは（転送も無いので）仮のまま
+                if not want:  # 辺を生まない SG は H-SG-NOEDGE、リスナーは（転送も無いので）H-RELATION-NOEDGE
                     self.assertEqual(o.cls["aws_security_group.s" if fmt == "tf" else "S"][1], "H-SG-NOEDGE")
                     self.assertIn("NORM-RELATION-NOEDGE", o.codes)
 

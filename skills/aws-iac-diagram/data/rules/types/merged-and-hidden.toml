@@ -245,6 +245,22 @@ applies = "辺を1本も生まないセキュリティグループ"
 reason = "辺を生む SG は R-SG で `merged_into` になる"
 
 [[type]]
+id = "H-RELATION-NOEDGE"
+class = "hidden"
+tf = []
+cfn = []
+applies = "辺を1本も生まず、規則に `fallback` の無い関係リソース（R-*。条件の無い Glue のトリガー、転送先の無いリスナーなど）"
+reason = "関係リソースは辺にするためだけの型なので、辺ができなければ描くものが無い。fallback のある R-* は fallback の H-*（R-SG → H-SG-NOEDGE など）。見落としに気づけるよう、診断 `NORM-RELATION-NOEDGE`（warn）も出す"
+
+[[type]]
+id = "H-NO-TARGET"
+class = "hidden"
+tf = []
+cfn = []
+applies = "統合先のノードが見つからない統合する型（M-*）"
+reason = "統合先の付属品で、単独で描く意味が無い（統合先が描かれていない）。見落としに気づけるよう、診断 `NORM-MERGE-TARGET`（warn）も出す"
+
+[[type]]
 id = "H-SG-EGRESS"
 class = "hidden"
 tf = ["aws_vpc_security_group_egress_rule", "aws_security_group_rule"]

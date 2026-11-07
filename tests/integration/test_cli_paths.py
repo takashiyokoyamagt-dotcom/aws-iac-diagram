@@ -97,7 +97,7 @@ class JapanesePathTest(unittest.TestCase):
             outs.append(json.loads(res.stdout))
         self.assertTrue(Path(outs[1][0]).resolve().is_relative_to(skill.resolve()), outs[1][0])  # 複製の中の規則表を読んでいる
         self.assertEqual(outs[0][1:], outs[1][1:])
-        self.assertEqual(len(outs[0][1]), 75)
+        self.assertEqual(len(outs[0][1]), 77)
 
     def test_validate_ir_with_a_broken_rules_table_exits_2(self):
         skill = self.dir / "aws-iac-diagram"
