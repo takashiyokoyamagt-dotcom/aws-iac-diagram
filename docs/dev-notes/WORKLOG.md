@@ -1537,3 +1537,10 @@ tests/ 平ら 10 ファイル、最大 2,381 行（281 件）            tests/ 
 - 見送り（主セットに無い）: ACM の API のカスタムドメインの行、WebSocket API のオーソライザー、CloudFront のログ用バケット（`Logging.Bucket`）を辺にするか（いまは規則に当たらず NORM-UNUSED-REF の候補。手順 4 で件数を見る）。
 - 正解 IR を書く前の確認事項（レビューから。推奨で進め、書き手には「規則表に従い、規則に無い真の関係は note に書く」と伝える）: T16 の `module.eks.module.kms` は黒箱の `module` ノードとして出る。C01 のカスタムリソースの裏の Lambda（`CopyFunction`）とレイヤーは描かれる。C01 の Route 53 のノードは 2 つ（apex と www）。T16 のノードの SG はローンチテンプレートにだけ付くので、R-SG の辺の起点は 2 段の統合先（クラスタ）になる。T11・T11s の SFN の定義は `file()`・`AWS::Include` で読めない（草案 8 章の 2。測ってから判断）。
 - 結果: 単体テスト 531 件 OK、golden 101/101、`render_rules.py --check` OK、正解 IR 5 つの `validate_ir.py` は前と同じ OK。
+
+## 2026-11-07 フェーズ3 の手順3（の一部）: 正解 IR との比較ツール `compare_ir.py`
+
+- 設計草案の 7.1 のとおり `aws-iac-diagram-workspace/tools/compare_ir.py` を作った（手順 3 の成果物のうち、正規化の本体と独立に作れるもの）。CRITERIA の 1.0 の id の対応づけ（`drawn` の address、O の id 順で最初の 1 つ、最初の対応先が使用済みなら id のまま）、N・E・P・C・付随・名前・向きを無視した E（参考）、マイクロ平均、入力ごとの下限（母数 10 未満は誤り 1 件以内）、X1〜X3（X2 と X3 は重ねない）、`unknown`。基準値は `THRESHOLDS` の 1 か所で、CRITERIA の 1.2 の表の数字と同じことをテストが読み比べる。
+- 解釈として決めたこと（仕様の文がどちらにも読めたもの）: ① P は親の無いノードも `(id, parent, None)` の 1 組として数える（最上位に置くのも入れ子の判断）。② C の `merged_into` は `into` と `rule` の両方を比べる（規則の取り違えも分類の誤り）。③ 適合率の |O| は重なりも数える（1 つのリソースを 2 つのノードに分けた出力の余り）。④ custom（1.1）でも `unknown` は不合格。
+- 第三者レビュー 1 回: must-fix 2（同じ名前の出力ファイルが集計で上書きされる、Windows でリダイレクトすると cp932 で落ちる）、should-fix 4（IR でない入力の終了コード、P の解釈、C の rule、テストが見逃す退行 8 種）、nit 4 → すべて直し、変異で見逃した 8 種をテストで捕まえるようにした（`tests/unit/validate/test_compare_ir.py` 24 件）。
+- まだ正規化の出力が無いので、正解 IR どうし（自分自身）で 1.0 になることだけを確かめた。手順 3 の本体（`normalize/`）は次。
