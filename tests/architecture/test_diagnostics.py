@@ -1,8 +1,8 @@
 """診断コードの一覧（core/diagnostics.py）のテスト。
 
 - 一覧の形（コードの形、接頭辞、level、説明、並び順）。
-- 一覧と docs/spec/ir-schema/ の 7.5 が、TF と CFN の両方で同じ（コードが足りない・余っていると失敗）。
-- アダプタを実際に動かして出た (code, level) が、一覧にある（level の組み合わせも）。
+- 一覧と docs/spec/ir-schema/ の 7.5（TF と CFN）・10 章（正規化の NORM-）が同じ（コードが足りない・余っていると失敗）。
+- アダプタと正規化を実際に動かして出た (code, level) が、一覧にある（level の組み合わせも）。
 - アダプタのコードにある文字列と一覧の照合（足りない・余っている）は tests/architecture/test_diagnostics_registry.py の DiagnosticRegistryRuleTest。
 """
 
@@ -22,10 +22,14 @@ from support.paths import ROOT, SCRIPTS, WS
 from aws_iac_diagram.adapters.cloudformation import build as cfn_build  # noqa: E402
 from aws_iac_diagram.adapters.terraform import build as tf_build  # noqa: E402
 from aws_iac_diagram.core import diagnostics as D  # noqa: E402
+from aws_iac_diagram.normalize import build as normalize_build  # noqa: E402
+from support.custom_inputs import NAMES, custom_raw  # noqa: E402
 
 
 # 7 章（アダプタの出力）のファイル。7.5 の診断コードの一覧はここにある（章・節の番号の決まりは docs/spec/ir-schema/README.md）
 SCHEMA_DOC = ROOT / "docs" / "spec" / "ir-schema" / "07-raw-output.md"
+# 10 章（正規化の診断）。NORM- の一覧はここにある
+NORM_DOC = ROOT / "docs" / "spec" / "ir-schema" / "10-normalize-diagnostics.md"
 
 # 子テンプレートが YAML として読めない／親が読めない子と、見つからない子を持つ入力（CFN-NESTED-UNREADABLE の error と warn）
 BAD_CHILD = "Resources: [" + chr(10) + "  a: b" + chr(10)
@@ -56,6 +60,16 @@ def doc_section() -> str:
     return doc[a:] if nxt < 0 else doc[a:nxt]
 
 
+def norm_section() -> str:
+    doc = NORM_DOC.read_text(encoding="utf-8")
+    return doc[doc.index("## 10. 正規化の診断"):]
+
+
+def section_for(prefix: str) -> str:
+    """接頭辞のコードの一覧がある節（TF・CFN は 7.5、NORM は 10 章）。"""
+    return norm_section() if prefix == "NORM" else doc_section()
+
+
 class RegistryShapeTest(unittest.TestCase):
     def test_every_row_is_well_formed(self):
         self.assertTrue(D.DIAGNOSTICS)
@@ -69,13 +83,15 @@ class RegistryShapeTest(unittest.TestCase):
                 self.assertTrue(set(d.levels) <= set(D.LEVELS))
                 self.assertEqual(list(d.levels), sorted(set(d.levels), key=D.LEVELS.index), "levels は重い順（error＞warn＞info）で重複なし")
                 self.assertTrue(d.description.strip())
-                self.assertIn(d.adapter, ("terraform", "cloudformation"))
+                self.assertIn(d.adapter, ("terraform", "cloudformation", "normalize"))
 
     def test_counts_and_order(self):
-        # 数は文書（ir-schema の 7.5）と一緒に直す。CFN は接頭辞 CFN-、TF は TF-。それぞれアルファベット順
-        self.assertEqual((len(D.codes("cloudformation")), len(D.codes("terraform")), len(D.DIAGNOSTICS)), (19, 43, 62))
-        self.assertEqual(D.codes(), D.codes("cloudformation") + D.codes("terraform"))
-        for adapter in ("cloudformation", "terraform"):
+        # 数は文書（ir-schema の 7.5 と 10 章）と一緒に直す。CFN は接頭辞 CFN-、TF は TF-、正規化は NORM-。それぞれアルファベット順
+        self.assertEqual((len(D.codes("cloudformation")), len(D.codes("terraform")), len(D.codes("normalize")), len(D.DIAGNOSTICS)),
+                         (19, 43, 8, 70))
+        self.assertEqual(D.codes(), D.codes("cloudformation") + D.codes("normalize") + D.codes("terraform"))
+        self.assertTrue(all(c.startswith("NORM-") for c in D.codes("normalize")))
+        for adapter in ("cloudformation", "terraform", "normalize"):
             self.assertEqual(D.codes(adapter), sorted(D.codes(adapter)))
         self.assertTrue(all(c.startswith("CFN-") for c in D.codes("cloudformation")))
         self.assertTrue(all(c.startswith("TF-") for c in D.codes("terraform")))
@@ -88,7 +104,7 @@ class RegistryShapeTest(unittest.TestCase):
         self.assertIn("TF-UNEVALUATED", D.DIAGNOSTICS)
 
     def test_allowed_prefixes(self):
-        self.assertEqual(D.ALLOWED_PREFIXES, ("TF", "CFN"))
+        self.assertEqual(D.ALLOWED_PREFIXES, ("TF", "CFN", "NORM"))
         self.assertEqual(set(D.ALLOWED_PREFIXES), set(D.PREFIXES))
 
     def test_lookup(self):
@@ -104,16 +120,17 @@ class RegistryShapeTest(unittest.TestCase):
 
 
 class DiagnosticCodesTest(unittest.TestCase):
-    """一覧と ir-schema の 7.5 の診断コードの一覧が、TF と CFN の両方で食い違わない。"""
+    """一覧と ir-schema の診断コードの一覧（TF・CFN は 7.5、正規化は 10 章）が食い違わない。"""
 
     def test_registry_matches_the_schema_doc(self):
-        section = doc_section()
         for prefix, adapter in D.PREFIXES.items():
+            section = section_for(prefix)
             with self.subTest(prefix):
                 in_doc = set(re.findall(rf"`({prefix}-[A-Z0-9]+(?:-[A-Z0-9]+)*)`", section))
                 in_registry = set(D.codes(adapter))
-                self.assertEqual(sorted(in_registry - in_doc), [], "一覧にあって ir-schema の 7.5 に無いコード")
-                self.assertEqual(sorted(in_doc - in_registry), [], "ir-schema の 7.5 にあって一覧に無いコード")
+                self.assertTrue(in_registry)
+                self.assertEqual(sorted(in_registry - in_doc), [], "一覧にあって ir-schema（7.5・10 章）に無いコード")
+                self.assertEqual(sorted(in_doc - in_registry), [], "ir-schema（7.5・10 章）にあって一覧に無いコード")
         # 見出しの 7.6 は無い（フェーズ2 の間だけの注記だった）
         self.assertNotIn("### 7.6", SCHEMA_DOC.read_text(encoding="utf-8"))
 
@@ -121,13 +138,16 @@ class DiagnosticCodesTest(unittest.TestCase):
         section = doc_section()
         self.assertIn("TF アダプタの `code` の一覧（43 個", section)
         self.assertIn("CFN アダプタの `code` の一覧（19 個", section)
+        self.assertIn("正規化の `code` の一覧（8 個", norm_section())
 
     LEVEL_WORDS = "(?:error|warn|info)"
 
-    def doc_level_problems(self, section: str) -> list[str]:
-        """一覧の各コードについて、文書に「`コード`（level。説明）」の形で書いた level が、一覧の levels と同じか（TF と CFN の両方）。"""
+    def doc_level_problems(self, section: str, prefixes: tuple[str, ...] = ("TF", "CFN")) -> list[str]:
+        """一覧の各コードについて、文書に「`コード`（level。説明）」の形で書いた level が、一覧の levels と同じか。"""
         problems = []
         for code, d in D.DIAGNOSTICS.items():
+            if code.split("-", 1)[0] not in prefixes:
+                continue
             m = re.search(rf"`{code}`（({self.LEVEL_WORDS}(?:／{self.LEVEL_WORDS})*)[。）]", section)
             if m is None:
                 problems.append(f"{code}: 文書に「`{code}`（level。…）」の形の項目が無い")
@@ -139,6 +159,10 @@ class DiagnosticCodesTest(unittest.TestCase):
 
     def test_doc_names_the_levels_of_all_codes(self):
         self.assertEqual(self.doc_level_problems(doc_section()), [])
+        self.assertEqual(self.doc_level_problems(norm_section(), ("NORM",)), [])
+        # 変異: 10 章の level を変えると落ちる
+        broken = norm_section().replace("`NORM-PLACEMENT`（warn", "`NORM-PLACEMENT`（info")
+        self.assertEqual([p.split(":")[0] for p in self.doc_level_problems(broken, ("NORM",))], ["NORM-PLACEMENT"])
 
     def test_mutation_doc_levels_that_differ_fail(self):
         section = doc_section()
@@ -162,15 +186,16 @@ class DiagnosticCodesTest(unittest.TestCase):
 
 
 class EmittedLevelsTest(unittest.TestCase):
-    """アダプタを実際に動かして出た (code, level) は、すべて一覧にある（コードと、その level の組み合わせ）。"""
+    """アダプタと正規化を実際に動かして出た (code, level) は、すべて一覧にある（コードと、その level の組み合わせ）。"""
 
     def assert_known(self, raw: dict, where: str) -> set[tuple[str, str]]:
         seen = set()
+        layer = "normalize" if raw.get("stage") == "normalized" else "terraform" if raw["format"] == "tf" else "cloudformation"
         for d in raw["diagnostics"]:
             entry = D.lookup(d["code"])
             self.assertIsNotNone(entry, f"{where}: {d['code']} が一覧に無い")
             self.assertIn(d["level"], entry.levels, f"{where}: {d['code']} を {d['level']} で出した（一覧は {entry.levels}）")
-            self.assertEqual(entry.adapter, "terraform" if raw["format"] == "tf" else "cloudformation", where)
+            self.assertEqual(entry.adapter, layer, where)
             seen.add((d["code"], d["level"]))
         return seen
 
@@ -192,6 +217,15 @@ class EmittedLevelsTest(unittest.TestCase):
         self.assertTrue(any(c.startswith("TF-") for c, _ in seen))
         self.assertTrue(any(c.startswith("CFN-") for c, _ in seen))
         self.assertGreater(len(seen), 8)
+
+    def test_normalized_fixtures(self):
+        # 正規化の出力の診断（NORM-）も一覧にある。自作の fixture では NORM-MERGE-DEPENDS-ON（rag の TF）が出る
+        seen: set[tuple[str, str]] = set()
+        for name in NAMES:
+            for fmt in ("tf", "cfn"):
+                ir = normalize_build.normalize(custom_raw(name, fmt), None, name)
+                seen |= self.assert_known(ir, f"normalized/{name}.{fmt}")
+        self.assertIn(("NORM-MERGE-DEPENDS-ON", "info"), seen)
 
     def test_levels_that_the_fixtures_do_not_reach(self):
         # error など、fixture では出ない (code, level) を、小さな入力で出す

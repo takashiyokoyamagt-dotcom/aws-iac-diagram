@@ -1553,3 +1553,11 @@ tests/ 平ら 10 ファイル、最大 2,381 行（281 件）            tests/ 
 - 主セット 12 入力: 落ちない、unknown 0、`NORM-MERGE-TARGET` 0（前は C02 6・T16 4）。
 - 残り（3b で決める）: fallback の無い R-*（R-LB-LISTENER など）で辺ができなかったときの分類、統合先の無い M-* の規則 ID（H-NO-TARGET 案。規則表の変更になる）。
 - 単体テスト 611 件、golden 101/101。
+
+## 2026-11-07 フェーズ3 の手順3b: 入れ子・AZ ノード・入口 normalize_ir.py・NORM- の登録
+
+- 実装はサブエージェント、レビューは別のサブエージェント（1 回）。`normalize/nesting.py`（P-VPC／P-SUBNET／P-SPANS／P-REGIONAL、N-AZ、共通の祖先、黒箱の入力、`NORM-PLACEMENT`・`NORM-AZ-UNKNOWN`）、`build.check()`、入口 `scripts/normalize_ir.py`（0 = 問題なし／1 = 書いたが網羅分類の問題か仮の分類がある／2 = 読めない・規則表の誤り・書けない）、SKILL.md の入口の行、`NORM-` 8 コードを `core/diagnostics.py` と ir-schema 10 章に登録。
+- 置き場所の手がかりは「リソースそのものを指す active な参照」（TF の `id`、CFN の Ref・SubnetId・VpcId）と、そのノードに統合された M-*。Lambda は `vpc_config`／`VpcConfig` の参照だけ、EKS はクラスタ自身の `vpc_config.subnet_ids` だけ。サブネットの `attrs.access` は R-ROUTE と一緒に手順 4。
+- 自作 10 入力: AZ ノードを含む N と P が 1.0（internet・bedrock_model は手順 4・5）。主セット 12 入力: 落ちない、`NORM-PLACEMENT`・`NORM-AZ-UNKNOWN` 0、T03 の RDS と T16 の EKS は 3 サブネットの spans・parent は VPC。
+- レビューの指摘: 止めるもの 2（環境変数でサブネットを渡す VPC 外の Lambda が入れ子になる、`--out` に書けないと終了コード 1）、should-fix 3、nit 5 → すべて直した。`--allow-provisional` は削除（スキーマに通らない IR で 0 を返すため）。辺ができるまで R-* のある入力は終了コード 1。
+- 単体テスト 628 件、golden 101/101。

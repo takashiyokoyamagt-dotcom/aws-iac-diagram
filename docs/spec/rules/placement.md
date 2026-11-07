@@ -46,6 +46,8 @@
 <!-- /rules-table -->
 
 - Lambda を VPC に入れる設定（`vpc_config`）があれば `P-SUBNET`／`P-SPANS` に従う（fixture には無い）。
+- 実装（フェーズ 3 の手順 3b。`scripts/aws_iac_diagram/normalize/nesting.py`）の決め方: 置き場所の手がかりは、ノードのリソースと、そのノードだけに統合された M-*（DB サブネットグループ、CFN の `VPCGatewayAttachment`）から、描くサブネット・VPC への参照（DependsOn を除く `active` の参照で、リソースそのものを指すもの: TF の `id`、CFN の `Ref`・`SubnetId`・`VpcId`。CIDR や AZ を取るだけの参照は数えない）。属性名では選ばない（黒箱のモジュールの入力の名前はモジュールごとに違うため。ir-schema の 2 章）。`P-REGIONAL` の型（Lambda を除く）は参照があっても `parent: null`。Lambda は VPC の設定（TF の `vpc_config`、CFN・SAM の `Properties.VpcConfig`）の位置の参照だけを使う（環境変数にサブネットの id を渡しても VPC には入らない）。EKS のクラスタは、`P-SPANS` の文のとおりクラスタ自身の `vpc_config.subnet_ids`／`ResourcesVpcConfig.SubnetIds` の位置の参照だけを使い、統合したノードグループ（M-EKS-PARTS）のサブネットは使わない。統合先が 2 つ以上ある M-*（共有の DB サブネットグループなど）は、統合先のすべての手がかりになる。spans のサブネットに共通の祖先が無い（VPC が違う）ときは、spans を付けて `parent: null`（`NORM-PLACEMENT`）。サブネットが VPC を 2 つ以上指すときも `parent: null`（`NORM-PLACEMENT`）。サブネットを指さず VPC だけを指すものは `parent` を VPC（`P-VPC`）。決まらないときの診断は ir-schema の 10 章（`NORM-PLACEMENT`・`NORM-AZ-UNKNOWN`）。
+- サブネットの `attrs.access` は、まだ付けない（ルートテーブル・関連付け・ルートを読む R-ROUTE の処理が要るので、辺の段階（手順 4）で R-ROUTE と一緒に作る）。
 
 ## attrs の取り方
 

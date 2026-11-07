@@ -29,10 +29,11 @@ IR には2つの段階がある。
 | [7. アダプタの出力（`stage: "raw"`）](07-raw-output.md) | `07-raw-output.md` | アダプタの出力 raw IR（`stage: "raw"`）: 7.1 全体の構造、7.2 リソース、7.3 参照、7.4 入力ごとの扱い、7.5 診断（コードの一覧） |
 | [8. 決めなかったこと（後のフェーズで決める）](08-undecided.md) | `08-undecided.md` | 決めなかったこと（後のフェーズで決める） |
 | [9. v0.1 からの変更点（2026-10-17）](09-changes-from-v0.1.md) | `09-changes-from-v0.1.md` | v0.1 草案からの変更点（2026-10-17） |
+| [10. 正規化の診断（`NORM-…`）](10-normalize-diagnostics.md) | `10-normalize-diagnostics.md` | 正規化が normalized IR に書く診断（コードの一覧） |
 
 ## 章・節の番号は変わらない識別子です
 
-コードのコメント・docstring、テスト、文書が「ir-schema の 7.2」「7.5」「2章」のように、**章・節の番号で**この仕様を指しています（診断コードの一覧との照合は、`07-raw-output.md` の `### 7.5 診断` の見出しを探します。`tests/architecture/test_diagnostics.py`）。そのため:
+コードのコメント・docstring、テスト、文書が「ir-schema の 7.2」「7.5」「2章」のように、**章・節の番号で**この仕様を指しています（診断コードの一覧との照合は、`07-raw-output.md` の `### 7.5 診断` と `10-normalize-diagnostics.md` の `## 10.` の見出しを探します。`tests/architecture/test_diagnostics.py`）。そのため:
 
 - 番号を詰めない・振り直さない。章や節を足すときは、最後に足す。
 - 章のファイルの名前は `NN-<名前>.md`（`NN` は章の番号）。ファイルを分け直すときも、見出しの番号は変えない。

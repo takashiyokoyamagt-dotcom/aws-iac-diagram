@@ -45,7 +45,7 @@ aws-iac-diagram/
 | `adapters/terraform` | Terraform アダプタの中身（下の「Terraform アダプタの中身」）。入口は `scripts/adapt_tf.py` | 26 ファイル（`__init__.py` を除く） |
 | `adapters/cloudformation` | CloudFormation アダプタの中身（下の「CloudFormation アダプタの中身」）。入口は `scripts/adapt_cfn.py` | 15 ファイル（同上） |
 | `adapters`（`registry.py`） | 入力の形式 → アダプタのパッケージ名の表。形式を見分けて振り分ける処理は、入口 `diagram.py` を作るときに足す | 名前の表だけ |
-| `normalize` | 正規化（型別の表、A1〜A3、AZ の挿入、SG を辺に変換）。下の「正規化の中身」 | フェーズ 3 の手順 3a まで（段階 0〜2: 読み込み・仮分類・ノード）。辺・入れ子・入口 `normalize_ir.py` はまだ。6 ファイル（`__init__.py` を除く） |
+| `normalize` | 正規化（型別の表、A1〜A3、AZ の挿入、SG を辺に変換）。下の「正規化の中身」 | フェーズ 3 の手順 3b まで（段階 0〜2 と 4: 読み込み・仮分類・ノード・入れ子と AZ のノード）。入口は `scripts/normalize_ir.py`。辺（段階 3）はまだ。7 ファイル（`__init__.py` を除く） |
 | `layout` | 配置（枠と階層のグリッド計算、候補のスコア） | 空。フェーズ 4 |
 | `emit` | 出力（`drawio.py`・`mermaid.py`・`png.py`） | 空。フェーズ 4・5 |
 | `validate` | 検証（IR、`.drawio` の重なり・貫通） | 空。今の IR の検査は `scripts/validate_ir.py` にある（中身を移すのはフェーズ 4・5） |
@@ -135,7 +135,7 @@ aws-iac-diagram/
 
 ### 正規化の中身（`aws_iac_diagram/normalize/`）
 
-raw IR → normalized IR。段階は設計草案（`docs/dev-notes/phase3-design-draft.md`）の 4.1。規則表は `core/rules.py` で読む（表を自分では読まない）。いまは段階 0〜2 だけ（手順 3a）で、辺（段階 3）・入れ子（段階 4）・合成ノードと入口 `normalize_ir.py` は後の手順で足す。
+raw IR → normalized IR。段階は設計草案（`docs/dev-notes/phase3-design-draft.md`）の 4.1。規則表は `core/rules.py` で読む（表を自分では読まない）。いまは段階 0〜2 と 4（手順 3a・3b）。辺（段階 3）と、辺で決まる合成ノード（`external/internet`・`bedrock_model`）・サブネットの `attrs.access` は手順 4 以降で足す。入口 `scripts/normalize_ir.py` は引数の処理・検査・終了コードだけ。
 
 | ファイル | 中身 |
 |---|---|
@@ -144,7 +144,8 @@ raw IR → normalized IR。段階は設計草案（`docs/dev-notes/phase3-design
 | `merge.py` | M-* の統合先の探し方（主の属性の参照、参照、名前の一致、H-UTILITY の素通り、DependsOn の最後の手） |
 | `names.py` | B3 の名前と K-NAME の id、id の重なりの解決 |
 | `nodes.py` | 段階 2。ノード（id・type・category・name・label・attrs・multiplicity） |
-| `build.py` | `normalize(raw, rules, name)`。段階の組み立てと出力の形 |
+| `nesting.py` | 段階 4。入れ子（P-VPC・P-SUBNET・P-SPANS・P-REGIONAL の `parent`・`spans`）と AZ のノード（N-AZ） |
+| `build.py` | `normalize(raw, rules, name)`。段階の組み立てと出力の形。入口は `scripts/normalize_ir.py` |
 
 - **normalize の中の順序**（`tests/support/arch_layers.py` の `NORMALIZE_GROUPS`・`INTRA_NORMALIZE`。テストは `tests/architecture/test_normalize_order.py`。下の表と同じで、食い違うとテストが落ちる）: アダプタと同じ決まり。後の段階が前の段階を import し、逆は不可。表に無いファイルを足すと失敗する（グループを決める）。今の実際の import と同じ最小の辺だけを書いてある。
 
@@ -154,7 +155,8 @@ raw IR → normalized IR。段階は設計草案（`docs/dev-notes/phase3-design
 | `view` | `view` | （なし） |
 | `classify` | `classify`・`merge`・`names` | `view` |
 | `nodes` | `nodes` | `view` `classify` |
-| `build` | `build` | `view` `classify` `nodes` |
+| `nesting` | `nesting` | `view` `classify` |
+| `build` | `build` | `view` `classify` `nodes` `nesting` |
 <!-- normalize-order:end -->
 
 ## 3. 依存の向き
@@ -235,7 +237,7 @@ raw IR → normalized IR。段階は設計草案（`docs/dev-notes/phase3-design
 
 ## 4. 1 ファイルの大きさ
 
-`scripts/` の下の `.py` は、800 行を超えたら注意（テストが印字するだけ）、1,500 行を超えたら失敗です。超えるファイルは、`tests/support/arch_size.py` の `EXEMPT` に日付・理由・外す手順を付けて書けます（決めた日の行数を超えて増えたら失敗、1,500 行以内になった免除は消さないと失敗）が、**今の `EXEMPT` は空です**（空であることも `test_no_exemptions_remain` が確かめる）。800 行を超えるファイルは無く、最大は `adapters/terraform/evaluator/functions.py` の 763 行です（`scripts/` の `.py` は 76 ファイル）。
+`scripts/` の下の `.py` は、800 行を超えたら注意（テストが印字するだけ）、1,500 行を超えたら失敗です。超えるファイルは、`tests/support/arch_size.py` の `EXEMPT` に日付・理由・外す手順を付けて書けます（決めた日の行数を超えて増えたら失敗、1,500 行以内になった免除は消さないと失敗）が、**今の `EXEMPT` は空です**（空であることも `test_no_exemptions_remain` が確かめる）。800 行を超えるファイルは無く、最大は `adapters/terraform/evaluator/functions.py` の 763 行です（`scripts/` の `.py` は 78 ファイル）。
 
 ## 5. 出力の固定（golden）
 

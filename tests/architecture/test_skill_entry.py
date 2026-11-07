@@ -70,7 +70,7 @@ class SkillEntryTest(unittest.TestCase):
 
     def test_real_skill_md(self):
         text = SKILL_MD.read_text(encoding="utf-8")
-        self.assertEqual(entry_scripts(), {"doctor.py", "adapt_tf.py", "adapt_cfn.py", "validate_ir.py", "find_aws_icon.py"})
+        self.assertEqual(entry_scripts(), {"doctor.py", "adapt_tf.py", "adapt_cfn.py", "normalize_ir.py", "validate_ir.py", "find_aws_icon.py"})
         self.assertEqual(problems_in(text, entry_scripts(), self.sources()), [])
         self.assertGreaterEqual(len(commands(text)), 5)  # 空振りの防止
 

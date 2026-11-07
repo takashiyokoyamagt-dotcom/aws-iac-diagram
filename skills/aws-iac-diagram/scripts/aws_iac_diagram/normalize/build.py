@@ -1,11 +1,12 @@
 """正規化（raw IR → normalized IR）の段階の組み立て。設計草案（docs/dev-notes/phase3-design-draft.md）の 4.1 の段階:
 
   0 読み込み（view.Index）→ 1 仮分類（classify.classify）→ 2 ノード（nodes.build_nodes）→ 確定（classify.finalize）
+  → 4 入れ子（nesting.place。AZ のノードを含む）
 
-**いまは段階 0〜2 だけ（フェーズ 3 の手順 3a）。** 辺（段階 3）・入れ子（段階 4）・合成ノードはまだ作らないので、出力は
-`edges` が空、ノードの `parent` が None、R-* の分類が仮（`into` が空）で、`validate_ir.py` の検査はまだ通らない（R-* の `into` は
-1 つ以上が要る）。形は normalized IR と同じ（`nodes`・`edges`・`sources.<形式>.resources`・`evaluation`・`diagnostics`）なので、
-正解 IR との比較（`aws-iac-diagram-workspace/tools/compare_ir.py`）には使える。
+**いまは段階 0〜2 と 4（フェーズ 3 の手順 3a・3b）。** 辺（段階 3）と、辺で決まる合成ノード（`external/internet`・`bedrock_model`）・
+サブネットの `attrs.access` はまだ作らないので、出力は `edges` が空、R-* の分類が仮（`into` が空）で、`validate_ir.py` の検査はまだ
+通らない（R-* の `into` は 1 つ以上が要る）。形は normalized IR と同じ（`nodes`・`edges`・`sources.<形式>.resources`・`evaluation`・
+`diagnostics`）なので、正解 IR との比較（`aws-iac-diagram-workspace/tools/compare_ir.py`）には使える。
 
 決定論（C5）: 出力の配列は `core/ir_norm.sort_lists` で決まった順にする（書き出しは `canonical_dump`）。集合の走査順に頼らない。
 ここは標準ライブラリと core と normalize の各段階だけを使う。
@@ -17,7 +18,7 @@ import re
 from aws_iac_diagram.core import ir_norm
 from aws_iac_diagram.core import rules as rules_mod
 from aws_iac_diagram.core.rules import Rules
-from aws_iac_diagram.normalize import classify, nodes as nodes_mod
+from aws_iac_diagram.normalize import classify, nesting, nodes as nodes_mod
 from aws_iac_diagram.normalize.view import Index
 
 IR_VERSION = "1.0"
@@ -60,6 +61,8 @@ def normalize(raw: dict, rules: Rules | None = None, name: str | None = None) ->
     node_by_address, diags = nodes_mod.build_nodes(index, decisions, rules)
     fin = classify.finalize(decisions, index, node_by_address, rules, edges=None)
     diags += fin.diagnostics
+    placed, place_diags = nesting.place(index, fin.decisions, node_by_address, rules)
+    diags += place_diags
     resources = []
     for res in index.resources:
         d = fin.decisions[res.address]
@@ -69,15 +72,38 @@ def normalize(raw: dict, rules: Rules | None = None, name: str | None = None) ->
         if res.via in ("module_summary", "module_blackbox"):
             entry["via"] = res.via
         resources.append(entry)
-    unique_nodes = {n["id"]: n for n in node_by_address.values()}
     ir = {
         "ir_version": IR_VERSION,
         "stage": "normalized",
         "name": name or default_name(index.root),
         "evaluation": evaluation_of(raw),
-        "nodes": list(unique_nodes.values()),
+        "nodes": placed,
         "edges": [],
         "sources": {index.fmt: {"root": index.root, "resources": resources, "edges": []}},
         "diagnostics": sorted(diags, key=lambda x: (x.get("address", ""), x["code"], x["message"])),
     }
     return ir_norm.sort_lists(ir)
+
+
+def check(raw: dict, ir: dict) -> tuple[list[str], list[str]]:
+    """正規化の出力の自分での検査（設計草案の 4.1 の段階 6 の一部）。(問題, 仮のままの分類) を返す。
+
+    問題: 入力の全リソースが `sources.<形式>.resources` にちょうど 1 回ずつ現れない（網羅分類の漏れ・重複。X4）。
+    仮のままの分類: `merged_into` で `into` が空のもの（R-* は辺の段階まで仮。統合先の見つからない M-* も）。スキーマ
+    （`into` は 1 つ以上）に合わないので、検査に通る IR ではない。"""
+    fmt = raw["format"]
+    want = [r["address"] for r in raw.get("resources", [])]
+    got = [r["address"] for r in ir["sources"][fmt]["resources"]]
+    problems = []
+    missing = sorted(set(want) - set(got))
+    extra = sorted(set(got) - set(want))
+    dup = sorted({a for a in got if got.count(a) > 1})
+    if missing:
+        problems.append(f"網羅分類に無い入力のリソース: {', '.join(missing)}")
+    if extra:
+        problems.append(f"入力に無いリソースが網羅分類にある: {', '.join(extra)}")
+    if dup:
+        problems.append(f"網羅分類に 2 回以上あるリソース: {', '.join(dup)}")
+    provisional = [f"{r['address']}（{r['rule']}）" for r in ir["sources"][fmt]["resources"]
+                   if r["class"] == "merged_into" and not r.get("into")]
+    return problems, provisional

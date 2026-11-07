@@ -36,17 +36,18 @@ class CodeSite:
 
 
 def diagnostic_scan_files(scripts: Path) -> list[Path]:
-    """診断コードを書くコードの範囲: アダプタの入口（scripts/adapt_*.py）と aws_iac_diagram/adapters/ の下のすべて。
-    正規化の NORM-…（フェーズ 3 以降）は、その層が育つとき、この範囲を広げ、接頭辞を ALLOWED_PREFIXES に足し、一覧に足す。
+    """診断コードを書くコードの範囲: アダプタの入口（scripts/adapt_*.py）と aws_iac_diagram/adapters/ の下のすべて、正規化の入口
+    （scripts/normalize_ir.py）と aws_iac_diagram/normalize/ の下のすべて（フェーズ 3 の手順 3b で広げた）。
 
     **この静的な検査は最善の努力（best-effort）で、すり抜けるものがある:** ① 接頭辞が単独の文字列になっていない組み立て
     （`"TF" + "-X"`、`"-".join(...)`）、② level を変数や既定の引数で渡すところの level（呼び出しの近くに文字列で書いた level
-    だけを一覧と比べる）、③ 範囲の外（adapters/ と adapt_*.py 以外）で診断を出すコード、④ 接頭辞が ALLOWED_PREFIXES に無く、
+    だけを一覧と比べる）、③ 範囲の外（adapters/・normalize/ と adapt_*.py・normalize_ir.py 以外）で診断を出すコード、④ 接頭辞が ALLOWED_PREFIXES に無く、
     診断を出す位置（EMIT_CALLS の引数、辞書の "code"、level つきのタプル）の外にあるコードの形の文字列。
     動的な安全網は tests/architecture/test_diagnostics.py の EmittedLevelsTest（実際に動かして出た (code, level) を一覧と比べる）と、
     旧コードとの比較（CLI と変異した入力の差分、WORKLOG の「確かめたこと」）、golden。"""
-    files = sorted(scripts.glob("adapt_*.py"))
-    files += sorted(p for p in (scripts / PACKAGE / "adapters").rglob("*.py") if "__pycache__" not in p.parts)
+    files = sorted(scripts.glob("adapt_*.py")) + sorted(scripts.glob("normalize_ir.py"))
+    for layer in ("adapters", "normalize"):
+        files += sorted(p for p in (scripts / PACKAGE / layer).rglob("*.py") if "__pycache__" not in p.parts)
     return files
 
 
@@ -71,7 +72,7 @@ def _is_emit_position(n: ast.Constant, parent: dict) -> bool:
 
 def scan_diagnostic_codes(scripts: Path) -> tuple[list[CodeSite], list[str]]:
     """範囲のコードにある診断コードの文字列（`^[A-Z][A-Z0-9]*(-[A-Z0-9]+)+$` で、接頭辞が ALLOWED_PREFIXES のもの）の位置と、
-    問題の一覧: ① 接頭辞（TF-・CFN-）で始まるのにコードの形でない文字列（"TF-" + 名前、f"TF-{x}" などの組み立て、打ち間違い）、
+    問題の一覧: ① 接頭辞（TF-・CFN-・NORM-）で始まるのにコードの形でない文字列（"TF-" + 名前、f"TF-{x}" などの組み立て、打ち間違い）、
     ② コードの形で、診断を出す位置にあるのに、接頭辞が未登録のもの。接頭辞が未登録で診断を出す位置の外にある文字列
     （"UTF-8"、"GET-OBJECT" など）は数えない。"""
     sites: list[CodeSite] = []

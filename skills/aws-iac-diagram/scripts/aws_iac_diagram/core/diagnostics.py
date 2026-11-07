@@ -1,15 +1,15 @@
-"""アダプタが出す診断コード（raw IR の `diagnostics[].code`）の一覧。データだけ（ロジックは引くための関数のみ）。
+"""診断コードの一覧: アダプタが出すもの（raw IR の `diagnostics[].code`）と、正規化が出すもの（normalized IR の `NORM-…`）。
+データだけ（ロジックは引くための関数のみ）。
 
-- **単一の一覧。** アダプタ（Terraform の `TF-…`、CloudFormation の `CFN-…`）が出すコードはすべてここにある。
-  コードを足す・消すときは、この一覧と `docs/spec/ir-schema/` の 7.5 の一覧を同じコミットで直す。
-  `tests/architecture/test_diagnostics_registry.py`（アダプタのコードにある `TF-…`・`CFN-…` の文字列がこの一覧に無いと失敗。この一覧にあって
-  使われていないコードも失敗）と `tests/architecture/test_diagnostics.py`（この一覧と ir-schema が同じ）が守る。
-- **実行時には読まない。** アダプタはこのモジュールを import せず、コードを文字列のまま書く（出力のバイト列を変えないため。
+- **単一の一覧。** アダプタ（Terraform の `TF-…`、CloudFormation の `CFN-…`）と正規化（`NORM-…`）が出すコードはすべてここにある。
+  コードを足す・消すときは、この一覧と `docs/spec/ir-schema/` の一覧（`TF-`・`CFN-` は 7.5、`NORM-` は 10 章）を同じコミットで直す。
+  `tests/architecture/test_diagnostics_registry.py`（アダプタ・正規化のコードにある `TF-…`・`CFN-…`・`NORM-…` の文字列がこの一覧に無いと失敗。
+  この一覧にあって使われていないコードも失敗）と `tests/architecture/test_diagnostics.py`（この一覧と ir-schema が同じ）が守る。
+- **実行時には読まない。** アダプタと正規化はこのモジュールを import せず、コードを文字列のまま書く（出力のバイト列を変えないため。
   フェーズ 2b の決まり）。この一覧は検査と文書のための表。
 - `levels` は、そのコードが出うる level（`error`＞`warn`＞`info`）。同じコードが場所によって level を変えるものがある
   （例: `TF-UNEVALUATED` は既定が warn で、`self` など図に影響しないものは info。作られないリソースの中の決まらない値は
   warn を info に下げる）。level は出力の一部なので、変えるときは golden の更新が要る。
-- `NORM-…`（正規化後の IR の診断。フェーズ 3 以降）は、そのときここに足す。
 """
 from __future__ import annotations
 
@@ -21,10 +21,10 @@ from types import MappingProxyType
 ERROR, WARN, INFO = "error", "warn", "info"
 LEVELS = (ERROR, WARN, INFO)  # 重い順
 
-# コードの接頭辞 → アダプタ（層）の名前
-PREFIXES = {"TF": "terraform", "CFN": "cloudformation"}
+# コードの接頭辞 → 出す層の名前（アダプタ 2 つと正規化）
+PREFIXES = {"TF": "terraform", "CFN": "cloudformation", "NORM": "normalize"}
 # 診断コードとして扱う接頭辞。検査（tests/architecture/test_diagnostics_registry.py）はこの接頭辞のコードだけを数える（"UTF-8" のような別の文字列で
-# 誤って落ちないため）。NORM- など新しい接頭辞は、ここに意図して足す（PREFIXES と同じ）
+# 誤って落ちないため）。新しい接頭辞は、ここに意図して足す（PREFIXES と同じ）
 ALLOWED_PREFIXES = tuple(PREFIXES)
 CODE_PATTERN = re.compile(r"^[A-Z][A-Z0-9]*(-[A-Z0-9]+)+$")
 
@@ -69,6 +69,15 @@ _ROWS = (
     _row("CFN-UNDEFINED-REF", "warn", "定義の無い名前への Ref・GetAtt・Sub・DependsOn、子の無い出力への参照"),
     _row("CFN-UNEVALUATED", "warn", "評価しない値（Fn::Base64・Fn::Cidr・Fn::Transform、決まらない式など）。値は $unknown"),
     _row("CFN-UNRESOLVED-PARAM", "warn", "値も Default も無いパラメータ。使ったところごと"),
+    # --- 正規化（scripts/normalize_ir.py と aws_iac_diagram/normalize/。ir-schema の 10 章）
+    _row("NORM-AZ-UNKNOWN", "info", "サブネットの AZ が静的に決まらず、AZ のノードを作らずにサブネットを VPC の下に置いた"),
+    _row("NORM-COND-UNKNOWN", "warn", "作られるか（count・for_each・Condition）が決まらないリソースを描いた"),
+    _row("NORM-KEY-COLLISION", "info", "同じ型でノードの id の key が重なったので、2 つ目以降に論理名を付けた"),
+    _row("NORM-MERGE-AMBIGUOUS", "warn", "統合先が 1 つの規則（M-*）で候補が 2 つ以上あり、決まった順の最初の 1 つにした"),
+    _row("NORM-MERGE-DEPENDS-ON", "info", "統合先を、参照が無いので、統合されるものが宣言した DependsOn の先（候補 1 つ）にした"),
+    _row("NORM-MERGE-TARGET", "warn", "M-* の統合先が見つからず、分類が仮のまま（into が空）"),
+    _row("NORM-NAME-FALLBACK", "info", "名前（か id の key）が論理名に落ちた（B3 の 3 番目）"),
+    _row("NORM-PLACEMENT", "warn", "VPC の中に置く型の置き場所（サブネット・VPC）が決まらない、または ×N のサブネットを指すので、parent を決められる所までにした"),
     # --- Terraform アダプタ（scripts/adapt_tf.py と aws_iac_diagram/adapters/terraform/）
     _row("TF-COUNT-INDEX", "info", "×N のリソースや、作られないブロックの中の count.index・each.*。値は決まらない"),
     _row("TF-COUNT-UNRESOLVED", "warn", "count・for_each が決まらない。×N（enabled: null）で出す"),
@@ -125,5 +134,5 @@ def lookup(code: str) -> Diagnostic | None:
 
 
 def codes(adapter: str | None = None) -> list[str]:
-    """コードの一覧（アルファベット順）。adapter は "terraform" か "cloudformation"。"""
+    """コードの一覧（アルファベット順）。adapter は "terraform"・"cloudformation"・"normalize"。"""
     return [c for c, d in DIAGNOSTICS.items() if adapter is None or d.adapter == adapter]
