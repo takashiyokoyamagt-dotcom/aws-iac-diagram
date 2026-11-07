@@ -43,8 +43,8 @@ class NormalizeIrCliTest(unittest.TestCase):
         out = self.dir / "three-tier.ir.json"
         res = call("--input", str(src), "--out", str(out), "--name", "three-tier")
         self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
-        self.assertIn("仮のままの分類が 16 件", res.stderr)  # R-* の関係リソース（辺の段階が未実装）
-        self.assertIn("provisional=16", res.stdout)
+        self.assertIn("仮のままの分類が 4 件", res.stderr)  # R-SG（SG のハンドラは手順 5）
+        self.assertIn("provisional=4", res.stdout)
         # 書いたものは、同じ入力をパッケージで正規化した正規の文字列と同じ
         self.assertEqual(out.read_text(encoding="utf-8"), ir_norm.canonical_dump(build.normalize(raw, None, "three-tier")))
         # 仮の分類を許すオプションは無い（スキーマに通らない IR を 0 で返さない）
@@ -98,9 +98,9 @@ class NormalizeIrCliTest(unittest.TestCase):
 
 class CheckTest(unittest.TestCase):
     def test_check_reports_coverage_problems_and_provisional_entries(self):
-        raw = raw_ir("tf", [resource("aws_vpc.v", "aws_vpc"), resource("aws_route_table.r", "aws_route_table")])
+        raw = raw_ir("tf", [resource("aws_vpc.v", "aws_vpc"), resource("aws_security_group.s", "aws_security_group")])
         ir = build.normalize(raw, None, "t")
-        self.assertEqual(build.check(raw, ir), ([], ["aws_route_table.r（R-ROUTE）"]))
+        self.assertEqual(build.check(raw, ir), ([], ["aws_security_group.s（R-SG）"]))
         broken = json.loads(json.dumps(ir))
         res = broken["sources"]["tf"]["resources"]
         res.append(dict(res[0]))

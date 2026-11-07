@@ -1561,3 +1561,12 @@ tests/ 平ら 10 ファイル、最大 2,381 行（281 件）            tests/ 
 - 自作 10 入力: AZ ノードを含む N と P が 1.0（internet・bedrock_model は手順 4・5）。主セット 12 入力: 落ちない、`NORM-PLACEMENT`・`NORM-AZ-UNKNOWN` 0、T03 の RDS と T16 の EKS は 3 サブネットの spans・parent は VPC。
 - レビューの指摘: 止めるもの 2（環境変数でサブネットを渡す VPC 外の Lambda が入れ子になる、`--out` に書けないと終了コード 1）、should-fix 3、nit 5 → すべて直した。`--allow-provisional` は削除（スキーマに通らない IR で 0 を返すため）。辺ができるまで R-* のある入力は終了コード 1。
 - 単体テスト 628 件、golden 101/101。
+
+## 2026-11-07 フェーズ3 の手順4a: 関係リソース（R-*）の辺と参照の会計
+
+- 実装はサブエージェント、レビューは別のサブエージェント（1 回）。`normalize/relations_*.py`（R-ROUTE・R-VPCE-GATEWAY・R-LB-*・R-APIGW-*・ESM・SNS 購読・S3 通知・Bedrock データソース・Events ターゲット・Glue トリガー・Lambda の許可・SQS／SNS のポリシー。`cfn_props`・SAM の形を含む）、`edges.py`（1 組 1 本）、`refs.py`（CRITERIA 1.8 の会計）、`classify.apply_edges`（R-* の確定）、サブネットの `access`。`NORM-UNUSED-REF`・`NORM-RELATION-NOEDGE` を登録。`check_coverage.py --ir` で正規化の出力も独立に照合（手順 3 で漏れていた分）。
+- 自作 10 入力: R-* の辺の再現率・適合率・kind・label・confidence が 1.0、`access` 1.0、X1 の ②③・X2・X3 が 0。C は R-SG（手順 5）と、リスナーの internet の辺の分だけを件数固定で外す。`NORM-UNUSED-REF` は 4b の E-* が使う参照だけ（入力ごとに固定）。
+- 主セット 12 入力: X2・X3 の候補 0、`check_coverage --ir` 0 件、件数を `tests/integration/normalize/test_main_set.py` で固定。T11 は `request_templates` の参照から REST API → Step Functions の辺ができた（T11s の OpenAPI は既知の制約）。
+- レビューの指摘（止めるもの無し）: Deny・否定の条件のポリシーから辺を作らない、T11 の統合先、map の中のキーを属性名と照合しない、E-REF-NONODE は辺になった R-* だけ、自分の統合先への参照、根拠の文字列の例外を 04 章に、主セットの回帰テスト → 直した。IPv6 の `::/0` は凍結した規則の文どおり `access` を private のままにし、08 章に限界として書いた。
+- **ユーザーの判断を待つもの（規則表の凍結を解く必要があるもの）:** ① 辺ができない R-*（T12 の条件の無い Glue トリガー。いまは仮のまま `NORM-RELATION-NOEDGE`、`normalize_ir.py` は終了コード 1）に H-* の行を足すか。② 統合先の無い M-* の行き先（H-NO-TARGET 案）。③ IPv6 の `::/0` を public に数えるか。④ R-SNS-TOPIC-POLICY の送信元は実装では `aws:SourceArn` だけ（表の文の `Principal.Service` は使わない。保守的な選択）。
+- 単体テスト 656 件、golden 101/101。

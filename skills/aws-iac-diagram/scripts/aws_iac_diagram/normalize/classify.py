@@ -277,13 +277,32 @@ def finalize(decisions: dict[str, Decision], index: Index, nodes: dict[str, dict
     ctx = merge.Context(index=index, decisions=decisions, node_of={a: n["id"] for a, n in nodes.items()}, nodes=nodes, rules=rules)
     _resolve_merges(out, ctx, diags)
     if edges is not None:
-        for a, d in out.items():
-            if d.cls == "merged_into" and d.provisional and d.rule.startswith("R-"):
-                got = edges.get(a) or []
-                fallback = rules.row(d.rule).get("fallback")
-                if got:
-                    out[a] = replace(d, into=tuple(sorted(set(got))), provisional=False)
-                elif fallback:
-                    out[a] = Decision("hidden", rule=fallback)
-                # fallback の無い R-* で辺ができなかったときの扱いは、辺の段階（手順 3b 以降）で決める（仮のまま残す）
+        out, more = apply_edges(out, rules, edges)
+        diags += more
     return Finalized(out, diags)
+
+
+def apply_edges(decisions: dict[str, Decision], rules: Rules, edges: dict[str, list[str]],
+                handled: frozenset[str] | None = None) -> tuple[dict[str, Decision], list[dict]]:
+    """関係リソース（R-*）の分類を、辺の段階の結果で確定する。`edges` は関係リソースの address → 統合された辺の id、`handled` は
+    辺の段階がハンドラを持つ規則（None ならすべて。ほかの R-* は仮のまま残す。手順 4a の R-SG）。
+
+    辺があれば `merged_into`（into は辺）。無ければ規則の `fallback`（H-SG-NOEDGE・H-RT-NOROUTE・H-IAM）。fallback の無い規則
+    （R-LB-LISTENER・R-GLUE-TRIGGER など）は、凍結した規則表に行き先の H-* が無いので仮のまま残し、`NORM-RELATION-NOEDGE`（warn）を
+    出す（ir-schema の 8 章・10 章）。"""
+    out = dict(decisions)
+    diags: list[dict] = []
+    for a in sorted(out):
+        d = out[a]
+        if not (d.cls == "merged_into" and d.provisional and d.rule.startswith("R-")) or (handled is not None and d.rule not in handled):
+            continue
+        got = edges.get(a) or []
+        fallback = rules.row(d.rule).get("fallback")
+        if got:
+            out[a] = replace(d, into=tuple(sorted(set(got))), provisional=False)
+        elif fallback:
+            out[a] = Decision("hidden", rule=fallback)
+        else:
+            diags.append({"level": "warn", "code": "NORM-RELATION-NOEDGE", "address": a,
+                          "message": f"{d.rule} の関係リソースから辺ができず、行き先の非表示の規則（fallback）も無いので、分類が仮のまま"})
+    return out, diags

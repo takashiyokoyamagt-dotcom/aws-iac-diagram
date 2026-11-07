@@ -14,11 +14,13 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 
 from aws_iac_diagram.core import ir_norm
 from aws_iac_diagram.core import rules as rules_mod
 from aws_iac_diagram.core.rules import Rules
-from aws_iac_diagram.normalize import classify, nesting, nodes as nodes_mod
+from aws_iac_diagram.normalize import classify, edges as edges_mod, nesting, nodes as nodes_mod, refs as refs_mod
+from aws_iac_diagram.normalize.relations_base import Context
 from aws_iac_diagram.normalize.view import Index
 
 IR_VERSION = "1.0"
@@ -53,19 +55,34 @@ def evaluation_of(raw: dict) -> dict:
     return out
 
 
-def normalize(raw: dict, rules: Rules | None = None, name: str | None = None) -> dict:
-    """raw IR（検査済み。`stage: "raw"`）を normalized IR にする（いまは段階 0〜2。上の説明）。`rules` を省略すると SKILL の規則表。"""
+@dataclass(frozen=True)
+class Result:
+    """正規化の結果: normalized IR と、参照の会計（refs.Entry の並び。CRITERIA の 1.8 を確かめるため）。"""
+    ir: dict
+    accounting: list
+
+
+def run(raw: dict, rules: Rules | None = None, name: str | None = None) -> Result:
+    """raw IR（検査済み。`stage: "raw"`）を正規化する（いまの段階は上の説明）。`rules` を省略すると SKILL の規則表。"""
     rules = rules or rules_mod.default()
     index = Index(raw)
     decisions = classify.classify(index, rules)
     node_by_address, diags = nodes_mod.build_nodes(index, decisions, rules)
     fin = classify.finalize(decisions, index, node_by_address, rules, edges=None)
     diags += fin.diagnostics
-    placed, place_diags = nesting.place(index, fin.decisions, node_by_address, rules)
+    er = edges_mod.build_edges(Context(index, fin.decisions, node_by_address, rules))
+    final, more = classify.apply_edges(fin.decisions, rules, er.into, edges_mod.HANDLED)
+    diags += more
+    placed, place_diags = nesting.place(index, final, node_by_address, rules)
     diags += place_diags
+    for n in placed:
+        if n["id"] in er.access:
+            n.setdefault("attrs", {})["access"] = er.access[n["id"]]
+    accounting = refs_mod.account(index, final, rules, er.used_refs, {x: n["id"] for x, n in node_by_address.items()})
+    diags += refs_mod.diagnostics(accounting)
     resources = []
     for res in index.resources:
-        d = fin.decisions[res.address]
+        d = final[res.address]
         entry = {"address": res.address, "type": res.type, "file": res.file, **d.entry()}
         if d.cls == "drawn":
             entry["node"] = node_by_address[res.address]["id"]
@@ -78,11 +95,16 @@ def normalize(raw: dict, rules: Rules | None = None, name: str | None = None) ->
         "name": name or default_name(index.root),
         "evaluation": evaluation_of(raw),
         "nodes": placed,
-        "edges": [],
-        "sources": {index.fmt: {"root": index.root, "resources": resources, "edges": []}},
-        "diagnostics": sorted(diags, key=lambda x: (x.get("address", ""), x["code"], x["message"])),
+        "edges": er.edges,
+        "sources": {index.fmt: {"root": index.root, "resources": resources, "edges": er.evidence}},
+        "diagnostics": sorted(diags, key=lambda x: (x.get("address", ""), x["code"], x.get("path", ""), x["message"])),
     }
-    return ir_norm.sort_lists(ir)
+    return Result(ir_norm.sort_lists(ir), accounting)
+
+
+def normalize(raw: dict, rules: Rules | None = None, name: str | None = None) -> dict:
+    """raw IR を normalized IR にする（`run` の IR だけ）。"""
+    return run(raw, rules, name).ir
 
 
 def check(raw: dict, ir: dict) -> tuple[list[str], list[str]]:

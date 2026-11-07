@@ -78,6 +78,8 @@ _ROWS = (
     _row("NORM-MERGE-TARGET", "warn", "M-* の統合先が見つからず、分類が仮のまま（into が空）"),
     _row("NORM-NAME-FALLBACK", "info", "名前（か id の key）が論理名に落ちた（B3 の 3 番目）"),
     _row("NORM-PLACEMENT", "warn", "VPC の中に置く型の置き場所（サブネット・VPC）が決まらない、または ×N のサブネットを指すので、parent を決められる所までにした"),
+    _row("NORM-RELATION-NOEDGE", "warn", "関係リソース（R-*）から辺ができず、行き先の非表示の規則（fallback）も無いので、分類が仮のまま"),
+    _row("NORM-UNUSED-REF", "info", "active の参照が、辺の根拠・辺にしない参照（E-NOEDGE-*）・参照先にノードが無い参照（E-REF-NONODE）のどれにも当たらない"),
     # --- Terraform アダプタ（scripts/adapt_tf.py と aws_iac_diagram/adapters/terraform/）
     _row("TF-COUNT-INDEX", "info", "×N のリソースや、作られないブロックの中の count.index・each.*。値は決まらない"),
     _row("TF-COUNT-UNRESOLVED", "warn", "count・for_each が決まらない。×N（enabled: null）で出す"),
