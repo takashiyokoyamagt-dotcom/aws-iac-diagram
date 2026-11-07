@@ -139,6 +139,8 @@
 | `H-COND-FALSE` | count／for_each が 0 件、または CFN の `Condition` が偽に評価されたリソース | （型では決まらない。辺・条件のあとで決まる） | 作られないもの。TF はインデックスなしのアドレスで1件として数える |
 | `H-RT-NOROUTE` | `local` 以外のルートを持たず、**Gateway 型の VPC エンドポイントも関連付いていない** ルートテーブルと、その関連付け | （型では決まらない。辺・条件のあとで決まる） | 辺が1本もできない。サブネットが隔離されていることは辺が無いことで分かる |
 | `H-SG-NOEDGE` | 辺を1本も生まないセキュリティグループ | （型では決まらない。辺・条件のあとで決まる） | 辺を生む SG は R-SG で `merged_into` になる |
+| `H-RELATION-NOEDGE` | 辺を1本も生まず、規則に `fallback` の無い関係リソース（R-*。条件の無い Glue のトリガー、転送先の無いリスナーなど） | （型では決まらない。辺・条件のあとで決まる） | 関係リソースは辺にするためだけの型なので、辺ができなければ描くものが無い。fallback のある R-* は fallback の H-*（R-SG → H-SG-NOEDGE など）。見落としに気づけるよう、診断 `NORM-RELATION-NOEDGE`（warn）も出す |
+| `H-NO-TARGET` | 統合先のノードが見つからない統合する型（M-*） | （型では決まらない。辺・条件のあとで決まる） | 統合先の付属品で、単独で描く意味が無い（統合先が描かれていない）。見落としに気づけるよう、診断 `NORM-MERGE-TARGET`（warn）も出す |
 | `H-SG-EGRESS` | 別リソースの egress ルール（`aws_vpc_security_group_egress_rule`、`aws_security_group_rule`（`type = "egress"`）、`AWS::EC2::SecurityGroupEgress`） | TF: `aws_vpc_security_group_egress_rule`、`aws_security_group_rule`；CFN: `AWS::EC2::SecurityGroupEgress`；条件: 対象の型: `aws_security_group_rule`。`type` が `egress` のとき | v0.1 は egress から辺を作らない（docs/spec/rules/relations.md の補足）。インラインの egress は SG 本体の一部なので個別には数えない |
 | `H-UTILITY` | `time_sleep`、`random_*`、`null_resource`、`terraform_data` | TF: `time_sleep`、`random_*`、`null_resource`、`terraform_data` | クラウド上の実体が無い |
 | `H-NESTED-STACK` | `AWS::CloudFormation::Stack`（子テンプレートを展開できたもの） | CFN: `AWS::CloudFormation::Stack`；条件: raw の via が `module_blackbox` でないとき | 中身を展開して描く。展開できないもの（`TemplateURL` を手元のファイルに読み替えられない。ir-schema の 7.4）は、黒箱のモジュール（型 `module`、`via: "module_blackbox"`）として描く |
@@ -148,6 +150,7 @@
 
 <!-- /rules-table -->
 
+- `H-RELATION-NOEDGE` と `H-NO-TARGET` は、正規化が分類の確定（`scripts/aws_iac_diagram/normalize/classify.py`）で付ける（型では決まらない）。フェーズ 3 の手順 5 の後に規則表の凍結を解いて足した（それまでは分類を仮のまま残していた。ir-schema の 8 章）。どちらも、見落としに気づけるよう warn の診断（`NORM-RELATION-NOEDGE`・`NORM-MERGE-TARGET`）を一緒に出す。
 - IAM だけを作るモジュールの H-IAM は、`module_sources_file` の一覧（`data/module-summaries/iam-only-sources.md`。説明は [module-summaries.md](../module-summaries.md) の 4章）の source の前方一致で判定する（`core/module_sources.py` の `iam_only()`。アダプタの診断の文言と正規化が同じ判定を使う）。
 
 ## 4. 関係リソース（辺に変換する型）

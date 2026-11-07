@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import importlib.util
+import io
 import json
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 # tests/ を import の道に入れる（`python tests/.../test_x.py` で直接動かすときのため。discover では要らないが害は無い）
 sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "support").is_dir())))
@@ -51,19 +54,48 @@ class NormalizeIrCliTest(unittest.TestCase):
         self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
         self.assertEqual(json.loads(out.read_text(encoding="utf-8"))["name"], "three-tier")  # 名前は root から
 
-    def test_provisional_relations_exit_1_but_the_file_is_written(self):
-        # 転送の無いリスナー（辺ができず、R-LB-LISTENER に fallback が無い）は仮のまま
+    def test_relation_without_edge_is_hidden_and_exits_0(self):
+        # 転送の無いリスナー（辺ができず、R-LB-LISTENER に fallback が無い）は H-RELATION-NOEDGE（warn の診断も出す）。仮の分類は残らない
         raw = raw_ir("tf", [resource("aws_lb_listener.l", "aws_lb_listener")], root="fixtures/tf/lone")
         src = self.write("lone.raw.json", raw)
         out = self.dir / "lone.ir.json"
         res = call("--input", str(src), "--out", str(out))
-        self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
-        self.assertIn("仮のままの分類が 1 件", res.stderr)
-        self.assertIn("provisional=1", res.stdout)
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+        self.assertIn("provisional=0", res.stdout)
+        self.assertEqual(res.stderr, "")
+        ir = json.loads(out.read_text(encoding="utf-8"))
+        self.assertEqual(ir["sources"]["tf"]["resources"][0]["rule"], "H-RELATION-NOEDGE")
+        self.assertEqual([(d["level"], d["code"]) for d in ir["diagnostics"]], [("warn", "NORM-RELATION-NOEDGE")])
         self.assertEqual(out.read_text(encoding="utf-8"), ir_norm.canonical_dump(build.normalize(raw, None, "lone")))
         # 仮の分類を許すオプションは無い（スキーマに通らない IR を 0 で返さない）
         res = call("--input", str(src), "--out", str(out), "--allow-provisional")
         self.assertEqual(res.returncode, 2, res.stdout + res.stderr)
+
+    def test_check_problems_exit_1_but_the_file_is_written(self):
+        # 網羅分類の漏れ・重複と仮の分類は、正規化が正しければ実際の入力では起きない（M-* は H-NO-TARGET、R-* は H-RELATION-NOEDGE
+        # まで確定する）ので、検査（build.check）の結果を差し替えて、入口が終了コード 1 と標準エラーの文で知らせることを確かめる
+        spec = importlib.util.spec_from_file_location("normalize_ir_entry", ENTRY)
+        entry = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(entry)
+        src = self.write("lone.raw.json", raw_ir("tf", [resource("aws_lb_listener.l", "aws_lb_listener")], root="fixtures/tf/lone"))
+        out = self.dir / "lone.ir.json"
+        cases = {
+            "網羅分類の問題": ((["網羅分類に無い入力のリソース: aws_s3_bucket.gone"], []), "問題: 網羅分類に無い入力のリソース", "provisional=0"),
+            "仮の分類": (([], ["aws_lb_listener.l（R-LB-LISTENER）"]), "仮のままの分類が 1 件", "provisional=1"),
+        }
+        for label, (checked, err_words, out_words) in cases.items():
+            with self.subTest(label):
+                if out.exists():
+                    out.unlink()
+                stdout, stderr = io.TextIOWrapper(io.BytesIO(), encoding="utf-8"), io.TextIOWrapper(io.BytesIO(), encoding="utf-8")
+                with mock.patch.object(entry.build, "check", return_value=checked),                         mock.patch.object(sys, "stdout", stdout), mock.patch.object(sys, "stderr", stderr):
+                    code = entry.main(["--input", str(src), "--out", str(out)])
+                stdout.flush()
+                stderr.flush()
+                self.assertEqual(code, 1)
+                self.assertIn(err_words, stderr.buffer.getvalue().decode("utf-8"))
+                self.assertIn(out_words, stdout.buffer.getvalue().decode("utf-8"))
+                self.assertTrue(out.is_file())
 
     def test_clean_input_exits_0(self):
         # raw IR の検査（core/ir_raw.semantic_errors）に通る形: 参照は props の $res と対応し、resources は address の順
@@ -111,7 +143,11 @@ class CheckTest(unittest.TestCase):
     def test_check_reports_coverage_problems_and_provisional_entries(self):
         raw = raw_ir("tf", [resource("aws_lb_listener.l", "aws_lb_listener"), resource("aws_vpc.v", "aws_vpc")])
         ir = build.normalize(raw, None, "t")
-        self.assertEqual(build.check(raw, ir), ([], ["aws_lb_listener.l（R-LB-LISTENER）"]))
+        self.assertEqual(build.check(raw, ir), ([], []))  # 辺のできないリスナーは H-RELATION-NOEDGE（仮ではない）
+        provisional = json.loads(json.dumps(ir))
+        entry = next(r for r in provisional["sources"]["tf"]["resources"] if r["address"] == "aws_lb_listener.l")
+        entry.update({"class": "merged_into", "rule": "R-LB-LISTENER", "into": []})  # 確定の前の形（into が空）
+        self.assertEqual(build.check(raw, provisional), ([], ["aws_lb_listener.l（R-LB-LISTENER）"]))
         broken = json.loads(json.dumps(ir))
         res = broken["sources"]["tf"]["resources"]
         res.append(dict(res[0]))

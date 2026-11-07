@@ -1,7 +1,8 @@
 """正規化 × 公開サンプルの主セット（CRITERIA の 1.2。12 入力）の回帰テスト（フェーズ 3 の手順 5 の時点）。
 
 主セットの正解 IR はまだ無いので、出力の形の数を入力ごとに固定する: 辺の数、`NORM-UNUSED-REF`（使わなかった参照）、
-`NORM-RELATION-NOEDGE`（辺ができず fallback の無い関係リソース）、仮のままの分類の数。数が変わったら、意図した変更か確かめて
+`NORM-RELATION-NOEDGE`（辺ができず fallback の無い関係リソース。H-RELATION-NOEDGE）、仮のままの分類の数（規則表に
+H-RELATION-NOEDGE・H-NO-TARGET を足してからは 0）。数が変わったら、意図した変更か確かめて
 この表を直す（辺の規則が増えて辺が増え、使わなかった参照が減るのは意図した変化）。あわせて、網羅分類を入力から独立に数える
 `check_coverage.py` の照合（X4）が 0 件であること。
 """
@@ -20,7 +21,8 @@ from aws_iac_diagram.normalize import build  # noqa: E402
 
 cov = load_tool("check_coverage")
 
-# 入力 → (辺, NORM-UNUSED-REF, NORM-RELATION-NOEDGE, 仮のままの分類)。仮の分類は NORM-RELATION-NOEDGE のものだけ。
+# 入力 → (辺, NORM-UNUSED-REF, NORM-RELATION-NOEDGE, 仮のままの分類)。辺のできない R-* は H-RELATION-NOEDGE、統合先の無い M-* は
+# H-NO-TARGET に確定するので、仮の分類は 0（規則表の凍結を解いて 2 つの規則を足す前は、T12 の Glue のトリガーが 1 件仮だった）。
 # 手順 5 で API Gateway のある 5 入力（T07・T07s・T11・T11s・C02）に internet → API（N-EXT-INTERNET）が 1 本ずつ増えた。
 # R-SG の辺は主セットでは 0 本（T03・T16 の SG は H-SG-NOEDGE。理由は各行）
 EXPECTED = {
@@ -34,8 +36,8 @@ EXPECTED = {
     "T09": (3, 0, 0, 0),   # KB → 基盤モデル（N-BEDROCK-MODEL）・ベクトルストア、バケット → KB
     "T11": (3, 0, 0, 0),   # REST API → Step Functions（request_templates の中の参照）、Step Functions → テーブル（E-IAM の $concat の ARN）
     "T11s": (1, 1, 0, 0),  # internet → API だけ。API は OpenAPI（AWS::Include）の中で raw に載らない（既知の制約）。DefinitionSubstitutions は辺の規則が無い
-    "T12": (4, 6, 1, 1),   # Glue のクローラ（E-GLUE-TARGET）と E-IAM。ジョブの script_location・default_arguments は辺の規則が無い。
-                           # 条件の無い Glue のトリガー（辺を作らない。fallback が無い）
+    "T12": (4, 6, 1, 0),   # Glue のクローラ（E-GLUE-TARGET）と E-IAM。ジョブの script_location・default_arguments は辺の規則が無い。
+                           # 条件の無い Glue のトリガー（辺を作らない。fallback が無いので H-RELATION-NOEDGE）
     "T16": (6, 1, 0, 0),   # SG 2 つ・ingress ルール 10 件は、クラスタの SG（クラスタ）とノードの SG（起動テンプレート → M-* で
                            # 統合先は同じクラスタ）の間だけなので自己ループで辺にならず、すべて H-SG-NOEDGE（egress 1 件は H-SG-EGRESS）。
                            # 使わなかった参照は KMS の黒箱のモジュールの出力（暗号化の設定）
@@ -61,6 +63,11 @@ class MainSetTest(unittest.TestCase):
                 self.assertEqual(problems, [])
                 got = (len(ir["edges"]), codes.count("NORM-UNUSED-REF"), codes.count("NORM-RELATION-NOEDGE"), len(provisional))
                 self.assertEqual(got, EXPECTED[sid])
+                # warn の診断と非表示の規則は 1 対 1（NORM-RELATION-NOEDGE ↔ H-RELATION-NOEDGE、NORM-MERGE-TARGET ↔ H-NO-TARGET）
+                for code, rule in (("NORM-RELATION-NOEDGE", "H-RELATION-NOEDGE"), ("NORM-MERGE-TARGET", "H-NO-TARGET")):
+                    self.assertEqual(sorted(d["address"] for d in ir["diagnostics"] if d["code"] == code),
+                                     sorted(r["address"] for r in ir["sources"][raw["format"]]["resources"] if r.get("rule") == rule),
+                                     code)
                 fmt = raw["format"]
                 self.assertEqual([r for r in ir["sources"][fmt]["resources"] if r["class"] == "unknown"], [])  # CRITERIA 1.2 の j
 

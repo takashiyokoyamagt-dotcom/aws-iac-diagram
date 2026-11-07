@@ -1588,3 +1588,11 @@ tests/ 平ら 10 ファイル、最大 2,381 行（281 件）            tests/ 
 - レビューの指摘（止めるもの無し）: ICMP・UDP・決まらないポートを全ポート扱いしない、`associate_public_ip_address = false` を優先、リスナーのポートに当たらないルールを internet の辺に入れない、テストの追加、根拠の綴り、WebSocket の API → すべて直した。
 - **ユーザーの判断を待つもの（規則表の凍結を解く必要があるもの。手順4a・4b の 6 つに加えて）:** ⑦ インターネットへの公開の範囲（RDS の `publicly_accessible`、ECS の `assign_public_ip`、SG の無い NLB、CFN の `NetworkInterfaces[].GroupSet` の SG）。
 - 単体テスト 686 件、golden 101/101。
+
+## 2026-11-08 規則表の凍結を解く判断（ユーザーが推奨案で決定）
+
+- 手順4a・4b・5 の末尾に挙げた 7 件は、ユーザーの指示（「推奨案でおねがいします」）で推奨案に決めた。
+  - ① 辺ができず fallback も無い R-* → 新しい規則 `H-RELATION-NOEDGE`（hidden）。② 統合先の無い M-* → 新しい規則 `H-NO-TARGET`（hidden）。どちらも診断（`NORM-RELATION-NOEDGE`・`NORM-MERGE-TARGET`、warn）は出し続ける。規則 ID は 75 → 77。主セットの T12 も `normalize_ir.py` が終了コード 0 になり、主セット 12 入力で仮の分類は 0。
+  - ③〜⑦ はいまの扱いのまま（③ IPv6 の `::/0` だけは public にしない、④ SNS トピックのポリシーの送信元は `aws:SourceArn` だけ、⑤ 黒箱のモジュール → 入力のノードの推定の辺は作らない、⑥ `TEMPLATE_ACTIONS` はコードに置く、⑦ RDS の `publicly_accessible` などは公開とみなさない）。ir-schema 08 に限界として書いてある。測定（手順 6）の後に見直せる。
+- **規則表はこの版（`H-RELATION-NOEDGE`・`H-NO-TARGET` を足した版）で改めて凍結し、主セットの正解 IR はこれに従って書く。**
+- 実装はサブエージェント。変更が小さいので第三者レビューは省き、統括が差分（規則の行と classify.py）を読んで確かめた。単体テスト 687 件、golden 101/101。

@@ -138,8 +138,8 @@ class LbTest(unittest.TestCase):
             ref("Redirect", "Properties.LoadBalancerArn", "Alb"), ref("Tg", "Properties.Targets[0].Id", "Ec2"),
         ])
         self.assertEqual(o.edges, {"alb/alb->ec2_instance/ec2": ("request", "HTTPS 443", "derived")})
-        # 転送の無いリスナー（リダイレクトだけ）は辺ができず、fallback も無いので仮のまま
-        self.assertEqual(o.cls["Redirect"], ("merged_into", "R-LB-LISTENER", ()))
+        # 転送の無いリスナー（リダイレクトだけ）は辺ができず、fallback も無いので H-RELATION-NOEDGE（warn の診断も出す）
+        self.assertEqual(o.cls["Redirect"], ("hidden", "H-RELATION-NOEDGE", ()))
         self.assertIn(("NORM-RELATION-NOEDGE", "Redirect"), o.diags)
 
 
@@ -199,7 +199,7 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(o.edges.get(edge), ("request", "GET /a/{id}", "derived"))
         for a in ("aws_api_gateway_resource.a", "aws_api_gateway_resource.b", "aws_api_gateway_method.m", "aws_api_gateway_integration.i"):
             self.assertEqual(o.cls[a], ("merged_into", "R-APIGW-REST", (edge,)), a)
-        self.assertEqual(o.cls["aws_api_gateway_method.mock"], ("merged_into", "R-APIGW-REST", ()))  # 統合の無いメソッド
+        self.assertEqual(o.cls["aws_api_gateway_method.mock"], ("hidden", "H-RELATION-NOEDGE", ()))  # 統合の無いメソッド
 
     def test_cfn_rest_method_and_sam_api(self):
         o = Out("cfn", [
@@ -275,8 +275,8 @@ class EventsTest(unittest.TestCase):
             ref("aws_glue_trigger.schedule", "actions[0].job_name", "aws_glue_job.a", "name"),
         ])
         self.assertEqual(o.edges, {"glue_job/a->glue_crawler/c": ("event", "", "derived")})
-        # 条件の無いトリガーは辺を作らない（規則の文）。fallback が無いので仮のまま
-        self.assertEqual(o.cls["aws_glue_trigger.schedule"], ("merged_into", "R-GLUE-TRIGGER", ()))
+        # 条件の無いトリガーは辺を作らない（規則の文）。fallback が無いので H-RELATION-NOEDGE（warn の診断も出す）
+        self.assertEqual(o.cls["aws_glue_trigger.schedule"], ("hidden", "H-RELATION-NOEDGE", ()))
         self.assertIn(("NORM-RELATION-NOEDGE", "aws_glue_trigger.schedule"), o.diags)
 
 

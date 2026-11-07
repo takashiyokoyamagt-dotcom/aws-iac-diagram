@@ -18,11 +18,12 @@
 
 - M-*: 統合先（`into.node_types` の描くノード）を、主の属性の参照、DependsOn 以外の参照、規則 ID ごとの名前の一致、
   統合済みの M-* を 1 段ずつ（幅優先）、自分が宣言した DependsOn（候補が 1 つのときだけ。`NORM-MERGE-DEPENDS-ON`、info）の順で
-  探す（詳しくは merge.py）。見つからなければ仮のまま残し、`NORM-MERGE-TARGET`（warn）を出す（統合先が無いときの H-* の規則は
-  規則表にまだ無い。設計草案の `H-NO-TARGET` の案。ir-schema の 8 章）。
+  探す（詳しくは merge.py）。見つからなければ `hidden`／`H-NO-TARGET` にし、`NORM-MERGE-TARGET`（warn）も出す（見落としに
+  気づけるように）。
 - R-*: `edges`（関係リソースの address → それが作った辺の id）を渡されたときだけ確定する。辺があれば `merged_into`（into は辺）、
-  無ければ規則の `fallback`（`R-SG` → `H-SG-NOEDGE`、`R-ROUTE` → `H-RT-NOROUTE` など。fallback の無い規則は仮のまま残し、
-  扱いは辺の段階で決める）。辺の段階（3）ができるまでは `edges=None` で呼び、R-* は仮のまま（into は空）。
+  無ければ規則の `fallback`（`R-SG` → `H-SG-NOEDGE`、`R-ROUTE` → `H-RT-NOROUTE` など）。fallback の無い規則は
+  `H-RELATION-NOEDGE` にし、`NORM-RELATION-NOEDGE`（warn）も出す。`edges=None` で呼ぶと R-* は仮のまま（into は空）で、
+  辺の段階の後に `apply_edges` で確定する（build.py）。
 
 ここは標準ライブラリと core と normalize の view・merge だけを使う。
 """
@@ -38,6 +39,8 @@ from aws_iac_diagram.normalize.view import Index, Resource
 COND_FALSE = "H-COND-FALSE"
 IAM = "H-IAM"
 NONAWS = "H-NONAWS"
+NO_TARGET = "H-NO-TARGET"
+RELATION_NOEDGE = "H-RELATION-NOEDGE"
 MODULE_TYPE = "module"
 BLACKBOX = "module_blackbox"
 AWS_PROVIDERS = ("aws", "awscc")
@@ -255,7 +258,8 @@ def _resolve_merges(out: dict[str, Decision], ctx: merge.Context, diags: list[di
                           "message": f"{out[a].rule} の統合先を、参照が無いので DependsOn の先 {next(iter(found))} にした"})
         else:
             diags.append({"level": "warn", "code": "NORM-MERGE-TARGET", "address": a,
-                          "message": f"{out[a].rule} の統合先（{'・'.join(pending[a])}）が見つからない"})
+                          "message": f"{out[a].rule} の統合先（{'・'.join(pending[a])}）が見つからないので、{NO_TARGET} にした"})
+            out[a] = Decision("hidden", rule=NO_TARGET)
 
 
 def _confirmed(d: Decision, found: set[str], address: str, diags: list[dict]) -> Decision:
@@ -288,8 +292,7 @@ def apply_edges(decisions: dict[str, Decision], rules: Rules, edges: dict[str, l
     辺の段階がハンドラを持つ規則（None ならすべて。ほかの R-* は仮のまま残す）。
 
     辺があれば `merged_into`（into は辺）。無ければ規則の `fallback`（H-SG-NOEDGE・H-RT-NOROUTE・H-IAM）。fallback の無い規則
-    （R-LB-LISTENER・R-GLUE-TRIGGER など）は、凍結した規則表に行き先の H-* が無いので仮のまま残し、`NORM-RELATION-NOEDGE`（warn）を
-    出す（ir-schema の 8 章・10 章）。"""
+    （R-LB-LISTENER・R-GLUE-TRIGGER など）は `H-RELATION-NOEDGE` にし、`NORM-RELATION-NOEDGE`（warn）も出す（ir-schema の 10 章）。"""
     out = dict(decisions)
     diags: list[dict] = []
     for a in sorted(out):
@@ -303,6 +306,7 @@ def apply_edges(decisions: dict[str, Decision], rules: Rules, edges: dict[str, l
         elif fallback:
             out[a] = Decision("hidden", rule=fallback)
         else:
+            out[a] = Decision("hidden", rule=RELATION_NOEDGE)
             diags.append({"level": "warn", "code": "NORM-RELATION-NOEDGE", "address": a,
-                          "message": f"{d.rule} の関係リソースから辺ができず、行き先の非表示の規則（fallback）も無いので、分類が仮のまま"})
+                          "message": f"{d.rule} の関係リソースから辺ができず、規則に fallback も無いので、{RELATION_NOEDGE} にした"})
     return out, diags

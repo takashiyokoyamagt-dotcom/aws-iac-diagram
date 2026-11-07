@@ -31,7 +31,7 @@ class ShippedRulesTest(unittest.TestCase):
 
     def test_row_counts_per_table(self):
         r = self.r
-        self.assertEqual((len(r.drawn), len(r.merged), len(r.hidden), len(r.relations)), (32, 19, 13, 16))
+        self.assertEqual((len(r.drawn), len(r.merged), len(r.hidden), len(r.relations)), (32, 19, 15, 16))
         self.assertEqual((len(r.confidences), len(r.edges), len(r.kind_by_target), len(r.iam_action_kinds), len(r.merge_priority),
                           len(r.synthetic), len(r.label_formats)), (3, 12, 3, 3, 6, 2, 6))
         self.assertEqual((len(r.noedge), len(r.nonode), len(r.placement), len(r.attrs)), (7, 1, 5, 1))
@@ -39,8 +39,8 @@ class ShippedRulesTest(unittest.TestCase):
     def test_rule_ids_per_prefix(self):
         ids = self.r.rule_ids
         by = {p: sorted(i for i in ids if i.startswith(p)) for p in ("E-", "H-", "M-", "N-", "P-", "R-")}
-        self.assertEqual({p: len(v) for p, v in by.items()}, {"E-": 20, "H-": 13, "M-": 19, "N-": 3, "P-": 4, "R-": 16})
-        self.assertEqual(len(ids), 75)
+        self.assertEqual({p: len(v) for p, v in by.items()}, {"E-": 20, "H-": 15, "M-": 19, "N-": 3, "P-": 4, "R-": 16})
+        self.assertEqual(len(ids), 77)
         self.assertEqual(self.r.edge_ids | self.r.ref_ids, frozenset(by["E-"]))
         self.assertEqual(len(self.r.ref_ids), 8)  # E-NOEDGE-* 7 と E-REF-NONODE
         self.assertEqual(self.r.synthetic_ids | {i for i in self.r.placement_ids if i.startswith("N-")}, frozenset(by["N-"]))

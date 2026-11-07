@@ -140,7 +140,7 @@ raw IR → normalized IR。段階は設計草案（`docs/dev-notes/phase3-design
 | ファイル | 中身 |
 |---|---|
 | `view.py` | 段階 0。中立キーで属性を引く、印（`$unknown` など）の扱い、`Name` タグ（TF の map と CFN の `Key`／`Value`）、参照の索引 `Index` |
-| `classify.py` | 段階 1 の仮分類（`enabled: false` → H-COND-FALSE、黒箱 → `module`／H-IAM、TF の data、型の表の `when`、awscc、H-NONAWS、`unknown`）と、確定 `finalize`（M-* の統合先、R-* は辺の段階の結果で確定） |
+| `classify.py` | 段階 1 の仮分類（`enabled: false` → H-COND-FALSE、黒箱 → `module`／H-IAM、TF の data、型の表の `when`、awscc、H-NONAWS、`unknown`）と、確定 `finalize`（M-* の統合先。見つからなければ H-NO-TARGET。R-* は辺の段階の結果で確定。辺も fallback も無ければ H-RELATION-NOEDGE） |
 | `merge.py` | M-* の統合先の探し方（主の属性の参照、参照、名前の一致、H-UTILITY の素通り、DependsOn の最後の手） |
 | `names.py` | B3 の名前と K-NAME の id、id の重なりの解決 |
 | `nodes.py` | 段階 2。ノード（id・type・category・name・label・attrs・multiplicity） |
@@ -225,7 +225,7 @@ raw IR → normalized IR。段階は設計草案（`docs/dev-notes/phase3-design
 
 | ファイル | 表 | 中身 |
 |---|---|---|
-| `types/*.toml`（名前の昇順） | `[[type]]` | 描く型 32（`network`・`compute`・`data-stores`・`integration`・`ai-analytics`・`edge-web`）、統合 M-* 19 と非表示 H-* 13（`merged-and-hidden`）。TF と CFN の型を 1 行に並べる |
+| `types/*.toml`（名前の昇順） | `[[type]]` | 描く型 32（`network`・`compute`・`data-stores`・`integration`・`ai-analytics`・`edge-web`）、統合 M-* 19 と非表示 H-* 15（`merged-and-hidden`）。TF と CFN の型を 1 行に並べる |
 | `relations.toml` | `[[relation]]` | R-* 16（関係リソース → 辺） |
 | `edges.toml` | `[[confidence]]` `[[edge]]` `[[kind_by_target]]` `[[iam_action_kind]]` `[[merge_priority]]` `[[synthetic]]` `[[label_format]]` | 確信度、辺の規則 E-*、kind の対応表、まとめ方の優先順、合成ノード N-*、ラベルの書式 |
 | `refs.toml` | `[[noedge]]` `[[nonode]]` | E-NOEDGE-* 7、E-REF-NONODE |

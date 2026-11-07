@@ -230,8 +230,9 @@ class FinalizeTest(unittest.TestCase):
             reference("opensearch_index.i", "depends_on", "aws_opensearchserverless_collection.c", fn="depends_on"),
         ])
         d = fin.decisions
-        # タスク定義が参照する DB は統合先の型（ecs_service）でないので使わない。統合先が無ければ仮のまま、診断を出す
-        self.assertEqual((d["aws_ecs_task_definition.t"].into, d["aws_ecs_task_definition.t"].provisional), ((), True))
+        # タスク定義が参照する DB は統合先の型（ecs_service）でないので使わない。統合先が無ければ H-NO-TARGET（非表示）、診断も出す
+        self.assertEqual(short(d["aws_ecs_task_definition.t"]), ("hidden", "H-NO-TARGET", False))
+        self.assertEqual(d["aws_ecs_task_definition.t"].entry(), {"class": "hidden", "rule": "H-NO-TARGET"})
         self.assertEqual([(x["code"], x["level"], x["address"]) for x in fin.diagnostics],
                          [("NORM-MERGE-TARGET", "warn", "aws_ecs_task_definition.t"),
                           ("NORM-MERGE-DEPENDS-ON", "info", "opensearch_index.i")])
@@ -270,8 +271,7 @@ class FinalizeTest(unittest.TestCase):
             resource("aws_s3_bucket_policy.p", "aws_s3_bucket_policy", {"bucket": "a"}),
             resource("aws_s3_bucket.other", "aws_s3_bucket", {"bucket": "other"}),
         ], [reference("aws_s3_bucket.other", "depends_on", "aws_s3_bucket_policy.p", fn="depends_on")])
-        d = fin.decisions["aws_s3_bucket_policy.p"]
-        self.assertEqual((d.into, d.provisional), ((), True))
+        self.assertEqual(short(fin.decisions["aws_s3_bucket_policy.p"]), ("hidden", "H-NO-TARGET", False))
         self.assertEqual([x["code"] for x in fin.diagnostics], ["NORM-MERGE-TARGET"])
         # 自分の DependsOn でも、候補が 2 つなら使わない
         fin = self.run_all("tf", [
@@ -280,7 +280,7 @@ class FinalizeTest(unittest.TestCase):
             resource("aws_opensearchserverless_collection.b", "aws_opensearchserverless_collection", {"name": "b"}),
         ], [reference("opensearch_index.i", "depends_on", "aws_opensearchserverless_collection.a", fn="depends_on"),
             reference("opensearch_index.i", "depends_on", "aws_opensearchserverless_collection.b", fn="depends_on")])
-        self.assertTrue(fin.decisions["opensearch_index.i"].provisional)
+        self.assertEqual(short(fin.decisions["opensearch_index.i"]), ("hidden", "H-NO-TARGET", False))
         self.assertEqual([x["code"] for x in fin.diagnostics], ["NORM-MERGE-TARGET"])
 
     def test_primary_attribute_wins_and_ambiguity_is_reported(self):
@@ -316,7 +316,7 @@ class FinalizeTest(unittest.TestCase):
         # 名前が印のバケットは論理名が名前（id の key）になる
         self.assertEqual(got, {"ContentPolicy": ("s3_bucket/content",), "LogsPolicy": ("s3_bucket/logs",),
                                "PlainPolicy": ("s3_bucket/plain",)})
-        self.assertTrue(d["Lost"].provisional)  # $res を含む値は名前として比べない
+        self.assertEqual(short(d["Lost"]), ("hidden", "H-NO-TARGET", False))  # $res を含む値は名前として比べない
 
     def test_references_pass_through_one_utility_resource(self):
         # T16 の形: ノードグループの cluster_name → time_sleep → クラスタ。起動テンプレートはノードグループを通して決まる
@@ -354,14 +354,16 @@ class FinalizeTest(unittest.TestCase):
         fin = self.run_all("tf", res)
         for a in ("aws_security_group.used", "aws_security_group.idle", "aws_route_table.r", "aws_lb_listener.l"):
             self.assertEqual((fin.decisions[a].cls, fin.decisions[a].into, fin.decisions[a].provisional), ("merged_into", (), True), a)
-        # 辺の段階の結果を渡すと確定する: 辺があれば into は辺、無ければ fallback（fallback の無い規則は仮のまま）
+        # 辺の段階の結果を渡すと確定する: 辺があれば into は辺、無ければ fallback（fallback の無い規則は H-RELATION-NOEDGE）
         fin = self.run_all("tf", res, edges={"aws_security_group.used": ["b/y->c/z", "a/x->b/y", "a/x->b/y"]})
         d = fin.decisions
         self.assertEqual(short(d["aws_security_group.used"]), ("merged_into", "R-SG", False))
         self.assertEqual(d["aws_security_group.used"].into, ("a/x->b/y", "b/y->c/z"))
         self.assertEqual(short(d["aws_security_group.idle"]), ("hidden", "H-SG-NOEDGE", False))
         self.assertEqual(short(d["aws_route_table.r"]), ("hidden", "H-RT-NOROUTE", False))
-        self.assertEqual(short(d["aws_lb_listener.l"]), ("merged_into", "R-LB-LISTENER", True))
+        self.assertEqual(short(d["aws_lb_listener.l"]), ("hidden", "H-RELATION-NOEDGE", False))
+        self.assertEqual([(x["code"], x["level"], x["address"]) for x in fin.diagnostics],
+                         [("NORM-RELATION-NOEDGE", "warn", "aws_lb_listener.l")])
 
 
 if __name__ == "__main__":

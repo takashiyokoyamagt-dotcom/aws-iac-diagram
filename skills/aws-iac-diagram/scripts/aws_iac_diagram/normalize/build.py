@@ -5,7 +5,7 @@
 
 段階 3（辺）は edges.py（関係リソース R-*、E-*、E-IAM、合成ノード N-BEDROCK-MODEL・N-EXT-INTERNET。手順 4a〜5）。辺ができた後に
 R-* の分類を確定し（`classify.apply_edges`）、辺の段階の合成ノードとサブネットの `attrs.access` を足す。辺ができず fallback の無い
-R-* は仮のまま残る（`NORM-RELATION-NOEDGE`。`check` が仮の分類として返す）。
+R-* は `H-RELATION-NOEDGE`、統合先の見つからない M-* は `H-NO-TARGET`（どちらも warn の診断を出す）なので、仮の分類は残らない。
 
 決定論（C5）: 出力の配列は `core/ir_norm.sort_lists` で決まった順にする（書き出しは `canonical_dump`）。集合の走査順に頼らない。
 ここは標準ライブラリと core と normalize の各段階だけを使う。
@@ -111,8 +111,8 @@ def check(raw: dict, ir: dict) -> tuple[list[str], list[str]]:
     """正規化の出力の自分での検査（設計草案の 4.1 の段階 6 の一部）。(問題, 仮のままの分類) を返す。
 
     問題: 入力の全リソースが `sources.<形式>.resources` にちょうど 1 回ずつ現れない（網羅分類の漏れ・重複。X4）。
-    仮のままの分類: `merged_into` で `into` が空のもの（R-* は辺の段階まで仮。統合先の見つからない M-* も）。スキーマ
-    （`into` は 1 つ以上）に合わないので、検査に通る IR ではない。"""
+    仮のままの分類: `merged_into` で `into` が空のもの。分類の確定（M-* は H-NO-TARGET、R-* は H-RELATION-NOEDGE まで）で
+    残らないはずなので、残れば正規化の誤り。スキーマ（`into` は 1 つ以上）に合わないので、検査に通る IR ではない。"""
     fmt = raw["format"]
     want = [r["address"] for r in raw.get("resources", [])]
     got = [r["address"] for r in ir["sources"][fmt]["resources"]]
