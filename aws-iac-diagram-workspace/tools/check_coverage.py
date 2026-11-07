@@ -80,11 +80,12 @@ def check_tf(src: dict, var_files: list[str] = (), notes: list[str] | None = Non
                 errs.append(f"{r['address']}: type {r['type']} が入力の {b.type} と違う")
             if r["file"] != b.file:
                 errs.append(f"{r['address']}: file {r['file']} が入力の {b.file} と違う")
-            indexed = r["address"] != base(r["address"])
+            indexed = index_key(r["address"]) is not None  # ブロック自身のインデックス（count／for_each のモジュールの `[0]` は数えない）
             multi = b.count or b.for_each
             if multi and not indexed and not (r["class"] == "hidden" and r.get("rule") == "H-COND-FALSE"):
                 errs.append(f"{r['address']}: count/for_each のあるブロックはインデックス付き（0 件なら H-COND-FALSE）")
-            if multi and not indexed and len(entries) > 1:
+            # 同じモジュールのインスタンスの中で（for_each のモジュールの別のインスタンスでは 0 件と 1 件以上が混ざってよい）
+            if multi and not indexed and any(LAST_INDEX.sub("", x["address"]) == r["address"] for x in entries if x is not r):
                 errs.append(f"{r['address']}: 0 件（インデックスなし）とインスタンスが混ざっている")
             if not multi and indexed:
                 errs.append(f"{r['address']}: count/for_each の無いブロックにインデックスが付いている")
@@ -149,7 +150,7 @@ SAM_IMPLICIT = {"ServerlessRestApi": "AWS::Serverless::Api", "ServerlessHttpApi"
 def check_cfn(src: dict) -> list[str]:
     errs = []
     top = WS / src["root"]
-    inv = {r.logical_id: r for r in cfn_inventory(top)}
+    inv = {r.logical_id: r for r in cfn_inventory(top, follow_urls=True)}  # URL の TemplateURL も読み替える（SELECTION.md の 4 の 2）
     covered = {r["address"]: r for r in src["resources"]}
     for lid, r in inv.items():
         e = covered.get(lid)

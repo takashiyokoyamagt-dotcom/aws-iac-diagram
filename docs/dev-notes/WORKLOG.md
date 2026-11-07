@@ -1608,3 +1608,12 @@ tests/ 平ら 10 ファイル、最大 2,381 行（281 件）            tests/ 
   - `tests/integration/normalize/test_main_set_criteria.py` が基準と「足りない辺は既知の 2 本だけ、余分な辺・ノード 0」を固定する。
 - 規則表の改善候補（レビューから。凍結中なので記録だけ）: Glue ジョブの default_arguments を E-ENV-REF／E-ENV-STR の対象に、E-IAM の S3 の `<bucket>/<prefix>/*`、Step Functions の DefinitionSubstitutions からの確定の辺、API Gateway の統合の credentials のロール、公開の RDS（T03 の真の構成は internet → DB）、CloudFront を入口に、R-APIGW-REST の `request_templates` を relations.md の規則の文に明記。
 - 単体テスト 690 件、golden 101/101。残り（手順6 の後半）: 1.4 の TF／SAM の対の比較、補助セットと全公開サンプルの X4・unknown・1.8、T19・T20 の辺の数。
+
+## 2026-11-08 フェーズ3 の手順6（後半）: TF／SAM の対・全公開サンプル
+
+- 実装はサブエージェント、レビューは別のサブエージェント（1 回。CRITERIA 0 の「許す違いの一覧を別のサブエージェントが判定」を兼ねる）。新しい道具 `aws-iac-diagram-workspace/tools/normalize_public_check.py`（全公開サンプル 64 入力の一巡と対の比較）、`tests/integration/normalize/test_public_samples.py`（入力ごとの件数を見張りとして固定。約 17 秒）。
+- **全公開サンプル 64 入力（T20 は 26 ルート）:** 例外 0、`build.check` 0、X4（`check_coverage.check_ir`）0、`validate_ir.py` 0。合計でリソース 2763・ノード 394・辺 141・unknown 435・`NORM-UNUSED-REF` 449（active な参照 8231 件中）。正規化は 64 入力で合計 0.24 秒。unknown の多い型（規則表の改善候補）: aws_alb_* の別名、lb_listener_rule、NLB、autoscaling 系、rds_cluster、route53_zone・resolver、transit_gateway 系など。大きいサンプル（T17・T19・C05）の 1.3 の基準（unknown 0）はフェーズ 6 に回したまま（設計 8 章の 7）。
+- **T19・T20 の辺の数（設計 8 章の 6）:** T19 は 17（R-SG 0）、T20 は 26 ルートの合計で 9（R-SG 6）。組合せの爆発は無い。
+- **TF／SAM の対（CRITERIA 1.4）:** T06・T07 は満たす（T07 は「HTTP API と暗黙の REST API の読み替え」と「TF だけのコード置き場のバケット」をレビューで正当と判定）。**T11 は満たさない**: SAM 版の API → ステートマシンの統合は OpenAPI（`AWS::Include`）に書かれているが、CFN アダプタが `AWS::Include` を展開しないので辺が欠ける（辺の一致率 0.667 < 0.9）。実装者は最初これを許す違いに入れていたが、レビューで「入力の違いではなくツールの限界」と判定され、`KNOWN_LIMITATIONS` に移して「NG（既知の制約・ユーザーの確認待ち）」と出すようにした（基準を結果に合わせて緩めない）。**ユーザーの判断待ち:** (a) 既知の制約として README に書く（CRITERIA 0 の 4）、(b) CFN アダプタに `AWS::Include`（手元のファイル）の展開を足す（フェーズ 2 の範囲の追加。T11s の 1.2 の再現率も上がる）。
+- 検査側の直し（レビューで仕様どおりに締め直した）: `validate_ir.py` の K-NAME（先頭の記号、重なりの接尾辞は NORM-KEY-COLLISION があるときだけ、英数字の無い名前）、サブネットの親（VPC は NORM-AZ-UNKNOWN、最上位は NORM-PLACEMENT のときだけ）、awscc の対応を `core/rules.py` に、id の key の作り方を `core/ir_norm.py` に共有、`check_coverage.py` のモジュールの添字、`iac_inventory.py` の S3 の TemplateURL（X4 の照合だけ。循環の止め、SELECTION.md の数は不変）。
+- 単体テスト 709 件、golden 101/101。

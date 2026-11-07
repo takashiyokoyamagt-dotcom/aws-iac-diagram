@@ -32,7 +32,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 
 from aws_iac_diagram.core import module_sources
-from aws_iac_diagram.core.rules import Row, Rules, neutral_key
+from aws_iac_diagram.core.rules import Row, Rules
 from aws_iac_diagram.normalize import merge, view
 from aws_iac_diagram.normalize.view import Index, Resource
 
@@ -97,17 +97,6 @@ def _rows(rules: Rules, res: Resource, as_type: str) -> list[Row]:
     return [r for r in rules.rows_for_input_type(as_type) if when_holds(r, res, as_type)]
 
 
-def _awscc_as_cfn(rules: Rules, tf_type: str) -> str | None:
-    """awscc の型を、同じ名前の CFN の型にする（`awscc_ec2_vpc` → `AWS::EC2::VPC`。規則表にある CFN の型の中から、中立キーで探す）。"""
-    if not tf_type.startswith("awscc_"):
-        return None
-    want = neutral_key(tf_type[len("awscc_"):])
-    for t in sorted({c for r in (*rules.types, *rules.relations) for c in r.cfn}):
-        if neutral_key(t[len("AWS::"):].replace("::", "")) == want:
-            return t
-    return None
-
-
 def _from_row(row: Row) -> Decision:
     if row.table == "relation":
         return Decision("merged_into", rule=row.id, provisional=True)
@@ -146,7 +135,7 @@ def classify_one(rules: Rules, res: Resource) -> tuple[Decision, bool]:
         return Decision("hidden", rule=_hidden_rule(rules, "data_block")), False
     rows = _rows(rules, res, res.type)
     if not rows and res.fmt == "tf":
-        cfn_type = _awscc_as_cfn(rules, res.type)
+        cfn_type = rules.awscc_as_cfn(res.type)
         if cfn_type:
             rows = _rows(rules, res, cfn_type)
         elif res.type.split("_", 1)[0] not in AWS_PROVIDERS:

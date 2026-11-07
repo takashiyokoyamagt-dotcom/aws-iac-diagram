@@ -19,6 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from types import MappingProxyType
 
+from aws_iac_diagram.core import ir_norm
 from aws_iac_diagram.core.rules import neutral_key
 
 # raw IR の印のキー（ir-schema の 7.2）。`$res` は `attr` と組で 2 つのキーを持つ
@@ -98,23 +99,7 @@ def strings_in(value):
             yield from strings_in(x)
 
 
-def split_tf_address(address: str) -> list[str]:
-    """TF の address を `.` で分ける（`["…"]` の中の `.` では分けない）。"""
-    parts, buf, depth, quoted = [], "", 0, False
-    for ch in address:
-        if ch == '"' and depth:
-            quoted = not quoted
-        elif ch == "[" and not quoted:
-            depth += 1
-        elif ch == "]" and not quoted:
-            depth -= 1
-        if ch == "." and not depth and not quoted:
-            parts.append(buf)
-            buf = ""
-        else:
-            buf += ch
-    parts.append(buf)
-    return parts
+split_tf_address = ir_norm.split_tf_address  # core/ir_norm.py（K-NAME の論理名と共有）
 
 
 @dataclass(frozen=True)

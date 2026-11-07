@@ -122,6 +122,11 @@ class ShippedRulesTest(unittest.TestCase):
         self.assertEqual(self.r.rows_for_input_type("aws_nothing"), ())
         self.assertEqual(rules.neutral_key("VpcId"), rules.neutral_key("vpc_id"))
         self.assertEqual(rules.neutral_key("CidrBlock"), "cidrblock")
+        # awscc の型 → 同じ名前の CFN の型（正規化の分類と validate_ir の「描く型」の検査が共有する。ir-schema の 2 章）
+        self.assertEqual(self.r.awscc_as_cfn("awscc_s3_bucket"), "AWS::S3::Bucket")
+        self.assertEqual(self.r.awscc_as_cfn("awscc_ec2_vpc"), "AWS::EC2::VPC")
+        self.assertIsNone(self.r.awscc_as_cfn("aws_s3_bucket"))
+        self.assertIsNone(self.r.awscc_as_cfn("awscc_imaginary_thing"))
 
     def test_rows_are_read_only(self):
         row = self.r.row("alb")

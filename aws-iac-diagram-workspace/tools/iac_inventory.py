@@ -12,7 +12,8 @@
   レジストリや git のモジュールは中身を読まず、module ブロックとして記録する。
 - CloudFormation: YAML（短縮タグ !Ref などを Fn::* の長い形式に読み替える。失敗知見13）と JSON。
   AWS::CloudFormation::Stack の TemplateURL がローカルのパスなら、子テンプレートを再帰的に読み、
-  論理ID に <親の論理ID>/ を前置する。
+  論理ID に <親の論理ID>/ を前置する。`follow_urls=True` なら、S3 などの URL も「URL のパスの末尾が、最上位のテンプレートの
+  フォルダの下のファイルと一致すれば読む」（SELECTION.md の 4 の 2。CFN アダプタと同じ読み替えを、アダプタのコードを使わずに書いたもの）。
 """
 from __future__ import annotations
 
@@ -233,9 +234,41 @@ def _local_template_url(props: dict, base: Path) -> Path | None:
     return p if p.exists() else None
 
 
-def cfn_inventory(path: Path, _root: Path | None = None, _prefix: str = "") -> list[CfnResource]:
+TEMPLATE_SUFFIXES = (".yaml", ".yml", ".json", ".template")
+
+
+def _url_template(props: dict, root: Path) -> Path | None:
+    """URL の TemplateURL（文字列か `Fn::Sub`）を、パスの末尾が一致する root の下のテンプレートに読み替える。一致する区切りの数が
+    最も多いファイルが 1 つだけのときに読む（同点が複数なら読まない）。`${…}` を含む区切りは、最後の `}` より後ろだけを比べる。
+    末尾の区切りで突き合わせる考え方は CFN アダプタ（adapters/cloudformation/nested.py の locate）と同じだが、X4 の照合を独立に
+    保つため、アダプタのコードは使わずにここで書く。"""
+    url = props.get("TemplateURL") or props.get("Location")
+    if isinstance(url, dict) and "Fn::Sub" in url:
+        url = url["Fn::Sub"][0] if isinstance(url["Fn::Sub"], list) else url["Fn::Sub"]
+    if not isinstance(url, str):
+        return None
+    tail = [seg.rsplit("}", 1)[-1] for seg in re.sub(r"^[a-z0-9]+://[^/]*", "", url).split("?")[0].split("/")]
+    tail = [t for t in tail if t]
+    best, hits = 0, []
+    for f in sorted(p for p in root.rglob("*") if p.is_file() and p.suffix.lower() in TEMPLATE_SUFFIXES):
+        segs = f.relative_to(root).parts
+        n = 0
+        while n < min(len(segs), len(tail)) and segs[-1 - n] == tail[-1 - n]:
+            n += 1
+        if n > best:
+            best, hits = n, [f]
+        elif n == best and n:
+            hits.append(f)
+    return hits[0].resolve() if best and len(hits) == 1 else None
+
+
+def cfn_inventory(path: Path, _root: Path | None = None, _prefix: str = "", follow_urls: bool = False,
+                  _active: frozenset[Path] = frozenset()) -> list[CfnResource]:
+    """テンプレートのリソースを、ネストスタックの中まで列挙する。`_active` は読んでいる途中の祖先のテンプレート（循環する
+    ネストスタック A → B → A は、2 回目の B → A を読まずにスタックのリソースとして数える。アダプタの CFN-NESTED-CYCLE と同じ扱い）。"""
     path = Path(path)
     root = Path(_root) if _root else path.parent
+    _active = _active | {path.resolve()}
     doc = load_cfn(path)
     rel = path.resolve().relative_to(root.resolve()).as_posix()
     out: list[CfnResource] = []
@@ -243,11 +276,12 @@ def cfn_inventory(path: Path, _root: Path | None = None, _prefix: str = "") -> l
         rtype = body.get("Type", "")
         r = CfnResource(logical_id=f"{_prefix}{lid}", type=rtype, file=rel, condition=body.get("Condition"))
         if rtype in ("AWS::CloudFormation::Stack", "AWS::Serverless::Application"):
-            child = _local_template_url(body.get("Properties") or {}, path.parent)
-            if child:
+            props = body.get("Properties") or {}
+            child = _local_template_url(props, path.parent) or (_url_template(props, root) if follow_urls else None)
+            if child and child.resolve() not in _active:
                 r.nested_template = child.relative_to(root.resolve()).as_posix()
                 out.append(r)
-                out.extend(cfn_inventory(child, root, f"{_prefix}{lid}/"))
+                out.extend(cfn_inventory(child, root, f"{_prefix}{lid}/", follow_urls, _active))
                 continue
         out.append(r)
     return out
