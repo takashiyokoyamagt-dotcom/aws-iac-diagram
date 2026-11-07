@@ -1,16 +1,18 @@
-"""正規化（段階 0〜2。フェーズ 3 の手順 3a）× 自作の構成 5 種 × TF／CFN: 正解 IR（expected）と比べる。
+"""正規化（段階 0〜2 と 4。フェーズ 3 の手順 3a・3b）× 自作の構成 5 種 × TF／CFN: 正解 IR（expected）と比べる。
 
-比べ方は `aws-iac-diagram-workspace/tools/compare_ir.py` の `compare`（CRITERIA.md の 1.0 の数え方）。手順 3a では辺（段階 3）と入れ子
-（段階 4）をまだ作らないので、**辺に依らないもの**だけを基準 1.0（CRITERIA の 1.1）で縛る:
+比べ方は `aws-iac-diagram-workspace/tools/compare_ir.py` の `compare`（CRITERIA.md の 1.0 の数え方）。辺（段階 3）はまだ作らないので、
+**辺に依らないもの**を基準 1.0（CRITERIA の 1.1）で縛る:
 
-- N（再現率・適合率）、名前の一致率、ノードの label: 1.0。ただし合成ノード（AZ・`external/internet`・`bedrock_model`）は正解 IR から
-  除いて比べる。理由: AZ は入れ子の規則 N-AZ（段階 4）、internet は辺の規則 N-EXT-INTERNET（R-SG・R-LB-LISTENER。段階 3）、
-  基盤モデルは N-BEDROCK-MODEL（E-BEDROCK-*。段階 3）が作るもので、どれも手順 3a の範囲の外。
+- N（再現率・適合率）、名前の一致率、ノードの label: 1.0。AZ のノード（N-AZ。入れ子の段階 4）も含める。合成ノードのうち
+  `external/internet`（N-EXT-INTERNET。R-SG・R-LB-LISTENER の辺の段階）と `bedrock_model`（N-BEDROCK-MODEL。E-BEDROCK-* の辺の段階）
+  だけは正解 IR から除いて比べる（手順 3b の範囲の外）。
+- P（入れ子の再現率・適合率。`(id, parent)` と `(id, span)`）: 1.0（同じく internet と基盤モデルは除く）。
 - C（網羅分類）: 辺で決まる分類（`PROVISIONAL`）を除いて 1.0。辺で決まる分類は、**どの address が・なぜ違うか**を固定する:
   正解の規則が R-*（into が辺の id）なら、出力は同じ規則の仮の分類（`merged_into`、into が空）。正解が H-SG-NOEDGE・H-RT-NOROUTE
   （辺を 1 本も生まなかった SG・ルートテーブル）なら、出力はその fallback の元の R-SG・R-ROUTE の仮の分類。件数も入力ごとに固定する
   （`PROVISIONAL_COUNTS`。辺の段階を作ったら 0 になり、この許しは消す）。
-- E・P はまだ数えない（出力の辺は 0、parent は None）。X2・X3（正解に無い辺・逆向きの辺）は出力に辺が無いので 0 であること。
+- E はまだ数えない（出力の辺は 0）。X2・X3（正解に無い辺・逆向きの辺）は出力に辺が無いので 0 であること。
+- attrs: `access` 以外（`cidr`・`endpoint_type`・`service`）は正解と同じ。`access` はルート（R-ROUTE。辺の段階）で決まる。
 """
 
 from __future__ import annotations
@@ -29,9 +31,13 @@ from aws_iac_diagram.normalize import build  # noqa: E402
 
 cmp = load_tool("compare_ir")
 
-# 合成ノードの型（作る段階が手順 3a の外）
-SYNTHETIC_TYPES = {"availability_zone": "N-AZ（入れ子の段階 4）", "external": "N-EXT-INTERNET（辺の段階 3）",
+# 合成ノードの型 → 作る段階。手順 3b で作るのは AZ だけ（EDGE_SYNTHETIC は正解 IR から除いて比べる）
+SYNTHETIC_TYPES = {"availability_zone": "N-AZ（入れ子の段階 4。手順 3b で作る）", "external": "N-EXT-INTERNET（辺の段階 3）",
                    "bedrock_model": "N-BEDROCK-MODEL（辺の段階 3）"}
+EDGE_SYNTHETIC = {"external", "bedrock_model"}
+
+# 入力ごとの AZ のノードの数（正解 IR と同じ。three-tier・three-tier-modules・vpc-endpoints は 2 つの AZ）
+AZ_COUNTS = {"three-tier": 2, "three-tier-modules": 2, "serverless-api": 0, "rag": 0, "vpc-endpoints": 2}
 
 # 正解 IR の規則 → 手順 3a の出力の仮の規則（辺ができたかで決まる分類。設計草案の 4.1 の「仮分類と確定の分離」）
 PROVISIONAL = {"H-SG-NOEDGE": "R-SG", "H-RT-NOROUTE": "R-ROUTE"}  # ほかに R-* はそのままの規則
@@ -46,9 +52,10 @@ PROVISIONAL_COUNTS = {
 }
 
 
-def without_synthetic(g: dict) -> dict:
+def without_edge_synthetic(g: dict) -> dict:
+    """辺の段階で作る合成ノード（internet・基盤モデル）を除いた写し（AZ は残す）。"""
     g = copy.deepcopy(g)
-    g["nodes"] = [n for n in g["nodes"] if not n.get("synthetic")]
+    g["nodes"] = [n for n in g["nodes"] if n["type"] not in EDGE_SYNTHETIC]
     return g
 
 
@@ -67,21 +74,29 @@ class ExpectedIrTest(unittest.TestCase):
             self.assertEqual(self.rules.row(relation).get("fallback"), hidden)
         self.assertEqual(set(PROVISIONAL_COUNTS), {(n, f) for n in NAMES for f in ("tf", "cfn")})
 
-    def test_nodes_names_and_labels_are_exact(self):
+    def test_nodes_names_labels_and_placement_are_exact(self):
         for (name, fmt), o in self.out.items():
             with self.subTest(name, fmt=fmt):
                 g = expected_ir(name)
                 for n in g["nodes"]:
                     if n.get("synthetic"):
                         self.assertIn(n["type"], SYNTHETIC_TYPES, n["id"])
-                self.assertFalse([n for n in o["nodes"] if n.get("synthetic")])
-                c = cmp.compare(without_synthetic(g), o, fmt)["counts"]
-                for k in ("N.recall", "N.precision", "name", "node.label"):
+                self.assertFalse([n for n in o["nodes"] if n["type"] in EDGE_SYNTHETIC])
+                self.assertEqual(len([n for n in o["nodes"] if n["type"] == "availability_zone"]), AZ_COUNTS[name])
+                r = cmp.compare(without_edge_synthetic(g), o, fmt)
+                c = r["counts"]
+                for k in ("N.recall", "N.precision", "name", "node.label", "P.recall", "P.precision"):
                     hit, den = c[k]
                     self.assertGreater(den, 0, k)
-                    self.assertEqual(hit, den, (k, cmp.compare(without_synthetic(g), o, fmt)["missing"]["N"]))
+                    self.assertEqual(hit, den, (k, r["missing"]["N"], r["extra"]["N"]))
                 # 名前の一致は、正解の（合成でない）ノードのすべてで数えている
                 self.assertEqual(c["name"][1], len([n for n in g["nodes"] if not n.get("synthetic")]))
+                # AZ のノードの形（合成、group、親は VPC）も正解と同じ
+                want = sorted((n["id"], n["name"], n["label"], n["parent"]) for n in g["nodes"] if n["type"] == "availability_zone")
+                got = sorted((n["id"], n["name"], n["label"], n["parent"]) for n in o["nodes"] if n["type"] == "availability_zone")
+                self.assertEqual(got, want)
+                self.assertTrue(all(n.get("synthetic") and n["category"] == "group" for n in o["nodes"] if n["type"] == "availability_zone"))
+                self.assertEqual([d for d in o["diagnostics"] if d["code"] in ("NORM-PLACEMENT", "NORM-AZ-UNKNOWN")], [])
 
     def test_classification_is_exact_except_edge_dependent_ones(self):
         for (name, fmt), o in self.out.items():
@@ -114,7 +129,7 @@ class ExpectedIrTest(unittest.TestCase):
                 self.assertEqual((crit["X2"], crit["X3"]), ([], []))
 
     def test_tf_and_cfn_nodes_are_the_same(self):
-        # canonical 部のノード（いまは parent が None、合成ノードと attrs.access が無い）が TF 版と CFN 版で一致する（CRITERIA の 1.1 の c）
+        # canonical 部のノード（いまは internet・基盤モデルと attrs.access が無い）が TF 版と CFN 版で一致する（CRITERIA の 1.1 の c）
         for name in NAMES:
             with self.subTest(name):
                 tf, cfn = (ir_norm.canonical_part(self.out[(name, f)]) for f in ("tf", "cfn"))
@@ -127,7 +142,7 @@ class ExpectedIrTest(unittest.TestCase):
                 g = expected_ir(name)
                 m, _ = cmp.id_map(g, o, fmt)
                 want = {n["id"]: {k: v for k, v in (n.get("attrs") or {}).items() if k != "access"}
-                        for n in g["nodes"] if not n.get("synthetic")}
+                        for n in g["nodes"] if n["type"] not in EDGE_SYNTHETIC}
                 got = {m.get(n["id"], n["id"]): n.get("attrs", {}) for n in o["nodes"]}
                 self.assertEqual(got, want)
 

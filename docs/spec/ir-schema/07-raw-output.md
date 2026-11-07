@@ -145,7 +145,7 @@
 ```
 
 - `level` は `info`（読み替えなど、結果に影響しない）／`warn`（評価できなかった値があり、図が不完全になりうる）／`error`（そのリソースか、ファイルを読めなかった）。
-- `code` は大文字で、raw では `CFN-…`／`TF-…`。正規化後の IR にも同じ形の `diagnostics` を持たせ、そこでは `NORM-…`（「使わなかった参照」、「条件が決まらない」など。[refs.md](../rules/refs.md)）。一覧は各段階の実装と一緒に決める。
+- `code` は大文字で、raw では `CFN-…`／`TF-…`。正規化後の IR にも同じ形の `diagnostics` を持たせ、そこでは `NORM-…`（「使わなかった参照」、「条件が決まらない」など。[refs.md](../rules/refs.md)）。一覧は [10 章](10-normalize-diagnostics.md)。
 - **診断コードの一覧の正は `scripts/aws_iac_diagram/core/diagnostics.py`**（コードごとの level と短い説明。アダプタのコードにある `TF-…`・`CFN-…` の文字列がそこに無いと、そこにあって使われていないと、`tests/architecture/test_diagnostics_registry.py` が落ちる。この章の一覧と同じであることは `tests/architecture/test_diagnostics.py` が確かめる）。コードを足す・level を変えるときは、両方と `tests/golden/`（出力が変わるとき）を同じコミットで直す。同じコードが場所によって level を変えるものがある（下の「warn／info」などの書き方）。
 - TF アダプタの `code` の一覧（43 個。CFN と同じく「`コード`（level。説明）」の形。level は `diagnostics.py` と同じであることをテストが確かめる）:
   - 読み込み: `TF-PARSE-ERROR`（error。.tf を読めない（ほかのファイルは読む））、`TF-HEREDOC-TRAILING-SPACE`（info。heredoc の開始・終端の行の末尾の空白を取ってから読んだ（python-hcl2 が読めないため））、`TF-DUPLICATE-BLOCK`（warn。同じ名前の変数・local・output・リソースが複数ある。最初のものを使う）、`TF-MALFORMED-BLOCK`（warn。ブロックの形が誤り（provider の指定、providers、dynamic ブロック、モジュールの source など））、`TF-OVERRIDE-UNMATCHED`（warn。*_override.tf のブロックに対応する元のブロックが無い）、`TF-TFJSON-UNSUPPORTED`（warn／info。.tf.json は .tf だけでは読まない（warn）。plan JSON と一緒のときは plan から取る（info））、`TF-ROOT-OTHER-DRIVE`（info。root が別のドライブにあり、ファイル名・フォルダ名だけを書いた（Windows））、`TF-VARFILE-OTHER-DRIVE`（info。変数のファイルが別のドライブにあり、相対パスにできないので名前だけを書いた（Windows））。

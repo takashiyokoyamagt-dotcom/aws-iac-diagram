@@ -1,6 +1,6 @@
 """診断コードの一覧の規則のテスト（R3。PLAN の 1.4 の 4）。
 
-アダプタのコードにある診断コードの文字列（`diag(...)` などの位置のもの）と core/diagnostics.py の一覧を照合する。
+アダプタと正規化のコードにある診断コードの文字列（`diag(...)` などの位置のもの）と core/diagnostics.py の一覧を照合する。
 一覧に無いコードを使ったら失敗、一覧にあって使われていないコードも失敗（UNUSED_ALLOW に理由を付けたものを除く）。
 一覧そのものの形と、docs/spec/ir-schema/ の 7.5 との一致は tests/architecture/test_diagnostics.py。
 """
@@ -27,7 +27,7 @@ from aws_iac_diagram.core import diagnostics  # noqa: E402
 
 
 class DiagnosticRegistryRuleTest(unittest.TestCase):
-    """アダプタが出す診断コードは、すべて core/diagnostics.py の一覧にある（逆も）。PLAN の 1.4 の 4。"""
+    """アダプタと正規化が出す診断コードは、すべて core/diagnostics.py の一覧にある（逆も）。PLAN の 1.4 の 4。"""
 
     REGISTRY = {c: d.levels for c, d in diagnostics.DIAGNOSTICS.items()}
 
@@ -54,11 +54,13 @@ class DiagnosticRegistryRuleTest(unittest.TestCase):
         self.assertEqual({s.code for s in sites}, set(self.REGISTRY))
         self.assertTrue(any(s.code.startswith("TF-") and s.use for s in sites))
         self.assertTrue(any(s.code.startswith("CFN-") and s.use for s in sites))
+        self.assertTrue(any(s.code.startswith("NORM-") and s.use and s.levels for s in sites))
         self.assertTrue(any(not s.use for s in sites))
         self.assertTrue(any(s.levels for s in sites))
-        # 入口の adapt_cfn.py・adapt_tf.py も範囲に入っている
-        files = {p.name for p in diagnostic_scan_files(SCRIPTS)}
-        self.assertTrue({"adapt_cfn.py", "adapt_tf.py", "build.py", "stack.py", "module_expr.py"} <= files)
+        # 入口の adapt_cfn.py・adapt_tf.py・normalize_ir.py と、正規化の層も範囲に入っている
+        files = {p.relative_to(SCRIPTS).as_posix() for p in diagnostic_scan_files(SCRIPTS)}
+        self.assertTrue({"adapt_cfn.py", "adapt_tf.py", "normalize_ir.py", "aws_iac_diagram/normalize/nesting.py",
+                         "aws_iac_diagram/normalize/classify.py", "aws_iac_diagram/adapters/cloudformation/stack.py"} <= files)
 
     def test_unused_allowlist_is_empty(self):
         self.assertEqual(UNUSED_ALLOW, {})
@@ -75,6 +77,8 @@ class DiagnosticRegistryRuleTest(unittest.TestCase):
             ("aws_iac_diagram/adapters/terraform/evaluator/values.py", 'Z = {"TF-NEW-IN-SET"}'),
             ("adapt_cfn.py", 'W = "CFN-NEW-IN-ENTRY"'),
             ("adapt_tf.py", 'W = "TF-NEW-IN-ENTRY"'),
+            ("aws_iac_diagram/normalize/nesting.py", 'D = {"level": "warn", "code": "NORM-NEW-THING"}'),
+            ("normalize_ir.py", 'W = "NORM-NEW-IN-ENTRY"'),
         )
         for relpath, text in cases:
             s = self.copy_tree()
@@ -159,7 +163,7 @@ class DiagnosticRegistryRuleTest(unittest.TestCase):
 
     def test_mutation_unknown_prefix_in_an_emit_position_fails(self):
         cases = (
-            'self.diag("warn", "NORM-NEW-THING", "", "x", "")',
+            'self.diag("warn", "ZZQ-NEW-THING", "", "x", "")',
             'self.diag("warn", "GET-OBJECT", "", "x", "")',
             'D = {"level": "info", "code": "FOO-BAR"}',
             'U = Unknown("m", "XYZ-ABC")',
@@ -175,15 +179,15 @@ class DiagnosticRegistryRuleTest(unittest.TestCase):
                                 for p in problems), (text, problems))
         # 接頭辞を ALLOWED_PREFIXES に足す（意図して）と、今度は「一覧に無いコード」として失敗する
         s = self.copy_tree()
-        self.append(s, "aws_iac_diagram/adapters/cloudformation/build.py", 'self.diag("warn", "NORM-NEW-THING", "", "x", "")')
-        with mock.patch.object(diagnostics, "ALLOWED_PREFIXES", (*diagnostics.ALLOWED_PREFIXES, "NORM")):
+        self.append(s, "aws_iac_diagram/adapters/cloudformation/build.py", 'self.diag("warn", "ZZQ-NEW-THING", "", "x", "")')
+        with mock.patch.object(diagnostics, "ALLOWED_PREFIXES", (*diagnostics.ALLOWED_PREFIXES, "ZZQ")):
             problems = self.problems(s)
-        self.assertTrue(any("NORM-NEW-THING が core/diagnostics.py の一覧に無い" in p for p in problems), problems)
+        self.assertTrue(any("ZZQ-NEW-THING が core/diagnostics.py の一覧に無い" in p for p in problems), problems)
         self.assertFalse(any("ALLOWED_PREFIXES に無い" in p for p in problems), problems)
         self.assertEqual(diagnostics.ALLOWED_PREFIXES, tuple(diagnostics.PREFIXES))
 
     def test_scanner_does_not_look_outside_the_adapters(self):
-        # 範囲は入口のアダプタと adapters/ の下だけ（NORM-… などほかの層のコードは、その層が育つとき範囲に足す）
+        # 範囲は入口（adapt_*.py・normalize_ir.py）と adapters/・normalize/ の下だけ（ほかの層のコードは、その層が診断を出すとき範囲に足す）
         s = self.copy_tree()
         self.append(s, "aws_iac_diagram/core/ir_raw.py", 'X = "E-NOEDGE-SOMETHING"')
         self.assertEqual(self.problems(s), [])

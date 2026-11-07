@@ -130,6 +130,7 @@ REQUIRED_FILES = [
     "scripts/aws_iac_diagram/normalize/classify.py",
     "scripts/aws_iac_diagram/normalize/merge.py",
     "scripts/aws_iac_diagram/normalize/names.py",
+    "scripts/aws_iac_diagram/normalize/nesting.py",
     "scripts/aws_iac_diagram/normalize/nodes.py",
     "scripts/aws_iac_diagram/normalize/view.py",
     "scripts/aws_iac_diagram/platform/__init__.py",
@@ -137,6 +138,7 @@ REQUIRED_FILES = [
     "scripts/aws_iac_diagram/validate/__init__.py",
     "scripts/doctor.py",
     "scripts/find_aws_icon.py",
+    "scripts/normalize_ir.py",
     "scripts/validate_ir.py",
 ]
 

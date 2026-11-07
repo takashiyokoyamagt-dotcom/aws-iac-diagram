@@ -394,7 +394,7 @@ use = "P-*"
 uv run "<SKILL>/scripts/normalize_ir.py" --input <raw IR の JSON> --out <normalized IR の JSON> [--name <名前>]
 ```
 
-PLAN 1.3 の決まりどおり、結果はファイル、標準出力に頼らない。終了コードは 0 = 成功、1 = 検証で問題（入力の全リソースが `sources` に 1 回ずつ入らない、ローダーの検査の失敗）、2 = 実行エラー。`SKILL.md` の「動くスクリプト」に 1 行足す（`test_skill_entry.py` が書き忘れを失敗にする）。フェーズ 6 の `diagram.py` は、同じ関数（`normalize.build.normalize`）を直接呼ぶ。
+PLAN 1.3 の決まりどおり、結果はファイル、標準出力に頼らない。終了コードは（手順 3b で実装したもの）0 = 書けて、網羅分類（入力の全リソースが `sources` に 1 回ずつ）に問題が無く、仮の分類（`into` が空の R-*・統合先の見つからない M-*）も無い、1 = 書けたが、そのどちらかがある（辺の段階〈手順 4〉までは、関係リソースのある入力は必ず 1）、2 = 書けなかった（入力を読めない・raw IR でない・raw IR の検査に通らない・**規則表の検査の失敗**・出力を書けない・想定外の失敗）。0 は `validate_ir.py` に通ることまでは意味しない（スキーマと参照の整合の全部は `validate_ir.py` が見る）。`SKILL.md` の「動くスクリプト」に 1 行足す（`test_skill_entry.py` が書き忘れを失敗にする）。フェーズ 6 の `diagram.py` は、同じ関数（`normalize.build.normalize`）を直接呼ぶ。
 
 ### 5.3 診断コード（`NORM-`）
 

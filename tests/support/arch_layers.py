@@ -93,11 +93,12 @@ INTRA_CLOUDFORMATION: dict[str, frozenset[str]] = {
 }
 
 # normalize の中の順序（同じ決まり。docs/architecture.md の表と同じ。食い違えば失敗）。設計草案（docs/dev-notes/phase3-design-draft.md）の
-# 5.1 の段階の順: view（段階 0）→ classify・names（段階 1 と名前）→ nodes（段階 2）→ build（組み立て）。後の段階が前を import し、逆は不可
+# 5.1 の段階の順: view（段階 0）→ classify・merge・names（段階 1 と名前）→ nodes（段階 2）→ nesting（段階 4）→ build（組み立て）。後の段階が前を import し、逆は不可
 NORMALIZE_GROUPS: dict[str, tuple[str, ...]] = {
     "view": ("view",),
     "classify": ("classify", "merge", "names"),
     "nodes": ("nodes",),
+    "nesting": ("nesting",),
     "build": ("build",),
 }
 
@@ -105,7 +106,8 @@ INTRA_NORMALIZE: dict[str, frozenset[str]] = {
     "view": frozenset(),
     "classify": frozenset({"view"}),
     "nodes": frozenset({"view", "classify"}),
-    "build": frozenset({"view", "classify", "nodes"}),
+    "nesting": frozenset({"view", "classify"}),
+    "build": frozenset({"view", "classify", "nodes", "nesting"}),
 }
 
 LAYER_DIRS = {"core", "normalize", "layout", "emit", "validate", "icons", "platform"}
