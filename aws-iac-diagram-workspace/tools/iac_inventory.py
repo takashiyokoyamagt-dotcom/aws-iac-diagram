@@ -50,11 +50,29 @@ def _unq(s):
     return s
 
 
+_HEREDOC_OPEN = re.compile(r"<<-?([A-Za-z][A-Za-z0-9._-]*)[ \t]*$")
+
+
+def _strip_heredoc_spaces(text: str) -> str:
+    """heredoc の開始（`<<POLICY `）と終端の行の末尾の空白を取る（python-hcl2 8.1.4 は空白があると読めない。公開サンプルの T11 など）。
+    アダプタ（adapters/terraform/hcl.py の fix_heredocs）と同じ読み替えを、ここでは独立に小さく行う（このライブラリはアダプタを import しない）。"""
+    lines = text.split("\n")
+    for i, line in enumerate(lines):
+        m = _HEREDOC_OPEN.search(line.rstrip("\r"))
+        if not m or "#" in line[:m.start()] or "//" in line[:m.start()]:
+            continue
+        lines[i] = line.rstrip("\r").rstrip(" \t")
+        for j in range(i + 1, len(lines)):
+            if lines[j].strip() == m.group(1):
+                lines[j] = lines[j].rstrip()
+                break
+    return "\n".join(lines)
+
+
 def _load_tf_dir(d: Path) -> list[tuple[Path, dict]]:
     out = []
     for f in sorted(d.glob("*.tf")):
-        with f.open(encoding="utf-8") as fh:
-            out.append((f, hcl2.load(fh)))
+        out.append((f, hcl2.loads(_strip_heredoc_spaces(f.read_text(encoding="utf-8")))))
     return out
 
 

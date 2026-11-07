@@ -14,27 +14,11 @@ from pathlib import Path
 
 # tests/ を import の道に入れる（`python tests/.../test_x.py` で直接動かすときのため。discover では要らないが害は無い）
 sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "support").is_dir())))
+from support.main_set import MAIN_SET
 from support.paths import PUBLIC, WS
 from aws_iac_diagram.adapters.cloudformation import build as cfn_build  # noqa: E402
 from aws_iac_diagram.adapters.terraform import build as tf_build  # noqa: E402
 from aws_iac_diagram.core import rules  # noqa: E402
-
-# CRITERIA の 1.2 の 12 入力（パスは aws-iac-diagram-workspace/tools/survey_public.py の SAMPLES と同じ）
-MAIN_SET = {
-    "T03": ("tf", "learn-terraform-rds"),
-    "T06": ("tf", "serverless-patterns/eventbridge-sns-lambda-terraform"),
-    "T06s": ("cfn", "serverless-patterns/eventbridge-sns-lambda/template.yaml"),
-    "T07": ("tf", "serverless-patterns/apigw-lambda-dynamodb-terraform"),
-    "T07s": ("cfn", "serverless-patterns/apigw-lambda-dynamodb/template.yaml"),
-    "T09": ("tf", "sample-bedrock-knowledge-base-terraform"),
-    "T11": ("tf", "serverless-patterns/apigw-sfn-crud-terraform"),
-    "T11s": ("cfn", "serverless-patterns/apigw-sfn-crud/template.yaml"),
-    "T12": ("tf", "sample-build-aws-glue-data-quality-pipeline-using-terraform/examples"),
-    "T16": ("tf", "learn-terraform-provision-eks-cluster"),
-    "C01": ("cfn", "amazon-cloudfront-secure-static-site/templates/main.yaml"),
-    "C02": ("cfn", "aws-cloudformation-templates/Solutions/WebApp/webapp.yaml"),
-}
-
 
 def is_data(r: dict) -> bool:
     return r["address"].startswith("data.") or ".data." in r["address"]

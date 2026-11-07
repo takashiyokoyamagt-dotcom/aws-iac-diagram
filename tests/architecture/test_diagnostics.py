@@ -88,7 +88,7 @@ class RegistryShapeTest(unittest.TestCase):
     def test_counts_and_order(self):
         # 数は文書（ir-schema の 7.5 と 10 章）と一緒に直す。CFN は接頭辞 CFN-、TF は TF-、正規化は NORM-。それぞれアルファベット順
         self.assertEqual((len(D.codes("cloudformation")), len(D.codes("terraform")), len(D.codes("normalize")), len(D.DIAGNOSTICS)),
-                         (19, 43, 8, 70))
+                         (19, 43, 10, 72))
         self.assertEqual(D.codes(), D.codes("cloudformation") + D.codes("normalize") + D.codes("terraform"))
         self.assertTrue(all(c.startswith("NORM-") for c in D.codes("normalize")))
         for adapter in ("cloudformation", "terraform", "normalize"):
@@ -138,7 +138,7 @@ class DiagnosticCodesTest(unittest.TestCase):
         section = doc_section()
         self.assertIn("TF アダプタの `code` の一覧（43 個", section)
         self.assertIn("CFN アダプタの `code` の一覧（19 個", section)
-        self.assertIn("正規化の `code` の一覧（8 個", norm_section())
+        self.assertIn("正規化の `code` の一覧（10 個", norm_section())
 
     LEVEL_WORDS = "(?:error|warn|info)"
 

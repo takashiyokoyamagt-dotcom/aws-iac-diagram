@@ -87,9 +87,8 @@ class BuildTest(unittest.TestCase):
              "into": ["nat_gateway/nat"]},
             {"address": "aws_iam_role.r", "type": "aws_iam_role", "file": "main.tf", "class": "hidden", "rule": "H-IAM"},
             {"address": "aws_nat_gateway.n", "type": "aws_nat_gateway", "file": "main.tf", "class": "drawn", "node": "nat_gateway/nat"},
-            # R-* は辺の段階まで仮（into が空）
-            {"address": "aws_route_table.r", "type": "aws_route_table", "file": "main.tf", "class": "merged_into", "rule": "R-ROUTE",
-             "into": []},
+            # 関連付けの無いルートテーブルは辺ができず、fallback の H-RT-NOROUTE
+            {"address": "aws_route_table.r", "type": "aws_route_table", "file": "main.tf", "class": "hidden", "rule": "H-RT-NOROUTE"},
             {"address": "aws_unheard_of.x", "type": "aws_unheard_of", "file": "main.tf", "class": "unknown"},
             {"address": "module.vpc.aws_vpc.this[0]", "type": "aws_vpc", "file": "main.tf", "class": "drawn", "node": "vpc/v",
              "via": "module_summary"},
