@@ -1570,3 +1570,12 @@ tests/ 平ら 10 ファイル、最大 2,381 行（281 件）            tests/ 
 - レビューの指摘（止めるもの無し）: Deny・否定の条件のポリシーから辺を作らない、T11 の統合先、map の中のキーを属性名と照合しない、E-REF-NONODE は辺になった R-* だけ、自分の統合先への参照、根拠の文字列の例外を 04 章に、主セットの回帰テスト → 直した。IPv6 の `::/0` は凍結した規則の文どおり `access` を private のままにし、08 章に限界として書いた。
 - **ユーザーの判断を待つもの（規則表の凍結を解く必要があるもの）:** ① 辺ができない R-*（T12 の条件の無い Glue トリガー。いまは仮のまま `NORM-RELATION-NOEDGE`、`normalize_ir.py` は終了コード 1）に H-* の行を足すか。② 統合先の無い M-* の行き先（H-NO-TARGET 案）。③ IPv6 の `::/0` を public に数えるか。④ R-SNS-TOPIC-POLICY の送信元は実装では `aws:SourceArn` だけ（表の文の `Principal.Service` は使わない。保守的な選択）。
 - 単体テスト 656 件、golden 101/101。
+
+## 2026-11-07 フェーズ3 の手順4b: 属性の参照の辺・E-IAM・N-BEDROCK-MODEL
+
+- 実装はサブエージェント、レビューは別のサブエージェント（1 回）。`normalize/synthetic.py`（ARN の読み取り、N-BEDROCK-MODEL）、`attr_edges.py`（E-ENV-REF・E-ENV-STR・E-KB-STORAGE・E-BEDROCK-EMBEDDING・E-CDN-ORIGIN・E-CDN-WAF・E-DNS-ALIAS・E-GLUE-TARGET・E-AUTHORIZER）、`iam.py`（E-IAM・E-IAM-SUPPRESS。SAM のポリシーテンプレートは代表のアクションの表 `TEMPLATE_ACTIONS`）、E-MERGE の詳細。
+- 自作 10 入力: R-SG だけの辺と internet の辺（手順 5）を除いて E の再現率・適合率（確定・導出／推定）・kind・confidence が 1.0、label は R-SG のラベル（ECS → RDS の `TCP 5432`）を除いて 1.0、N（基盤モデルを含む）1.0、C は R-SG とリスナーの internet の分を除いて 1.0、`NORM-UNUSED-REF` 0。
+- 主セット 12 入力: 確定・導出の辺を目で見て誤り・逆向きは無し。T11 に Step Functions → DynamoDB（E-IAM。草案 8 章の 2 で「推定でしか得られない」とした辺）、T07s に関数 → テーブル（E-IAM）。
+- レビューの指摘: 止めるもの 2（SAM の `Policies` が mapping 1 つのとき E-IAM が出ない、黒箱のモジュールへの辺が confirmed で出る）、should-fix 5、nit 4 → すべて直した（アクションのワイルドカード、kind は行の順、参照 1 つの ARN の `$concat`、ARN の名前の一致はちょうど 1 つ、E-ENV-STR は 3 文字以上で英字だけでない値）。
+- **ユーザーの判断を待つもの（規則表の凍結を解く必要があるもの。手順4a の 4 つに加えて）:** ⑤ 黒箱のモジュール → 入力に渡したノードの推定の辺（ir-schema 2 章）の規則 ID（いまは作らない）。⑥ `TEMPLATE_ACTIONS` を edges.toml へ移す。
+- 単体テスト 672 件、golden 101/101。

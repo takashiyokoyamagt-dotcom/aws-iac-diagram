@@ -9,7 +9,7 @@ from pathlib import Path
 
 # tests/ を import の道に入れる（`python tests/.../test_x.py` で直接動かすときのため。discover では要らないが害は無い）
 sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "support").is_dir())))
-from support.raw_builders import raw_ir, reference, resource
+from support.raw_builders import raw_ir, ref, resource
 from aws_iac_diagram.core import rules as rules_mod  # noqa: E402
 from aws_iac_diagram.normalize import build, edges  # noqa: E402
 from aws_iac_diagram.normalize.relations_base import Candidate, path_keys  # noqa: E402
@@ -23,10 +23,6 @@ def R(addr, type_, props=None, **kw):
 
 def C(addr, type_, props=None, **kw):
     return resource(addr, type_, props, fmt="cfn", **kw)
-
-
-def ref(frm, path, to, attr=None):
-    return reference(frm, path, to, attr, fn="Ref" if path.startswith("Properties.") else "ref")
 
 
 def tag(name):

@@ -99,7 +99,7 @@ NORMALIZE_GROUPS: dict[str, tuple[str, ...]] = {
     "classify": ("classify", "merge", "names"),
     "nodes": ("nodes",),
     "nesting": ("nesting",),
-    "relations": ("relations_base", "relations_route", "relations_lb", "relations_api", "relations_events"),
+    "relations": ("relations_base", "relations_route", "relations_lb", "relations_api", "relations_events", "synthetic", "attr_edges", "iam"),
     "edges": ("edges", "refs"),
     "build": ("build",),
 }

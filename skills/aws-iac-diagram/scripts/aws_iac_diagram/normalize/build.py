@@ -74,6 +74,7 @@ def run(raw: dict, rules: Rules | None = None, name: str | None = None) -> Resul
     final, more = classify.apply_edges(fin.decisions, rules, er.into, edges_mod.HANDLED)
     diags += more
     placed, place_diags = nesting.place(index, final, node_by_address, rules)
+    placed += er.synthetic_nodes  # 基盤モデル（N-BEDROCK-MODEL。parent は null）
     diags += place_diags
     for n in placed:
         if n["id"] in er.access:

@@ -1,24 +1,23 @@
-"""正規化（段階 0〜4。フェーズ 3 の手順 3a・3b・4a）× 自作の構成 5 種 × TF／CFN: 正解 IR（expected）と比べる。
+"""正規化（段階 0〜4。フェーズ 3 の手順 3a・3b・4a・4b）× 自作の構成 5 種 × TF／CFN: 正解 IR（expected）と比べる。
 
-比べ方は `aws-iac-diagram-workspace/tools/compare_ir.py` の `compare`（CRITERIA.md の 1.0 の数え方）。辺は関係リソース（R-*）の
-もの（R-SG を除く。手順 4a）だけを作るので、次を基準 1.0（CRITERIA の 1.1）で縛る:
+比べ方は `aws-iac-diagram-workspace/tools/compare_ir.py` の `compare`（CRITERIA.md の 1.0 の数え方）。R-SG と N-EXT-INTERNET（手順 5）
+のほかの辺を作るので、次を基準 1.0（CRITERIA の 1.1）で縛る:
 
-- N（再現率・適合率）、名前の一致率、ノードの label、P（入れ子）: 1.0。合成ノードのうち `external/internet`（N-EXT-INTERNET。
-  R-SG と一緒に手順 5）と `bedrock_model`（N-BEDROCK-MODEL。E-BEDROCK-* と一緒に手順 4b）は正解 IR から除いて比べる。
-- E: 正解の辺のうち、根拠の規則に手順 4a のハンドラの規則（`edges.HANDLED`）を含むもの（`r_edges`）の再現率と、出力の辺の適合率
-  （出力の辺はすべてそこに入る）、一致した辺の kind・label・confidence: 1.0。ほかの辺（E-ENV-REF・E-KB-STORAGE・E-IAM・E-ENV-STR・
-  R-SG・N-*）は手順 4b・5。
+- N（再現率・適合率）、名前の一致率、ノードの label、P（入れ子）: 1.0。合成ノードのうち `external/internet`（N-EXT-INTERNET。手順 5）
+  だけは正解 IR から除いて比べる（AZ と基盤モデル `bedrock_model` は含める）。
+- E: 正解の辺のうち、internet からの辺と、R-SG だけを根拠にする辺（`step4_edges` の外。手順 5）を除いたものの再現率と、出力の辺の
+  適合率（確定・導出と推定の両方。出力の辺はすべてそこに入る）、一致した辺の kind・confidence: 1.0。label も 1.0 だが、根拠に R-SG を
+  含む辺（ECS → RDS の `TCP 5432`）は R-SG のラベルなので、出力は空（`SG_LABEL`。手順 5）。
 - C（網羅分類）: 次の許しだけを除いて 1.0。許しは address と理由を固定する（`ALLOWED_C`）:
   ① R-SG（正解は into が辺の merged_into、H-SG-NOEDGE）→ 出力は仮の R-SG（into が空）。R-SG のハンドラは手順 5。
   ② R-LB-LISTENER → 出力の into は、正解の into から internet の辺（N-EXT-INTERNET。手順 5）を除いたもの。
 - attrs（`access` を含む）: 正解と同じ。X1 のうち ② サブネットの access と ③ サブネット → IGW の辺は 0（internet の辺の ① は手順 5）。
-- 参照の会計（CRITERIA の 1.8）: `NORM-UNUSED-REF` の件数を入力ごとに固定する（`UNUSED_REFS`。どれも手順 4b の E-* の材料）。
+- 参照の会計（CRITERIA の 1.8）: 自作 10 入力の `NORM-UNUSED-REF` は 0 件。
 """
 
 from __future__ import annotations
 
 import copy
-import re
 import sys
 import unittest
 from pathlib import Path
@@ -32,10 +31,11 @@ from aws_iac_diagram.normalize import build, edges as edges_mod  # noqa: E402
 
 cmp = load_tool("compare_ir")
 
-# 合成ノードの型 → 作る段階。手順 3b で作るのは AZ だけ（EDGE_SYNTHETIC は正解 IR から除いて比べる）
-SYNTHETIC_TYPES = {"availability_zone": "N-AZ（入れ子の段階 4。手順 3b で作る）", "external": "N-EXT-INTERNET（辺の段階 3）",
-                   "bedrock_model": "N-BEDROCK-MODEL（辺の段階 3）"}
-EDGE_SYNTHETIC = {"external", "bedrock_model"}
+# 合成ノードの型 → 作る段階。EDGE_SYNTHETIC（internet）は手順 5 なので、正解 IR から除いて比べる
+SYNTHETIC_TYPES = {"availability_zone": "N-AZ（入れ子の段階 4。手順 3b）", "external": "N-EXT-INTERNET（手順 5）",
+                   "bedrock_model": "N-BEDROCK-MODEL（辺の段階 3。手順 4b）"}
+EDGE_SYNTHETIC = {"external"}
+SG_LABEL = "R-SG"  # 根拠にこの規則を含む正解の辺のラベルは R-SG のもの（手順 5）
 
 # 入力ごとの AZ のノードの数（正解 IR と同じ。three-tier・three-tier-modules・vpc-endpoints は 2 つの AZ）
 AZ_COUNTS = {"three-tier": 2, "three-tier-modules": 2, "serverless-api": 0, "rag": 0, "vpc-endpoints": 2}
@@ -53,21 +53,12 @@ ALLOWED_C = {
     ("vpc-endpoints", "tf"): (2, 0), ("vpc-endpoints", "cfn"): (2, 0),
 }
 
-# 入力ごとの NORM-UNUSED-REF の件数（手順 4b の E-* が使う参照: タスク定義・Lambda の環境変数（E-ENV-REF）、
-# KB の storage_configuration（E-KB-STORAGE）と vector_index_name）
-UNUSED_REFS = {
-    ("three-tier", "tf"): 1, ("three-tier", "cfn"): 1, ("three-tier-modules", "tf"): 1, ("three-tier-modules", "cfn"): 1,
-    ("serverless-api", "tf"): 2, ("serverless-api", "cfn"): 2, ("rag", "tf"): 4, ("rag", "cfn"): 3,
-    ("vpc-endpoints", "tf"): 0, ("vpc-endpoints", "cfn"): 0,
-}
-
-
-def r_edges(g: dict, fmt: str) -> set[tuple]:
-    """正解の辺のうち、形式 fmt の根拠の規則に手順 4a のハンドラの規則を含むもの (from, to, kind)。internet からの辺
-    （N-EXT-INTERNET。R-LB-LISTENER が根拠に入るが、合成ノードと一緒に手順 5 で作る）は除く。"""
+def step4_edges(g: dict, fmt: str) -> set[tuple]:
+    """正解の辺のうち、手順 4 までで作るもの (from, to, kind): internet からの辺（N-EXT-INTERNET。手順 5）と、形式 fmt の根拠の規則が
+    R-SG だけの辺（手順 5）を除く。"""
     rules_of = {e["edge"]: set(e["rules"]) for e in g["sources"][fmt]["edges"]}
     return {(e["from"], e["to"], e["kind"]) for e in g["edges"]
-            if rules_of.get(e["id"], set()) & edges_mod.HANDLED and e["from"] != INTERNET}
+            if e["from"] != INTERNET and rules_of.get(e["id"], set()) - {SG_LABEL}}
 
 
 def without_edge_synthetic(g: dict) -> dict:
@@ -90,7 +81,6 @@ class ExpectedIrTest(unittest.TestCase):
         self.assertEqual(self.rules.row("R-SG").get("fallback"), "H-SG-NOEDGE")
         self.assertNotIn("R-SG", edges_mod.HANDLED)
         self.assertEqual(set(ALLOWED_C), {(n, f) for n in NAMES for f in ("tf", "cfn")})
-        self.assertEqual(set(UNUSED_REFS), set(ALLOWED_C))
 
     def test_nodes_names_labels_and_placement_are_exact(self):
         for (name, fmt), o in self.out.items():
@@ -149,14 +139,17 @@ class ExpectedIrTest(unittest.TestCase):
             with self.subTest(name, fmt=fmt):
                 g = expected_ir(name)
                 m, _ = cmp.id_map(g, o, fmt)
-                want = r_edges(g, fmt)
+                want = step4_edges(g, fmt)
                 got = set(cmp.edge_list(o, m))
                 self.assertTrue(want)
-                self.assertEqual(got, want)  # 再現率・適合率（R-* の辺の範囲で）とも 1.0
+                self.assertEqual(got, want)  # 再現率・適合率（確定・導出と推定の両方。手順 4 の辺の範囲で）とも 1.0
                 g_by = {(e["from"], e["to"]): e for e in g["edges"]}
+                g_rules = {x["edge"]: set(x["rules"]) for x in g["sources"][fmt]["edges"]}
                 for e in o["edges"]:
                     ge = g_by[(m.get(e["from"], e["from"]), m.get(e["to"], e["to"]))]
-                    self.assertEqual((e["kind"], e["label"], e["confidence"]), (ge["kind"], ge["label"], ge["confidence"]), e["id"])
+                    # R-SG を根拠に含む辺で、ほかの規則にラベルが無いもの（ECS → RDS の TCP 5432）は、R-SG のラベル（手順 5）なので空
+                    want_label = "" if SG_LABEL in g_rules[ge["id"]] and e["label"] == "" else ge["label"]
+                    self.assertEqual((e["kind"], e["label"], e["confidence"]), (ge["kind"], want_label, ge["confidence"]), e["id"])
                 # 辺の根拠: すべての辺に 1 件、規則は正解の規則の中、根拠は空でない
                 ev = {x["edge"]: x for x in o["sources"][fmt]["edges"]}
                 g_ev = {x["edge"]: x for x in g["sources"][fmt]["edges"]}
@@ -181,18 +174,19 @@ class ExpectedIrTest(unittest.TestCase):
                     self.assertEqual(len(res.accounting), len(active))
                     self.assertTrue(all(e.cls in ("edge", "noedge", "nonode", "unused") for e in res.accounting))
                     unused = [d for d in res.ir["diagnostics"] if d["code"] == "NORM-UNUSED-REF"]
-                    self.assertEqual(len(unused), UNUSED_REFS[(name, fmt)], [(d["address"], d["path"]) for d in unused])
+                    self.assertEqual(unused, [])
                     self.assertEqual(len(unused), sum(1 for e in res.accounting if e.cls == "unused"))
-                    # 辺の根拠はすべて raw の参照の `<from>.<path>` で始まる（CRITERIA の 1.8 の照合）。例外は参照の無い根拠の 2 つの形
-                    # （ir-schema の 4 章: SAM の暗黙の API のイベント、S3 の ARN の名前の一致）だけ
+                    # 辺の根拠はすべて raw の参照の `<from>.<path>` で始まる（CRITERIA の 1.8 の照合）。例外は参照の無い根拠
+                    # （ir-schema の 4 章: `<address>.<位置> (<説明>)`。文字列の一致、SAM の暗黙の API のイベントなど）だけ
                     prefixes = {f"{r['from']}.{r['path']}" for r in active}
                     addresses = {r["address"] for r in raw["resources"]}
                     for x in res.ir["sources"][fmt]["edges"]:
                         for ev in x["evidence"]:
                             if any(ev == p or ev.startswith(p + " ") for p in prefixes):
                                 continue
-                            m = re.match(r"^(.+?)\.(Properties\.Events\.[^ ]+ \(Type: |source_arn \(S3 |SourceArn \(S3 )", ev)
-                            self.assertTrue(m and m.group(1) in addresses, (x["edge"], ev))
+                            head = ev.split(" (", 1)[0]
+                            self.assertIn(" (", ev, (x["edge"], ev))
+                            self.assertTrue(any(head.startswith(a + ".") for a in addresses), (x["edge"], ev))
 
     def test_tf_and_cfn_nodes_and_edges_are_the_same(self):
         # canonical 部（いまは internet・基盤モデルと E-*・R-SG の辺が無い）が TF 版と CFN 版で一致する（CRITERIA の 1.1 の c）

@@ -131,6 +131,7 @@ class Resource:
     multiplicity: str | None = None
     source: str | None = None
     version: str | None = None
+    region: str | None = None
 
     @property
     def is_data(self) -> bool:
@@ -161,7 +162,7 @@ class Index:
         self.resources: tuple[Resource, ...] = tuple(
             Resource(address=r["address"], type=r["type"], file=r.get("file", ""), enabled=r.get("enabled"),
                      props=MappingProxyType(r.get("props") or {}), fmt=self.fmt, via=r.get("via"), module=r.get("module"),
-                     multiplicity=r.get("multiplicity"), source=r.get("source"), version=r.get("version"))
+                     multiplicity=r.get("multiplicity"), source=r.get("source"), version=r.get("version"), region=r.get("region"))
             for r in raw.get("resources", []))
         self.by_address: dict[str, Resource] = {r.address: r for r in self.resources}
         self.refs_from: dict[str, list[dict]] = {}
