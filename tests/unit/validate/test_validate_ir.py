@@ -131,6 +131,79 @@ class BrokenTest(unittest.TestCase):
         n["label"] = "デモ用 ALB"  # 表示名だけを変えても id は壊れない
         self.assertEqual(errors(ir), [])
 
+    def test_key_from_name_follows_k_name(self):
+        # ir-schema の 2 章の K-NAME（公開サンプルの T20・T13・P02 で見つかった）: 先頭の英数字でない文字は除く。英数字の無い名前の
+        # key は、NORM-NAME-FALLBACK があれば論理名から作る（無ければ名前属性からで、値が IR に無いので key は確かめない）。
+        # `.<論理名の key>`（論理名まで重なれば `.<address の key>`）は、その address に NORM-KEY-COLLISION があるときだけ
+        tf = [("tf", 'module.vpc.aws_subnet.private[1]')]
+        rec = [("tf", 'module.endpoint_record["s3"].aws_route53_record.this')]
+        none: dict = {}
+        coll = {tf[0][1]: {"NORM-KEY-COLLISION"}}
+        cases = (
+            ("###APP###-bucket", "app----bucket", tf, none, True),
+            ("ex-.", "ex-.", tf, none, True),
+            ("ex-.", "ex-..vpc.private-1", tf, coll, True),
+            ("ex-.", "ex-..vpc.private-1", tf, none, False),        # 診断の無い `.<…>` は誤り
+            ("ex-.", "ex-..vpc.private-2", tf, coll, False),        # 論理名の key と違う
+            ("ex-.", "ex-.." + v.slug(tf[0][1]), tf, coll, True),  # 論理名まで重なったときの address の key
+            ("*", "endpoint_record-s3.this", rec, {rec[0][1]: {"NORM-NAME-FALLBACK"}}, True),
+            ("*", "something-else", rec, {rec[0][1]: {"NORM-NAME-FALLBACK"}}, False),
+            ("*", "from-the-name-attr", rec, none, True),          # 名前属性から作った key は確かめられない
+            ("demo", "demo-alb", tf, none, False),
+            ("_x", "_x", tf, none, False),
+        )
+        for name, key, addrs, codes, ok in cases:
+            with self.subTest(name=name, key=key, codes=codes):
+                self.assertEqual(v.key_matches(key, name, addrs, codes), ok)
+        self.assertEqual(v.slug("###APP_NAME###-vpc"), "app_name----vpc")
+        self.assertEqual(v.slug("本番"), "")
+        # IR の中で: 重なりを解いた id は NORM-KEY-COLLISION があれば通り、無ければ K-NAME の誤り
+        ir = load()
+        n = next(n for n in ir["nodes"] if n["id"] == "alb/demo-alb")
+        n["id"] = "alb/demo-alb.app"
+        for e in ir["edges"]:
+            for end in ("from", "to"):
+                if e[end] == "alb/demo-alb":
+                    e[end] = n["id"]
+            e["id"] = f"{e['from']}->{e['to']}"
+        for src in ir["sources"].values():
+            for r in src["resources"]:
+                if r.get("node") == "alb/demo-alb":
+                    r["node"] = n["id"]
+                r["into"] = [x.replace("alb/demo-alb", n["id"]) for x in r["into"]] if "into" in r else r.get("into")
+                if r.get("into") is None:
+                    r.pop("into", None)
+            for x in src["edges"]:
+                x["edge"] = x["edge"].replace("alb/demo-alb", n["id"])
+        self.assertTrue(any("K-NAME" in e for e in errors(ir)))
+        ir["diagnostics"] = [{"level": "info", "code": "NORM-KEY-COLLISION", "address": "aws_lb.app", "message": "m"}]
+        self.assertFalse([e for e in errors(ir) if "K-NAME" in e], errors(ir))
+
+    def test_subnet_without_az_needs_the_diagnostic(self):
+        # AZ が決まらない（NORM-AZ-UNKNOWN）サブネットは VPC の下、VPC が決まらない（NORM-PLACEMENT）ものは最上位
+        # （ir-schema の 8 章・10 章。公開サンプルの T02・T18・T20・P02）。ほかの組合せと、診断の無いものは誤り
+        def diag(code):
+            return {"level": "info", "code": code, "address": "aws_subnet.database[0]", "message": "m"}
+        for parent, codes, ok in (("vpc/demo", [], False), ("vpc/demo", ["NORM-AZ-UNKNOWN"], True),
+                                  ("vpc/demo", ["NORM-PLACEMENT"], False), (None, ["NORM-AZ-UNKNOWN"], False),
+                                  (None, ["NORM-PLACEMENT"], True)):
+            with self.subTest(parent=parent, codes=codes):
+                ir = load()
+                n = next(n for n in ir["nodes"] if n["id"] == "subnet/demo-db-ap-northeast-1a")
+                n["parent"] = parent
+                ir["diagnostics"] = [diag(c) for c in codes]
+                errs = [e for e in errors(ir) if "subnet の parent" in e]
+                self.assertEqual(errs == [], ok, errs)
+
+    def test_awscc_type_is_drawn_as_the_cfn_type(self):
+        # TF の awscc の型は同じ名前の CFN の型として描く（ir-schema の 2 章。T15 の awscc_s3_bucket など）
+        ir = load()
+        r = next(r for r in ir["sources"]["tf"]["resources"] if r.get("node") == "vpc/demo")
+        r["type"] = "awscc_ec2_vpc"
+        self.assertEqual(errors(ir), [])
+        r["type"] = "awscc_ec2_imaginary"
+        self.assertError(ir, "「描く型」に無い")
+
     def test_format_detects_unsorted(self):
         ir = load()
         ir["nodes"].reverse()

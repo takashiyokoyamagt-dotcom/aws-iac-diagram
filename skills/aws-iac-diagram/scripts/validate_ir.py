@@ -62,7 +62,34 @@ def drawable_types() -> dict[str, set[str]]:
 
 
 def slug(name: str) -> str:
-    return re.sub(r"[^a-z0-9._-]", "-", name.lower())
+    """名前 → id の key（ir-schema の 2 章の K-NAME。core/ir_norm.py の key_of）。英数字が 1 つも無ければ空文字。"""
+    k = ir_norm.key_of(name)
+    return "" if k == "-" else k
+
+
+def key_matches(key: str, name: str, addresses: list[tuple[str, str]], codes_of: dict[str, set[str]]) -> bool:
+    """id の key が K-NAME のとおりか。addresses はそのノードに drawn で分類した (形式, address)、codes_of は address → 診断のコード。
+
+    - key は名前から作ったもの。名前に英数字が無いときは次の候補から作る: `NORM-NAME-FALLBACK` があれば論理名、無ければ名前属性
+      （normalized IR に属性の値は無いので、そのときは key そのものは確かめられない）
+    - 2 つ目以降に `.<論理名の key>`（論理名まで重なれば `.<address の key>`）を付けるのは、その address に `NORM-KEY-COLLISION` が
+      あるときだけ
+    address が無い（形式の由来部の無い IR の）ときは、名前から作ったものとだけ比べる。"""
+    want = slug(name)
+    if not addresses:
+        return not want or key == want
+    for fmt, addr in addresses:
+        codes = codes_of.get(addr, set())
+        base = want
+        if not base and "NORM-NAME-FALLBACK" in codes:
+            base = slug(ir_norm.logical_name(addr, fmt))
+        suffixes = ([slug(ir_norm.logical_name(addr, fmt)), slug(addr)] if "NORM-KEY-COLLISION" in codes else [])
+        if base:
+            if key == base or any(key == f"{base}.{x}" for x in suffixes):
+                return True
+        elif not suffixes or any(key.endswith(f".{x}") for x in suffixes):
+            return True  # 名前属性から作った key（値が IR に無いので確かめられない）
+    return False
 
 
 def schema_errors(ir: dict) -> list[str]:
@@ -87,6 +114,15 @@ def semantic_errors(ir: dict, rules: set[str], drawable: dict[str, set[str]] | N
     drawable = drawable_types() if drawable is None else drawable
     synthetic_types = rule_data.default().synthetic_types
     nodes = {}
+    drawn_by_node: dict[str, list[tuple[str, str]]] = {}  # ノード → そこに drawn で分類した (形式, address)
+    for fmt, src in sorted((ir.get("sources") or {}).items()):
+        for r in src.get("resources", []):
+            if r.get("class") == "drawn" and r.get("node"):
+                drawn_by_node.setdefault(r["node"], []).append((fmt, r["address"]))
+    codes_of: dict[str, set[str]] = {}  # address → 診断のコード
+    for d in ir.get("diagnostics", []):
+        if d.get("address"):
+            codes_of.setdefault(d["address"], set()).add(d["code"])
     for n in ir["nodes"]:
         if n["id"] in nodes:
             errs.append(f"node: id が重複: {n['id']}")
@@ -95,7 +131,7 @@ def semantic_errors(ir: dict, rules: set[str], drawable: dict[str, set[str]] | N
             errs.append(f"node {n['id']}: id の型の部分と type（{n['type']}）が違う")
         if (n["type"] in synthetic_types) != bool(n.get("synthetic")):
             errs.append(f"node {n['id']}: 型 {n['type']} の synthetic の値が規則と違う")
-        if not n.get("synthetic") and n["id"].split("/", 1)[1] != slug(n["name"]):
+        if not n.get("synthetic") and not key_matches(n["id"].split("/", 1)[1], n["name"], drawn_by_node.get(n["id"], []), codes_of):
             errs.append(f"node {n['id']}: id の key が name（{n['name']}）から作ったもの（{slug(n['name'])}）と違う（K-NAME）")
         if n["type"] == "external" and n["category"] != "external":
             errs.append(f"node {n['id']}: external の category は external")
@@ -124,7 +160,14 @@ def semantic_errors(ir: dict, rules: set[str], drawable: dict[str, set[str]] | N
         if n["type"] == "availability_zone" and (p is None or nodes.get(p, {}).get("type") != "vpc"):
             errs.append(f"node {nid}: AZ の parent は vpc（N-AZ）")
         if n["type"] == "subnet" and (p is None or nodes.get(p, {}).get("type") != "availability_zone"):
-            errs.append(f"node {nid}: subnet の parent は availability_zone（N-AZ）")
+            # AZ が決まらない（NORM-AZ-UNKNOWN）サブネットは VPC の下、VPC が決まらない（NORM-PLACEMENT）ものは最上位
+            # （ir-schema の 8 章・10 章）。どちらもそのサブネットにその診断があるときだけ
+            codes = set().union(*(codes_of.get(a, set()) for _, a in drawn_by_node.get(nid, [])))
+            parent_type = nodes.get(p, {}).get("type") if p is not None else None
+            ok = "NORM-AZ-UNKNOWN" in codes if parent_type == "vpc" else "NORM-PLACEMENT" in codes if p is None else False
+            if not ok:
+                errs.append(f"node {nid}: subnet の parent は availability_zone（N-AZ。VPC にできるのは NORM-AZ-UNKNOWN、"
+                            f"最上位にできるのは NORM-PLACEMENT の診断があるときだけ）")
         spans = n.get("spans", [])
         if spans:
             if len(spans) < 2:
@@ -183,6 +226,8 @@ def semantic_errors(ir: dict, rules: set[str], drawable: dict[str, set[str]] | N
                         errs.append(f"sources.{fmt} {a}: 入力の型 {r['type']} は黒箱のモジュールにできない（{sorted(BLACKBOX_TYPES)} だけ）")
                 else:
                     allowed = drawable.get(r["type"])
+                    if allowed is None and fmt == "tf":  # awscc の型は同じ名前の CFN の型として描く（ir-schema の 2 章）
+                        allowed = drawable.get(rule_data.default().awscc_as_cfn(r["type"]) or "")
                     if allowed is not None:
                         allowed = allowed - {"module"}
                 if allowed is None:

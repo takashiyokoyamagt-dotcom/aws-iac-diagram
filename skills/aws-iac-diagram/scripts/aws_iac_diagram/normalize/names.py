@@ -18,51 +18,19 @@ id の key は名前を小文字にして `[a-z0-9._-]` 以外を `-` にした�
 """
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 
+from aws_iac_diagram.core import ir_norm
 from aws_iac_diagram.core.rules import Row
 from aws_iac_diagram.normalize import view
 from aws_iac_diagram.normalize.view import Resource
 
-_KEY_BAD = re.compile(r"[^a-z0-9._-]")
-_INDEX = re.compile(r'\[(?:"((?:[^"\\]|\\.)*)"|([^\]]*))\]')
-_KEY_HEAD = re.compile(r"^[^a-z0-9]+")
-
-
-def key_of(name: str) -> str:
-    """名前 → id の key（小文字にして `[a-z0-9._-]` 以外を `-`）。ir.schema.json の id の形（先頭は英数字）に合わないときは、
-    先頭の記号を除く（`.hidden` → `hidden`）。全部が記号なら `-` を返す（呼ぶ側が論理名に落とす）。"""
-    k = _KEY_BAD.sub("-", name.lower())
-    head = _KEY_HEAD.sub("", k)
-    return head or "-"
-
-
-def _index_suffix(segment: str) -> str:
-    """`private[0]` → `private-0`、`interface["ssm"]` → `interface-ssm`、`x[*]` → `x`（×N はインデックスを付けない）。"""
-    def sub(m: re.Match) -> str:
-        v = m.group(1) if m.group(1) is not None else m.group(2)
-        return "" if v == "*" else f"-{v}"
-    return _INDEX.sub(sub, segment)
+key_of = ir_norm.key_of  # 作り方は core/ir_norm.py（validate_ir.py と共有）
 
 
 def logical_name(res: Resource) -> str:
-    """論理名（B3 の 3 番目。K-NAME）。TF の黒箱のモジュールの呼び出しはモジュールのパス（`module.eks.module.kms` → `eks.kms`）。"""
-    if res.fmt == "tf":
-        parts = view.split_tf_address(res.address)
-        mods: list[str] = []
-        i = 0
-        while i + 1 < len(parts) and parts[i] == "module":
-            mods.append(_index_suffix(parts[i + 1]))
-            i += 2
-        rest = parts[i:]
-        if rest and rest[0] == "data":
-            rest = rest[1:]
-        if not rest:  # 黒箱の呼び出し（address が module.… だけ）
-            return ".".join(mods)
-        return ".".join([*mods, _index_suffix(rest[-1])])
-    # CFN: `Stack::Parent/Child` → `Stack.Parent.Child`。Fn::ForEach の決まらないひな形の `*` は除く
-    return ".".join(p.replace("*", "") for p in res.address.replace("::", "/").split("/") if p.replace("*", ""))
+    """論理名（B3 の 3 番目。K-NAME。core/ir_norm.py の logical_name）。"""
+    return ir_norm.logical_name(res.address, res.fmt)
 
 
 @dataclass(frozen=True)

@@ -352,6 +352,20 @@ class Rules:
         """合成ノードの型（`synthetic` を持つ描く型: availability_zone・external・bedrock_model）。"""
         return frozenset(r.get("id") for r in self.drawn if r.get("synthetic") and isinstance(r.get("id"), str))
 
+    def awscc_as_cfn(self, tf_type: str) -> str | None:
+        """TF の awscc の型を、同じ名前の CFN の型にする（`awscc_ec2_vpc` → `AWS::EC2::VPC`。規則表（型の表と関係リソースの表）に
+        ある CFN の型の中から中立キーで探す。ir-schema の 2 章、classify.py の 5）。awscc の型でないか、見つからなければ None。"""
+        if not tf_type.startswith("awscc_"):
+            return None
+        return self._awscc_index.get(neutral_key(tf_type[len("awscc_"):]))
+
+    @functools.cached_property
+    def _awscc_index(self) -> dict[str, str]:
+        out: dict[str, str] = {}
+        for t in sorted({c for r in (*self.types, *self.relations) for c in r.cfn}):
+            out.setdefault(neutral_key(t[len("AWS::"):].replace("::", "")), t)
+        return out
+
     def drawable_types(self) -> dict[str, frozenset[str]]:
         """入力の型（TF・CFN／SAM）→ それから描ける正規の型名の集合（描く型の `tf`・`cfn` から作る）。"""
         out: dict[str, set[str]] = {}
