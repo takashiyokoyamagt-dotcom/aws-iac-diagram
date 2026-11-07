@@ -1544,3 +1544,12 @@ tests/ 平ら 10 ファイル、最大 2,381 行（281 件）            tests/ 
 - 解釈として決めたこと（仕様の文がどちらにも読めたもの）: ① P は親の無いノードも `(id, parent, None)` の 1 組として数える（最上位に置くのも入れ子の判断）。② C の `merged_into` は `into` と `rule` の両方を比べる（規則の取り違えも分類の誤り）。③ 適合率の |O| は重なりも数える（1 つのリソースを 2 つのノードに分けた出力の余り）。④ custom（1.1）でも `unknown` は不合格。
 - 第三者レビュー 1 回: must-fix 2（同じ名前の出力ファイルが集計で上書きされる、Windows でリダイレクトすると cp932 で落ちる）、should-fix 4（IR でない入力の終了コード、P の解釈、C の rule、テストが見逃す退行 8 種）、nit 4 → すべて直し、変異で見逃した 8 種をテストで捕まえるようにした（`tests/unit/validate/test_compare_ir.py` 24 件）。
 - まだ正規化の出力が無いので、正解 IR どうし（自分自身）で 1.0 になることだけを確かめた。手順 3 の本体（`normalize/`）は次。
+
+## 2026-11-07 フェーズ3 の手順3a: 正規化の段階 0〜2（読み込み・仮分類・名前・ノード）
+
+- 実装はサブエージェント、レビューは別のサブエージェント（1 回）。`normalize/`（`view`・`classify`・`merge`・`names`・`nodes`・`build`。core だけを import。順序は `NORMALIZE_GROUPS`）。辺・入れ子・合成ノード・入口 `normalize_ir.py`・`NORM-` の登録は 3b。
+- 自作 10 入力（5 構成 × TF／CFN）で、合成ノードを除く N の再現率・適合率と名前の一致率が 1.0、C は辺に依らないものが 1.0（正解の規則が R-*・H-SG-NOEDGE・H-RT-NOROUTE の address だけを、入力ごとの件数を固定した許可リストで外す。出力はその規則の仮の分類であることも確かめる）。unknown 0、ノードの label・attrs（`access` を除く）が一致、TF／CFN でノードの canonical が一致、入力の順を逆にしても同じバイト列。
+- レビューの指摘（止めるものは無し、should-fix 6・nit 4）を推奨どおりに直した: T09 の既存バケット（R-* からだけ参照される data）を描く、DependsOn は統合される側が宣言した 1 候補だけ（`NORM-MERGE-DEPENDS-ON`）、M-S3-CONFIG の名前の一致（C02 の `!Sub`）、H-UTILITY を 1 段素通り（T16 の time_sleep）、awscc の名前属性、記号だけの名前は表示名を残す、主の属性を優先（`NORM-MERGE-AMBIGUOUS`）、2 段の統合を幅優先、SAR の `Location`。仕様からの補足は ir-schema 02（K-NAME）と 08 に書いた。
+- 主セット 12 入力: 落ちない、unknown 0、`NORM-MERGE-TARGET` 0（前は C02 6・T16 4）。
+- 残り（3b で決める）: fallback の無い R-*（R-LB-LISTENER など）で辺ができなかったときの分類、統合先の無い M-* の規則 ID（H-NO-TARGET 案。規則表の変更になる）。
+- 単体テスト 611 件、golden 101/101。

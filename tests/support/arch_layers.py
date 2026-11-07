@@ -92,6 +92,22 @@ INTRA_CLOUDFORMATION: dict[str, frozenset[str]] = {
     "build": frozenset({"base", "stack"}),
 }
 
+# normalize の中の順序（同じ決まり。docs/architecture.md の表と同じ。食い違えば失敗）。設計草案（docs/dev-notes/phase3-design-draft.md）の
+# 5.1 の段階の順: view（段階 0）→ classify・names（段階 1 と名前）→ nodes（段階 2）→ build（組み立て）。後の段階が前を import し、逆は不可
+NORMALIZE_GROUPS: dict[str, tuple[str, ...]] = {
+    "view": ("view",),
+    "classify": ("classify", "merge", "names"),
+    "nodes": ("nodes",),
+    "build": ("build",),
+}
+
+INTRA_NORMALIZE: dict[str, frozenset[str]] = {
+    "view": frozenset(),
+    "classify": frozenset({"view"}),
+    "nodes": frozenset({"view", "classify"}),
+    "build": frozenset({"view", "classify", "nodes"}),
+}
+
 LAYER_DIRS = {"core", "normalize", "layout", "emit", "validate", "icons", "platform"}
 
 # scripts/ の直下の入口のフォルダ（lib は R1、adapters は R3 で無くなった。戻さない。adapters という名前の import は入口の import と数える）
@@ -227,8 +243,14 @@ def adapter_group(groups: dict[str, tuple[str, ...]], parts: tuple[str, ...]) ->
 def violations_in_adapter_order(scripts: Path, adapter: str, groups: dict[str, tuple[str, ...]],
                                 allowed: dict[str, frozenset[str]]) -> tuple[list[str], set[tuple[str, str]]]:
     """adapters/<adapter> の中の import の向きの違反の一覧と、見つけた辺 (from のグループ, to のグループ) の集合。"""
-    base = scripts / PACKAGE / "adapters" / adapter
-    prefix = f"{PACKAGE}.adapters.{adapter}"
+    return violations_in_package_order(scripts, f"adapters/{adapter}", groups, allowed)
+
+
+def violations_in_package_order(scripts: Path, package: str, groups: dict[str, tuple[str, ...]],
+                                allowed: dict[str, frozenset[str]]) -> tuple[list[str], set[tuple[str, str]]]:
+    """aws_iac_diagram/<package>（`adapters/terraform`・`normalize` など）の中の import の向きの違反の一覧と、見つけた辺の集合。"""
+    base = scripts / PACKAGE / Path(*package.split("/"))
+    prefix = f"{PACKAGE}.{package.replace('/', '.')}"
     problems: list[str] = []
     edges: set[tuple[str, str]] = set()
     for path in sorted(base.rglob("*.py")):
@@ -237,7 +259,7 @@ def violations_in_adapter_order(scripts: Path, adapter: str, groups: dict[str, t
         rel = path.relative_to(scripts).as_posix()
         src = adapter_group(groups, path.relative_to(base).with_suffix("").parts)
         if src.startswith("?"):
-            problems.append(f"{rel}: adapters/{adapter} のグループに無い（グループの表と docs/architecture.md の表に足す）")
+            problems.append(f"{rel}: {package} のグループに無い（グループの表と docs/architecture.md の表に足す）")
             continue
         tree = _DropTypeChecking().visit(ast.parse(path.read_text(encoding="utf-8"), filename=str(path)))
         for lineno, target in imported_targets(tree, path, scripts):
@@ -245,12 +267,12 @@ def violations_in_adapter_order(scripts: Path, adapter: str, groups: dict[str, t
                 continue
             dst = adapter_group(groups, tuple(target[len(prefix) + 1:].split(".")))
             if dst.startswith("?"):
-                problems.append(f"{rel}:{lineno}: import {target} は adapters/{adapter} のグループに無い")
+                problems.append(f"{rel}:{lineno}: import {target} は {package} のグループに無い")
                 continue
             if dst != src:
                 edges.add((src, dst))
                 if dst not in allowed[src]:
-                    problems.append(f"{rel}:{lineno}: adapters/{adapter} のグループ {src} はグループ {dst} を import できない（import {target}）")
+                    problems.append(f"{rel}:{lineno}: {package} のグループ {src} はグループ {dst} を import できない（import {target}）")
     return problems, edges
 
 
@@ -260,6 +282,10 @@ def violations_in_terraform_order(scripts: Path, allowed: dict[str, frozenset[st
 
 def violations_in_cloudformation_order(scripts: Path, allowed: dict[str, frozenset[str]] = INTRA_CLOUDFORMATION) -> tuple[list[str], set[tuple[str, str]]]:
     return violations_in_adapter_order(scripts, "cloudformation", CLOUDFORMATION_GROUPS, allowed)
+
+
+def violations_in_normalize_order(scripts: Path, allowed: dict[str, frozenset[str]] = INTRA_NORMALIZE) -> tuple[list[str], set[tuple[str, str]]]:
+    return violations_in_package_order(scripts, "normalize", NORMALIZE_GROUPS, allowed)
 
 
 def stdlib_collisions(scripts: Path, allow: dict[str, str] = STDLIB_ALLOW) -> list[str]:
