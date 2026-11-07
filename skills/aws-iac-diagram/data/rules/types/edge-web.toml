@@ -1,0 +1,42 @@
+# 描く型: Web の入口の型（CDN・DNS・WAF・認証）
+# 規則表の「型」の行。スキーマと読み方は docs/spec/rules/types.md、検査は scripts/aws_iac_diagram/core/rules.py。
+# 1 行 = 1 つの [[type]]。id は規則 ID（描く型は正規の型名）。ファイルは types/ の名前の昇順に、行は書いた順に読む。
+
+[[type]]
+id = "cloudfront_distribution"
+class = "drawn"
+category = "resource"
+tf = ["aws_cloudfront_distribution"]
+cfn = ["AWS::CloudFront::Distribution"]
+name_attr = {}
+tf_note = "名前の属性が無い（`Name` タグか論理名。K-NAME）"
+icon = ["resource_icon:cloudfront"]
+
+[[type]]
+id = "route53_record"
+class = "drawn"
+category = "resource"
+tf = ["aws_route53_record"]
+cfn = ["AWS::Route53::RecordSet", "AWS::Route53::RecordSetGroup"]
+cfn_note = "`RecordSetGroup` は複数のレコードをまとめて 1 ノードにする（名前は `RecordSets[].Name` の中なので、`Name` タグか論理名）"
+name_attr = { tf = "name", cfn = "Name" }
+icon = ["resource_icon:route_53"]
+icon_note = "ホストゾーンは描かない（多くは既存のゾーンを ID で指すだけ）"
+
+[[type]]
+id = "cognito_user_pool"
+class = "drawn"
+category = "resource"
+tf = ["aws_cognito_user_pool"]
+cfn = ["AWS::Cognito::UserPool"]
+name_attr = { tf = "name", cfn = "UserPoolName" }
+icon = ["resource_icon:cognito"]
+
+[[type]]
+id = "waf_web_acl"
+class = "drawn"
+category = "resource"
+tf = ["aws_wafv2_web_acl"]
+cfn = ["AWS::WAFv2::WebACL"]
+name_attr = { tf = "name", cfn = "Name" }
+icon = ["resource_icon:waf"]

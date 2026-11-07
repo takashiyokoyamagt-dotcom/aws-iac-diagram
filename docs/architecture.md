@@ -190,8 +190,8 @@ aws-iac-diagram/
 
 | ファイル | 表 | 中身 |
 |---|---|---|
-| `types/*.toml`（名前の昇順） | `[[type]]` | 描く型 22（`network`・`compute`・`data-stores`・`integration`・`ai-analytics`）、統合 M-* 9 と非表示 H-* 12（`merged-and-hidden`）。TF と CFN の型を 1 行に並べる |
-| `relations.toml` | `[[relation]]` | R-* 13（関係リソース → 辺） |
+| `types/*.toml`（名前の昇順） | `[[type]]` | 描く型 32（`network`・`compute`・`data-stores`・`integration`・`ai-analytics`・`edge-web`）、統合 M-* 19 と非表示 H-* 13（`merged-and-hidden`）。TF と CFN の型を 1 行に並べる |
+| `relations.toml` | `[[relation]]` | R-* 16（関係リソース → 辺） |
 | `edges.toml` | `[[confidence]]` `[[edge]]` `[[kind_by_target]]` `[[iam_action_kind]]` `[[merge_priority]]` `[[synthetic]]` `[[label_format]]` | 確信度、辺の規則 E-*、kind の対応表、まとめ方の優先順、合成ノード N-*、ラベルの書式 |
 | `refs.toml` | `[[noedge]]` `[[nonode]]` | E-NOEDGE-* 7、E-REF-NONODE |
 | `placement.toml` | `[[placement]]` `[[attr]]` | 入れ子 N-AZ・P-*、attrs の取り方 |

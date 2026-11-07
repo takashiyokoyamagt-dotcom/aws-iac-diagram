@@ -156,3 +156,36 @@ edge = "データソースのバケット → ナレッジベース（取り込�
 kind = "data"
 label = "（なし）"
 confidence = "derived"
+
+[[relation]]
+id = "R-EVENTS-TARGET"
+class = "merged_into"
+tf = ["aws_cloudwatch_event_target"]
+cfn = []
+cfn_props = ["AWS::Events::Rule.Targets"]
+edge = "ルール → ターゲット（SNS、SQS、Lambda、Step Functions など）"
+kind = "event"
+label = "（なし）"
+confidence = "derived"
+
+[[relation]]
+id = "R-SNS-TOPIC-POLICY"
+class = "merged_into"
+tf = ["aws_sns_topic_policy"]
+cfn = ["AWS::SNS::TopicPolicy"]
+edge = "許可された送信元（`aws:SourceArn` や `Principal.Service`）→ トピック。同じ組の辺があればその根拠に加えるだけ。ほかの規則の辺が無く、送信元が入力のリソースなら `event` の辺を作る。送信元が入力に無い・条件が無いときは辺を作らず `H-IAM`"
+kind = ""
+kind_note = "既存の辺に従う／無ければ `event`"
+label = "既存の辺に従う／無ければ空"
+confidence = "derived"
+fallback = "H-IAM"
+
+[[relation]]
+id = "R-GLUE-TRIGGER"
+class = "merged_into"
+tf = ["aws_glue_trigger"]
+cfn = ["AWS::Glue::Trigger"]
+edge = "条件（`predicate`／`Predicate` のジョブ・クローラ）→ 起動するジョブ・クローラ（`actions`／`Actions`）。条件の無いトリガー（スケジュール・オンデマンド）は辺を作らない"
+kind = "event"
+label = "（なし）"
+confidence = "derived"

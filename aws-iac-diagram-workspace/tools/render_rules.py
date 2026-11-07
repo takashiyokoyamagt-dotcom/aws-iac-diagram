@@ -224,7 +224,7 @@ def t_layout(r: rule_data.Rules) -> str:
     def ids(rows):
         return len(rows)
     rows = [
-        ["`types/*.toml`（6 ファイル。名前の昇順）", "`[[type]]`", f"描く型 {ids(r.drawn)}、統合 M-* {ids(r.merged)}、非表示 H-* {ids(r.hidden)}"],
+        [f"`types/*.toml`（{len({x.file for x in r.types})} ファイル。名前の昇順）", "`[[type]]`", f"描く型 {ids(r.drawn)}、統合 M-* {ids(r.merged)}、非表示 H-* {ids(r.hidden)}"],
         ["`relations.toml`", "`[[relation]]`", f"R-* {ids(r.relations)}"],
         ["`edges.toml`", "`[[confidence]]` `[[edge]]` `[[kind_by_target]]` `[[iam_action_kind]]` `[[merge_priority]]` `[[synthetic]]` `[[label_format]]`",
          f"確信度 {ids(r.confidences)}、辺の規則 E-* {ids(r.edges)}、kind の対応 {ids(r.kind_by_target)}、IAM のアクション {ids(r.iam_action_kinds)}、"

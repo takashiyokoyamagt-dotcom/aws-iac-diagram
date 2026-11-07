@@ -43,3 +43,12 @@ name_attr = {}
 name_from = "モジュール呼び出しの名前"
 icon = ["group:group_aws_cloud_alt"]
 icon_note = "仮。フェーズ4 で決める"
+
+[[type]]
+id = "eks_cluster"
+class = "drawn"
+category = "resource"
+tf = ["aws_eks_cluster"]
+cfn = ["AWS::EKS::Cluster"]
+name_attr = { tf = "name", cfn = "Name" }
+icon = ["resource_icon:eks"]

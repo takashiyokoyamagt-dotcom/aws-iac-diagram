@@ -59,6 +59,7 @@ REQUIRED_FILES = [
     "data/rules/types/ai-analytics.toml",
     "data/rules/types/compute.toml",
     "data/rules/types/data-stores.toml",
+    "data/rules/types/edge-web.toml",
     "data/rules/types/integration.toml",
     "data/rules/types/merged-and-hidden.toml",
     "data/rules/types/network.toml",

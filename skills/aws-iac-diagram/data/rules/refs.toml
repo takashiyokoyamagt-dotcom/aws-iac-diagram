@@ -8,9 +8,9 @@
 id = "E-NOEDGE-FROM-RULE"
 attrs = []
 from_class = ["merged_into", "hidden"]
-except_rules = ["M-ECS-TASKDEF"]
+except_rules = ["M-ECS-TASKDEF", "M-APIGW-AUTHORIZER"]
 use = ["R-*", "M-*", "H-*"]
-match = "**参照する側**のリソースが、関係リソース（R-*）、統合（M-*）、非表示（H-*）に分類されたもの（例: `AWS::EC2::VPCGatewayAttachment` の `InternetGatewayId`、`AWS::ApiGateway::Stage` の `DeploymentId`、`AWS::EC2::FlowLog` の `ResourceId`、`AWS::IAM::InstanceProfile` の `Roles`、`AWS::OpenSearchServerless::Index` の `CollectionEndpoint`、`aws_s3_bucket_versioning` の `bucket`、ルート・リスナー・SG のルールの中の参照）。**ただし** `M-ECS-TASKDEF` で統合したタスク定義の中の参照は、統合先のサービスの参照として扱うので、ここには当てない（下の行と E-ENV-REF で扱う）"
+match = "**参照する側**のリソースが、関係リソース（R-*）、統合（M-*）、非表示（H-*）に分類されたもの（例: `AWS::EC2::VPCGatewayAttachment` の `InternetGatewayId`、`AWS::ApiGateway::Stage` の `DeploymentId`、`AWS::EC2::FlowLog` の `ResourceId`、`AWS::IAM::InstanceProfile` の `Roles`、`AWS::OpenSearchServerless::Index` の `CollectionEndpoint`、`aws_s3_bucket_versioning` の `bucket`、ルート・リスナー・SG のルールの中の参照）。**ただし** `M-ECS-TASKDEF` で統合したタスク定義の中の参照は、統合先のサービスの参照として扱うので、ここには当てない（下の行と E-ENV-REF で扱う）。`M-APIGW-AUTHORIZER` で統合したオーソライザーの中の参照（Cognito のユーザープール、Lambda）も、API の参照として扱うので当てない（2026-11-07。辺の作り方は手順 4）"
 use_text = "その R-*・M-*・H-* の規則（辺を作るかどうかはその規則が決める）"
 
 [[noedge]]

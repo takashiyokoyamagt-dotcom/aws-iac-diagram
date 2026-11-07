@@ -89,7 +89,7 @@
 
 | 確信度 | 根拠 | 規則 | 描き方（フェーズ4 以降） |
 |---|---|---|---|
-| `confirmed` | 設定の属性からの直接の参照（`aws_dynamodb_table.orders.name`、`!Ref OrdersTable`、`!GetAtt Database.Endpoint.Address`）。モジュールの出力・変数、ネストスタックの出力・パラメータを通っても、元が参照なら確定 | `E-ENV-REF`、`E-KB-STORAGE` | 実線 |
+| `confirmed` | 設定の属性からの直接の参照（`aws_dynamodb_table.orders.name`、`!Ref OrdersTable`、`!GetAtt Database.Endpoint.Address`）。モジュールの出力・変数、ネストスタックの出力・パラメータを通っても、元が参照なら確定 | `E-ENV-REF`、`E-KB-STORAGE`、`E-CDN-ORIGIN`、`E-CDN-WAF`、`E-DNS-ALIAS`、`E-GLUE-TARGET`、`E-AUTHORIZER` | 実線 |
 | `derived` | 関係リソースの変換（R-*）、SG からの導出（R-SG）、型の定義で意味が決まっている属性の文字列（KB の `embedding_model_arn`）、合成ノードへの辺 | `R-*`、`E-BEDROCK-EMBEDDING`、`N-EXT-INTERNET` | 実線＋ラベル |
 | `inferred` | IAM の Resource ARN、環境変数などの文字列が名前・ARN と一致するだけのもの | `E-IAM`、`E-ENV-STR` | 破線＋凡例。既定で非表示にもできる。根拠を説明 .md に一覧で載せる |
 
@@ -108,6 +108,11 @@
 | `E-IAM-SUPPRESS` | E-IAM の辺と **逆向き** の辺が、ほかの規則で同じ組にできている | E-IAM の辺を作らない（例: ESM で テーブル → 関数 があるとき、ストリームを読む権限から 関数 → テーブル を作らない） |  |  |
 | `E-KB-STORAGE` | ナレッジベースの `storage_configuration`（`collection_arn`／`CollectionArn`） | KB → ベクトルストア | `data` | `confirmed` |
 | `E-BEDROCK-EMBEDDING` | ナレッジベースの `embedding_model_arn`／`EmbeddingModelArn` | KB → `bedrock_model`（N-BEDROCK-MODEL） | `request` | `derived` |
+| `E-CDN-ORIGIN` | CloudFront のオリジン（`origin[].domain_name`／`Origins[].DomainName`）が、ほかのリソース（S3 バケット、ALB、API Gateway）の属性への参照 | ディストリビューション → オリジン | `request` | `confirmed` |
+| `E-CDN-WAF` | CloudFront の `web_acl_id`／`WebACLId` が Web ACL への参照 | Web ACL → ディストリビューション（利用者からの通信は WAF を通ってからディストリビューションに届く） | `request` | `confirmed` |
+| `E-DNS-ALIAS` | Route 53 のレコードのエイリアス（`alias[].name`／`AliasTarget.DNSName`。`RecordSetGroup` は `RecordSets[].AliasTarget.DNSName`）が、ほかのリソースの属性への参照 | レコード → エイリアス先（CloudFront、ALB、API Gateway） | `request` | `confirmed` |
+| `E-GLUE-TARGET` | Glue のクローラの `database_name`／`DatabaseName` と、ターゲット（`s3_target[].path`／`Targets.S3Targets[].Path`、`jdbc_target`・`dynamodb_target` など）が、ほかのリソースの属性への参照 | クローラ → 読むデータストア、クローラ → 書くカタログのデータベース | `data` | `confirmed` |
+| `E-AUTHORIZER` | M-APIGW-AUTHORIZER で統合したオーソライザーの `provider_arns`／`ProviderARNs`（Cognito のユーザープール）と `authorizer_uri`／`AuthorizerUri`（Lambda）が、ほかのリソースへの参照。統合先の API そのものへの参照（`rest_api_id`／`RestApiId`）は辺にしない（自分への辺になる） | API → ユーザープール、API → オーソライザーの関数 | `request` | `confirmed` |
 | `E-MERGE` | 同じ順序付きの組に、複数の規則から辺ができた | 1本にまとめる | 下の「まとめ方」 | 強い方 |
 
 <!-- /rules-table -->
@@ -119,9 +124,9 @@
 
 | 参照先の型 | kind |
 |---|---|
-| `dynamodb_table`、`s3_bucket`、`db_instance`、`opensearchserverless_collection` | `data` |
-| `sns_topic`、`sqs_queue` | `event` |
-| `lambda_function`、`apigw_*`、`bedrock_knowledge_base`、`bedrock_model` | `request` |
+| `dynamodb_table`、`s3_bucket`、`db_instance`、`opensearchserverless_collection`、`glue_catalog_database` | `data` |
+| `sns_topic`、`sqs_queue`、`eventbridge_rule` | `event` |
+| `lambda_function`、`apigw_*`、`bedrock_knowledge_base`、`bedrock_model`、`sfn_state_machine`、`glue_job`、`glue_crawler`、`cognito_user_pool`、`eks_cluster` | `request` |
 
 <!-- /rules-table -->
 
@@ -172,7 +177,7 @@
 |---|---|
 | 1 | `R-LB-*`、`R-APIGW-*`、`R-ROUTE`、`R-VPCE-GATEWAY` |
 | 2 | `R-LAMBDA-ESM`、`R-SNS-SUBSCRIPTION`、`R-S3-NOTIFICATION`、`R-BEDROCK-DATA-SOURCE` |
-| 3 | `E-ENV-REF`、`E-KB-STORAGE`、`E-BEDROCK-EMBEDDING` |
+| 3 | `E-ENV-REF`、`E-KB-STORAGE`、`E-BEDROCK-EMBEDDING`、`E-CDN-ORIGIN`、`E-CDN-WAF`、`E-DNS-ALIAS`、`E-GLUE-TARGET`、`E-AUTHORIZER` |
 | 4 | `E-ENV-STR` |
 | 5 | `R-SG` |
 | 6 | `E-IAM` |

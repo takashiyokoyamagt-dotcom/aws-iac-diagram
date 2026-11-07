@@ -38,3 +38,22 @@ tf = ["aws_sqs_queue"]
 cfn = ["AWS::SQS::Queue"]
 name_attr = { tf = "name", cfn = "QueueName" }
 icon = ["resource_icon:sqs"]
+
+[[type]]
+id = "eventbridge_rule"
+class = "drawn"
+category = "resource"
+tf = ["aws_cloudwatch_event_rule"]
+cfn = ["AWS::Events::Rule"]
+name_attr = { tf = "name", cfn = "Name" }
+icon = ["resource_icon:eventbridge"]
+
+[[type]]
+id = "sfn_state_machine"
+class = "drawn"
+category = "resource"
+tf = ["aws_sfn_state_machine"]
+cfn = ["AWS::StepFunctions::StateMachine", "AWS::Serverless::StateMachine"]
+name_attr = { tf = "name", cfn = "StateMachineName" }
+cfn_note = "SAM の `AWS::Serverless::StateMachine` の名前は `Name`（name_attr の 1 つの列には書けないので、`Name` タグか論理名）"
+icon = ["resource_icon:step_functions"]

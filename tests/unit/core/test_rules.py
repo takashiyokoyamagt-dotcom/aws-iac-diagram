@@ -31,16 +31,16 @@ class ShippedRulesTest(unittest.TestCase):
 
     def test_row_counts_per_table(self):
         r = self.r
-        self.assertEqual((len(r.drawn), len(r.merged), len(r.hidden), len(r.relations)), (22, 9, 12, 13))
+        self.assertEqual((len(r.drawn), len(r.merged), len(r.hidden), len(r.relations)), (32, 19, 13, 16))
         self.assertEqual((len(r.confidences), len(r.edges), len(r.kind_by_target), len(r.iam_action_kinds), len(r.merge_priority),
-                          len(r.synthetic), len(r.label_formats)), (3, 7, 3, 3, 6, 2, 6))
+                          len(r.synthetic), len(r.label_formats)), (3, 12, 3, 3, 6, 2, 6))
         self.assertEqual((len(r.noedge), len(r.nonode), len(r.placement), len(r.attrs)), (7, 1, 5, 1))
 
     def test_rule_ids_per_prefix(self):
         ids = self.r.rule_ids
         by = {p: sorted(i for i in ids if i.startswith(p)) for p in ("E-", "H-", "M-", "N-", "P-", "R-")}
-        self.assertEqual({p: len(v) for p, v in by.items()}, {"E-": 15, "H-": 12, "M-": 9, "N-": 3, "P-": 4, "R-": 13})
-        self.assertEqual(len(ids), 56)
+        self.assertEqual({p: len(v) for p, v in by.items()}, {"E-": 20, "H-": 13, "M-": 19, "N-": 3, "P-": 4, "R-": 16})
+        self.assertEqual(len(ids), 75)
         self.assertEqual(self.r.edge_ids | self.r.ref_ids, frozenset(by["E-"]))
         self.assertEqual(len(self.r.ref_ids), 8)  # E-NOEDGE-* 7 と E-REF-NONODE
         self.assertEqual(self.r.synthetic_ids | {i for i in self.r.placement_ids if i.startswith("N-")}, frozenset(by["N-"]))
@@ -77,12 +77,17 @@ class ShippedRulesTest(unittest.TestCase):
                     self.assertTrue(set(e["rules"]) <= ids, (p.name, e["edge"]))
         self.assertGreaterEqual(len(seen_rules), 10)  # 空振りの防止
 
+    def test_every_drawn_type_has_a_placement(self):
+        # 描く型は、VPC（最上位）と黒箱の module を除いて、どれかの入れ子の規則で parent が決まる（手順 2 で足した型の漏れを防ぐ）
+        placed = {t for p in self.r.placement for t in p.types}
+        self.assertEqual(sorted(self.r.drawn_ids - placed), ["module", "vpc"])
+
     def test_synthetic_types_and_module_row(self):
         self.assertEqual(self.r.synthetic_types, {"availability_zone", "external", "bedrock_model"})
         d = self.r.drawable_types()
         self.assertEqual(d["AWS::CloudFormation::Stack"], {"module"})
         self.assertEqual(d["aws_lb"], {"alb"})
-        self.assertEqual(len(d), 43)
+        self.assertEqual(len(d), 65)
         self.assertNotIn("module", d)  # TF の黒箱の入力の型は module だが、規則表には書かない（validate_ir.py の BLACKBOX_TYPES）
 
     def test_column_values_match_the_schema_enums(self):
@@ -236,7 +241,7 @@ class StructureTest(unittest.TestCase):
         return cm.exception.problems
 
     def test_bad_toml(self):
-        edit(self.dir, "types/compute.toml", 'class = "drawn"', "class = ", count=4)
+        edit(self.dir, "types/compute.toml", 'class = "drawn"', "class = ", count=5)
         self.assertBroken("types/compute.toml: TOML として読めない")
 
     def test_not_utf8(self):
@@ -424,11 +429,11 @@ class StructureTest(unittest.TestCase):
             ("placement.toml", 'source = "R-ROUTE"', 'source = "R-NOPE"', "source 'R-NOPE' が規則 ID にない"),
             ("placement.toml", 'type = "subnet"', 'type = "nothing"', "[[attr]] の type 'nothing'"),
             ("refs.toml", 'use = ["P-*"]', 'use = ["Q-*"]', "use の 'Q-*' に当たる規則 ID が無い"),
-            ("refs.toml", 'except_rules = ["M-ECS-TASKDEF"]', 'except_rules = ["M-NOPE"]', "except_rules 'M-NOPE'"),
+            ("refs.toml", 'except_rules = ["M-ECS-TASKDEF", "M-APIGW-AUTHORIZER"]', 'except_rules = ["M-ECS-TASKDEF", "M-NOPE"]', "except_rules 'M-NOPE'"),
             ("refs.toml", 'from_class = ["merged_into", "hidden"]', 'from_class = ["merged_into", "drawn"]', "from_class 'drawn'"),
-            ("edges.toml", 'rules = ["E-ENV-REF", "E-KB-STORAGE"]', 'rules = ["E-ENV-REF", "E-KB-STORAGE", "E-NOPE"]', "'E-NOPE' に当たる規則 ID が無い"),
+            ("edges.toml", 'rules = ["E-ENV-REF", "E-KB-STORAGE", "E-CDN-ORIGIN"', 'rules = ["E-ENV-REF", "E-KB-STORAGE", "E-NOPE", "E-CDN-ORIGIN"', "'E-NOPE' に当たる規則 ID が無い"),
             ("edges.toml", 'rules = ["E-ENV-STR"]', 'rules = ["E-ENV-STR", "X-*"]', "'X-*' に当たる規則 ID が無い"),
-            ("edges.toml", 'types = ["sns_topic", "sqs_queue"]', 'types = ["sns_topic", "sqs_queuee"]', "'sqs_queuee' が描く型にない"),
+            ("edges.toml", 'types = ["sns_topic", "sqs_queue", "eventbridge_rule"]', 'types = ["sns_topic", "sqs_queuee", "eventbridge_rule"]', "'sqs_queuee' が描く型にない"),
             ("edges.toml", 'kind = "event"\ntypes', 'kind = "bogus"\ntypes', "[[kind_by_target]] の kind 'bogus'"),
             ("edges.toml", 'kind_by = "iam_action_kind"', 'kind_by = "nothing"', "kind_by 'nothing'"),
             ("relations.toml", 'kind = "route"', 'kind = "bogus"', "kind 'bogus'"),
@@ -511,8 +516,8 @@ class StructureTest(unittest.TestCase):
         self.assertBroken("アクション 'sns:Publish' が重複")
 
     def test_refs_as_target_must_be_used_by_an_exception(self):
-        edit(self.dir, "refs.toml", 'except_rules = ["M-ECS-TASKDEF"]', "except_rules = []")
-        self.assertBroken("refs_as_target の ['M-ECS-TASKDEF'] を、辺にしない参照の except_rules が指していない")
+        edit(self.dir, "refs.toml", 'except_rules = ["M-ECS-TASKDEF", "M-APIGW-AUTHORIZER"]', "except_rules = []")
+        self.assertBroken("refs_as_target の ['M-ECS-TASKDEF', 'M-APIGW-AUTHORIZER'] を、辺にしない参照の except_rules が指していない")
 
     def test_all_problems_are_collected(self):
         edit(self.dir, "relations.toml", 'id = "R-ROUTE"', 'id = "R-SG"')
@@ -538,7 +543,7 @@ class DeterminismTest(unittest.TestCase):
             if r.file not in order:
                 order.append(r.file)
         self.assertEqual(order, sorted(order))
-        self.assertEqual(len(order), 6)
+        self.assertEqual(len(order), 7)
 
     def test_error_messages_do_not_depend_on_directory_listing_order(self):
         with tempfile.TemporaryDirectory() as t:
