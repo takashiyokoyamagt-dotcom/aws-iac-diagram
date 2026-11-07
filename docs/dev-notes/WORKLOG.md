@@ -1513,3 +1513,27 @@ tests/ 平ら 10 ファイル、最大 2,381 行（281 件）            tests/ 
 
 確かめたこと: 修正を戻すと新しいテストが 4 件落ちる。単体テスト 525 → **527**、golden 101/101、`render_rules.py --check` OK、正解 IR 5 つの `validate_ir.py` の出力と終了コードは修正の前と同じ。
 
+
+## 2026-11-07 フェーズ3 の手順2: 規則表の拡張（主セットの型）と凍結
+
+- ユーザーの指示で、設計草案 8 章の 1〜8 をすべて推奨で決定（草案の 8 章の先頭に記録）。
+- 実測（raw IR、主セット 12 入力。`data` と AWS 以外のプロバイダの型を除く）: 規則表のどの行にも当たらない型が 39 型・67 件（草案の概算と一致）→ **0 型・0 件**。`tests/integration/test_main_set_types.py` が縛る（行を 1 つ外すと落ちることも確かめる）。
+- 足した行（規則 ID は 56 → 70、描く型は 22 → 32、関係 R-* は 13 → 16）:
+  - 描く型 10: `cloudfront_distribution`・`route53_record`・`waf_web_acl`・`cognito_user_pool`（新しいファイル `types/edge-web.toml`。草案 3 章の構成図にあった名前）、`eks_cluster`（compute）、`eventbridge_rule`・`sfn_state_machine`（integration）、`glue_job`・`glue_crawler`・`glue_catalog_database`（ai-analytics）。アイコンは辞書に実在するもの（`test_rules_icons.py`）。
+  - 統合 M-* 10: `M-DB-PARAMETER-GROUP`・`M-S3-OBJECT`・`M-APIGW-RESPONSE`・`M-APIGW-AUTHORIZER`（中の参照は API の参照。Cognito への辺の材料）・`M-LAMBDA-LAYER`・`M-CLOUDFRONT-CONFIG`（OAC など）・`M-ACM-CERT`・`M-COGNITO-CONFIG`・`M-EKS-PARTS`（ノードグループ・アドオン・アクセスエントリ）・`M-LAUNCH-TEMPLATE`。
+  - 非表示 H-* 1: `H-CFN-CUSTOM`（カスタムリソース。`Custom::<名前>` は型の形に合わず書けない）。
+  - 関係 R-* 3: `R-EVENTS-TARGET`（ルール → ターゲット。CFN は `Targets` のプロパティ）、`R-SNS-TOPIC-POLICY`（R-SQS-QUEUE-POLICY と同じ扱い）、`R-GLUE-TRIGGER`（条件のジョブ・クローラ → 起動するもの）。辺の作り方の実装は手順 4。
+  - 既存の行に型を足した（ID と意味は同じ）: H-IAM に `aws_iam_policy`・`aws_iam_openid_connect_provider`・`AWS::IAM::RolePolicy`・`AWS::IAM::OIDCProvider`・`data.aws_iam_policy`、H-OBSERVABILITY にアラームとダッシュボード、M-S3-CONFIG に `AWS::S3::BucketPolicy`。H-DATA の理由の文言を 8 章の 3 (c) の決定に合わせた（`data = true` は手順 1 から既にあった列）。
+- 判断（推奨で進めたもの。正解 IR を書く前に見直すならここ）: EKS のノードグループはクラスタに統合（ノードグループごとの描き分けはフェーズ 4 の B2）。Route 53 はレコード（`RecordSetGroup` は 1 ノード）を描き、ホストゾーンは描かない。ACM の証明書は使う側に統合（C01 の us-east-1 の証明書もこれで別リージョンの描き分けが要らない）。
+- `render_rules.py` の「6 ファイル」をデータから数えるようにした。doctor の必須ファイルに `edge-web.toml`。
+
+### 第三者レビュー（1 回）と対応
+
+- 型の表に止めるべき誤りは無し（型名・プロパティ名、H-IAM などの意味の範囲、`iam_only()` と golden に影響しないこと、変異で落ちることを確認）。
+- 指摘 1（新しい型から出る辺の規則が無く、正解 IR が `note` だらけになる）→ 推奨の (a) で辺の行を足した: `E-CDN-ORIGIN`・`E-CDN-WAF`・`E-DNS-ALIAS`・`E-GLUE-TARGET`・`E-AUTHORIZER`（すべて確定・優先順 3）。`M-APIGW-AUTHORIZER` を `E-NOEDGE-FROM-RULE` の `except_rules` に足した（統合先の API そのものへの参照は捨てる）。
+- 指摘 2（入れ子と kind の表の漏れ）→ P-REGIONAL に 9 型、P-SPANS に `eks_cluster`、`kind_by_target` に 9 型。「VPC と `module` 以外の描く型はどれかの入れ子の規則に入る」をテストで縛った。
+- 指摘 3・5・6 → M-S3-CONFIG の `select`（C02 は `!Sub` の名前の一致）、M-LAUNCH-TEMPLATE の 2 段の統合（types.md に明記）、SAM の StateMachine と RecordSetGroup の名前の注記。
+- 指摘 7 → 主セットのテストは CFN の型をすべて数える（`Custom::<名前>` も）。指摘 8・9 → types.md の状態と data の段落、doctor の一覧の順序、HANDOFF。
+- 見送り（主セットに無い）: ACM の API のカスタムドメインの行、WebSocket API のオーソライザー、CloudFront のログ用バケット（`Logging.Bucket`）を辺にするか（いまは規則に当たらず NORM-UNUSED-REF の候補。手順 4 で件数を見る）。
+- 正解 IR を書く前の確認事項（レビューから。推奨で進め、書き手には「規則表に従い、規則に無い真の関係は note に書く」と伝える）: T16 の `module.eks.module.kms` は黒箱の `module` ノードとして出る。C01 のカスタムリソースの裏の Lambda（`CopyFunction`）とレイヤーは描かれる。C01 の Route 53 のノードは 2 つ（apex と www）。T16 のノードの SG はローンチテンプレートにだけ付くので、R-SG の辺の起点は 2 段の統合先（クラスタ）になる。T11・T11s の SFN の定義は `file()`・`AWS::Include` で読めない（草案 8 章の 2。測ってから判断）。
+- 結果: 単体テスト 531 件 OK、golden 101/101、`render_rules.py --check` OK、正解 IR 5 つの `validate_ir.py` は前と同じ OK。

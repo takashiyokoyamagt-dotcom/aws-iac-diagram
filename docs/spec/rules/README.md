@@ -13,13 +13,13 @@
 
 | ファイル | 表 | 行数 |
 |---|---|---|
-| `types/*.toml`（6 ファイル。名前の昇順） | `[[type]]` | 描く型 22、統合 M-* 9、非表示 H-* 12 |
-| `relations.toml` | `[[relation]]` | R-* 13 |
-| `edges.toml` | `[[confidence]]` `[[edge]]` `[[kind_by_target]]` `[[iam_action_kind]]` `[[merge_priority]]` `[[synthetic]]` `[[label_format]]` | 確信度 3、辺の規則 E-* 7、kind の対応 3、IAM のアクション 3、優先順 6、合成ノード N-* 2、ラベルの書式 6 |
+| `types/*.toml`（7 ファイル。名前の昇順） | `[[type]]` | 描く型 32、統合 M-* 19、非表示 H-* 13 |
+| `relations.toml` | `[[relation]]` | R-* 16 |
+| `edges.toml` | `[[confidence]]` `[[edge]]` `[[kind_by_target]]` `[[iam_action_kind]]` `[[merge_priority]]` `[[synthetic]]` `[[label_format]]` | 確信度 3、辺の規則 E-* 12、kind の対応 3、IAM のアクション 3、優先順 6、合成ノード N-* 2、ラベルの書式 6 |
 | `refs.toml` | `[[noedge]]` `[[nonode]]` | E-NOEDGE-* 7、E-REF-NONODE 1 |
 | `placement.toml` | `[[placement]]` `[[attr]]` | 入れ子 N-AZ・P-* 5、attrs 1 |
 
-規則 ID は全部で 56（描く型の正規の型名 22 は別）。
+規則 ID は全部で 75（描く型の正規の型名 32 は別）。
 
 <!-- /rules-table -->
 

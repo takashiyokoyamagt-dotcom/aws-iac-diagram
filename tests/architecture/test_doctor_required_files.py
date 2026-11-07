@@ -43,6 +43,7 @@ RUNTIME_DATA = {
     "data/rules/types/ai-analytics.toml",
     "data/rules/types/compute.toml",
     "data/rules/types/data-stores.toml",
+    "data/rules/types/edge-web.toml",
     "data/rules/types/integration.toml",
     "data/rules/types/merged-and-hidden.toml",
     "data/rules/types/network.toml",
@@ -205,7 +206,7 @@ class RequiredFilesTest(unittest.TestCase):
         # 規則表が欠けたまま黙って動かない（終了コード 2 と、欠けたファイル名）
         import json
         rules_files = sorted(f for f in doctor.REQUIRED_FILES if f.startswith("data/rules/"))
-        self.assertEqual(len(rules_files), 10)
+        self.assertEqual(len(rules_files), 11)
         with tempfile.TemporaryDirectory() as t:
             skill = Path(t) / "日本語 パス" / "aws-iac-diagram"
             shutil.copytree(SKILL, skill, ignore=shutil.ignore_patterns("__pycache__"))

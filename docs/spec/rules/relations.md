@@ -53,6 +53,9 @@
 | `R-SQS-QUEUE-POLICY` | `aws_sqs_queue_policy` | `AWS::SQS::QueuePolicy` | 許可された送信元（`aws:SourceArn`）→ キュー。同じ組の辺があればその根拠に加えるだけ。ほかの規則の辺が無く、送信元が入力のリソースなら `event` の辺を作る。送信元が入力に無い・条件が無いときは辺を作らず `H-IAM` | 既存の辺に従う／無ければ `event` | 既存の辺に従う／無ければ空 | 確信度 `derived` 辺ができなければ `H-IAM` |
 | `R-S3-NOTIFICATION` | `aws_s3_bucket_notification` | プロパティ: `AWS::S3::Bucket.NotificationConfiguration` | バケット → 通知先（Lambda、SQS、SNS） | `event` | （なし） | 確信度 `derived` |
 | `R-BEDROCK-DATA-SOURCE` | `aws_bedrockagent_data_source` | `AWS::Bedrock::DataSource` | データソースのバケット → ナレッジベース（取り込み） | `data` | （なし） | 確信度 `derived` |
+| `R-EVENTS-TARGET` | `aws_cloudwatch_event_target` | プロパティ: `AWS::Events::Rule.Targets` | ルール → ターゲット（SNS、SQS、Lambda、Step Functions など） | `event` | （なし） | 確信度 `derived` |
+| `R-SNS-TOPIC-POLICY` | `aws_sns_topic_policy` | `AWS::SNS::TopicPolicy` | 許可された送信元（`aws:SourceArn` や `Principal.Service`）→ トピック。同じ組の辺があればその根拠に加えるだけ。ほかの規則の辺が無く、送信元が入力のリソースなら `event` の辺を作る。送信元が入力に無い・条件が無いときは辺を作らず `H-IAM` | 既存の辺に従う／無ければ `event` | 既存の辺に従う／無ければ空 | 確信度 `derived` 辺ができなければ `H-IAM` |
+| `R-GLUE-TRIGGER` | `aws_glue_trigger` | `AWS::Glue::Trigger` | 条件（`predicate`／`Predicate` のジョブ・クローラ）→ 起動するジョブ・クローラ（`actions`／`Actions`）。条件の無いトリガー（スケジュール・オンデマンド）は辺を作らない | `event` | （なし） | 確信度 `derived` |
 
 <!-- /rules-table -->
 

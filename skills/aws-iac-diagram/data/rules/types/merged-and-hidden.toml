@@ -57,9 +57,9 @@ tf = [
     "aws_s3_bucket_lifecycle_configuration",
     "aws_s3_bucket_policy",
 ]
-cfn = []
-cfn_note = "プロパティ"
-into = { node_types = ["s3_bucket"], select = "そのバケット" }
+cfn = ["AWS::S3::BucketPolicy"]
+cfn_note = "バケットポリシーのほかはプロパティ"
+into = { node_types = ["s3_bucket"], select = "そのバケット（参照、またはバケットポリシーの `Bucket` の値がバケットの名前と一致するもの。C02 は `!Sub` の文字列で指す）" }
 reason = "TF の provider v4 以降でバケットの設定が別リソースになっただけ。CFN では `AWS::S3::Bucket` のプロパティ"
 
 [[type]]
@@ -88,12 +88,109 @@ into = { node_types = ["opensearchserverless_collection"], select = "プロバ�
 reason = "コレクションの中身。KB の `vector_index_name` が名前で指す"
 
 [[type]]
+id = "M-DB-PARAMETER-GROUP"
+class = "merged_into"
+tf = ["aws_db_parameter_group", "aws_db_option_group"]
+cfn = ["AWS::RDS::DBParameterGroup", "AWS::RDS::OptionGroup"]
+into = { node_types = ["db_instance"], select = "それを使う DB インスタンス" }
+reason = "DB の設定で、通信経路を持たない"
+
+[[type]]
+id = "M-S3-OBJECT"
+class = "merged_into"
+tf = ["aws_s3_object"]
+cfn = []
+cfn_note = "該当なし"
+into = { node_types = ["s3_bucket"], select = "そのバケット" }
+reason = "バケットの中身（Lambda の zip、Glue のスクリプトなど）。置く処理はデプロイ時のもので、構成上の通信ではない"
+
+[[type]]
+id = "M-APIGW-RESPONSE"
+class = "merged_into"
+tf = ["aws_api_gateway_method_response", "aws_api_gateway_integration_response"]
+cfn = []
+cfn_note = "プロパティ（`AWS::ApiGateway::Method` の `MethodResponses`・`Integration.IntegrationResponses`）"
+into = { node_types = ["apigw_rest_api"], select = "その API" }
+reason = "応答の形の設定。辺は R-APIGW-REST（メソッドと統合）が作る"
+
+[[type]]
+id = "M-APIGW-AUTHORIZER"
+class = "merged_into"
+tf = ["aws_api_gateway_authorizer", "aws_apigatewayv2_authorizer"]
+cfn = ["AWS::ApiGateway::Authorizer", "AWS::ApiGatewayV2::Authorizer"]
+into = { node_types = ["apigw_http_api", "apigw_rest_api"], select = "その API" }
+refs_as_target = true
+reason = "API の付属品。中の参照（Cognito のユーザープール、オーソライザーの Lambda）は API からの参照として扱う（E-AUTHORIZER）。統合先の API そのものへの参照は捨てる"
+
+[[type]]
+id = "M-LAMBDA-LAYER"
+class = "merged_into"
+tf = ["aws_lambda_layer_version"]
+cfn = ["AWS::Lambda::LayerVersion", "AWS::Serverless::LayerVersion"]
+into = { node_types = ["lambda_function"], select = "それを使う関数すべて" }
+reason = "関数のコードの一部"
+
+[[type]]
+id = "M-CLOUDFRONT-CONFIG"
+class = "merged_into"
+tf = [
+    "aws_cloudfront_origin_access_control",
+    "aws_cloudfront_origin_access_identity",
+    "aws_cloudfront_response_headers_policy",
+    "aws_cloudfront_cache_policy",
+    "aws_cloudfront_origin_request_policy",
+]
+cfn = [
+    "AWS::CloudFront::OriginAccessControl",
+    "AWS::CloudFront::CloudFrontOriginAccessIdentity",
+    "AWS::CloudFront::ResponseHeadersPolicy",
+    "AWS::CloudFront::CachePolicy",
+    "AWS::CloudFront::OriginRequestPolicy",
+]
+into = { node_types = ["cloudfront_distribution"], select = "それを使うディストリビューション" }
+reason = "ディストリビューションの設定で、通信経路を持たない"
+
+[[type]]
+id = "M-ACM-CERT"
+class = "merged_into"
+tf = ["aws_acm_certificate", "aws_acm_certificate_validation"]
+cfn = ["AWS::CertificateManager::Certificate"]
+into = { node_types = ["cloudfront_distribution", "alb", "apigw_http_api", "apigw_rest_api"], select = "それを使うリソース（CloudFront、ALB のリスナー、API のカスタムドメイン）" }
+reason = "TLS の設定。通信経路を持たない"
+
+[[type]]
+id = "M-COGNITO-CONFIG"
+class = "merged_into"
+tf = ["aws_cognito_user_pool_client", "aws_cognito_user_pool_domain"]
+cfn = ["AWS::Cognito::UserPoolClient", "AWS::Cognito::UserPoolDomain"]
+into = { node_types = ["cognito_user_pool"], select = "そのユーザープール" }
+reason = "ユーザープールの設定"
+
+[[type]]
+id = "M-EKS-PARTS"
+class = "merged_into"
+tf = ["aws_eks_node_group", "aws_eks_addon", "aws_eks_access_entry", "aws_eks_access_policy_association", "aws_eks_fargate_profile"]
+cfn = ["AWS::EKS::Nodegroup", "AWS::EKS::Addon", "AWS::EKS::AccessEntry", "AWS::EKS::FargateProfile"]
+into = { node_types = ["eks_cluster"], select = "そのクラスタ" }
+reason = "クラスタの部品。ノードグループもクラスタの中の計算資源として 1 つのノードにまとめる（ノードグループごとに描くかはフェーズ 4 の B2 の詳細図で決める）"
+
+[[type]]
+id = "M-LAUNCH-TEMPLATE"
+class = "merged_into"
+tf = ["aws_launch_template"]
+cfn = ["AWS::EC2::LaunchTemplate"]
+into = { node_types = ["eks_cluster", "ec2_instance"], select = "それを使うインスタンス、またはそれを使うノードグループのクラスタ（ノードグループは M-EKS-PARTS でクラスタに統合されるので、統合を 2 段たどる）" }
+reason = "起動の設定で、通信経路を持たない。中の SG（`vpc_security_group_ids`）は R-SG の辺の起点を統合先に移すときに使う（手順 5）"
+
+[[type]]
 id = "H-IAM"
 class = "hidden"
-tf = ["aws_iam_role", "aws_iam_role_policy", "aws_iam_role_policy_attachment", "aws_iam_instance_profile"]
-cfn = ["AWS::IAM::Role", "AWS::IAM::Policy", "AWS::IAM::InstanceProfile", "AWS::IAM::ManagedPolicy"]
-tf_data = ["aws_iam_policy_document"]
-applies = "`aws_iam_role`、`aws_iam_role_policy`、`aws_iam_role_policy_attachment`、`aws_iam_instance_profile`、`data.aws_iam_policy_document`、`AWS::IAM::Role`、`AWS::IAM::Policy`、`AWS::IAM::InstanceProfile`、`AWS::IAM::ManagedPolicy`"
+tf = ["aws_iam_role", "aws_iam_role_policy", "aws_iam_role_policy_attachment", "aws_iam_instance_profile", "aws_iam_policy",
+      "aws_iam_openid_connect_provider"]
+cfn = ["AWS::IAM::Role", "AWS::IAM::Policy", "AWS::IAM::InstanceProfile", "AWS::IAM::ManagedPolicy", "AWS::IAM::RolePolicy",
+       "AWS::IAM::OIDCProvider"]
+tf_data = ["aws_iam_policy_document", "aws_iam_policy"]
+applies = "`aws_iam_role`、`aws_iam_role_policy`、`aws_iam_role_policy_attachment`、`aws_iam_instance_profile`、`aws_iam_policy`、`aws_iam_openid_connect_provider`、`data.aws_iam_policy_document`、`data.aws_iam_policy`、`AWS::IAM::Role`、`AWS::IAM::Policy`、`AWS::IAM::InstanceProfile`、`AWS::IAM::ManagedPolicy`、`AWS::IAM::RolePolicy`、`AWS::IAM::OIDCProvider`"
 evidence_source = true
 module_sources_file = "data/module-summaries/iam-only-sources.md"
 reason = "権限は図に描かない。ただし非表示にする前に E-IAM（推定の辺）の材料として使う"
@@ -109,9 +206,9 @@ reason = "運用の付属品。全体図には出さない（B2 の詳細図で�
 [[type]]
 id = "H-OBSERVABILITY"
 class = "hidden"
-tf = ["aws_flow_log"]
-cfn = ["AWS::EC2::FlowLog"]
-applies = "`aws_flow_log`、`AWS::EC2::FlowLog`"
+tf = ["aws_flow_log", "aws_cloudwatch_metric_alarm", "aws_cloudwatch_dashboard"]
+cfn = ["AWS::EC2::FlowLog", "AWS::CloudWatch::Alarm", "AWS::CloudWatch::Dashboard"]
+applies = "`aws_flow_log`、`aws_cloudwatch_metric_alarm`、`aws_cloudwatch_dashboard`、`AWS::EC2::FlowLog`、`AWS::CloudWatch::Alarm`、`AWS::CloudWatch::Dashboard`"
 reason = "同上。フローログの送り先のロググループも H-LOGS で非表示になる"
 
 [[type]]
@@ -121,7 +218,7 @@ tf = []
 cfn = []
 data_block = true
 applies = "IAM 以外の TF の `data` ブロック（`aws_ssm_parameter`、`aws_caller_identity`、`archive_file` など）"
-reason = "値を引くためのもの。既存のインフラを指す、描く型の data（`data.aws_vpc`、`data.aws_subnet` など）が、描くリソースから参照されていれば既存のノードとして描く方針（ir-schema の 7.4。規則 ID と描き方はフェーズ3 で決める。fixture には無い）"
+reason = "値を引くためのもの。ただし `data = true` の描く型（`data.aws_vpc`・`data.aws_subnet`・`data.aws_s3_bucket`）の data が描くリソースから参照されていれば、既存のノードとして描く（ir-schema の 7.4。2026-11-07 に設計草案 8 章の 3 の推奨 (c) で決定。参照されていなければ H-DATA。主セットの T09 が該当）"
 
 [[type]]
 id = "H-COND-FALSE"
@@ -188,3 +285,12 @@ tf = ["aws_default_security_group", "aws_default_network_acl", "aws_default_rout
 cfn = []
 applies = "`aws_default_security_group`、`aws_default_network_acl`、`aws_default_route_table`"
 reason = "既定のリソースを管理下に置くためのもので、構成上の役割が無い（terraform-aws-modules/vpc が既定で作る）"
+
+[[type]]
+id = "H-CFN-CUSTOM"
+class = "hidden"
+tf = []
+cfn = ["AWS::CloudFormation::CustomResource"]
+cfn_note = "`Custom::<名前>` の型は TOML の型の形（`AWS::…`）に合わないので書けない。raw に出たら unknown として報告される"
+applies = "`AWS::CloudFormation::CustomResource`（カスタムリソース）"
+reason = "デプロイの時に 1 回だけ動く処理。裏の Lambda は描く型として描かれる"

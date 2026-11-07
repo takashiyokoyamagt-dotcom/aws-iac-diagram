@@ -30,3 +30,31 @@ cfn = []
 name_attr = {}
 name_from = "モデルID"
 icon = ["resource_icon:bedrock"]
+
+[[type]]
+id = "glue_job"
+class = "drawn"
+category = "resource"
+tf = ["aws_glue_job"]
+cfn = ["AWS::Glue::Job"]
+name_attr = { tf = "name", cfn = "Name" }
+icon = ["resource_icon:glue"]
+
+[[type]]
+id = "glue_crawler"
+class = "drawn"
+category = "resource"
+tf = ["aws_glue_crawler"]
+cfn = ["AWS::Glue::Crawler"]
+name_attr = { tf = "name", cfn = "Name" }
+icon = ["shape:glue_crawlers"]
+
+[[type]]
+id = "glue_catalog_database"
+class = "drawn"
+category = "resource"
+tf = ["aws_glue_catalog_database"]
+cfn = ["AWS::Glue::Database"]
+name_attr = { tf = "name" }
+cfn_note = "名前は `DatabaseInput.Name`（入れ子なので name_attr には書かない。`Name` タグか論理名）"
+icon = ["shape:glue_data_catalog"]

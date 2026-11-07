@@ -40,8 +40,8 @@
 | `N-AZ` | サブネットの AZ ごとに `availability_zone` のノードを VPC の下に作り、サブネットをその下に入れる（TerraVision と同じ考え方）。key は `<VPC の key>.<AZ 名>` | `availability_zone`、`subnet` |
 | `P-VPC` | インターネットゲートウェイ、Gateway 型の VPC エンドポイント、複数の AZ にまたがるリソースの `parent` は VPC | `internet_gateway`、`vpc_endpoint` |
 | `P-SUBNET` | サブネットを1つだけ指定するリソース（NAT ゲートウェイ、EC2 インスタンス）の `parent` はそのサブネット | `nat_gateway`、`ec2_instance` |
-| `P-SPANS` | サブネットを2つ以上指定するリソース（ALB、ECS サービス、Interface 型の VPC エンドポイント、DB サブネットグループ経由の DB）は、`spans` にそのサブネットを並べ、`parent` はそれらの最も近い共通の祖先（AZ が違えば VPC）にする。描き方（サブネットごとに複製するか、またがる箱にするか）は配置（フェーズ4）で決める | `alb`、`ecs_service`、`vpc_endpoint`、`db_instance` |
-| `P-REGIONAL` | VPC に入らないリソース（Lambda、DynamoDB、S3、SNS、SQS、API Gateway、Bedrock、OpenSearch Serverless）と `external` は `parent: null`。「AWS Cloud」やリージョンの枠は配置の段階で描き、IR には入れない | `lambda_function`、`dynamodb_table`、`s3_bucket`、`sns_topic`、`sqs_queue`、`apigw_http_api`、`apigw_rest_api`、`bedrock_knowledge_base`、`bedrock_model`、`opensearchserverless_collection`、`external` |
+| `P-SPANS` | サブネットを2つ以上指定するリソース（ALB、ECS サービス、Interface 型の VPC エンドポイント、DB サブネットグループ経由の DB、`vpc_config.subnet_ids`／`ResourcesVpcConfig.SubnetIds` の EKS クラスタ）は、`spans` にそのサブネットを並べ、`parent` はそれらの最も近い共通の祖先（AZ が違えば VPC）にする。描き方（サブネットごとに複製するか、またがる箱にするか）は配置（フェーズ4）で決める | `alb`、`ecs_service`、`vpc_endpoint`、`db_instance`、`eks_cluster` |
+| `P-REGIONAL` | VPC に入らないリソース（Lambda、DynamoDB、S3、SNS、SQS、API Gateway、Bedrock、OpenSearch Serverless、EventBridge、Step Functions、Glue、Cognito）、グローバルなもの（CloudFront、Route 53 のレコード、CloudFront 用の WAF）と `external` は `parent: null`。「AWS Cloud」やリージョンの枠は配置の段階で描き、IR には入れない | `lambda_function`、`dynamodb_table`、`s3_bucket`、`sns_topic`、`sqs_queue`、`apigw_http_api`、`apigw_rest_api`、`bedrock_knowledge_base`、`bedrock_model`、`opensearchserverless_collection`、`cloudfront_distribution`、`route53_record`、`waf_web_acl`、`cognito_user_pool`、`eventbridge_rule`、`sfn_state_machine`、`glue_job`、`glue_crawler`、`glue_catalog_database`、`external` |
 
 <!-- /rules-table -->
 

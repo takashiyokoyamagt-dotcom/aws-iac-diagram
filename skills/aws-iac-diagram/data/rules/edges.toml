@@ -11,7 +11,7 @@ iam_action_default = "none"                               # どの行にも当�
 [[confidence]]
 level = "confirmed"
 basis = "設定の属性からの直接の参照（`aws_dynamodb_table.orders.name`、`!Ref OrdersTable`、`!GetAtt Database.Endpoint.Address`）。モジュールの出力・変数、ネストスタックの出力・パラメータを通っても、元が参照なら確定"
-rules = ["E-ENV-REF", "E-KB-STORAGE"]
+rules = ["E-ENV-REF", "E-KB-STORAGE", "E-CDN-ORIGIN", "E-CDN-WAF", "E-DNS-ALIAS", "E-GLUE-TARGET", "E-AUTHORIZER"]
 draw = "実線"
 
 [[confidence]]
@@ -75,6 +75,41 @@ kind = "request"
 confidence = "derived"
 
 [[edge]]
+id = "E-CDN-ORIGIN"
+input = "CloudFront のオリジン（`origin[].domain_name`／`Origins[].DomainName`）が、ほかのリソース（S3 バケット、ALB、API Gateway）の属性への参照"
+edge = "ディストリビューション → オリジン"
+kind = "request"
+confidence = "confirmed"
+
+[[edge]]
+id = "E-CDN-WAF"
+input = "CloudFront の `web_acl_id`／`WebACLId` が Web ACL への参照"
+edge = "Web ACL → ディストリビューション（利用者からの通信は WAF を通ってからディストリビューションに届く）"
+kind = "request"
+confidence = "confirmed"
+
+[[edge]]
+id = "E-DNS-ALIAS"
+input = "Route 53 のレコードのエイリアス（`alias[].name`／`AliasTarget.DNSName`。`RecordSetGroup` は `RecordSets[].AliasTarget.DNSName`）が、ほかのリソースの属性への参照"
+edge = "レコード → エイリアス先（CloudFront、ALB、API Gateway）"
+kind = "request"
+confidence = "confirmed"
+
+[[edge]]
+id = "E-GLUE-TARGET"
+input = "Glue のクローラの `database_name`／`DatabaseName` と、ターゲット（`s3_target[].path`／`Targets.S3Targets[].Path`、`jdbc_target`・`dynamodb_target` など）が、ほかのリソースの属性への参照"
+edge = "クローラ → 読むデータストア、クローラ → 書くカタログのデータベース"
+kind = "data"
+confidence = "confirmed"
+
+[[edge]]
+id = "E-AUTHORIZER"
+input = "M-APIGW-AUTHORIZER で統合したオーソライザーの `provider_arns`／`ProviderARNs`（Cognito のユーザープール）と `authorizer_uri`／`AuthorizerUri`（Lambda）が、ほかのリソースへの参照。統合先の API そのものへの参照（`rest_api_id`／`RestApiId`）は辺にしない（自分への辺になる）"
+edge = "API → ユーザープール、API → オーソライザーの関数"
+kind = "request"
+confidence = "confirmed"
+
+[[edge]]
 id = "E-MERGE"
 input = "同じ順序付きの組に、複数の規則から辺ができた"
 edge = "1本にまとめる"
@@ -86,15 +121,15 @@ confidence_note = "強い方"
 
 [[kind_by_target]]
 kind = "data"
-types = ["dynamodb_table", "s3_bucket", "db_instance", "opensearchserverless_collection"]
+types = ["dynamodb_table", "s3_bucket", "db_instance", "opensearchserverless_collection", "glue_catalog_database"]
 
 [[kind_by_target]]
 kind = "event"
-types = ["sns_topic", "sqs_queue"]
+types = ["sns_topic", "sqs_queue", "eventbridge_rule"]
 
 [[kind_by_target]]
 kind = "request"
-types = ["lambda_function", "apigw_*", "bedrock_knowledge_base", "bedrock_model"]
+types = ["lambda_function", "apigw_*", "bedrock_knowledge_base", "bedrock_model", "sfn_state_machine", "glue_job", "glue_crawler", "cognito_user_pool", "eks_cluster"]
 
 [[iam_action_kind]]
 kind = "request"
@@ -135,7 +170,7 @@ rules = ["R-LAMBDA-ESM", "R-SNS-SUBSCRIPTION", "R-S3-NOTIFICATION", "R-BEDROCK-D
 
 [[merge_priority]]
 rank = 3
-rules = ["E-ENV-REF", "E-KB-STORAGE", "E-BEDROCK-EMBEDDING"]
+rules = ["E-ENV-REF", "E-KB-STORAGE", "E-BEDROCK-EMBEDDING", "E-CDN-ORIGIN", "E-CDN-WAF", "E-DNS-ALIAS", "E-GLUE-TARGET", "E-AUTHORIZER"]
 
 [[merge_priority]]
 rank = 4
