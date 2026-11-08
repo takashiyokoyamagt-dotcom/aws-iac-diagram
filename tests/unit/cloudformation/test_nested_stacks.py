@@ -189,6 +189,63 @@ class NestedStackTest(unittest.TestCase):
         self.assertIn("CFN-NESTED-CYCLE", [d["code"] for d in raw["diagnostics"]])
         assert_valid(self, raw)
 
+    def test_child_outside_the_root_is_a_blackbox(self):
+        # root（テンプレートのフォルダ）の外の子は、ファイルがあっても読まない（../、絶対パス・ドライブ・UNC、CDK の asset のパス）
+        urls = ("../outside.yaml", "C:/Windows/outside.yaml", "//no-such-host.invalid/share/outside.yaml")
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            stacks = "".join(f"""
+                  S{i}:
+                    Type: AWS::CloudFormation::Stack
+                    Properties: {{TemplateURL: '{u}'}}""" for i, u in enumerate(urls))
+            write_files(tmp, {"outside.yaml": "Resources: {Leak: {Type: AWS::SQS::Queue}}\n",
+                              "proj/main.yaml": f"""
+                Resources:{stacks}
+                  Cdk:
+                    Type: AWS::CloudFormation::Stack
+                    Metadata: {{aws:asset:path: ../outside.yaml}}
+                    Properties: {{TemplateURL: https://example.com/none.yaml}}
+                """})
+            raw = cfn_build.build_raw(tmp / "proj" / "main.yaml", tmp / "proj")
+        assert_valid(self, raw)
+        self.assertNotIn("Leak", " ".join(r["address"] for r in raw["resources"]))
+        got = sorted((d["address"], d["code"], d["level"], d["message"]) for d in raw["diagnostics"])
+        self.assertEqual(got, [(a, "CFN-NESTED-UNREADABLE", "warn",
+                                f"nested stack {a}: the child template is outside the root folder; drawn as a black box")
+                               for a in ("Cdk", "S0", "S1", "S2")])
+
+    def test_link_under_root_pointing_outside_is_a_blackbox(self):
+        # root の下のジャンクション・シンボリックリンクが外を指す。URL の読み替え（末尾の一致）でも読まない
+        import os
+        tmp = Path(tempfile.mkdtemp())
+        outside, root, link = tmp / "outside", tmp / "root", tmp / "root" / "link"
+        write_files(tmp, {"outside/infra/vpc.yaml": "Resources: {Leak: {Type: AWS::SQS::Queue}}\n",
+                          "root/main.yaml": """
+                Resources:
+                  Net:
+                    Type: AWS::CloudFormation::Stack
+                    Properties: {TemplateURL: https://s3.amazonaws.com/bucket/infra/vpc.yaml}
+                """})
+        try:
+            if os.name == "nt":
+                import _winapi
+                _winapi.CreateJunction(str(outside), str(link))
+            else:
+                os.symlink(outside, link, target_is_directory=True)
+        except (OSError, NotImplementedError) as e:
+            self.skipTest(f"リンクを作れない: {e}")
+        try:
+            raw = cfn_build.build_raw(root / "main.yaml", root)
+        finally:
+            os.rmdir(link) if os.name == "nt" else os.unlink(link)  # リンクだけ外す（先は消さない）
+            for p in sorted(tmp.rglob("*"), key=lambda x: len(x.parts), reverse=True):
+                p.unlink() if p.is_file() else p.rmdir()
+            tmp.rmdir()
+        self.assertEqual([r["address"] for r in raw["resources"]], ["Net"])
+        self.assertEqual([d["message"] for d in raw["diagnostics"]],
+                         ["nested stack Net: the child template is outside the root folder; drawn as a black box"])
+        self.assertEqual(raw["evaluation"]["assumptions"], [])
+
 
 if __name__ == "__main__":
     unittest.main()

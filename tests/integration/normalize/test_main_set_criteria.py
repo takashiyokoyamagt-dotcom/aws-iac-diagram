@@ -22,8 +22,6 @@ EXPECTED = WS / "expected" / "public"
 
 # 正解にあって出力に無い辺（既知の限界。WORKLOG の「手順6」）
 KNOWN_MISSING = {
-    # API → ステートマシンの統合は OpenAPI（AWS::Include）の中にしか無く、raw に載らない（ir-schema の 8 章）
-    "T11s": [("apigw_rest_api/api", "sfn_state_machine/statemachine", "request")],
     # Glue ジョブの引数の文字列（--DATABASE_NAME）は、どの辺の規則の対象でもない
     "T12": [("glue_job/data-quality-pipeline-catalog", "glue_catalog_database/sample_data_catalog", "data")],
 }

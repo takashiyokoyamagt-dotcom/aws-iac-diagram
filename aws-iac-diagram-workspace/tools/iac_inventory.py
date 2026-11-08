@@ -242,8 +242,8 @@ TEMPLATE_SUFFIXES = (".yaml", ".yml", ".json", ".template")
 def _url_template(props: dict, root: Path) -> Path | None:
     """URL の TemplateURL（文字列か `Fn::Sub`）を、パスの末尾が一致する root の下のテンプレートに読み替える。一致する区切りの数が
     最も多いファイルが 1 つだけのときに読む（同点が複数なら読まない）。`${…}` を含む区切りは、最後の `}` より後ろだけを比べる。
-    末尾の区切りで突き合わせる考え方は CFN アダプタ（adapters/cloudformation/nested.py の locate）と同じだが、X4 の照合を独立に
-    保つため、アダプタのコードは使わずにここで書く。"""
+    末尾の区切りで突き合わせる考え方は CFN アダプタ（adapters/cloudformation/model.py の Context.match_url。nested.py の
+    locate と include.py が使う）と同じだが、X4 の照合を独立に保つため、アダプタのコードは使わずにここで書く。"""
     url = props.get("TemplateURL") or props.get("Location")
     if isinstance(url, dict) and "Fn::Sub" in url:
         url = url["Fn::Sub"][0] if isinstance(url["Fn::Sub"], list) else url["Fn::Sub"]

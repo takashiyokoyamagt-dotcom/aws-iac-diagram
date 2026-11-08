@@ -7,6 +7,9 @@
   `RestApiId`）→ 統合先（`uri`／`Integration.Uri`）。ラベルは `<METHOD> <path>`（path はリソースの `path_part`／`PathPart` を
   `parent_id`／`ParentId` でたどったもの。API のルート（`root_resource_id`／`RootResourceId`）なら `/`）。`members` は統合、
   同じリソース・メソッドのメソッド、path のリソース（親を含む）。
+- OpenAPI の定義（CFN の `AWS::Serverless::Api` の `DefinitionBody`、`AWS::ApiGateway::RestApi` の `Body`。`AWS::Include` で
+  差し込んだものを含む）: `paths.<path>.<method>.x-amazon-apigateway-integration` ごとに、API → 統合先（`uri` の中の参照、
+  無ければ `requestTemplates` の中の参照。上の REST API と同じ。`type: mock` は辺を作らない）。ラベルは `<METHOD> <path>`（`x-amazon-apigateway-any-method` は `ANY`）。
 - SAM: `AWS::Serverless::Function` の `Events` の `Type: HttpApi`（`ApiId`、無ければ暗黙の `ServerlessHttpApi`）・`Type: Api`
   （`RestApiId`、無ければ `ServerlessRestApi`）。ラベルは `<METHOD> <Path>`（HTTP API で Method・Path が無ければ `$default`）。
 - 統合先の無い統合・ルート・メソッド（MOCK、リダイレクトなど）は辺を作らない。
@@ -15,6 +18,7 @@
 """
 from __future__ import annotations
 
+from aws_iac_diagram.core.ir_raw import join_path
 from aws_iac_diagram.normalize import view
 from aws_iac_diagram.normalize.relations_base import Candidate, Context, make
 
@@ -29,6 +33,9 @@ HTTP_TYPES = ("apigw_http_api",)
 REST_TYPES = ("apigw_rest_api",)
 SAM_FUNCTION = "AWS::Serverless::Function"
 IMPLICIT = {"HttpApi": "ServerlessHttpApi", "Api": "ServerlessRestApi"}
+OPENAPI_BODY = {"AWS::Serverless::Api": "DefinitionBody", "AWS::ApiGateway::RestApi": "Body"}
+OPENAPI_METHODS = {"get", "put", "post", "delete", "options", "head", "patch", "x-amazon-apigateway-any-method"}
+OPENAPI_INTEGRATION = "x-amazon-apigateway-integration"
 
 
 def _http(ctx: Context) -> list[Candidate]:
@@ -105,6 +112,38 @@ def _rest(ctx: Context) -> list[Candidate]:
     return out
 
 
+def _openapi(ctx: Context) -> list[Candidate]:
+    """CFN の REST API の OpenAPI の定義（DefinitionBody・Body）の統合。操作（path とメソッド）ごとに候補を作る（ラベルは E-MERGE がまとめる）。"""
+    if ctx.fmt != "cfn":
+        return []
+    out = []
+    for api in ctx.drawn(*REST_TYPES):
+        key = OPENAPI_BODY.get(api.type)
+        body = api.props.get(key) if key else None
+        while isinstance(body, dict) and set(body) == {"$json"}:  # 文字列の JSON で書いた定義
+            body = body["$json"]
+        paths = body.get("paths") if isinstance(body, dict) else None
+        if not isinstance(paths, dict):
+            continue
+        api_node = ctx.nodes[api.address]["id"]
+        base = join_path(join_path("Properties", key), "paths")
+        for p in sorted(x for x in paths if isinstance(x, str)):
+            ops = paths[p]
+            if not isinstance(ops, dict):
+                continue
+            for m in sorted(x for x in ops if isinstance(x, str) and x.lower() in OPENAPI_METHODS):
+                integ = ops[m].get(OPENAPI_INTEGRATION) if isinstance(ops[m], dict) else None
+                if not isinstance(integ, dict) or str(integ.get("type", "")).lower() == "mock":  # MOCK は辺を作らない
+                    continue
+                prefix = join_path(join_path(join_path(base, p), m), OPENAPI_INTEGRATION)
+                dests = (ctx.targets(ctx.refs_under(api.address, join_path(prefix, "uri")))
+                         or ctx.targets(ctx.refs_under(api.address, join_path(prefix, "requestTemplates"))))
+                method = "ANY" if m.lower() == "x-amazon-apigateway-any-method" else m.upper()
+                for dest, dest_ref in dests:  # 統合先が API 自身の候補は、E-MERGE（edges.py）が自己ループとして捨てる
+                    out.append(make(api_node, dest, REST_RULE, "request", f"{method} {p}", [dest_ref]))
+    return out
+
+
 def _sam(ctx: Context) -> list[Candidate]:
     """SAM の関数の Events（HttpApi → R-APIGW-HTTP、Api → R-APIGW-REST）。同じ API と関数の組はラベルをまとめる。"""
     if ctx.fmt != "cfn":
@@ -142,4 +181,4 @@ def _sam(ctx: Context) -> list[Candidate]:
 
 
 def api_candidates(ctx: Context) -> list[Candidate]:
-    return _http(ctx) + _rest(ctx) + _sam(ctx)
+    return _http(ctx) + _rest(ctx) + _openapi(ctx) + _sam(ctx)

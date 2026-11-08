@@ -74,6 +74,7 @@ REQUIRED_FILES = [
     "scripts/aws_iac_diagram/adapters/cloudformation/conditions.py",
     "scripts/aws_iac_diagram/adapters/cloudformation/evaluator.py",
     "scripts/aws_iac_diagram/adapters/cloudformation/foreach.py",
+    "scripts/aws_iac_diagram/adapters/cloudformation/include.py",
     "scripts/aws_iac_diagram/adapters/cloudformation/intrinsics.py",
     "scripts/aws_iac_diagram/adapters/cloudformation/loader.py",
     "scripts/aws_iac_diagram/adapters/cloudformation/marks.py",

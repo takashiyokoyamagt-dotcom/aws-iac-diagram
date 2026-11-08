@@ -78,7 +78,7 @@ INTRA_TERRAFORM: dict[str, frozenset[str]] = {
 # adapters/cloudformation の中の順序（同じ決まり。docs/architecture.md の表と同じ。食い違えば失敗）
 CLOUDFORMATION_GROUPS: dict[str, tuple[str, ...]] = {
     "base": ("loader", "model", "marks", "refs", "sam", "cdk"),
-    "mixins": ("params", "conditions", "intrinsics", "foreach", "outputs", "nested"),
+    "mixins": ("params", "conditions", "intrinsics", "foreach", "outputs", "nested", "include"),
     "evaluator": ("evaluator",),
     "stack": ("stack",),
     "build": ("build",),
