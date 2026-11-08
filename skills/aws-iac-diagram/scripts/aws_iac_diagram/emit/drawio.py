@@ -16,6 +16,7 @@ EDGE_LAYER = "layer-edges"
 MARGIN = 40
 LEGEND_ID = "legend"
 LEGEND_H = 24
+REVERSE_LABEL_OFFSET = 16  # 往復の辺のラベルが重ならないよう、辺から離す量（向きが逆なので、それぞれ反対の側に出る）
 LEGEND_TEXT = "凡例: 破線 = 推定の関係"
 
 _FALLBACK_ICON = "shape:internet"
@@ -83,11 +84,13 @@ def emit(ir: dict, layout: Layout, r: rules.Rules, catalog: dict[str, dict]) -> 
     if has_inferred:
         _cell(root, {"id": LEGEND_ID, "value": LEGEND_TEXT, "style": _LEGEND_STYLE, "vertex": "1", "parent": "1"},
               {"x": str(MARGIN), "y": str(layout.height + MARGIN + PAD), "width": "240", "height": str(LEGEND_H)})
+    pairs = {(e["from"], e["to"]) for e in ir["edges"] if e.get("label")}
     for e in sorted(ir["edges"], key=lambda x: x["id"]):
         if e["from"] not in layout.placed or e["to"] not in layout.placed:
             continue
         style = _EDGE_STYLE + ("dashed=1;" if e["confidence"] == "inferred" else "")
         _cell(root, {"id": e["id"], "value": e.get("label") or "", "style": style, "edge": "1", "parent": EDGE_LAYER,
-                     "source": e["from"], "target": e["to"]}, {"relative": "1"})
+                     "source": e["from"], "target": e["to"]},
+              {"relative": "1", "y": str(REVERSE_LABEL_OFFSET)} if e.get("label") and (e["to"], e["from"]) in pairs else {"relative": "1"})
     ET.indent(mxfile, space="  ")
     return ET.tostring(mxfile, encoding="unicode") + "\n"

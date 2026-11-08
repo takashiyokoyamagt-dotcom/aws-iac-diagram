@@ -4,7 +4,7 @@
 - 書いてあるスクリプトが実在し、`scripts/` の直下の入口がすべて書いてある。辞書の保守用（maintenance/）は書かない。
 - 書いてあるコマンドは `uv run "<SKILL>/scripts/…"` の 1 行で、シェルの機能（`&&`・`|`・`>`・`;`・`$`）を使わない。
 - 書いてあるオプション（`--out` など）は、どれかの入口のスクリプトが実際に持っている。
-- まだ無いもの（図を作る処理 `diagram.py`）を、使えるように書いていない。
+- まだ無いもの（Mermaid・PNG の出力）を、使えるように書いていない。
 """
 from __future__ import annotations
 
@@ -70,7 +70,7 @@ class SkillEntryTest(unittest.TestCase):
 
     def test_real_skill_md(self):
         text = SKILL_MD.read_text(encoding="utf-8")
-        self.assertEqual(entry_scripts(), {"doctor.py", "adapt_tf.py", "adapt_cfn.py", "normalize_ir.py", "validate_ir.py", "find_aws_icon.py"})
+        self.assertEqual(entry_scripts(), {"diagram.py", "doctor.py", "adapt_tf.py", "adapt_cfn.py", "normalize_ir.py", "validate_ir.py", "find_aws_icon.py"})
         self.assertEqual(problems_in(text, entry_scripts(), self.sources()), [])
         self.assertGreaterEqual(len(commands(text)), 5)  # 空振りの防止
 
@@ -86,7 +86,7 @@ class SkillEntryTest(unittest.TestCase):
     def test_states_what_is_not_available(self):
         body = SKILL_MD.read_text(encoding="utf-8")
         self.assertIn("準備中", body)
-        self.assertRegex(body, r"`diagram\.py`）と、draw\.io・Mermaid・PNG の出力はまだありません")
+        self.assertRegex(body, r"Mermaid・PNG の出力と、入力から図まで一度に進める手順はまだありません")
 
     def test_check_finds_problems(self):
         good = SKILL_MD.read_text(encoding="utf-8")
