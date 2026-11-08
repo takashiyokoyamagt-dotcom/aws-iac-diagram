@@ -5,6 +5,7 @@ from pathlib import Path
 
 from aws_iac_diagram.adapters.cloudformation.conditions import stronger, weaker
 from aws_iac_diagram.adapters.cloudformation.evaluator import Evaluator
+from aws_iac_diagram.adapters.cloudformation.include import IncludeMixin, unsupported_forms
 from aws_iac_diagram.adapters.cloudformation.loader import bool_name
 from aws_iac_diagram.adapters.cloudformation.model import NO_VALUE, OUTSIDE_PROPS, Context
 from aws_iac_diagram.adapters.cloudformation.nested import NestedMixin
@@ -13,17 +14,18 @@ from aws_iac_diagram.adapters.cloudformation.refs import collect_active
 from aws_iac_diagram.adapters.cloudformation.sam import GLOBALS, implicit_apis, merge_globals
 
 
-class StackEval(NestedMixin, OutputsMixin, Evaluator):
+class StackEval(NestedMixin, OutputsMixin, IncludeMixin, Evaluator):
     """1つのスタック（テンプレート）を評価する。子のスタックは、出力を使うときか、スタックのリソースを読むときに展開する。
 
-    ネストスタックは NestedMixin、Outputs・Export は OutputsMixin。継承の順は NestedMixin・OutputsMixin が Evaluator の前
-    （Evaluator の stack_output・import_value を上書きするため）。
+    ネストスタックは NestedMixin、Outputs・Export は OutputsMixin、Fn::Transform の AWS::Include は IncludeMixin。継承の順は
+    3 つが Evaluator の前（Evaluator の stack_output・import_value・transform を上書きするため）。
     """
 
     def __init__(self, ctx: Context, template: dict, path: Path, prefix: str = "",
                  overrides: dict | None = None, stack_address: str | None = None,
                  enabled: bool | None = True, asset_dir: Path | None = None, stack_name: str | None = None,
                  given: dict | None = None):
+        template, unsupported = unsupported_forms(template)
         super().__init__(template, ctx.diagnostics, prefix, overrides, stack_address)
         self.ctx = ctx
         self.given = given or {}
@@ -36,6 +38,11 @@ class StackEval(NestedMixin, OutputsMixin, Evaluator):
         self.children: dict[str, object] = {}
         self.outputs: dict[str, object] = {}
         self.output_extras: dict[str, list[dict]] = {}
+        self.includes: list[Path] = []  # AWS::Include で差し込んでいる途中のファイル（resolve 済み。循環の検出と相対パスの基準）
+        self.current = self.where()
+        for where, message in unsupported:  # 展開しない Fn::Transform・Transform の書き方（include.py）
+            self.diag("warn", "CFN-UNEVALUATED", where, message)
+        self.current = ""
         self.resources = self.expand_foreach(self.resources)
         if isinstance(self.template.get("Outputs"), dict):
             self.template = {**self.template, "Outputs": self.expand_foreach(self.template["Outputs"], record=False)}

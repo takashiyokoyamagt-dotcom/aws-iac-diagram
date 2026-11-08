@@ -1617,3 +1617,11 @@ tests/ 平ら 10 ファイル、最大 2,381 行（281 件）            tests/ 
 - **TF／SAM の対（CRITERIA 1.4）:** T06・T07 は満たす（T07 は「HTTP API と暗黙の REST API の読み替え」と「TF だけのコード置き場のバケット」をレビューで正当と判定）。**T11 は満たさない**: SAM 版の API → ステートマシンの統合は OpenAPI（`AWS::Include`）に書かれているが、CFN アダプタが `AWS::Include` を展開しないので辺が欠ける（辺の一致率 0.667 < 0.9）。実装者は最初これを許す違いに入れていたが、レビューで「入力の違いではなくツールの限界」と判定され、`KNOWN_LIMITATIONS` に移して「NG（既知の制約・ユーザーの確認待ち）」と出すようにした（基準を結果に合わせて緩めない）。**ユーザーの判断待ち:** (a) 既知の制約として README に書く（CRITERIA 0 の 4）、(b) CFN アダプタに `AWS::Include`（手元のファイル）の展開を足す（フェーズ 2 の範囲の追加。T11s の 1.2 の再現率も上がる）。
 - 検査側の直し（レビューで仕様どおりに締め直した）: `validate_ir.py` の K-NAME（先頭の記号、重なりの接尾辞は NORM-KEY-COLLISION があるときだけ、英数字の無い名前）、サブネットの親（VPC は NORM-AZ-UNKNOWN、最上位は NORM-PLACEMENT のときだけ）、awscc の対応を `core/rules.py` に、id の key の作り方を `core/ir_norm.py` に共有、`check_coverage.py` のモジュールの添字、`iac_inventory.py` の S3 の TemplateURL（X4 の照合だけ。循環の止め、SELECTION.md の数は不変）。
 - 単体テスト 709 件、golden 101/101。
+
+## 2026-11-08 CFN アダプタの AWS::Include の展開（ユーザーが推奨案 (b) で決定）と、root の外を読まない検査
+
+- ユーザーの指示（「推奨ですすめてください」）で、T11 の対（1.4）の既知の制約を README に書く (a) ではなく、アダプタに展開を足す (b) にした。
+- 実装はサブエージェント、レビューは別のサブエージェント（1 回）。新しい `adapters/cloudformation/include.py`: 手元のファイル（相対パス、または S3 などの URL の末尾一致）を指す `Fn::Transform: AWS::Include` を差し込んで評価する（中の Ref・GetAtt・Sub は active な参照）。読めない・計算で決まる・マクロ・範囲外の書き方（並んだキー、節の中、最上位の `Transform`）は CFN-UNEVALUATED（warn）。CloudFormation より緩い点（手元の相対パス、差し込むファイルの短縮タグ）は ir-schema 07 に書いた。正規化は OpenAPI（`DefinitionBody`／`Body` の `x-amazon-apigateway-integration`）を R-APIGW-REST として読む（`type: mock` は辺にしない）。
+- **セキュリティ（レビューの止める指摘）:** URL の読み替えの側に root の外の検査が無く、root の下のジャンクション・シンボリックリンク経由で外のファイルの中身が出力に入った。共通の関数 `inside_root`（`model.py`）を作り、ファイルに触る前に文字列で絶対パス・ドライブ・UNC・`~` を弾いてから resolve と `is_relative_to` を確かめるようにし、Include の 2 つの分岐、ネストスタックの相対パスと URL、CDK の `aws:asset:path`・manifest の `templateFile`・`directoryName` のすべてで使う。**ネストスタックの相対 `TemplateURL` にはもともと root の外の検査が無く、`../secret.yaml` の中身が raw に入ったのも同時に塞いだ**（既存の fixture の出力は変わらない）。UNC で外部に接続しない（2 秒未満で返る）こともテストで縛る。拡張子は .yaml／.yml／.json／.template だけ、5 MB まで。
+- 結果: golden で変わったのは T11s の 1 件だけ（参照 5 → 9、診断 1 → 0、assumptions 1 行）。主セットの E の再現率 0.955 → 0.977（43/44。足りないのは T12 の 1 本だけ）、T11s はすべて 1.0。**TF／SAM の対（1.4）は T06・T07・T11 とも満たす**。`KNOWN_MISSING` の T11s と `KNOWN_LIMITATIONS` は空。正解 IR は T11s の古い説明の文（note と notes の 2 か所。採点に使わない欄）だけを直した。
+- 単体テスト 728 件、golden 101/101。

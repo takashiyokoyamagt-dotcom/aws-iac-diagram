@@ -8,8 +8,9 @@
    足して `unknown` が減るのは意図した変化）。直列で約 40 秒かかるので、プロセスを並列にして流す。
 2. TF／SAM の対（CRITERIA の 1.4 の n。T06・T07・T11。参考に T01・T05）: ノードの型の多重集合が「許す違いの一覧」（道具の
    PAIR_ALLOWED。正規化の出力を見る前に書いた）を除いて一致し、辺の (from の型, to の型, kind) の多重集合の一致率が 0.90 以上。
-   T06・T07 は満たす。T11 は満たさない（SAM 版の API → ステートマシンが、CFN アダプタが AWS::Include を展開しないので出ない。
-   道具の KNOWN_LIMITATIONS）。「NG（既知の制約・ユーザーの確認待ち）」として、違いがその 1 件だけであることを固定する。
+   T06・T07・T11 は満たす（T11 は、CFN アダプタが SAM 版の DefinitionBody の AWS::Include を展開するようになってから。それまでは
+   API → ステートマシンが出ず、道具の KNOWN_LIMITATIONS で「NG（既知の制約・ユーザーの確認待ち）」だった）。既知の制約の仕組みは、
+   表を差し替えて確かめる。
 """
 
 from __future__ import annotations
@@ -96,7 +97,7 @@ PINNED = {
     "T05s": (2, 2, 1, 0, 0, 0),
     "T06s": (4, 3, 2, 0, 0, 0),
     "T07s": (3, 4, 3, 0, 0, 0),
-    "T11s": (6, 4, 2, 0, 0, 1),
+    "T11s": (6, 4, 3, 0, 0, 1),  # AWS::Include（OpenAPI）を展開して API → ステートマシンの辺ができた（使わなかった参照は DefinitionSubstitutions の 1 件）
 }
 
 # CRITERIA の 6 章の補助セット（15 入力。T18・T20・C04 は複数のルート）
@@ -173,24 +174,19 @@ class PairTest(unittest.TestCase):
         self.assertEqual(set(chk.PAIR_ALLOWED), set(chk.PAIRS))
 
     def test_criteria_1_4(self):
-        # T06・T07 は 1.4 を満たす（T07 は許す違い 2 件）。T11 は満たさない: 違いは既知の制約 1 件だけで、
-        # 「NG（既知の制約・ユーザーの確認待ち）」と出す（許す違いではない。2026-11-08 の第三者レビュー）
+        # T06・T07・T11 は 1.4 を満たす（T07 は許す違い 2 件）。T11 は、CFN アダプタが AWS::Include を展開するようになってから
+        # 満たす（それまでは API → ステートマシンが SAM 版に出ず、既知の制約だった）。既知の制約の表はいま空
         status = {p: (r["status"], r["criteria_1_4"], r["problems"]) for p, r in self.pairs.items()}
-        self.assertEqual(status, {"T06": ("OK", True, []), "T07": ("OK", True, []),
-                                  "T11": (chk.LIMITATION_NG, False, []),
+        self.assertEqual(status, {"T06": ("OK", True, []), "T07": ("OK", True, []), "T11": ("OK", True, []),
                                   "T01": ("OK", True, []), "T05": ("OK", True, [])})
-        self.assertEqual(chk.LIMITATION_NG, "NG（既知の制約・ユーザーの確認待ち）")
+        self.assertEqual(chk.KNOWN_LIMITATIONS, {})
         t11 = self.pairs["T11"]
-        self.assertEqual(t11["criteria_failures"], ["辺の一致率 0.667 < 0.9"])
-        self.assertEqual(len(t11["known_limitations"]), 1)
-        self.assertEqual(t11["edges"]["only_tf"], [[["apigw_rest_api", "sfn_state_machine", "request"], 1]])
-        self.assertEqual(t11["edge_match"], {"raw": 2 / 3, "allowed_removed": 2 / 3, "limitations_removed": 1.0})
-        self.assertEqual(set(chk.KNOWN_LIMITATIONS), {"T11"})
-        self.assertEqual(chk.PAIR_ALLOWED["T11"]["edges"], {"only_tf": {}, "only_sam": {}})  # 既知の制約は許す違いに入れない
+        self.assertEqual((t11["edges"]["only_tf"], t11["edges"]["only_sam"], t11["known_limitations"]), ([], [], []))
+        self.assertEqual(chk.PAIR_ALLOWED["T11"]["edges"], {"only_tf": {}, "only_sam": {}})
         # T07 の型の置き換え（HTTP API → REST API）は 1 件で、出力にも件数を出す
         self.assertEqual(self.pairs["T07"]["same_type"], [["apigw_http_api", "apigw_rest_api", 1]])
-        self.assertEqual({p: r["edge_match"]["allowed_removed"] for p, r in self.pairs.items() if p != "T11"},
-                         {"T06": 1.0, "T07": 1.0, "T01": 1.0, "T05": 1.0})
+        self.assertEqual({p: r["edge_match"]["allowed_removed"] for p, r in self.pairs.items()},
+                         {"T06": 1.0, "T07": 1.0, "T11": 1.0, "T01": 1.0, "T05": 1.0})
 
     def test_every_allowed_difference_has_a_reason(self):
         for pid, allow in chk.PAIR_ALLOWED.items():
@@ -223,15 +219,27 @@ class PairTest(unittest.TestCase):
         r = chk.compare_pair_irs("T06", tf_ir, extra)
         self.assertEqual(r["status"], "NG")
         self.assertIn("ノードの型の多重集合が、許す違いを除いて一致しない", r["criteria_failures"])
-        # 既知の制約が起きなくなった（T11 の API → ステートマシンが SAM 版にも出た）ら、表が古いので NG
+        # 既知の制約の仕組み（表を差し替えて確かめる。T11s の API → ステートマシンを、AWS::Include を展開する前のように消す）
         t11, t11s = (chk.build.normalize(chk.raw_of(i), name=i.lower()) for i in ("T11", "T11s"))
-        api = next(n["id"] for n in t11s["nodes"] if n["type"] == "apigw_rest_api")
-        sfn = next(n["id"] for n in t11s["nodes"] if n["type"] == "sfn_state_machine")
-        t11s["edges"].append({"id": f"{api}->{sfn}", "from": api, "to": sfn, "kind": "request"})
-        r = chk.compare_pair_irs("T11", t11, t11s)
-        self.assertEqual(r["status"], "NG")
-        self.assertTrue(r["criteria_1_4"])
-        self.assertTrue(any("edges only_tf" in p for p in r["problems"]), r["problems"])
+        lim = {"T11": {"nodes": chk.EMPTY, "edges": {
+            "only_tf": {("apigw_rest_api", "sfn_state_machine", "request"): (1, "テストのための既知の制約（道具の限界）")},
+            "only_sam": {}}}}
+        without = copy.deepcopy(t11s)
+        without["edges"] = [e for e in without["edges"] if not e["from"].startswith("apigw_rest_api/")]
+        r = chk.compare_pair_irs("T11", t11, without)  # 表が空なら、ただの NG
+        self.assertEqual((r["status"], r["criteria_1_4"]), ("NG", False))
+        with mock.patch.dict(chk.KNOWN_LIMITATIONS, lim):
+            # 違いが既知の制約だけなら「NG（既知の制約・ユーザーの確認待ち）」（1.4 は満たさない）
+            r = chk.compare_pair_irs("T11", t11, without)
+            self.assertEqual((r["status"], r["criteria_1_4"], r["problems"]), (chk.LIMITATION_NG, False, []))
+            self.assertEqual(r["criteria_failures"], ["辺の一致率 0.667 < 0.9"])
+            self.assertEqual(r["edge_match"], {"raw": 2 / 3, "allowed_removed": 2 / 3, "limitations_removed": 1.0})
+            # 既知の制約が起きなくなった（辺が出た）ら、表が古いので NG
+            r = chk.compare_pair_irs("T11", t11, t11s)
+            self.assertEqual(r["status"], "NG")
+            self.assertTrue(r["criteria_1_4"])
+            self.assertTrue(any("edges only_tf" in p for p in r["problems"]), r["problems"])
+        self.assertEqual(chk.LIMITATION_NG, "NG（既知の制約・ユーザーの確認待ち）")
         # 型の置き換え（same_type）の件数が一覧と合わなければ NG
         t07, t07s = (chk.build.normalize(chk.raw_of(i), name=i.lower()) for i in ("T07", "T07s"))
         two = copy.deepcopy(t07)
@@ -243,11 +251,11 @@ class PairTest(unittest.TestCase):
         self.assertEqual(r["status"], "NG")
         self.assertTrue(any("same_type" in p for p in r["problems"]), r["problems"])
 
-    def test_main_reports_the_known_limitation(self):
+    def test_main_reports_the_pairs(self):
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
-            self.assertEqual(chk.main(["--pairs"]), 1)  # ユーザーが決めるまで失敗として返す
-        self.assertIn("NG（既知の制約・ユーザーの確認待ち） T11+T11s", out.getvalue())
+            self.assertEqual(chk.main(["--pairs"]), 0)
+        self.assertIn("OK T11+T11s", out.getvalue())
         self.assertIn("same_type apigw_http_api → apigw_rest_api x1", out.getvalue())
 
     def test_match_ratio(self):

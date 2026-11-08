@@ -4,14 +4,16 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from aws_iac_diagram.adapters.cloudformation.model import STACK_NAME
+from aws_iac_diagram.adapters.cloudformation.model import STACK_NAME, inside_root
 
 
-def _cdk_artifacts(asm_dir: Path, depth: int = 0) -> list[tuple[str, str, Path, Path]]:
+def _cdk_artifacts(asm_dir: Path, depth: int = 0, root: Path | None = None) -> list[tuple[str, str, Path, Path]]:
     """クラウドアセンブリのスタックを (stackName, artifact の ID, テンプレート, アセンブリのフォルダ) で返す。
 
     CDK の Stage は入れ子のアセンブリ（type: cdk:cloud-assembly、properties.directoryName）なので、再帰で読む。
+    templateFile・directoryName は cdk.out のフォルダ（root）の中に限る（model.inside_root。外を指せば読まずに ValueError）。
     """
+    root = root or asm_dir
     if depth > 10:
         raise ValueError("cdk.out の入れ子のアセンブリが深すぎます")
     manifest = json.loads((asm_dir / "manifest.json").read_text(encoding="utf-8"))
@@ -21,13 +23,18 @@ def _cdk_artifacts(asm_dir: Path, depth: int = 0) -> list[tuple[str, str, Path, 
             continue
         props = art.get("properties") or {}
         if art.get("type") == "cdk:cloud-assembly" and isinstance(props.get("directoryName"), str):
-            sub = asm_dir / props["directoryName"]
+            sub = inside_root(root, asm_dir, props["directoryName"])
+            if sub is None:
+                raise ValueError(f"cdk.out の directoryName が cdk.out のフォルダの外を指しています: {props['directoryName']}")
             if (sub / "manifest.json").is_file():
-                out += _cdk_artifacts(sub, depth + 1)
+                out += _cdk_artifacts(sub, depth + 1, root)
             continue
         if art.get("type") != "aws:cloudformation:stack" or not isinstance(props.get("templateFile"), str):
             continue
-        out.append((props.get("stackName") or artifact_id, artifact_id, asm_dir / props["templateFile"], asm_dir))
+        template = inside_root(root, asm_dir, props["templateFile"])
+        if template is None:
+            raise ValueError(f"cdk.out の templateFile が cdk.out のフォルダの外を指しています: {props['templateFile']}")
+        out.append((props.get("stackName") or artifact_id, artifact_id, template, asm_dir))
     return out
 
 def cdk_stacks(cdk_dir: Path, diagnostics: list[dict]) -> list[tuple[str, Path, Path, str]]:

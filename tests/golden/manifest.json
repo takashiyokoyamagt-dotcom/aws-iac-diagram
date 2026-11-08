@@ -334,11 +334,11 @@
     "--root-base",
     "aws-iac-diagram-workspace"
    ],
-   "bytes": 6421,
-   "diagnostics": 1,
-   "references": 5,
+   "bytes": 11639,
+   "diagnostics": 0,
+   "references": 9,
    "resources": 6,
-   "sha256": "6391270956f86e1cb8c3ecbca2560165ae79b7356574a3dfc68f88bf534429b4"
+   "sha256": "68fb8b2254c8a612a0db7cbef346587a2196a493f3882df6641f8994ec54ba3d"
   },
   "cfn/public/serverless-patterns/eventbridge-sns-lambda/template.yaml": {
    "adapter": "cfn",

@@ -1,7 +1,6 @@
 """ネストスタック: 子テンプレートの場所（TemplateURL の読み替えを含む）、展開、出力のたどり方。"""
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 import yaml
@@ -40,49 +39,52 @@ class NestedMixin:
                                     "attr": f"Outputs.{output}", "fn": "GetAtt", "state": "unevaluated"})
         return prepend_through(value, hop)
 
-    def locate(self, res: str, body: dict) -> Path | None:
-        """子テンプレートのファイルを探す（docs/spec/ir-schema/ の 7.4）。見つからなければ None。"""
+    def locate(self, res: str, body: dict) -> tuple[Path | None, str]:
+        """子テンプレートのファイルを探す（docs/spec/ir-schema/ の 7.4）。(ファイル, 見つからない理由)。
+
+        ファイルは `Context.inside_root` で root のフォルダの中に限る（`..`・絶対パス・ドライブ・UNC・リンクで外に出るものは読まない）。
+        ファイルシステムに触るのは、その確かめの後。"""
+        outside = "is outside the root folder"
         meta = body.get("Metadata") or {}
         asset = meta.get("aws:asset:path") if isinstance(meta, dict) else None
-        if isinstance(asset, str) and (self.asset_dir / asset).is_file():  # CDK のネストスタック
-            return self.asset_dir / asset
+        if isinstance(asset, str):  # CDK のネストスタック
+            local = self.ctx.inside_root(self.asset_dir, asset)
+            if local is None:
+                return None, outside
+            if local.is_file():
+                return local, ""
         saved = self.current
         self.current = self.addr(res)
         url = self.eval((body.get("Properties") or {}).get("TemplateURL"), "Properties.TemplateURL")
         self.current = saved
         if isinstance(url, str) and "://" not in url and not url.startswith("s3:"):
-            local = (self.path.parent / url)
-            return local if local.is_file() else None
+            local = self.ctx.inside_root(self.path.parent, url)
+            if local is None:
+                return None, outside
+            return (local, "") if local.is_file() else (None, "is not found")
         if isinstance(url, dict) and "$concat" in url and isinstance(url["$concat"][-1], str):
             url = url["$concat"][-1]  # 組み立てた URL は、最後の印より後ろの文字列（パス）で比べる
         if not isinstance(url, str):
-            return None
-        tail = [s for s in re.sub(r"^[a-z0-9]+://[^/]*", "", url).split("?")[0].split("/") if s]
-        best, hits = 0, []
-        for f in self.ctx.local_files():
-            segs = f.split("/")
-            n = 0
-            while n < min(len(segs), len(tail)) and segs[-1 - n] == tail[-1 - n]:
-                n += 1
-            if n > best:
-                best, hits = n, [f]
-            elif n == best and n:
-                hits.append(f)
-        if best and len(hits) == 1:
-            self.ctx.assumptions.append(f"{self.addr(res)}: TemplateURL {url} を {hits[0]} に読み替えた")
-            return self.ctx.root_dir / hits[0]
-        return None
+            return None, "is not found"
+        hit = self.ctx.match_url(url)
+        if hit is None:
+            return None, "is not found"
+        local = self.ctx.inside_root(self.ctx.root_dir, hit)  # リンク・ジャンクションで root の外を指すファイルを弾く
+        if local is None:
+            return None, outside
+        self.ctx.assumptions.append(f"{self.addr(res)}: TemplateURL {url} を {hit} に読み替えた")
+        return local, ""
 
     def child(self, res: str):
         if res in self.children:
             return self.children[res]
         body = self.resources[res]
-        path = self.locate(res, body)
+        path, reason = self.locate(res, body)
         if path is None:
             self.children[res] = None
             saved, self.current = self.current, self.addr(res)
             self.diag("warn", "CFN-NESTED-UNREADABLE", "Properties.TemplateURL",
-                      f"nested stack {res}: the child template is not found; drawn as a black box")
+                      f"nested stack {res}: the child template {reason}; drawn as a black box")
             self.current = saved
             return None
         if path.resolve() in self.ctx.active_files:

@@ -215,18 +215,9 @@ PAIR_ALLOWED: dict[str, dict] = {
 
 # 道具の限界で出る違い（許す違いではない。1.4 の判定には使わず、合否は「NG（既知の制約・ユーザーの確認待ち）」と出す）。
 # 形は PAIR_ALLOWED の nodes／edges と同じ。違いがこれで説明しきれることだけを確かめる（ほかの違いは NG）
-KNOWN_LIMITATIONS: dict[str, dict] = {
-    "T11": {
-        "nodes": EMPTY,
-        "edges": {
-            "only_tf": {("apigw_rest_api", "sfn_state_machine", "request"): (
-                1, "SAM 版も API → ステートマシンの統合を宣言している（DefinitionBody の AWS::Include の api.openapi.yaml と、ApiRole の "
-                   "states:StartSyncExecution）が、CFN アダプタは AWS::Include を展開しないので raw に載らない（ir-schema の 8 章、"
-                   "test_main_set_criteria.py の KNOWN_MISSING）。ユーザーの確認待ち")},
-            "only_sam": {},
-        },
-    },
-}
+# 2026-11-08: T11 の API → ステートマシン（SAM 版の DefinitionBody の AWS::Include）は、CFN アダプタが手元のファイルの
+# AWS::Include を展開するようになったので一覧から外した（ユーザーの判断。(b) アダプタに展開を足す）。いまは空
+KNOWN_LIMITATIONS: dict[str, dict] = {}
 LIMITATION_NG = "NG（既知の制約・ユーザーの確認待ち）"
 
 

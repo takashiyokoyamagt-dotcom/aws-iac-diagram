@@ -35,7 +35,8 @@ EXPECTED = {
     "T07s": (3, 0, 0, 0),  # 関数 → テーブル（SAM の Policies が 1 つの mapping の形。E-IAM）
     "T09": (3, 0, 0, 0),   # KB → 基盤モデル（N-BEDROCK-MODEL）・ベクトルストア、バケット → KB
     "T11": (3, 0, 0, 0),   # REST API → Step Functions（request_templates の中の参照）、Step Functions → テーブル（E-IAM の $concat の ARN）
-    "T11s": (2, 1, 0, 0),  # internet → API と、ステートマシンの Policies からの E-IAM（ステートマシン → テーブル）。API は OpenAPI（AWS::Include）の中で raw に載らない（既知の制約）。DefinitionSubstitutions は辺の規則が無い
+    "T11s": (3, 1, 0, 0),  # API → ステートマシン（DefinitionBody の AWS::Include を展開した OpenAPI の requestTemplates の中の参照）、
+                           # internet → API、ステートマシンの Policies からの E-IAM（ステートマシン → テーブル）。DefinitionSubstitutions は辺の規則が無い
     "T12": (4, 6, 1, 0),   # Glue のクローラ（E-GLUE-TARGET）と E-IAM。ジョブの script_location・default_arguments は辺の規則が無い。
                            # 条件の無い Glue のトリガー（辺を作らない。fallback が無いので H-RELATION-NOEDGE）
     "T16": (6, 1, 0, 0),   # SG 2 つ・ingress ルール 10 件は、クラスタの SG（クラスタ）とノードの SG（起動テンプレート → M-* で
@@ -73,6 +74,14 @@ class MainSetTest(unittest.TestCase):
 
     def test_t11_api_to_step_functions(self):
         _, ir = self.out["T11"]
+        self.assertEqual([(e["from"].split("/")[0], e["to"].split("/")[0], e["kind"], e["label"], e["confidence"]) for e in ir["edges"]],
+                         [("apigw_rest_api", "sfn_state_machine", "request", "ANY /, ANY /{id}", "derived"),
+                          ("external", "apigw_rest_api", "request", "HTTPS", "derived"),
+                          ("sfn_state_machine", "dynamodb_table", "data", "", "inferred")])
+
+    def test_t11s_api_to_step_functions_from_openapi(self):
+        # SAM 版: API → ステートマシンは、AWS::Include で差し込んだ OpenAPI の x-amazon-apigateway-integration から（TF 版と同じ辺）
+        _, ir = self.out["T11s"]
         self.assertEqual([(e["from"].split("/")[0], e["to"].split("/")[0], e["kind"], e["label"], e["confidence"]) for e in ir["edges"]],
                          [("apigw_rest_api", "sfn_state_machine", "request", "ANY /, ANY /{id}", "derived"),
                           ("external", "apigw_rest_api", "request", "HTTPS", "derived"),

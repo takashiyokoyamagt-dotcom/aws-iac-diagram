@@ -116,6 +116,23 @@ class CdkOutTest(unittest.TestCase):
         self.assertEqual(sg["props"]["VpcId"], {"$res": "Net::Vpc", "attr": None})
         assert_valid(self, raw)
 
+    def test_manifest_paths_outside_cdk_out_are_rejected(self):
+        # manifest.json の templateFile・directoryName は cdk.out のフォルダの中に限る（../、ドライブ、UNC。ファイルがあっても読まない）
+        cases = [("templateFile", "../outside.template.json"), ("templateFile", "C:/Windows/x.template.json"),
+                 ("templateFile", "//no-such-host.invalid/share/x.template.json"),
+                 ("directoryName", "../stage"), ("directoryName", r"\\no-such-host.invalid\share\stage")]
+        for key, value in cases:
+            with self.subTest(key=key, value=value), tempfile.TemporaryDirectory() as tmp:
+                art = ({"type": "aws:cloudformation:stack", "properties": {"templateFile": value}} if key == "templateFile"
+                       else {"type": "cdk:cloud-assembly", "properties": {"directoryName": value}})
+                write_files(Path(tmp), {
+                    "cdk.out/manifest.json": json.dumps({"version": "36.0.0", "artifacts": {"A": art}}),
+                    "outside.template.json": json.dumps({"Resources": {"Leak": {"Type": "AWS::SQS::Queue"}}}),
+                    "stage/manifest.json": json.dumps({"version": "36.0.0", "artifacts": {}}),
+                })
+                with self.assertRaisesRegex(ValueError, f"cdk.out の {key} が cdk.out のフォルダの外を指しています"):
+                    cfn_build.build_raw(Path(tmp) / "cdk.out", Path(tmp))
+
 
 if __name__ == "__main__":
     unittest.main()

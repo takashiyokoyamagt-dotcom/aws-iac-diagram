@@ -97,34 +97,35 @@ aws-iac-diagram/
 
 ### CloudFormation アダプタの中身（`aws_iac_diagram/adapters/cloudformation/`）
 
-入口 `scripts/adapt_cfn.py` は引数の処理（`--param`・`--param-file`）・終了コード・エラーの文言だけで、`build.build_raw` を呼んで JSON を書く。1 回の読み込みの流れは、`build.py` が `Context`（診断・リソース・参照・Export の入れ物）を作り、テンプレート（か cdk.out の各スタック）ごとに `StackEval` を作る（`loader` が YAML／JSON を読む）。`StackEval` が Resources を 1 つずつ評価し（`Evaluator.eval` が組み込み関数を、`sam` が Globals と暗黙の API を）、ネストスタックの子は `nested` が必要になったときに展開する。最後に `build.py` が参照の重なりを除いて raw IR にまとめる。
+入口 `scripts/adapt_cfn.py` は引数の処理（`--param`・`--param-file`）・終了コード・エラーの文言だけで、`build.build_raw` を呼んで JSON を書く。1 回の読み込みの流れは、`build.py` が `Context`（診断・リソース・参照・Export の入れ物）を作り、テンプレート（か cdk.out の各スタック）ごとに `StackEval` を作る（`loader` が YAML／JSON を読む）。`StackEval` が Resources を 1 つずつ評価し（`Evaluator.eval` が組み込み関数を、`sam` が Globals と暗黙の API を）、ネストスタックの子は `nested` が必要になったときに展開する（Fn::Transform の AWS::Include は `include` がその場に差し込む）。最後に `build.py` が参照の重なりを除いて raw IR にまとめる。
 
 | ファイル | 行数 | 役割 |
 |---|---|---|
 | `build.py` | 88 | `build_raw`（入口が呼ぶ）・`dump`。最上位のスタックを作り、子を先に展開し、参照・診断をまとめて raw IR にする |
-| `stack.py` | 116 | `StackEval`: リソースを 1 つずつ評価し（Condition → enabled、SAM の Globals、暗黙の API、DependsOn）Context に入れる。ミックスインを束ねる |
-| `evaluator.py` | 136 | `Evaluator`: 評価の入れ物（状態は `__init__` に集める）、診断、参照の記録、`eval`（組み込み関数への振り分け）。4 つのミックスインを束ねる |
+| `stack.py` | 123 | `StackEval`: リソースを 1 つずつ評価し（Condition → enabled、SAM の Globals、暗黙の API、DependsOn）Context に入れる。ミックスインを束ねる |
+| `evaluator.py` | 145 | `Evaluator`: 評価の入れ物（状態は `__init__` に集める）、診断、参照の記録、`eval`（組み込み関数への振り分け）。4 つのミックスインを束ねる |
 | `intrinsics.py` | 191 | `IntrinsicsMixin`: Ref・GetAtt・Sub・Join・Select・Split・FindInMap と擬似パラメータ |
 | `conditions.py` | 102 | `ConditionsMixin`: Conditions の 3 値（真／偽／決まらない）の評価と Fn::If。リソースの enabled の組み合わせ（`weaker`・`stronger`） |
 | `params.py` | 78 | `ParametersMixin`: テンプレートの Parameters の評価（外から渡す値 → 親から渡された値 → Default）。`--param-file` の読み込み |
 | `foreach.py` | 92 | `ForEachMixin`: Fn::ForEach の展開（プロパティの中と、Resources・Outputs の中） |
-| `nested.py` | 117 | `NestedMixin`: ネストスタックの子テンプレートの場所（TemplateURL の読み替え）・展開・出力のたどり方 |
+| `nested.py` | 119 | `NestedMixin`: ネストスタックの子テンプレートの場所（TemplateURL の読み替え）・展開・出力のたどり方 |
+| `include.py` | 104 | `IncludeMixin`: Fn::Transform の AWS::Include。手元のファイル（相対パスか、URL を `Context.match_url` で読み替えたもの）をその場に差し込む。root の外・循環・読めないものは評価しない。展開しない書き方（節の中の Fn::Transform など）を取り除く `unsupported_forms` |
 | `outputs.py` | 61 | `OutputsMixin`: スタックの Outputs の評価、Export・ImportValue |
 | `marks.py` | 74 | 値の中の `$res` の印と、一時的な印（`__fn`・`__through`）の付け外し |
 | `refs.py` | 77 | 参照の集め方: 評価しない値の静的な参照、評価した値からの active の参照、重なりの除去 |
-| `loader.py` | 82 | YAML の短縮タグ（!Ref など）を長い形にする `_Loader`、`load_template`、YAML 1.1 の真偽値を名前に戻す `bool_name` |
+| `loader.py` | 92 | YAML の短縮タグ（!Ref など）を長い形にする `_Loader`、`load_template`・`load_snippet`（AWS::Include のファイル）、YAML 1.1 の真偽値を名前に戻す `bool_name` |
 | `sam.py` | 41 | SAM の Globals の混ぜ方、暗黙の API を作る関数の見分け方 |
-| `cdk.py` | 57 | cdk.out の manifest.json からスタックを集める（入れ子のアセンブリを含む） |
-| `model.py` | 64 | 定数（印・関数の名前の集合・正規表現）と `Context` |
+| `cdk.py` | 64 | cdk.out の manifest.json からスタックを集める（入れ子のアセンブリを含む。templateFile・directoryName は cdk.out の中に限る） |
+| `model.py` | 105 | 定数（印・関数の名前の集合・正規表現）、ファイルを root のフォルダの中に限る `inside_root`、`Context`（URL のパスを root の下のファイルに読み替える `match_url` を含む） |
 
-- **ミックスインは状態を持たない。** 評価の状態は `Evaluator.__init__`（テンプレート 1 つ分）と `StackEval.__init__`（スタックの入れ物: `ctx`・`children`・`outputs` など）に書く。ミックスインのメソッドは `self.xxx` で互いを呼ぶ。`StackEval(NestedMixin, OutputsMixin, Evaluator)` の順は意味がある（`Evaluator` の `stack_output`・`import_value` を上書きするため。`NestedMixin.stack_output` の `super()` は `Evaluator` に届く）。ミックスインは `stack.py` を実行時には import しない（子のスタックは `type(self)(…)` で作る。型の注釈のためだけに `TYPE_CHECKING` で import する）。
+- **ミックスインは状態を持たない。** 評価の状態は `Evaluator.__init__`（テンプレート 1 つ分）と `StackEval.__init__`（スタックの入れ物: `ctx`・`children`・`outputs` など）に書く。ミックスインのメソッドは `self.xxx` で互いを呼ぶ。`StackEval(NestedMixin, OutputsMixin, IncludeMixin, Evaluator)` の順は意味がある（`Evaluator` の `stack_output`・`import_value`・`transform` を上書きするため。`NestedMixin.stack_output` の `super()` は `Evaluator` に届く）。ミックスインは `stack.py` を実行時には import しない（子のスタックは `type(self)(…)` で作る。型の注釈のためだけに `TYPE_CHECKING` で import する）。
 - **adapters/cloudformation の中の順序**（`tests/support/arch_layers.py` の `CLOUDFORMATION_GROUPS`・`INTRA_CLOUDFORMATION`。テストは `tests/architecture/test_adapter_order.py`。下の表と同じで、食い違うとテストが落ちる）: Terraform と同じ決まり。グループのあいだでは「import してよいグループ」の向きだけを許し（同じグループの中は常に可）、表に無いファイルを足すと失敗する（グループを決める）。`if TYPE_CHECKING:` の中の import は数えない。今の実際の import と同じ最小の辺だけを書いてある。
 
 <!-- cloudformation-order:begin -->
 | グループ | 中身 | import してよいグループ |
 |---|---|---|
 | `base` | `loader`・`model`・`marks`・`refs`・`sam`・`cdk` | （なし） |
-| `mixins` | `params`・`conditions`・`intrinsics`・`foreach`・`outputs`・`nested` | `base` |
+| `mixins` | `params`・`conditions`・`intrinsics`・`foreach`・`outputs`・`nested`・`include` | `base` |
 | `evaluator` | `evaluator` | `base` `mixins` |
 | `stack` | `stack` | `base` `mixins` `evaluator` |
 | `build` | `build` | `base` `stack` |
@@ -146,7 +147,7 @@ raw IR → normalized IR。段階は設計草案（`docs/dev-notes/phase3-design
 | `nodes.py` | 段階 2。ノード（id・type・category・name・label・attrs・multiplicity） |
 | `nesting.py` | 段階 4。入れ子（P-VPC・P-SUBNET・P-SPANS・P-REGIONAL の `parent`・`spans`）と AZ のノード（N-AZ） |
 | `relations_base.py` | 関係リソースのハンドラの共有部品（辺の候補 `Candidate`、参照・ノードを引く `Context`、参照の位置の中立キー） |
-| `relations_route.py`・`relations_lb.py`・`relations_api.py`・`relations_events.py`・`relations_sg.py` | 関係リソース（R-*）のハンドラ: ルートと Gateway 型の VPC エンドポイント（とサブネットの `access`）、LB（internet → LB のリスナーの候補を含む）、API Gateway（SAM の Events を含む）、イベント・許可の関係リソース、SG（R-SG。インライン・別リソースの ingress ルール、SG を付けたリソース、`0.0.0.0/0` の公開） |
+| `relations_route.py`・`relations_lb.py`・`relations_api.py`・`relations_events.py`・`relations_sg.py` | 関係リソース（R-*）のハンドラ: ルートと Gateway 型の VPC エンドポイント（とサブネットの `access`）、LB（internet → LB のリスナーの候補を含む）、API Gateway（SAM の Events と、CFN の REST API の OpenAPI の定義を含む）、イベント・許可の関係リソース、SG（R-SG。インライン・別リソースの ingress ルール、SG を付けたリソース、`0.0.0.0/0` の公開） |
 | `synthetic.py` | ARN の文字列の読み方（名前で描くノードを引く）と、合成ノード N-BEDROCK-MODEL（基盤モデル）・N-EXT-INTERNET（`external/internet` と internet → LB・API の辺） |
 | `attr_edges.py` | 属性の参照から作る辺: E-ENV-REF・E-ENV-STR・E-KB-STORAGE・E-BEDROCK-EMBEDDING・E-CDN-ORIGIN・E-CDN-WAF・E-DNS-ALIAS・E-GLUE-TARGET・E-AUTHORIZER |
 | `iam.py` | E-IAM（ロールのポリシーの Resource から推定の辺）と E-IAM-SUPPRESS |
@@ -265,7 +266,7 @@ raw IR → normalized IR。段階は設計草案（`docs/dev-notes/phase3-design
 | Terraform の組み込み関数を足す | `evaluator/functions.py` に `@fn("名前")` で足す（構造だけで決まる関数は `structural=True`）。`NOT_EVALUATED` にある名前は評価しない関数。単体テストは `tests/unit/terraform/test_evaluator.py` の `EvaluatorTest` |
 | Terraform の式・メタ引数・リソースの出し方を変える | 式は `module_expr.py`、`count`・`for_each`・モジュールの展開は `module_expand.py`、変数と型は `module_vars.py`、props の印は `module_props.py`、リソースの出力・provider・depends_on は `module_emit.py`。診断コードは `docs/spec/ir-schema/07-raw-output.md` の 7.5 に書く |
 | Terraform の plan JSON の扱いを変える | `plan/`（読み込みは `read.py`、インスタンスの集め方は `reader.py`、`.tf` と合わせるのは `combine.py`） |
-| CloudFormation の組み込み関数・Conditions・SAM・ネストスタックの扱いを変える | 関数は `intrinsics.py`（Ref・Sub など）か `conditions.py`、Parameters は `params.py`、Fn::ForEach は `foreach.py`、SAM は `sam.py` と `stack.py` の `run`、ネストスタックは `nested.py`、Outputs・Export は `outputs.py`、cdk.out は `cdk.py`、raw IR のまとめ方は `build.py`。新しいファイルを足したら `CLOUDFORMATION_GROUPS`（テスト）とこの文書の表と `doctor.py` の `REQUIRED_FILES` に足す。診断コードは `core/diagnostics.py` と `docs/spec/ir-schema/07-raw-output.md` に書く。単体テストは `tests/unit/cloudformation/`（領域ごとのファイル）、fixture は `tests/integration/cloudformation/` |
+| CloudFormation の組み込み関数・Conditions・SAM・ネストスタックの扱いを変える | 関数は `intrinsics.py`（Ref・Sub など）か `conditions.py`、Parameters は `params.py`、Fn::ForEach は `foreach.py`、SAM は `sam.py` と `stack.py` の `run`、ネストスタックは `nested.py`、AWS::Include は `include.py`、Outputs・Export は `outputs.py`、cdk.out は `cdk.py`、raw IR のまとめ方は `build.py`。新しいファイルを足したら `CLOUDFORMATION_GROUPS`（テスト）とこの文書の表と `doctor.py` の `REQUIRED_FILES` に足す。診断コードは `core/diagnostics.py` と `docs/spec/ir-schema/07-raw-output.md` に書く。単体テストは `tests/unit/cloudformation/`（領域ごとのファイル）、fixture は `tests/integration/cloudformation/` |
 | 入力の形式を足す | `adapters/<名前>/` を作り（`__init__.py` と本体）、`scripts/adapt_<名前>.py`（入口）を足し、`adapters/registry.py` の表に書く。`ALLOWED` とこの文書の表（3 の表と、`adapters/<名前>` のグループの表）に層を足す。`doctor.py` の `REQUIRED_FILES` に新しいファイルを足す。`SKILL.md` の「動くスクリプト」に 1 行足す（`tests/architecture/test_skill_entry.py` が、入口のスクリプトの書き忘れを失敗にする）。golden にケースを足す（5 の手順） |
 | 出力の形式を足す | `emit/<名前>.py` を足す（`emit` は `core`・`layout`・`icons`・`platform` を読んでよい。3 の表）。入口 `diagram.py`（フェーズ 5〜6）から呼ぶ。`doctor.py` の `REQUIRED_FILES` に足す |
 | モジュールの要約表を足す | `data/module-summaries/<モジュール>/v<メジャー>.md` を足す（形式は `docs/spec/module-summaries.md`。サブモジュールの表は親と同じファイル）。`doctor.py` の `REQUIRED_FILES` と `tests/architecture/test_doctor_required_files.py` の `RUNTIME_DATA` と、新しいモジュールのときは `summaries.KNOWN_MODULES` にも足す。コードは変えない（`<モジュール>/v<数字>.md` を決まった順序で全部読む） |

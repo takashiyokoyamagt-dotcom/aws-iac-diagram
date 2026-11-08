@@ -216,6 +216,43 @@ class ApiTest(unittest.TestCase):
                                    "apigw_rest_api/serverlessrestapi->lambda_function/sam": ("request", "POST /", "derived")})
         self.assertEqual(o.cls["Res"], ("merged_into", "R-APIGW-REST", ("apigw_rest_api/api->lambda_function/fn",)))
 
+    def test_cfn_openapi_definition(self):
+        # SAM の DefinitionBody・RestApi の Body（AWS::Include で差し込んだものを含む）の x-amazon-apigateway-integration。
+        # 統合先は uri の中の参照、無ければ requestTemplates の中の参照（T11s）。操作ごとのラベルは E-MERGE が辞書順にまとめる
+        def integ(**kw):
+            return {"x-amazon-apigateway-integration": {"type": "aws", **kw}}
+        sam_paths = "Properties.DefinitionBody.paths"
+        o = Out("cfn", [
+            C("Fn", "AWS::Lambda::Function", {"FunctionName": "fn"}), C("Sm", "AWS::StepFunctions::StateMachine", {"StateMachineName": "sm"}),
+            C("Api", "AWS::Serverless::Api", {"Name": "api", "DefinitionBody": {"paths": {
+                "/items": {"get": integ(uri={"$concat": ["arn:", {"$res": "Fn", "attr": "Arn"}, "/invocations"]}),
+                           "x-amazon-apigateway-any-method": integ(uri={"$concat": ["arn:", {"$res": "Fn", "attr": "Arn"}]}),
+                           "parameters": [], "options": integ(type="mock")},
+                "/": {"x-amazon-apigateway-any-method": integ(uri="arn:aws:apigateway:us-west-2:states:action/StartSyncExecution",
+                                                              requestTemplates={"application/json": {"$concat": ["{", {"$res": "Sm", "attr": None}, "}"]}})},
+                # MOCK は参照があっても辺を作らない。統合先が API 自身（自己ループ）は E-MERGE が捨てる
+                "/mock": {"post": integ(type="MOCK", requestTemplates={"application/json": {"$res": "Sm", "attr": None}})},
+                "/self": {"get": integ(uri={"$concat": ["https://", {"$res": "Api", "attr": None}]})},
+            }}}),
+            C("Rest", "AWS::ApiGateway::RestApi", {"Name": "rest", "Body": {"$json": {"paths": {"/q": {"post": integ(
+                uri={"$concat": ["arn:", {"$res": "Fn", "attr": "Arn"}]})}}}}}),
+        ], [
+            ref("Api", f'{sam_paths}["/items"].get.x-amazon-apigateway-integration.uri', "Fn", "Arn"),
+            ref("Api", f'{sam_paths}["/items"].x-amazon-apigateway-any-method.x-amazon-apigateway-integration.uri', "Fn", "Arn"),
+            ref("Api", f'{sam_paths}["/"].x-amazon-apigateway-any-method.x-amazon-apigateway-integration.requestTemplates["application/json"]', "Sm"),
+            ref("Rest", 'Properties.Body.paths["/q"].post.x-amazon-apigateway-integration.uri', "Fn", "Arn"),
+            ref("Api", f'{sam_paths}["/mock"].post.x-amazon-apigateway-integration.requestTemplates["application/json"]', "Sm"),
+            ref("Api", f'{sam_paths}["/self"].get.x-amazon-apigateway-integration.uri', "Api"),
+        ])
+        self.assertEqual(o.edges, {"apigw_rest_api/api->lambda_function/fn": ("request", "ANY /items, GET /items", "derived"),
+                                   "apigw_rest_api/api->sfn_state_machine/sm": ("request", "ANY /", "derived"),
+                                   "apigw_rest_api/rest->lambda_function/fn": ("request", "POST /q", "derived")})
+        self.assertEqual(o.ev["apigw_rest_api/api->sfn_state_machine/sm"]["rules"], ["R-APIGW-REST"])
+        self.assertEqual(o.ev["apigw_rest_api/api->sfn_state_machine/sm"]["evidence"],
+                         [f'Api.{sam_paths}["/"].x-amazon-apigateway-any-method.x-amazon-apigateway-integration.requestTemplates["application/json"]'])
+        # 辺にしなかった MOCK と自己ループの参照だけが、使わなかった参照に残る
+        self.assertEqual([a for c, a in o.diags if c == "NORM-UNUSED-REF"], ["Api", "Api"])
+
 
 class EventsTest(unittest.TestCase):
     def test_esm_subscription_notification_data_source_targets(self):

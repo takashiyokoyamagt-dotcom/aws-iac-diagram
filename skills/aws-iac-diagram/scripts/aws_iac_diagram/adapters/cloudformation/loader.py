@@ -65,18 +65,28 @@ def _intrinsic(loader: yaml.Loader, suffix: str, node: yaml.Node):
 _Loader.add_multi_constructor("!", _intrinsic)
 
 
-def load_template(path: Path) -> dict:
+def _load(path: Path):
     text = path.read_text(encoding="utf-8-sig")
     # 拡張子によらず、{ で始まれば先に JSON として読む（.template の JSON にはタブの字下げがあり、YAML では読めない）
     if path.suffix.lower() == ".json" or text.lstrip().startswith("{"):
         try:
-            doc = json.loads(text)
+            return json.loads(text)
         except ValueError:
             if path.suffix.lower() == ".json":
                 raise
-            doc = yaml.load(text, Loader=_Loader)  # noqa: S506
-    else:
-        doc = yaml.load(text, Loader=_Loader)  # noqa: S506  _Loader は SafeLoader を元にしている
+    return yaml.load(text, Loader=_Loader)  # noqa: S506  _Loader は SafeLoader を元にしている
+
+
+def load_template(path: Path) -> dict:
+    doc = _load(path)
     if not isinstance(doc, dict):
         raise ValueError("テンプレートの最上位がオブジェクトではない")
+    return doc
+
+
+def load_snippet(path: Path):
+    """AWS::Include で差し込むファイル（YAML・JSON）。最上位はオブジェクトでもリストでもよい。空のファイルは誤り。"""
+    doc = _load(path)
+    if doc is None:
+        raise ValueError("空のファイル")
     return doc

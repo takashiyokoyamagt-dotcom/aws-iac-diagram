@@ -109,12 +109,13 @@ PAIR_COMMON = {
             "AWS::StepFunctions::StateMachine": 1},
 }
 
-# 対の診断（評価できなかった値。どれもファイルを読む関数か Fn::Transform で、アダプタの不具合ではない）
+# 対の診断（評価できなかった値。どれもファイルを読む関数で、アダプタの不具合ではない。T11s の Fn::Transform（OpenAPI の
+# AWS::Include）は、CFN アダプタが手元のファイルを展開するようになって出なくなった）
 PAIR_CODES = {
     "T01": ([], []), "T05": ([], []),
     "T06": (["TF-HEREDOC-TRAILING-SPACE"], []),
     "T07": (["TF-UNEVALUATED"], []),  # filemd5()
-    "T11": (["TF-UNEVALUATED"], ["CFN-UNEVALUATED"]),  # file()、Fn::Transform（OpenAPI の AWS::Include）
+    "T11": (["TF-UNEVALUATED"], []),  # file()
 }
 
 

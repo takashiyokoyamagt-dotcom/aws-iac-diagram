@@ -44,13 +44,17 @@ class Evaluator(ParametersMixin, ConditionsMixin, IntrinsicsMixin, ForEachMixin)
     def addr(self, logical_id: str) -> str:
         return self.prefix + logical_id
 
-    # --- ネストスタック・Export（StackEval が上書きする。単独のテンプレートでは何もしない）
+    # --- ネストスタック・Export・Fn::Transform（StackEval が上書きする。単独のテンプレートでは何もしない）
 
     def stack_output(self, res: str, output: str, path: str):
         return {"$res": self.addr(res), "attr": f"Outputs.{output}", "__fn": "GetAtt"}
 
     def import_value(self, name: str, path: str):
         return {"$import": name}
+
+    def transform(self, arg, node, path: str):
+        """Fn::Transform。単独のテンプレートでは評価しない。StackEval は AWS::Include の手元のファイルを差し込む（include.py）。"""
+        return self.unknown(node, path, "Fn::Transform is not evaluated")
 
     # --- 診断と参照
 
@@ -120,12 +124,17 @@ class Evaluator(ParametersMixin, ConditionsMixin, IntrinsicsMixin, ForEachMixin)
             if key == "Fn::ToJsonString":
                 v = self.eval(arg, path)
                 return {"$json": v} if v is not NO_VALUE else self.unknown([], path, "Fn::ToJsonString of no value")
+            if key == "Fn::Transform":
+                return self.transform(arg, node, path)
             if key in UNEVALUATED or key.startswith("Fn::"):
                 return self.unknown(node, path, f"{key} is not evaluated")
         if any(isinstance(k, str) and k.startswith("Fn::ForEach::") for k in node):
             node = self.expand_inline_foreach(node, path)
         out = {}
         for k, v in node.items():
+            if k == "Fn::Transform":  # ほかのキーと並んだ Fn::Transform は展開しない（プロパティの名前としても残さない。7.4）
+                self.unknown({k: v}, ir_raw.join_path(path, k), "Fn::Transform next to other keys is not evaluated")
+                continue
             ev = self.eval(v, ir_raw.join_path(path, k))
             if ev is not NO_VALUE:
                 out["$" + k if k.startswith("$") else k] = ev  # 入力の $ のキーは $$ で逃がす（7.2）
