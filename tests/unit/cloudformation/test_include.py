@@ -230,8 +230,11 @@ class IncludeTest(unittest.TestCase):
                 with self.subTest(loc):
                     write_files(root, {"main.yaml": api_template(loc)})
                     raw = cfn_build.build_raw(root / "main.yaml", root)
-                    self.assertEqual(api_props(raw)["DefinitionBody"],
-                                     {"$unknown": f"Fn::Transform AWS::Include: {loc} is outside the root folder"})
+                    # 外の中身は読まない。URL の読み替えは、Windows ではジャンクションの先まで探して「root の外」と弾き、
+                    # Linux の rglob はシンボリックリンクのフォルダをたどらないので「見つからない」になる（どちらも読まない）
+                    reasons = ["is outside the root folder"] + (["is not found locally"] if loc.startswith("s3:") and os.name != "nt" else [])
+                    self.assertIn(api_props(raw)["DefinitionBody"],
+                                  [{"$unknown": f"Fn::Transform AWS::Include: {loc} {r}"} for r in reasons])
                     self.assertEqual(raw["evaluation"]["assumptions"], [])
         finally:
             os.rmdir(link) if os.name == "nt" else os.unlink(link)  # リンクだけ外す（先は消さない）
