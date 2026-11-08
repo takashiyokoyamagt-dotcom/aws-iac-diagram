@@ -1633,3 +1633,12 @@ tests/ 平ら 10 ファイル、最大 2,381 行（281 件）            tests/ 
 - 確認: 全公開サンプル 64 入力の一巡と TF／SAM の対は基準どおり（`normalize_public_check.py --pairs`）。`NORM-UNUSED-REF` は 449 件（active な参照 8231 件中）。多い属性は `value`（31）・`iceberg_configuration`（28）・`Properties`（26）・`table_bucket_arn`（25）・`zone_id`（17）・`alias`（16）・`namespace`（16）。規則表の外の型（unknown）に関わるもので、4 分類のどれにも入らない参照は 0。
 - 実行時間: 正規化は 64 入力の合計 0.24 秒（手順 6 の測定）で、CRITERIA 4 章の 30 分に影響しない。
 - 単体テスト 731 件、golden raw 101/101、normalized 101/101。**次はフェーズ 4。**
+
+## 2026-11-08 フェーズ4: 配置と .drawio
+
+- 統括が直接実装（利用料の節約）。設計は `docs/dev-notes/phase4-design-draft.md`（判断はユーザーの「推奨で進める」の指示で推奨）。
+- 順序: `validate/drawio.py`（CRITERIA 2.1 のモデル。配置を import しない）→ `layout/grid.py`・`emit/drawio.py` → `layout/search.py`（B1）→ `layout/views.py`（B2）・`emit/coverage.py` → `scripts/diagram.py`。
+- **測定（`diagram_public_check.py --all`）: golden の 101 ケース・306 枚で、重なり・はみ出し・貫通・ラベルの問題 0、1 枚のアイコン 40 以下**。正解 IR の 17 入力も 0。L4 の 5% の許容は使っていない。ただしこれは CRITERIA 2.1 の近似モデルの結果で、実際の draw.io の経路ではない（目視は three-tier の 1 枚だけ）。
+- 設計案からの変更: ① 候補は設計の 12 個で足りず、枠の中のアイコンの位置（top／side／center）、辺の多い枠の位置（center／last）、層を列にする並び、互い違い（問題が残るときだけ）を足した。② 貫通が残る図は親の枠ごとに分ける（`views.split_by_root`。T19 の overview が該当）。③ 規則表の `view` 列は足さず、ネットワーク図の型は `views.NETWORK_TYPES` に置いた（凍結した規則表を変えないため。フェーズ 6 で表に移すか判断）。④ 全体図は AZ・サブネットを畳まない（CRITERIA 2.3「全体図に描くノードと辺がすべて出る」のため）。詳細図はルート・ネットワークの辺を除いたアプリの流れの図にした。
+- CRITERIA 2.1 に 1 行足した: 往復の辺のラベルは中点が一致するので `mxGeometry` の `y` で離し、検査もその分をずらす（T20 の cockroach で発生）。基準を緩めたのでなく、描き方と測り方を合わせた。
+- 計算時間: 1 入力あたり数秒、最大は T19 で約 100 秒（8 並列のとき）。CRITERIA 4 章の 30 分には収まる見込みだが、候補は 7776 個ある。

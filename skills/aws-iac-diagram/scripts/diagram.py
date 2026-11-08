@@ -54,8 +54,14 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     result: dict = {"name": ir["name"], "views": {}}
     bad = 0
-    for view in views.build(ir):
+    queue = views.build(ir)
+    while queue:
+        view = queue.pop(0)
         candidate, xml, problems = render_view(ir, view, r, catalog)
+        parts = views.split_by_root(view) if any(p.kind == "pierce" for p in problems) else [view]
+        if len(parts) > 1:  # 貫通が残る図は枠ごとに分ける（B2）
+            queue = parts + queue
+            continue
         (a.out_dir / f"{ir['name']}.{view.name}.drawio").write_text(xml, encoding="utf-8", newline="\n")
         result["views"][view.name] = {"candidate": candidate, "icons": views.icon_count(view.nodes), "edges": len(view.edges),
                                       "problems": [[p.kind, p.subject, p.other] for p in problems]}

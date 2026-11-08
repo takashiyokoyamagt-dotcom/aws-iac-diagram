@@ -41,6 +41,7 @@ class Edge:
     target: str
     label: str
     font_size: int
+    offset: float = 0.0  # ラベルを辺から離す量（mxGeometry の y。辺の向きに直角）
 
 
 @dataclass
@@ -102,7 +103,8 @@ def parse(xml_text: str) -> Diagram:
     for v in vertices.values():
         if v.parent in vertices:
             vertices[v.parent].children.append(v.id)
-    edges = [Edge(cid, c.get("source", ""), c.get("target", ""), c.get("value", ""), _font(_style(c.get("style", ""))))
+    edges = [Edge(cid, c.get("source", ""), c.get("target", ""), c.get("value", ""), _font(_style(c.get("style", ""))),
+                  float(c.find("mxGeometry").get("y", 0)) if c.find("mxGeometry") is not None else 0.0)
              for cid, c in cells.items() if c.get("edge") == "1"]
     return Diagram(vertices, edges)
 
@@ -163,13 +165,15 @@ def _route_hits(route: list[Point], r: Rect) -> bool:
     return any(_segment_hits(p, q, r) for p, q in zip(route, route[1:]))
 
 
-def _midpoint(route: list[Point]) -> Point:
+def _midpoint(route: list[Point], offset: float = 0.0) -> Point:
+    """経路の中点。offset があれば、中点のある線分の進む向きに直角にずらす（逆向きの辺は反対の側になる）。"""
     lengths = [abs(p[0] - q[0]) + abs(p[1] - q[1]) for p, q in zip(route, route[1:])]
     rest = sum(lengths) / 2
     for (p, q), n in zip(zip(route, route[1:]), lengths):
         if rest <= n and n > 0:
             t = rest / n
-            return (p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t)
+            nx, ny = (p[1] - q[1]) / n, (q[0] - p[0]) / n
+            return (p[0] + (q[0] - p[0]) * t + nx * offset, p[1] + (q[1] - p[1]) * t + ny * offset)
         rest -= n
     return route[-1]
 
@@ -199,7 +203,7 @@ def _edge_label_rects(d: Diagram, e: Edge) -> list[Rect]:
     if not e.label:
         return []
     w, h = _label_size(e.label, e.font_size)
-    return [(m[0] - w / 2, m[1] - h / 2, m[0] + w / 2, m[1] + h / 2) for m in map(_midpoint, edge_routes(d, e))]
+    return [(m[0] - w / 2, m[1] - h / 2, m[0] + w / 2, m[1] + h / 2) for m in (_midpoint(r, e.offset) for r in edge_routes(d, e))]
 
 
 def check_overlap(d: Diagram) -> list[Problem]:

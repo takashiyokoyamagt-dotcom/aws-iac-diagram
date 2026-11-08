@@ -256,6 +256,7 @@ raw IR → normalized IR。段階は設計草案（`docs/dev-notes/phase3-design
 - **落ちたら、コードを直します。`golden.py --update` で通してはいけません。** 調べるには `golden.py --dump <名前> --out <ファイル>` で今の出力を書き、変える前のコミット（`git worktree add` か `git archive`）の同じケースの出力と比べます（名前の一覧は `golden.py --list`）。
 - **更新してよいのは、アダプタの動きを意図して変えたとき**（フェーズ 3 以降の仕様変更や fixture の追加）だけです。手順: ① 変える理由を決める、② `golden.py --update`（既存のケースの hash が変わるとき、ケースが減るときは `--accept-changes` も要る。`--only` に合うケースが無いと失敗する）、③ どのケースが変わったかと、変わった中身が意図どおりであること（できれば、旧い出力の変わる部分を機械的に置換すると新しい出力と一致する、という確かめ）を確認する、④ `manifest.json` の差分と理由をコミットメッセージに書く。
 - **正規化の出力（normalized IR）も同じ 101 ケースで固定しています**（`tests/golden/manifest-normalized.json`、道具は `aws-iac-diagram-workspace/tools/golden_normalized.py`、テストは `tests/golden/test_golden_normalized.py`）。`--update` してよいのは規則表や正規化の動きを意図して変えたときだけで、理由を WORKLOG に書きます（既存のケースが変わる更新は `--accept-changes` が要ります）。CI の両 OS で通ることが、OS によらず同じ出力になることの確認を兼ねます。
+- **図の出力**は `tests/golden/manifest-drawio.json`（正解 IR 17 個の `.drawio`・`coverage.md`・`result.json`）で固定します（道具は `tools/diagram_public_check.py`。`--all` で 101 ケースすべてを図にして CRITERIA 2.2 を数えます）。
 - 入口のスクリプトの場所を変えたときは、`golden.py` の `ENTRY` の表を直します。出力（manifest）は変わりません。
 - **出力のバイト列が変わったのは、構成の階層化（フェーズ 2b）の中で一度だけ**です（14 ケース）。要約表のパスを含む 3 つの診断の文言（`references/module-summaries.md` → `data/module-summaries/`）のためで、`--update --accept-changes` で更新しました。理由と、旧い出力のパスを置換すると新しい出力とバイト単位で一致する、という機械的な証明は WORKLOG の「フェーズ 2b の R4」。
 - **文書やコメントのパスを直すときの注意:** アダプタの診断の文言（`message`）など、出力に入る文字列のパスは、コメント・docstring の整理では変えない（変えると golden が落ちる）。

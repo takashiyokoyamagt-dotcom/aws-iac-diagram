@@ -57,6 +57,37 @@ def _units(ids: list[str], by_id: dict[str, dict], kids: dict[str, list[str]], l
     return out
 
 
+def split_by_root(view: View) -> list[View]:
+    """親の無い枠ごとに 1 枚にする（枠が 2 つ未満なら分けない）。親の無いアイコンは 1 枚にまとめる。貫通が残る図の最後の手。"""
+    by_id = {n["id"]: n for n in view.nodes}
+    kids: dict[str, list[str]] = {}
+    for n in view.nodes:
+        if n["parent"] is not None:
+            kids.setdefault(n["parent"], []).append(n["id"])
+    roots = sorted(n["id"] for n in view.nodes if n["parent"] is None and n["category"] == "group")
+    if len(roots) < 2:
+        return [view]
+    sheets = [set(_subtree(r, kids)) for r in roots]
+    rest = {n["id"] for n in view.nodes if n["parent"] is None and n["category"] != "group"}
+    if rest:
+        sheets.append(rest)
+    return _assemble(view, sheets, by_id)
+
+
+def _assemble(view: View, sheets: list[set[str]], by_id: dict[str, dict]) -> list[View]:
+    home: dict[str, int] = {}
+    for i, s in enumerate(sheets):
+        for nid in s:
+            if by_id[nid]["category"] != "group":
+                home.setdefault(nid, i)
+    edges: list[list[dict]] = [[] for _ in sheets]
+    for e in sorted(view.edges, key=lambda x: x["id"]):
+        i = home.get(e["from"], next(k for k, s in enumerate(sheets) if e["from"] in s))
+        sheets[i] |= _with_ancestors({e["from"], e["to"]}, by_id)
+        edges[i].append(e)
+    return [View(f"{view.name}-{i + 1}", [n for n in view.nodes if n["id"] in s], edges[i]) for i, s in enumerate(sheets)]
+
+
 def split(view: View) -> list[View]:
     if icon_count(view.nodes) <= MAX_ICONS:
         return [view]
@@ -76,17 +107,7 @@ def split(view: View) -> list[View]:
         sheets[-1] |= set(unit)
         count += c
     sheets = [_with_ancestors(s, by_id) for s in sheets]
-    home = {}
-    for i, s in enumerate(sheets):
-        for nid in s:
-            if by_id[nid]["category"] != "group":
-                home.setdefault(nid, i)
-    edges: list[list[dict]] = [[] for _ in sheets]
-    for e in sorted(view.edges, key=lambda x: x["id"]):
-        i = home.get(e["from"], next(k for k, s in enumerate(sheets) if e["from"] in s))
-        sheets[i] |= _with_ancestors({e["from"], e["to"]}, by_id)
-        edges[i].append(e)
-    return [View(f"{view.name}-{i + 1}", [n for n in view.nodes if n["id"] in s], edges[i]) for i, s in enumerate(sheets)]
+    return _assemble(view, sheets, by_id)
 
 
 def build(ir: dict) -> list[View]:
