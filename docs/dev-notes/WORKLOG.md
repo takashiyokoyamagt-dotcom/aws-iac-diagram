@@ -1625,3 +1625,11 @@ tests/ 平ら 10 ファイル、最大 2,381 行（281 件）            tests/ 
 - **セキュリティ（レビューの止める指摘）:** URL の読み替えの側に root の外の検査が無く、root の下のジャンクション・シンボリックリンク経由で外のファイルの中身が出力に入った。共通の関数 `inside_root`（`model.py`）を作り、ファイルに触る前に文字列で絶対パス・ドライブ・UNC・`~` を弾いてから resolve と `is_relative_to` を確かめるようにし、Include の 2 つの分岐、ネストスタックの相対パスと URL、CDK の `aws:asset:path`・manifest の `templateFile`・`directoryName` のすべてで使う。**ネストスタックの相対 `TemplateURL` にはもともと root の外の検査が無く、`../secret.yaml` の中身が raw に入ったのも同時に塞いだ**（既存の fixture の出力は変わらない）。UNC で外部に接続しない（2 秒未満で返る）こともテストで縛る。拡張子は .yaml／.yml／.json／.template だけ、5 MB まで。
 - 結果: golden で変わったのは T11s の 1 件だけ（参照 5 → 9、診断 1 → 0、assumptions 1 行）。主セットの E の再現率 0.955 → 0.977（43/44。足りないのは T12 の 1 本だけ）、T11s はすべて 1.0。**TF／SAM の対（1.4）は T06・T07・T11 とも満たす**。`KNOWN_MISSING` の T11s と `KNOWN_LIMITATIONS` は空。正解 IR は T11s の古い説明の文（note と notes の 2 か所。採点に使わない欄）だけを直した。
 - 単体テスト 728 件、golden 101/101。
+
+## 2026-11-08 フェーズ3 の手順7: 仕上げ（フェーズ 3 の完了）
+
+- 利用料の節約のため統括が直接実装し、別のサブエージェントの第三者レビューは省いた（変更は道具・テスト・文書だけで、正規化のコードと規則表は変えていない）。
+- `tools/golden_normalized.py` と `tests/golden/manifest-normalized.json`: golden の 101 ケースの raw IR を `normalize_ir.py` の CLI に通し、SHA-256 と終了コードを固定（101 ケースすべて終了コード 0、ノード計 788・辺計 346）。Windows で 2 回の比較が一致。Ubuntu との一致は CI で確かめる。
+- 確認: 全公開サンプル 64 入力の一巡と TF／SAM の対は基準どおり（`normalize_public_check.py --pairs`）。`NORM-UNUSED-REF` は 449 件（active な参照 8231 件中）。多い属性は `value`（31）・`iceberg_configuration`（28）・`Properties`（26）・`table_bucket_arn`（25）・`zone_id`（17）・`alias`（16）・`namespace`（16）。規則表の外の型（unknown）に関わるもので、4 分類のどれにも入らない参照は 0。
+- 実行時間: 正規化は 64 入力の合計 0.24 秒（手順 6 の測定）で、CRITERIA 4 章の 30 分に影響しない。
+- 単体テスト 731 件、golden raw 101/101、normalized 101/101。**次はフェーズ 4。**

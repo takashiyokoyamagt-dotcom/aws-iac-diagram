@@ -9,7 +9,7 @@ description: Terraform（.tf、plan JSON）や CloudFormation（YAML／JSON、SA
 
 - `doctor.py`: 環境の確認
 - `adapt_tf.py`・`adapt_cfn.py`: Terraform・CloudFormation を読み、中間表現（IR）の途中の形（raw IR。JSON）にする。**これは図ではありません**（リソースと参照の一覧です）。正規化は次の `normalize_ir.py`（作りかけ）、配置と図の出力はまだありません
-- `normalize_ir.py`: raw IR を正規化する（作りかけ。網羅分類・ノード・辺・入れ子まで。図の出力はまだ無い）
+- `normalize_ir.py`: raw IR を正規化する（網羅分類・ノード・辺・入れ子。**これも図ではありません**。図の出力はまだ無い）
 - `validate_ir.py`: IR の検査
 - `find_aws_icon.py`: AWS アイコンの辞書の検索
 
@@ -40,7 +40,7 @@ description: Terraform（.tf、plan JSON）や CloudFormation（YAML／JSON、SA
 |---|---|---|
 | Terraform を読む | `uv run "<SKILL>/scripts/adapt_tf.py" --input "<.tf のフォルダ>" --out "<出力先>/tf.raw.json"` | 0 = 書けた、2 = 読めなかった |
 | CloudFormation を読む | `uv run "<SKILL>/scripts/adapt_cfn.py" --input "<テンプレートか cdk.out のフォルダ>" --out "<出力先>/cfn.raw.json"` | 同上 |
-| raw IR を正規化する（作りかけ） | `uv run "<SKILL>/scripts/normalize_ir.py" --input "<出力先>/tf.raw.json" --out "<出力先>/tf.ir.json"` | 0 = 書けて問題なし、1 = 書けたが検査に通らない（網羅分類の漏れ・重複、仮のままの分類。標準エラーの表示を読む）、2 = 読めなかった・規則表（`data/rules/`）が壊れている（`doctor.py` で欠けたファイルが分かる）・書けなかった |
+| raw IR を正規化する | `uv run "<SKILL>/scripts/normalize_ir.py" --input "<出力先>/tf.raw.json" --out "<出力先>/tf.ir.json"` | 0 = 書けて問題なし、1 = 書けたが検査に通らない（網羅分類の漏れ・重複、仮のままの分類。標準エラーの表示を読む）、2 = 読めなかった・規則表（`data/rules/`）が壊れている（`doctor.py` で欠けたファイルが分かる）・書けなかった |
 | raw IR を検査する | `uv run "<SKILL>/scripts/validate_ir.py" "<出力先>/tf.raw.json"` | 0 = 問題なし、1 = 問題あり（検査に通らない IR。ファイルが無い・読めないときも、エラーの表示つきで 1）、2 = パスを渡していない・規則表（`data/rules/`）が壊れている（`doctor.py` で欠けたファイルが分かる）。**1 だけでは「IR の問題」とは決めつけず、表示を読むこと** |
 | アイコンを探す | `uv run "<SKILL>/scripts/find_aws_icon.py" lambda` | 標準出力に1行1件 |
 
