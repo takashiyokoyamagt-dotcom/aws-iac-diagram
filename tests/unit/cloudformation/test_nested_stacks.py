@@ -242,8 +242,11 @@ class NestedStackTest(unittest.TestCase):
                 p.unlink() if p.is_file() else p.rmdir()
             tmp.rmdir()
         self.assertEqual([r["address"] for r in raw["resources"]], ["Net"])
-        self.assertEqual([d["message"] for d in raw["diagnostics"]],
-                         ["nested stack Net: the child template is outside the root folder; drawn as a black box"])
+        # 子は読まない。Windows はジャンクションの先まで探して「root の外」、Linux の rglob はシンボリックリンクのフォルダを
+        # たどらないので「見つからない」になる（どちらも黒箱）
+        reasons = ["is outside the root folder"] + (["is not found"] if os.name != "nt" else [])
+        self.assertIn([d["message"] for d in raw["diagnostics"]],
+                      [[f"nested stack Net: the child template {r}; drawn as a black box"] for r in reasons])
         self.assertEqual(raw["evaluation"]["assumptions"], [])
 
 
