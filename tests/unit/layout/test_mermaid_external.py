@@ -56,6 +56,17 @@ class MermaidTest(unittest.TestCase):
         text = mermaid.flowchart(nodes, [edge("a", "b", "inferred", "HTTP")])
         self.assertEqual(text, 'flowchart LR\n  n1["b"]\n  subgraph n2["V#quot;#35;1"]\n    n0["a"]\n  end\n  n0 -.->|"HTTP"| n1\n')
 
+    def test_special_characters_round_trip(self):
+        nodes = [node("a", label="x\r\ny\x0b`z`")]
+        text = mermaid.flowchart(nodes, [])
+        self.assertEqual(check_mermaid.check(text, nodes, []), [])
+
+    def test_check_finds_wrong_nesting(self):
+        nodes = [node("v", category="group"), node("a", "v")]
+        text = mermaid.flowchart(nodes, [])
+        moved = [nodes[0], node("a")]
+        self.assertEqual(check_mermaid.check(text, moved, []), ["入れ子が同じビューと違う"])
+
     def test_check_finds_differences(self):
         nodes, edges = [node("a"), node("b")], [edge("a", "b")]
         text = mermaid.flowchart(nodes, edges)
@@ -77,6 +88,7 @@ class PngTest(unittest.TestCase):
         self.assertEqual(self.check(png(b"\x00\x00\x00\x00", 6)), "")  # 透明
         self.assertEqual(self.check(b""), "0 バイト")
         self.assertEqual(self.check(b"nope"), "PNG でない")
+        self.assertEqual(self.check(png(b"\xff\xff\xff", 2)[:40]), "PNG が壊れている")
 
 
 class SkipTest(unittest.TestCase):
@@ -96,7 +108,7 @@ class SkipTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as t:
             m = Path(t) / "x.mmd"
             m.write_text("flowchart LR\n", encoding="utf-8")
-            for err, want in (("Parse error on line 1", "failed"), ("Could not find Chrome", "skipped")):
+            for err, want in (("Parse error on line 1\n" + "at x\n" * 200, "failed"), ("Could not find Chrome", "skipped")):
                 with mock.patch.object(external.subprocess, "run", return_value=subprocess.CompletedProcess([], 1, "", err)):
                     self.assertEqual(external.check_mermaid(m, "mmdc")[0], want)
 

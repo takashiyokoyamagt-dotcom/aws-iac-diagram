@@ -20,7 +20,7 @@ MMDC_ENV = "MMDC"
 def find_mmdc() -> str | None:
     env = os.environ.get(MMDC_ENV)
     if env:
-        return env if Path(env).is_file() else None
+        return env if Path(env).is_file() else shutil.which(env)
     return shutil.which("mmdc")
 
 
@@ -29,6 +29,13 @@ def check_mermaid(mmd: Path, exe: str | None = None, timeout: int = 120) -> tupl
     exe = exe or find_mmdc()
     if exe is None:
         return "skipped", "mmdc が見つからない"
+    try:
+        return _run_mmdc(mmd, exe, timeout)
+    except OSError as e:  # 一時フォルダや設定を書けない・起動できない
+        return "skipped", f"mmdc を動かせない: {e}"
+
+
+def _run_mmdc(mmd: Path, exe: str, timeout: int) -> tuple[str, str]:
     with tempfile.TemporaryDirectory(prefix="mmdc-") as t:
         out = Path(t) / "out.svg"
         cmd = [exe, "-i", str(mmd), "-o", str(out), "-q"]
@@ -40,14 +47,12 @@ def check_mermaid(mmd: Path, exe: str | None = None, timeout: int = 120) -> tupl
             res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout, check=False)
         except subprocess.TimeoutExpired:
             return "skipped", f"mmdc が {timeout} 秒で終わらない"
-        except OSError as e:
-            return "skipped", f"mmdc を起動できない: {e}"
         if res.returncode != 0 or not out.is_file() or out.stat().st_size == 0:
-            err = (res.stderr or res.stdout).strip()[-300:]
-            # ブラウザが起動できないのは環境の問題、構文の誤りは出力の問題
-            if "Parse error" in err or "Syntax error" in err or "Lexical error" in err:
-                return "failed", err
-            return "skipped", f"mmdc が動かない: {err}"
+            err = (res.stderr or res.stdout).strip()
+            # 構文の誤りは出力の問題。文言の後にスタックトレースが続くので、切る前の全文で判定する。それ以外（ブラウザが起動できないなど）は環境の問題
+            if any(w in err for w in ("Parse error", "Syntax error", "Lexical error", "UnknownDiagramError")):
+                return "failed", err[:300]
+            return "skipped", f"mmdc が動かない: {err[-300:]}"
     return "ok", ""
 
 
@@ -81,6 +86,13 @@ def _rows(data: bytes, width: int, height: int, channels: int) -> list[bytes]:
 
 def png_problem(path: Path) -> str:
     """問題があれば説明を返す（無ければ空文字）。8 ビットの RGB／RGBA の PNG の四隅が黒くないことを見る。"""
+    try:
+        return _png_problem(path)
+    except (zlib.error, struct.error, IndexError, ValueError):
+        return "PNG が壊れている"
+
+
+def _png_problem(path: Path) -> str:
     data = path.read_bytes() if path.is_file() else b""
     if not data:
         return "0 バイト"
@@ -92,6 +104,8 @@ def png_problem(path: Path) -> str:
         body = data[pos + 8:pos + 8 + n]
         if kind == b"IHDR":
             width, height, depth, color = struct.unpack(">IIBB", body[:10])
+            if body[12] != 0:
+                return ""  # インターレースは調べない
         elif kind == b"IDAT":
             idat += body
         pos += 12 + n

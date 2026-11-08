@@ -8,7 +8,9 @@ from __future__ import annotations
 
 
 def escape(text: str) -> str:
-    return text.replace("#", "#35;").replace('"', "#quot;").replace("\r", " ").replace("\n", " ")
+    return (text.replace("#", "#35;").replace('"', "#quot;").replace("`", "#96;")
+            .replace("\r", " ").replace("\n", " ").replace("\x0b", " ").replace("\x0c", " ")
+            .replace("\x85", " ").replace("\u2028", " ").replace("\u2029", " "))
 
 
 def node_ids(nodes: list[dict]) -> dict[str, str]:
