@@ -21,8 +21,12 @@ LABEL_H = math.ceil(FONT * 1.2)
 class Params:
     columns: int = 4  # 枠の中のアイコンの 1 行の個数
     band_columns: int = 2  # 右の帯の 1 行の個数
-    order: str = "id"  # 同じ枠の中の並び: id／layer（上流からの層の順）／degree（辺の多い順）
+    order: str = "id"  # 同じ枠の中の並び: id／layer（上流からの層の順）／degree（辺の多い順）／layered（層を列にする）
     gutter: int = GUTTER  # アイコンのマスの間の通路
+    merge_external: bool = False  # True: external を左の帯でなく、親の無いアイコンの格子に混ぜる
+    public_last: bool = False  # True: 同じ枠の中で public のサブネットを後ろに置く
+    leaves_pos: str = "top"  # 枠の中のアイコンの位置: top／side／center
+    hub: bool = False  # 中身の辺が多い枠を真ん中に置く
     flip: bool = False  # True: AZ を縦に、AZ の中のサブネットを横に並べる
 
 
@@ -78,7 +82,7 @@ def degrees(edges: list[dict]) -> dict[str, int]:
 
 def _sort_key(p: Params, rank: dict[str, int]):
     def key(n: dict) -> tuple:
-        if p.order == "layer":
+        if p.order in ("layer", "layered"):
             return (rank.get(n["id"], 0), n["id"])
         if p.order == "degree":
             return (-rank.get(n["id"], 0), n["id"])
@@ -86,55 +90,111 @@ def _sort_key(p: Params, rank: dict[str, int]):
     return key
 
 
-def _leaf_grid(leaves: list[dict], columns: int, parent: str | None, ox: int, oy: int, out: Layout, gutter: int = GUTTER) -> tuple[int, int]:
-    """アイコンを格子に置く。返すのは占めた幅と高さ（空なら 0, 0）。"""
+def _leaf_grid(leaves: list[dict], columns: int, parent: str | None, ox: int, oy: int, out: Layout, gutter: int = GUTTER,
+               layered: dict[str, int] | None = None) -> tuple[int, int]:
+    """アイコンを格子に置く。layered があれば層の番号を列にする。返すのは占めた幅と高さ（空なら 0, 0）。"""
     if not leaves:
         return 0, 0
     cell_w = max(max(ICON, label_width(n["label"])) for n in leaves) + gutter
     cell_h = ICON + LABEL_H + gutter
+    used: dict[int, int] = {}
+    base = min(layered[n["id"]] for n in leaves) if layered else 0
+    max_col = max_row = 0
     for i, n in enumerate(leaves):
-        col, row = i % columns, i // columns
+        if layered:
+            col = layered[n["id"]] - base
+            row = used.get(col, 0)
+            used[col] = row + 1
+        else:
+            col, row = i % columns, i // columns
+        max_col, max_row = max(max_col, col), max(max_row, row)
         out.placed[n["id"]] = Placed(n["id"], ox + col * cell_w + (cell_w - ICON) // 2, oy + row * cell_h + gutter // 2,
                                      ICON, ICON, parent)
-    rows = math.ceil(len(leaves) / columns)
-    return min(len(leaves), columns) * cell_w, rows * cell_h
+    return (max_col + 1) * cell_w, (max_row + 1) * cell_h
 
 
-def _place_group(n: dict, kids: dict, p: Params, rank: dict[str, int], out: Layout) -> tuple[int, int]:
-    """枠 n の中身を置き、枠の大きさを返す（枠自身の座標は呼ぶ側が決める）。"""
+def _hub_score(n: dict, kids: dict, deg: dict[str, int]) -> int:
+    """枠 n の中のノードに付く辺の数。"""
+    return deg.get(n["id"], 0) + sum(_hub_score(c, kids, deg) for c in kids.get(n["id"], []))
+
+
+def _center_hub(groups: list[dict], kids: dict, deg: dict[str, int]) -> list[dict]:
+    """中身の辺が多い枠ほど真ん中に置く（端の枠どうしの辺が、間の枠を横切らないように）。"""
+    ranked = sorted(groups, key=lambda g: (-_hub_score(g, kids, deg), g["id"]))
+    front: list[dict] = []
+    back: list[dict] = []
+    for i, g in enumerate(ranked):
+        (front if i % 2 else back).append(g)
+    return list(reversed(front)) + back
+
+
+def _place_group(n: dict, kids: dict, p: Params, rank: dict[str, int], deg: dict[str, int], out: Layout) -> tuple[int, int]:
+    """枠 n の中身を置き、枠の大きさを返す（枠自身の座標は呼ぶ側が決める）。
+
+    枠の中のアイコンの位置: top（子の枠の上）／side（子の枠の右）／center（子の枠の真ん中の列。横に並ぶときだけ。縦なら side）。
+    """
     children = kids.get(n["id"], [])
     leaves = sorted((c for c in children if c["category"] != "group"), key=_sort_key(p, rank))
     groups = sorted((c for c in children if c["category"] == "group"),
-                    key=lambda c: (_group_order(c)[0], *_sort_key(p, rank)(c)))
-    lw, lh = _leaf_grid(leaves, p.columns, n["id"], PAD, TITLE, out, p.gutter)
-    y = TITLE + lh
-    x, width, height = PAD, lw, y
+                    key=lambda c: (_group_order(c)[0] * (-1 if p.public_last else 1), *_sort_key(p, rank)(c)))
     vertical = (n["type"] == "availability_zone") != p.flip
-    for g in groups:
-        w, h = _place_group(g, kids, p, rank, out)
+    if p.hub and n["type"] != "availability_zone":
+        groups = _center_hub(groups, kids, deg)
+    sizes = {g["id"]: _place_group(g, kids, p, rank, deg, out) for g in groups}
+    layered = rank if p.order == "layered" else None
+    # アイコンの格子は幅を知るために一度計算し、位置が決まってから置き直す
+    lw, lh = _leaf_grid(leaves, p.columns, n["id"], 0, 0, out, p.gutter, layered)
+    pos = p.leaves_pos if groups and leaves else "top"
+    if pos == "center" and (vertical or len(groups) < 2):
+        pos = "side"
+    x, y = PAD, TITLE + (lh if pos == "top" else 0)
+    split = len(groups) // 2 if pos == "center" else -1
+    leaf_x = PAD
+    width = lw if pos == "top" else 0
+    bottom = y
+    for i, g in enumerate(groups):
+        if i == split:
+            leaf_x = x
+            x += lw + PAD
+        w, h = sizes[g["id"]]
         out.placed[g["id"]] = Placed(g["id"], x, y, w, h, n["id"])
         if vertical:
             y += h + PAD
-            width, height = max(width, w), y - PAD
+            width, bottom = max(width, w), y - PAD
         else:
             x += w + PAD
-            width, height = max(width, x - PAD - PAD), max(height, y + h)
+            width, bottom = max(width, x - 2 * PAD), max(bottom, y + h)
+    if pos == "side":
+        leaf_x = PAD + width + PAD
+        width = leaf_x - PAD + lw
+    if pos != "top" and not vertical:
+        bottom = max(bottom, TITLE + lh)
+    if pos == "side":
+        bottom = max(bottom, TITLE + lh)
+    if leaves:
+        for c in leaves:
+            q = out.placed[c["id"]]
+            q.x += leaf_x
+            q.y += TITLE
     width = max(width, label_width(n["label"]) + PAD)
-    return width + 2 * PAD, max(height, TITLE) + PAD
+    return width + 2 * PAD, max(bottom, TITLE) + PAD
 
 
 def place(nodes: list[dict], params: Params = Params(), edges: list[dict] | tuple = ()) -> Layout:
     out = Layout()
-    rank = layers(nodes, list(edges)) if params.order == "layer" else degrees(list(edges))
+    deg = degrees(list(edges))
+    rank = layers(nodes, list(edges)) if params.order in ("layer", "layered") else deg
     key = _sort_key(params, rank)
     kids: dict[str, list[dict]] = {}
     for n in nodes:
         if n["parent"] is not None:
             kids.setdefault(n["parent"], []).append(n)
     roots = [n for n in nodes if n["parent"] is None]
-    left = sorted((n for n in roots if n["category"] == "external"), key=key)
+    left = sorted((n for n in roots if n["category"] == "external" and not params.merge_external), key=key)
     groups = sorted((n for n in roots if n["category"] == "group"), key=lambda n: (_group_order(n)[0], *key(n)))
-    right = sorted((n for n in roots if n["category"] == "resource"), key=key)
+    if params.hub:
+        groups = _center_hub(groups, kids, deg)
+    right = sorted((n for n in roots if n["category"] != "group" and n["id"] not in {x["id"] for x in left}), key=key)
 
     x, height = 0, 0
     w, h = _leaf_grid(left, 1, None, x, 0, out, params.gutter)
@@ -142,11 +202,11 @@ def place(nodes: list[dict], params: Params = Params(), edges: list[dict] | tupl
         x += w + BAND_GAP
         height = h
     for g in groups:
-        w, h = _place_group(g, kids, params, rank, out)
+        w, h = _place_group(g, kids, params, rank, deg, out)
         out.placed[g["id"]] = Placed(g["id"], x, 0, w, h, None)
         x += w + BAND_GAP
         height = max(height, h)
-    w, h = _leaf_grid(right, params.band_columns, None, x, 0, out, params.gutter)
+    w, h = _leaf_grid(right, params.band_columns, None, x, 0, out, params.gutter, rank if params.order == "layered" else None)
     if w:
         x += w + BAND_GAP
         height = max(height, h)

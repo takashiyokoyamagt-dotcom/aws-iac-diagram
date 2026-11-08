@@ -1,4 +1,4 @@
-"""B1 の候補選び（フェーズ 4 の手順 3。途中）: 候補の名前が決まっていて、最小のスコアを選び、同点は名前の辞書順。"""
+"""B1 の候補選び（フェーズ 4 の手順 3）: 候補の名前が決まっていて、最小のスコアを選び、同点は名前の辞書順。"""
 
 from __future__ import annotations
 
@@ -27,19 +27,19 @@ class SearchTest(unittest.TestCase):
         self.assertEqual((name, score), (sorted(search.candidates())[0], 7))
 
     def test_lowest_score_wins(self):
-        names = sorted(search.candidates())
-        seen = iter(range(len(names), 0, -1))  # 後の候補ほど小さいスコア
-        self.assertEqual(search.best([NODE], [], lambda layout: next(seen))[0], names[-1])
+        nodes = [NODE, {**NODE, "id": "b", "name": "b", "label": "b"}]
+        widths = {search.place(nodes, c).width for c in search.candidates().values()}
+        self.assertEqual(search.best(nodes, [], lambda layout: -layout.width)[1].width, max(widths))
 
     def test_remaining_problems_do_not_grow(self):
-        """手順 3 の途中の見張り。貫通 4・ラベル 1（rag、vpc-endpoints、T16）が残っている。減ったら数を直す。"""
+        """正解 IR の 17 入力で、見やすさの問題が 0 件。"""
         r, catalog, total = rules.default(), emit_drawio.load_catalog(), Counter()
         for f in FILES:
             ir = json.loads(f.read_text(encoding="utf-8"))
             _, layout, _ = search.best(ir["nodes"], ir["edges"],
                                        lambda c: check_drawio.score(emit_drawio.emit(ir, c, r, catalog)))
             total.update(p.kind for p in check_drawio.check(emit_drawio.emit(ir, layout, r, catalog)))
-        self.assertEqual(dict(total), {"pierce": 4, "label": 1})
+        self.assertEqual(dict(total), {})
 
 
 if __name__ == "__main__":
