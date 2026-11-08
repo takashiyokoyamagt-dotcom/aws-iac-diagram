@@ -4,7 +4,7 @@
 - 書いてあるスクリプトが実在し、`scripts/` の直下の入口がすべて書いてある。辞書の保守用（maintenance/）は書かない。
 - 書いてあるコマンドは `uv run "<SKILL>/scripts/…"` の 1 行で、シェルの機能（`&&`・`|`・`>`・`;`・`$`）を使わない。
 - 書いてあるオプション（`--out` など）は、どれかの入口のスクリプトが実際に持っている。
-- まだ無いもの（Mermaid・PNG の出力）を、使えるように書いていない。
+- まだ無いもの（入力から図まで一度に進める手順）を、使えるように書いていない。
 """
 from __future__ import annotations
 
@@ -86,7 +86,7 @@ class SkillEntryTest(unittest.TestCase):
     def test_states_what_is_not_available(self):
         body = SKILL_MD.read_text(encoding="utf-8")
         self.assertIn("準備中", body)
-        self.assertRegex(body, r"Mermaid・PNG の出力と、入力から図まで一度に進める手順はまだありません")
+        self.assertRegex(body, r"入力から図まで一度に進める手順はまだありません")
 
     def test_check_finds_problems(self):
         good = SKILL_MD.read_text(encoding="utf-8")
