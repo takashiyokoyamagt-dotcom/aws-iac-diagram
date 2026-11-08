@@ -128,6 +128,7 @@ REQUIRED_FILES = [
     "scripts/aws_iac_diagram/layout/__init__.py",
     "scripts/aws_iac_diagram/validate/drawio.py",
     "scripts/aws_iac_diagram/layout/grid.py",
+    "scripts/aws_iac_diagram/layout/search.py",
     "scripts/aws_iac_diagram/emit/drawio.py",
     "scripts/aws_iac_diagram/normalize/__init__.py",
     "scripts/aws_iac_diagram/normalize/attr_edges.py",

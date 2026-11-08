@@ -264,3 +264,34 @@ def check(xml_text: str) -> list[Problem]:
     """すべての検査。空なら合格。L4 の貫通の割合は呼ぶ側が `kind == "pierce"` を数える。"""
     d = parse(xml_text)
     return check_overlap(d) + check_overflow(d) + check_pierce(d) + check_labels(d)
+
+
+def _crossings(a: list[Point], b: list[Point]) -> int:
+    n = 0
+    for p, q in zip(a, a[1:]):
+        for r, s in zip(b, b[1:]):
+            if (p[0] == q[0]) != (r[0] == s[0]):  # 縦と横の組だけ数える
+                v, h = ((p, q), (r, s)) if p[0] == q[0] else ((r, s), (p, q))
+                x, y = v[0][0], h[0][1]
+                if min(h[0][0], h[1][0]) < x < max(h[0][0], h[1][0]) and min(v[0][1], v[1][1]) < y < max(v[0][1], v[1][1]):
+                    n += 1
+    return n
+
+
+def _length(r: list[Point]) -> float:
+    return sum(abs(p[0] - q[0]) + abs(p[1] - q[1]) for p, q in zip(r, r[1:]))
+
+
+def score(xml_text: str) -> int:
+    """配置の候補のスコア（小さいほど良い）。重なり・はみ出し > 貫通 > ラベル > 交差 > 折れ > 総延長 > 縦横比。"""
+    d = parse(xml_text)
+    best_routes = [min(edge_routes(d, e), key=lambda r: (len(set(r)), _length(r))) for e in d.edges]
+    crossings = sum(_crossings(a, b) for i, a in enumerate(best_routes) for b in best_routes[i + 1:])
+    bends = sum(len(set(r)) - 2 for r in best_routes)
+    length = sum(_length(r) for r in best_routes)
+    xs = [v.rect[2] for v in d.vertices.values()] or [1]
+    ys = [v.rect[3] for v in d.vertices.values()] or [1]
+    aspect = abs(max(xs) / max(max(ys), 1) - 16 / 9)
+    bad = len(check_overlap(d)) + len(check_overflow(d))
+    return (bad * 100000 + len(check_pierce(d)) * 10000 + len(check_labels(d)) * 1000 + crossings * 100 + bends * 10
+            + int(length / 10) + int(aspect * 10))
