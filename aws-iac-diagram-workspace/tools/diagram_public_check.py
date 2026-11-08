@@ -37,7 +37,7 @@ def expected_files() -> list[Path]:
 
 
 def run_diagram(ir: Path, out: Path) -> tuple[int, str]:
-    p = subprocess.run([sys.executable, str(DIAGRAM), "--input", str(ir), "--out-dir", str(out)],
+    p = subprocess.run([sys.executable, str(DIAGRAM), "--input", str(ir), "--out-dir", str(out), "--no-external"],
                        capture_output=True, text=True, encoding="utf-8", errors="replace")
     return p.returncode, p.stderr[-400:]
 
