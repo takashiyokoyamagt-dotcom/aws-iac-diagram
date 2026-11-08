@@ -68,6 +68,10 @@ def emit(ir: dict, layout: Layout, r: rules.Rules, catalog: dict[str, dict]) -> 
           {"x": "0", "y": "0", "width": str(width), "height": str(height)})
 
     by_id = {n["id"]: n for n in ir["nodes"]}
+    reserved = {"0", "1", "background", BACKGROUND_LAYER, EDGE_LAYER, LEGEND_ID}
+    all_ids = [n["id"] for n in ir["nodes"]] + [e["id"] for e in ir["edges"]]
+    if reserved & set(all_ids) or len(all_ids) != len(set(all_ids)):
+        raise ValueError("ノードか辺の id が重複している（または予約の id と同じ）")
     # 親の枠を子より先に書く（draw.io は親が先にあることを前提にする）
     depth = {}
     def depth_of(i: str) -> int:

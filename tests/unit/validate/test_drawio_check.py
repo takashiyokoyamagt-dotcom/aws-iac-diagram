@@ -22,8 +22,8 @@ def e(cid, s, t, value=""):
 
 
 def doc(*cells):
-    return ('<mxfile><diagram><mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/>'
-            '<mxCell id="layer-background" parent="0"/>' + "".join(cells) + "</root></mxGraphModel></diagram></mxfile>")
+    return ('<mxfile><diagram><mxGraphModel><root><mxCell id="0"/><mxCell id="layer-background" parent="0"/>'
+            '<mxCell id="1" parent="0"/>' + "".join(cells) + "</root></mxGraphModel></diagram></mxfile>")
 
 
 def kinds(*cells):
@@ -77,6 +77,24 @@ class CheckTest(unittest.TestCase):
         self.assertEqual(kinds(*cells), [])
         cells[-1] = v("x", 150, 26, 40, 40)  # 経路（y=20）には当たらないが、経路の中点のラベル（y=13〜27）には当たる
         self.assertEqual(kinds(*cells), ["label"])
+
+    def test_empty_frame_is_a_frame(self):
+        d = drawio.parse(doc(v("f", 0, 0, 100, 100, style="container=1;", value="x")))
+        self.assertTrue(d.vertices["f"].is_container)
+        self.assertIsNone(drawio.node_label_rect(d.vertices["f"]))
+
+    def test_icon_ids_containing_label_are_not_label_checks(self):
+        d = drawio.parse(doc(v("label-a", 0, 0), v("label-b", 0, 41)))
+        self.assertEqual(drawio.check_labels(d), [])
+
+    def test_shape_and_view_checks(self):
+        good = doc(v("a", 0, 0), e("e", "a", "a"))
+        self.assertEqual(drawio.check_shape(good), [])
+        self.assertEqual(drawio.check_shape(good.replace("<root>", "<root><!-- x -->"))[0].subject, "comment")
+        self.assertEqual(drawio.check_shape(good.replace("<mxGraphModel>", '<mxGraphModel background="#fff">'))[0].subject, "background-attribute")
+        self.assertEqual(drawio.check_view(good, {"a"}, [{"id": "e", "confidence": "confirmed"}]), [])
+        self.assertEqual([p.subject for p in drawio.check_view(good, {"a", "z"}, [{"id": "e", "confidence": "inferred"}])],
+                         ["missing-node", "dashed", "legend"])
 
     def test_routes_are_the_four_models(self):
         rs = drawio.routes((0, 0), (10, 20))

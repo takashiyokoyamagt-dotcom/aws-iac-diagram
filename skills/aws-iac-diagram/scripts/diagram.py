@@ -38,6 +38,44 @@ def render_view(ir: dict, view: views.View, r: rules.Rules, catalog: dict) -> tu
     return name, xml, check_drawio.check(xml)
 
 
+def write_all(ir: dict, out_dir: Path, r: rules.Rules, catalog: dict) -> int:
+    """図と付属のファイルを書き、見つかった問題の数を返す。"""
+    result: dict = {"name": ir["name"], "views": {}}
+    bad = 0
+    drawn_nodes: set[str] = set()
+    drawn_edges: set[str] = set()
+    queue = [(v, True) for v in views.build(ir)]
+    while queue:
+        view, may_split = queue.pop(0)
+        candidate, xml, problems = render_view(ir, view, r, catalog)
+        parts = views.split_by_root(view) if may_split and any(p.kind == "pierce" for p in problems) else [view]
+        if len(parts) > 1:  # 貫通が残る図は枠ごとに分ける（B2）。分けた図はもう分けない
+            queue = [(p, False) for p in parts] + queue
+            continue
+        problems = problems + check_drawio.check_shape(xml) + check_drawio.check_view(xml, {n["id"] for n in view.nodes}, view.edges)
+        icons = views.icon_count(view.nodes)
+        if icons > views.MAX_ICONS:
+            problems.append(check_drawio.Problem("over40", view.name, str(icons)))
+        if view.name.split("-")[0] == "overview":
+            drawn_nodes |= {n["id"] for n in view.nodes}
+            drawn_edges |= {e["id"] for e in view.edges}
+        (out_dir / f"{ir['name']}.{view.name}.drawio").write_text(xml, encoding="utf-8", newline="\n")
+        result["views"][view.name] = {"candidate": candidate, "icons": icons, "edges": len(view.edges),
+                                      "problems": [[p.kind, p.subject, p.other] for p in problems]}
+        bad += len(problems)
+        for p in problems:
+            print(f"{view.name}: {p.kind}: {p.subject} {p.other}", file=sys.stderr)
+    lost = sorted(({n["id"] for n in ir["nodes"]} - drawn_nodes) | ({e["id"] for e in ir["edges"]} - drawn_edges))
+    if lost:
+        result["lost"] = lost
+        bad += len(lost)
+        print(f"全体図に出ていないもの: {lost}", file=sys.stderr)
+    (out_dir / "coverage.md").write_text(coverage.render(ir), encoding="utf-8", newline="\n")
+    (out_dir / "result.json").write_text(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+                                         encoding="utf-8", newline="\n")
+    return bad
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="normalized IR から .drawio と coverage.md を書く")
     ap.add_argument("--input", type=Path, required=True)
@@ -45,31 +83,18 @@ def main(argv: list[str] | None = None) -> int:
     a = ap.parse_args(argv)
     try:
         ir = json.loads(a.input.read_text(encoding="utf-8"))
-        if ir.get("stage") != "normalized":
+        if not isinstance(ir, dict) or ir.get("stage") != "normalized":
             raise ValueError("normalized IR ではない（stage が normalized でない）")
         r, catalog = rules.default(), emit_drawio.load_catalog()
         a.out_dir.mkdir(parents=True, exist_ok=True)
     except (OSError, ValueError, KeyError, rules.RulesError) as ex:
         print(f"書けません: {ex}", file=sys.stderr)
         return 2
-    result: dict = {"name": ir["name"], "views": {}}
-    bad = 0
-    queue = views.build(ir)
-    while queue:
-        view = queue.pop(0)
-        candidate, xml, problems = render_view(ir, view, r, catalog)
-        parts = views.split_by_root(view) if any(p.kind == "pierce" for p in problems) else [view]
-        if len(parts) > 1:  # 貫通が残る図は枠ごとに分ける（B2）
-            queue = parts + queue
-            continue
-        (a.out_dir / f"{ir['name']}.{view.name}.drawio").write_text(xml, encoding="utf-8", newline="\n")
-        result["views"][view.name] = {"candidate": candidate, "icons": views.icon_count(view.nodes), "edges": len(view.edges),
-                                      "problems": [[p.kind, p.subject, p.other] for p in problems]}
-        bad += len(problems)
-        for p in problems:
-            print(f"{view.name}: {p.kind}: {p.subject} {p.other}", file=sys.stderr)
-    (a.out_dir / "coverage.md").write_text(coverage.render(ir), encoding="utf-8", newline="\n")
-    (a.out_dir / "result.json").write_text(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
+    try:
+        bad = write_all(ir, a.out_dir, r, catalog)
+    except (OSError, ValueError, KeyError, TypeError, AttributeError, StopIteration) as ex:  # 形の壊れた IR・書けない出力
+        print(f"書けません: {type(ex).__name__}: {ex}", file=sys.stderr)
+        return 2
     return 1 if bad else 0
 
 

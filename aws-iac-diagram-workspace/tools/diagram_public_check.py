@@ -71,7 +71,7 @@ def run_all(jobs: int) -> int:
                             "--name", gn.ir_name(name)], capture_output=True)
             out = tmp / f"o{i}"
             code, err = run_diagram(ir, out)
-            return name, code, err, json.loads((out / "result.json").read_text(encoding="utf-8")) if code != 2 else None
+            return name, code, err, json.loads((out / "result.json").read_text(encoding="utf-8")) if (out / "result.json").is_file() else None
         with ThreadPoolExecutor(jobs) as ex:
             rows = list(ex.map(one, enumerate(cases.items())))
     total: Counter = Counter()
