@@ -1,0 +1,65 @@
+name: render-png
+
+# 固定した環境（ランナーのイメージ・draw.io の版・mmdc の版・フォント）で PNG を作り、.mmd の描画を確かめる（PLAN のフェーズ 5、CRITERIA 3 章・2.3）。
+# ここで作った PNG だけをコミットしてよい（PLAN 1.2 の 3）。いまは artifact で返す。
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "skills/aws-iac-diagram/scripts/**"
+      - "skills/aws-iac-diagram/data/**"
+      - ".github/workflows/render-png.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.20.0"
+      - name: draw.io・xvfb・フォント
+        run: |
+          curl -fsSL -o drawio.deb https://github.com/jgraph/drawio-desktop/releases/download/v32.4.1/drawio-amd64-32.4.1.deb
+          echo "f4455b3bba3d3b539c3cd069218fc64f0462b1b01610fe8d11acc3ca8566f32b  drawio.deb" | sha256sum -c -
+          sudo apt-get update
+          sudo apt-get install -y ./drawio.deb xvfb fonts-noto-cjk libasound2t64
+          rm drawio.deb
+      - name: mmdc
+        run: npm install -g @mermaid-js/mermaid-cli@12.0.0
+      - name: 図を作る（1 回目。正解 IR の全部）
+        run: |
+          for f in aws-iac-diagram-workspace/expected/*.ir.json aws-iac-diagram-workspace/expected/public/*.ir.json; do
+            n=$(basename "$f" .ir.json)
+            AWS_IAC_DIAGRAM_XVFB=1 uv run skills/aws-iac-diagram/scripts/diagram.py --input "$f" --out-dir "out1/$n"
+          done
+      - name: すべて ok であること（スキップを許さない）
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, sys
+          bad = 0
+          for p in pathlib.Path("out1").glob("*/result.json"):
+              for name, v in json.loads(p.read_text(encoding="utf-8"))["views"].items():
+                  if v["png"]["status"] != "ok" or v["mermaid"]["status"] != "ok" or v["problems"]:
+                      print(p.parent.name, name, v["png"], v["mermaid"], v["problems"]); bad += 1
+          sys.exit(1 if bad else 0)
+          PY
+      - name: PNG の再現性（自作 5 構成をもう 1 回）
+        run: |
+          for f in aws-iac-diagram-workspace/expected/*.ir.json; do
+            n=$(basename "$f" .ir.json)
+            AWS_IAC_DIAGRAM_XVFB=1 uv run skills/aws-iac-diagram/scripts/diagram.py --input "$f" --out-dir "out2/$n"
+            for p in "out2/$n"/*.png; do
+              cmp "$p" "out1/$n/$(basename "$p")"
+            done
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: diagrams
+          path: out1

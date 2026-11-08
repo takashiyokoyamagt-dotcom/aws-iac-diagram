@@ -1643,3 +1643,12 @@ tests/ 平ら 10 ファイル、最大 2,381 行（281 件）            tests/ 
 - CRITERIA 2.1 に 1 行足した: 往復の辺のラベルは中点が一致するので `mxGeometry` の `y` で離し、検査もその分をずらす（T20 の cockroach で発生）。基準を緩めたのでなく、描き方と測り方を合わせた。
 - 計算時間: 1 入力あたり数秒、最大は T19 で約 100 秒（8 並列のとき）。CRITERIA 4 章の 30 分には収まる見込みだが、候補は 7776 個ある。
 - 第三者レビュー（1 回、コードを読むだけ）の指摘 7 件をすべて直した: 分割の再帰（分けた図は再分割しない）、例外を終了コード 2 に、中身の無い枠を枠として扱う（`container=1`）、40 超を問題として報告、`label` の部分一致の誤り、予約・重複の id の検出、2.3 の XML の形・ビューの部分集合・全体図の和集合・破線と凡例の検査（`check_shape`・`check_view`。`diagram.py` が毎回通す）。
+
+## 2026-11-08 フェーズ5: Mermaid と PNG
+
+- 統括が直接実装。`emit/mermaid.py`（flowchart＋subgraph）、`validate/mermaid.py`（ビューとの一致）、`platform/external.py`（mmdc の描画確認、PNG の 0 バイト・四隅の検査）。`diagram.py` が 3 形式を書く。`--no-external` は環境に依らない比較用。
+- **判断（ユーザーの「推奨で進める」の指示）: `.mmd` はノードの数によらず flowchart だけにし、architecture-beta のアイコン付き版は作らない。** 理由: 組み込みアイコンは 5 種で読めない（失敗知見 14）、アイコンパックを同梱できない（19）、GitHub で効かない（16）、配置が乱数で C5 に反する（18）、破線・枠を端とする辺を表せない。PLAN の「アイコン付き版」と CRITERIA 2.3 のアイコン名の項は、この判断で対象外になる。アイコン付きの図は `.drawio`／`.png` が担う。
+- 確認: Windows で 3 形式（three-tier）、WSL（Ubuntu）の `AWS_IAC_DIAGRAM_XVFB=1` で 3 形式と mmdc（Node 24.20.0 と mmdc 12.0.0 は WSL の `~/.local/node`。SHA-256 を検証）、draw.io と mmdc が無いときのスキップ（単体テスト）。
+- `render-png.yml`: ubuntu-24.04・draw.io 32.4.1（deb の SHA-256 を固定）・mmdc 12.0.0 で正解 IR の全部を描き、すべて ok を確かめ、自作 5 構成で PNG のバイト一致を見る。
+- **未実施（5a の残り）:** Claude Code on the web、Actions の `@claude`、gh-aw、VS Code + Copilot での動作。ユーザーの環境での設定が要る。
+- **実物の描画の限界:** three-tier の PNG では、`demo-public-1c → IGW` の線が隣のサブネットの上を通っている。CRITERIA 2.1 は「4 通りのどれかが通れれば可」なので合格だが、draw.io が選ぶ経路はそのどれとも限らない。フェーズ 6 の目視採点で確かめる。
