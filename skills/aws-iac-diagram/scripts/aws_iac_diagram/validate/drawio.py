@@ -28,10 +28,11 @@ class Vertex:
     label: str
     font_size: int
     children: list[str] = field(default_factory=list)
+    frame: bool = False  # style に container=1 がある（中身の無い枠も枠として扱う）
 
     @property
     def is_container(self) -> bool:
-        return bool(self.children)
+        return self.frame or bool(self.children)
 
 
 @dataclass
@@ -99,7 +100,8 @@ def parse(xml_text: str) -> Diagram:
         parent = cells.get(c.get("parent"))
         vertices[cid] = Vertex(cid, (x, y, x + float(g.get("width", 0)), y + float(g.get("height", 0))),
                                c.get("parent") if parent is not None and is_vertex(parent) else None,
-                               c.get("value", ""), _font(_style(c.get("style", ""))))
+                               c.get("value", ""), _font(_style(c.get("style", ""))),
+                               frame=_style(c.get("style", "")).get("container") == "1")
     for v in vertices.values():
         if v.parent in vertices:
             vertices[v.parent].children.append(v.id)
@@ -249,7 +251,7 @@ def check_labels(d: Diagram) -> list[Problem]:
     fixed = [(f"label:{i}", r) for i, r in sorted(node_rects.items())] + [(f"icon:{i}", r) for i, r in sorted(icons.items())]
     for i, (a, ra) in enumerate(fixed):
         for b, rb in fixed[i + 1:]:
-            if a.split(":", 1)[1] != b.split(":", 1)[1] and "label" in a + b and _area_overlap(ra, rb):
+            if a.split(":", 1)[1] != b.split(":", 1)[1] and (a.startswith("label:") or b.startswith("label:")) and _area_overlap(ra, rb):
                 out.append(Problem("label", a, b))
     placed = [(e, _edge_label_rects(d, e)) for e in sorted(d.edges, key=lambda x: x.id)]
     placed = [(e, rs) for e, rs in placed if rs]
@@ -261,6 +263,47 @@ def check_labels(d: Diagram) -> list[Problem]:
         for f, qs in placed[i + 1:]:
             if all(_area_overlap(x, y) for x in rs for y in qs):
                 out.append(Problem("label", f"edge:{e.id}", f"edge:{f.id}"))
+    return out
+
+
+def check_shape(xml_text: str) -> list[Problem]:
+    """CRITERIA 2.3 の XML の形（失敗知見 7〜11）。"""
+    out: list[Problem] = []
+    if "<!--" in xml_text:
+        out.append(Problem("shape", "comment"))
+    root = ET.fromstring(xml_text)
+    diagram = root.find("diagram")
+    model = None if diagram is None else diagram.find("mxGraphModel")
+    if model is None:
+        return out + [Problem("shape", "compressed-or-missing-model")]
+    if model.get("background") is not None:
+        out.append(Problem("shape", "background-attribute"))
+    cells = model.findall("root/mxCell")
+    ids = [c.get("id") for c in cells]
+    out += [Problem("shape", "duplicate-id", i) for i in sorted({i for i in ids if ids.count(i) > 1})]
+    if ids[:1] != ["0"] or "1" not in ids:
+        out.append(Problem("shape", "required-cells"))
+    if ids[:2] != ["0", BACKGROUND_LAYER]:
+        out.append(Problem("shape", "background-not-first"))
+    return out
+
+
+def check_view(xml_text: str, node_ids: set[str], edges: list[dict]) -> list[Problem]:
+    """ビューのノードと辺が XML と一致し、推定の辺が破線で、推定があれば凡例がある（CRITERIA 2.3）。"""
+    cells = {c.get("id"): c for c in ET.fromstring(xml_text).iter("mxCell")}
+    out = [Problem("view", "missing-node", i) for i in sorted(node_ids - set(cells))]
+    has_inferred = False
+    for e in edges:
+        c = cells.get(e["id"])
+        if c is None or c.get("edge") != "1":
+            out.append(Problem("view", "missing-edge", e["id"]))
+            continue
+        inferred = e["confidence"] == "inferred"
+        has_inferred |= inferred
+        if (_style(c.get("style", "")).get("dashed") == "1") != inferred:
+            out.append(Problem("view", "dashed", e["id"]))
+    if has_inferred and "legend" not in cells:
+        out.append(Problem("view", "legend"))
     return out
 
 
