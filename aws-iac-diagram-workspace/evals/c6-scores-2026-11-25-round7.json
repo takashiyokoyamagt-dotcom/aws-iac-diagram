@@ -1,0 +1,314 @@
+{
+ "C01/templates.overview.png": {
+  "正しさ": 4,
+  "読みやすさ": 4,
+  "配置": 4,
+  "ラベル": 4,
+  "凡例": 5,
+  "指摘": "孤立のS3Logsあり、他は妥当"
+ },
+ "C01/templates.detail.png": {
+  "正しさ": 4,
+  "読みやすさ": 4,
+  "配置": 5,
+  "ラベル": 4,
+  "凡例": 5,
+  "指摘": "小さく問題なし"
+ },
+ "C02/webapp.overview.png": {
+  "正しさ": 2,
+  "読みやすさ": 2,
+  "配置": 2,
+  "ラベル": 3,
+  "凡例": 5,
+  "指摘": "APIGWからの長い横線がCloudFront・Lambda間の矢印や他の線と交差し、関係が誤読される。Cognito-S3の双方向矢印は不自然。孤立バケットが多い(配置2,読みやすさ2,正しさ2)"
+ },
+ "C02/webapp.detail.png": {
+  "正しさ": 2,
+  "読みやすさ": 2,
+  "配置": 2,
+  "ラベル": 3,
+  "凡例": 5,
+  "指摘": "同様に線が交差・重なり、APIGW→DynamoDB/CloudFront等の意味が不明(正しさ2,読みやすさ2,配置2)"
+ },
+ "T03/learn-terraform-rds.overview.png": {
+  "正しさ": 3,
+  "読みやすさ": 3,
+  "配置": 4,
+  "ラベル": 4,
+  "凡例": 5,
+  "指摘": "db_instanceがつながらず孤立"
+ },
+ "T03/learn-terraform-rds.network.png": {
+  "正しさ": 4,
+  "読みやすさ": 4,
+  "配置": 4,
+  "ラベル": 4,
+  "凡例": 5,
+  "指摘": "0.0.0.0/0ラベルが線にかかる程度"
+ },
+ "C05/master.overview.png": {
+  "正しさ": 3,
+  "読みやすさ": 3,
+  "配置": 2,
+  "ラベル": 3,
+  "凡例": 5,
+  "指摘": "ALBがVPC枠の外に出て誤読を招く。ECSサービス未接続。0.0.0.0/0ラベルがAZ枠に重なる(配置2)"
+ },
+ "C05/master.network.png": {
+  "正しさ": 4,
+  "読みやすさ": 3,
+  "配置": 3,
+  "ラベル": 3,
+  "凡例": 5,
+  "指摘": "ALBがVPC枠外、ラベルがAZ枠線に重なる"
+ },
+ "C05/master.detail.png": {
+  "正しさ": 3,
+  "読みやすさ": 3,
+  "配置": 4,
+  "ラベル": 4,
+  "凡例": 5,
+  "指摘": "ALB→後段の流れが無い"
+ },
+ "T06/eventbridge-sns-lambda-terraform.overview.png": {
+  "正しさ": 5,
+  "読みやすさ": 5,
+  "配置": 5,
+  "ラベル": 5,
+  "凡例": 5,
+  "指摘": "問題なし"
+ },
+ "T06s/eventbridge-sns-lambda.overview.png": {
+  "正しさ": 5,
+  "読みやすさ": 5,
+  "配置": 5,
+  "ラベル": 5,
+  "凡例": 5,
+  "指摘": "問題なし"
+ },
+ "T07/apigw-lambda-dynamodb-terraform.overview.png": {
+  "正しさ": 4,
+  "読みやすさ": 5,
+  "配置": 5,
+  "ラベル": 5,
+  "凡例": 5,
+  "指摘": "S3が孤立のみ"
+ },
+ "T07/apigw-lambda-dynamodb-terraform.detail.png": {
+  "正しさ": 5,
+  "読みやすさ": 5,
+  "配置": 5,
+  "ラベル": 5,
+  "凡例": 5,
+  "指摘": "問題なし"
+ },
+ "T07s/apigw-lambda-dynamodb.overview.png": {
+  "正しさ": 5,
+  "読みやすさ": 5,
+  "配置": 5,
+  "ラベル": 5,
+  "凡例": 5,
+  "指摘": "問題なし"
+ },
+ "T09/sample-bedrock-knowledge-base-terraform.overview.png": {
+  "正しさ": 3,
+  "読みやすさ": 3,
+  "配置": 3,
+  "ラベル": 4,
+  "凡例": 5,
+  "指摘": "線が1本に束ねられ向きが不明瞭、流れが読みにくい"
+ },
+ "T11/apigw-sfn-crud-terraform.overview.png": {
+  "正しさ": 5,
+  "読みやすさ": 5,
+  "配置": 5,
+  "ラベル": 5,
+  "凡例": 5,
+  "指摘": "問題なし"
+ },
+ "T11s/apigw-sfn-crud.overview.png": {
+  "正しさ": 5,
+  "読みやすさ": 5,
+  "配置": 5,
+  "ラベル": 5,
+  "凡例": 5,
+  "指摘": "問題なし"
+ },
+ "T12/examples.overview.png": {
+  "正しさ": 4,
+  "読みやすさ": 4,
+  "配置": 4,
+  "ラベル": 4,
+  "凡例": 5,
+  "指摘": "小さな直しで使える"
+ },
+ "T16/learn-terraform-provision-eks-cluster.overview.png": {
+  "正しさ": 3,
+  "読みやすさ": 2,
+  "配置": 2,
+  "ラベル": 3,
+  "凡例": 5,
+  "指摘": "NAT周りの線が重なり交差、ラベルが線上、KMSアイコン枠が孤立、EKSとサブネットの関係なし(読みやすさ2,配置2)"
+ },
+ "T16/learn-terraform-provision-eks-cluster.network.png": {
+  "正しさ": 3,
+  "読みやすさ": 3,
+  "配置": 3,
+  "ラベル": 3,
+  "凡例": 5,
+  "指摘": "サブネット越しの線とラベルがAZ枠に重なる"
+ },
+ "T17/infrastructure.overview.png": {
+  "正しさ": 3,
+  "読みやすさ": 2,
+  "配置": 2,
+  "ラベル": 3,
+  "凡例": 5,
+  "指摘": "NATへの線がラベルと重なり並走、ALBがVPC内の流れから外れ、IGWが孤立。幅が広く読みにくい(読みやすさ2,配置2)"
+ },
+ "T17/infrastructure.network.png": {
+  "正しさ": 3,
+  "読みやすさ": 3,
+  "配置": 2,
+  "ラベル": 3,
+  "凡例": 5,
+  "指摘": "4本のラベルと並走する線が重なる(配置2)"
+ },
+ "T17/infrastructure.detail.png": {
+  "正しさ": 3,
+  "読みやすさ": 3,
+  "配置": 4,
+  "ラベル": 4,
+  "凡例": 5,
+  "指摘": "ECS→DynamoDBのみ。ALBが無い"
+ },
+ "T19/aws-network-hub-for-terraform.overview-1.png": {
+  "正しさ": 4,
+  "読みやすさ": 4,
+  "配置": 5,
+  "ラベル": 4,
+  "凡例": 5,
+  "指摘": "問題なし"
+ },
+ "T19/aws-network-hub-for-terraform.overview-2.png": {
+  "正しさ": 4,
+  "読みやすさ": 4,
+  "配置": 4,
+  "ラベル": 4,
+  "凡例": 5,
+  "指摘": "エンドポイントがサブネットと無関係に並ぶ"
+ },
+ "T19/aws-network-hub-for-terraform.overview-3.png": {
+  "正しさ": 4,
+  "読みやすさ": 4,
+  "配置": 3,
+  "ラベル": 3,
+  "凡例": 5,
+  "指摘": "ラベルがサブネット枠・線に近接し重なる"
+ },
+ "T19/aws-network-hub-for-terraform.overview-4.png": {
+  "正しさ": 4,
+  "読みやすさ": 4,
+  "配置": 4,
+  "ラベル": 4,
+  "凡例": 5,
+  "指摘": "Route53との対応が明確"
+ },
+ "T19/aws-network-hub-for-terraform.network.png": {
+  "正しさ": 4,
+  "読みやすさ": 3,
+  "配置": 3,
+  "ラベル": 2,
+  "凡例": 5,
+  "指摘": "全体が極小で文字が読めない、VPC間の接続(TGW)が無い(ラベル2)"
+ },
+ "T19/aws-network-hub-for-terraform.detail.png": {
+  "正しさ": 4,
+  "読みやすさ": 4,
+  "配置": 4,
+  "ラベル": 4,
+  "凡例": 5,
+  "指摘": "overview-4と同一"
+ },
+ "tf-rag/rag.overview.png": {
+  "正しさ": 4,
+  "読みやすさ": 4,
+  "配置": 3,
+  "ラベル": 4,
+  "凡例": 5,
+  "指摘": "rag-ingest/rag-docsからの線が長く交差気味"
+ },
+ "tf-serverless-api/serverless-api.overview.png": {
+  "正しさ": 2,
+  "読みやすさ": 2,
+  "配置": 2,
+  "ラベル": 3,
+  "凡例": 5,
+  "指摘": "shop-apiから出る長い線がDynamoDB・Lambdaを横切り、API→handlerの流れが誤読される。DynamoDB(shop-orders)とAPIGWの関係が不明(正しさ2,読みやすさ2,配置2)"
+ },
+ "tf-three-tier/three-tier.detail.png": {
+  "正しさ": 5,
+  "読みやすさ": 5,
+  "配置": 5,
+  "ラベル": 5,
+  "凡例": 5,
+  "指摘": "問題なし"
+ },
+ "tf-three-tier/three-tier.network.png": {
+  "正しさ": 4,
+  "読みやすさ": 4,
+  "配置": 3,
+  "ラベル": 3,
+  "凡例": 5,
+  "指摘": "0.0.0.0/0ラベルが線・AZ枠と重なる"
+ },
+ "tf-three-tier/three-tier.overview.png": {
+  "正しさ": 3,
+  "読みやすさ": 3,
+  "配置": 3,
+  "ラベル": 3,
+  "凡例": 5,
+  "指摘": "ALB/ECS/RDSがVPC枠外に見える、ラベルが枠線と重なる"
+ },
+ "tf-three-tier-modules/three-tier-modules.detail.png": {
+  "正しさ": 5,
+  "読みやすさ": 5,
+  "配置": 5,
+  "ラベル": 5,
+  "凡例": 5,
+  "指摘": "問題なし"
+ },
+ "tf-three-tier-modules/three-tier-modules.network.png": {
+  "正しさ": 4,
+  "読みやすさ": 4,
+  "配置": 3,
+  "ラベル": 3,
+  "凡例": 5,
+  "指摘": "ラベルが線・AZ枠と重なる"
+ },
+ "tf-three-tier-modules/three-tier-modules.overview.png": {
+  "正しさ": 3,
+  "読みやすさ": 3,
+  "配置": 3,
+  "ラベル": 3,
+  "凡例": 5,
+  "指摘": "three-tierと同様、ALB等がVPC外に見える"
+ },
+ "tf-vpc-endpoints/vpc-endpoints.network.png": {
+  "正しさ": 4,
+  "読みやすさ": 3,
+  "配置": 3,
+  "ラベル": 3,
+  "凡例": 5,
+  "指摘": "EC2からの線がVPCエンドポイント間を縫う。ラベルがAZ枠と重なる"
+ },
+ "tf-vpc-endpoints/vpc-endpoints.overview.png": {
+  "正しさ": 3,
+  "読みやすさ": 3,
+  "配置": 2,
+  "ラベル": 3,
+  "凡例": 5,
+  "指摘": "EC2用の線がsubnet枠をまたいでラベルが線に重なる、net-appと1c側の関係が無い(配置2)"
+ }
+}
