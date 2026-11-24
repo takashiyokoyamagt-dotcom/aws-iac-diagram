@@ -115,16 +115,18 @@ def parse(xml_text: str) -> Diagram:
 
 def _ports(style: dict[str, str]) -> tuple | None:
     try:
-        return ((float(style["exitX"]), float(style["exitY"])), (float(style["entryX"]), float(style["entryY"])))
+        return ((float(style["exitX"]), float(style["exitY"])), (float(style["entryX"]), float(style["entryY"])),
+                (float(style.get("exitDy", 0)), float(style.get("entryDy", 0))))
     except (KeyError, ValueError):
         return None
 
 
 def port_route(src: Rect, dst: Rect, ports: tuple) -> list[Point]:
     """出入りの辺が決まった辺の経路。最初と最後の線分の向きは出入りの辺で決まり、Z 字の折れ目は中央。"""
-    (ex, ey), (nx, ny) = ports
-    p = (src[0] + (src[2] - src[0]) * ex, src[1] + (src[3] - src[1]) * ey)
-    q = (dst[0] + (dst[2] - dst[0]) * nx, dst[1] + (dst[3] - dst[1]) * ny)
+    (ex, ey), (nx, ny) = ports[:2]
+    sdy, tdy = ports[2] if len(ports) > 2 else (0.0, 0.0)  # exitDy・entryDy（出入りの点を下にずらす）
+    p = (src[0] + (src[2] - src[0]) * ex, src[1] + (src[3] - src[1]) * ey + sdy)
+    q = (dst[0] + (dst[2] - dst[0]) * nx, dst[1] + (dst[3] - dst[1]) * ny + tdy)
     first_h, last_h = ey == 0.5 and ex in (0.0, 1.0), ny == 0.5 and nx in (0.0, 1.0)
     if first_h != last_h:
         return [p, (q[0], p[1]), q] if first_h else [p, (p[0], q[1]), q]
@@ -296,7 +298,7 @@ def check_labels(d: Diagram) -> list[Problem]:
     for e in sorted(d.edges, key=lambda x: x.id):
         rs = all_routes[e.id]
         for nid, r in sorted(node_rects.items()):
-            if nid not in (e.source, e.target) and all(_route_hits(x, r) for x in rs):
+            if all(_route_hits(x, r) for x in rs):  # 端のアイコン自身のラベル（真下）も数える（下から出る線が自分の名前を貫く）
                 out.append(Problem("label", f"line:{e.id}", f"label:{nid}"))
         for f, qs in placed:
             # 端を共にする辺（同じ NAT に集まる辺など）は、終わりの線分が重なるので数えない

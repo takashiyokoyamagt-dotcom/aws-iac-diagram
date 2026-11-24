@@ -6,7 +6,9 @@ draw.io の `orthogonalEdgeStyle` は、出入りの辺が決まると、この�
 """
 from __future__ import annotations
 
-from aws_iac_diagram.layout.grid import Layout
+from aws_iac_diagram.layout.grid import LABEL_H, Layout
+
+LABEL_GAP = LABEL_H + 2  # アイコンの下から出入りする線は、名前（真下のラベル）の下から始める（exitDy・entryDy）
 
 Rect = tuple[float, float, float, float]
 Point = tuple[float, float]
@@ -44,9 +46,10 @@ def point(r: Rect, f: tuple[float, float]) -> Point:
     return (r[0] + (r[2] - r[0]) * f[0], r[1] + (r[3] - r[1]) * f[1])
 
 
-def path(src: Rect, dst: Rect, exit_: tuple[float, float], entry: tuple[float, float]) -> list[Point]:
+def path(src: Rect, dst: Rect, exit_: tuple[float, float], entry: tuple[float, float], sdy: float = 0, tdy: float = 0) -> list[Point]:
     """出入りの辺から決まる経路（検査 validate/drawio.py と同じ定義）。"""
     p, q = point(src, exit_), point(dst, entry)
+    p, q = (p[0], p[1] + sdy), (q[0], q[1] + tdy)
     first_h, last_h = exit_[1] == 0.5 and exit_[0] in (0.0, 1.0), entry[1] == 0.5 and entry[0] in (0.0, 1.0)
     if first_h and not last_h:
         return [p, (q[0], p[1]), q]
@@ -83,7 +86,8 @@ def _hits(a: Point, b: Point, r: Rect) -> bool:
 
 
 def choose(layout: Layout, rects: dict[str, Rect], src: str, dst: str,
-           soft: dict[str, Rect] | None = None, label: tuple[float, float] | None = None) -> tuple[tuple[float, float], tuple[float, float]]:
+           soft: dict[str, Rect] | None = None, label: tuple[float, float] | None = None) -> tuple:
+    """(exit, entry, exit の dy, entry の dy)。"""
     """ほかのノードを通らない形のうち、ラベル（soft。ノード id → ラベルの矩形）を通らず、折れが少なく短いもの。"""
     def ancestors(i: str) -> set[str]:
         out, p = set(), layout.placed[i].parent
@@ -108,11 +112,13 @@ def choose(layout: Layout, rects: dict[str, Rect], src: str, dst: str,
     best = None
     for n, shape in enumerate(SHAPES):
         ex, en = ports(rects[src], rects[dst], shape)
-        route = path(rects[src], rects[dst], ex, en)
+        sdy = LABEL_GAP if ex[1] == 1.0 and not kids.get(src) else 0
+        tdy = LABEL_GAP if en[1] == 1.0 and not kids.get(dst) else 0
+        route = path(rects[src], rects[dst], ex, en, sdy, tdy)
         hits = sum(1 for r in others if any(_hits(a, b, r) for a, b in zip(route, route[1:])))
         length = sum(abs(a[0] - b[0]) + abs(a[1] - b[1]) for a, b in zip(route, route[1:]))
-        soft_hits = sum(1 for i, r in sorted((soft or {}).items()) if i not in (src, dst)
-                        and any(_hits(a, b, r) for a, b in zip(route, route[1:])))
+        soft_hits = sum(1 for i, r in sorted((soft or {}).items())  # 端のアイコン自身のラベルも避ける
+                        if any(_hits(a, b, r) for a, b in zip(route, route[1:])))
         if label is not None:  # 辺のラベル（経路の中点）が、端も含めてアイコンに重ならないように
             m = _midpoint(route)
             box = (m[0] - label[0] / 2, m[1] - label[1] / 2, m[0] + label[0] / 2, m[1] + label[1] / 2)
@@ -120,5 +126,5 @@ def choose(layout: Layout, rects: dict[str, Rect], src: str, dst: str,
                              and min(r[2], box[2]) > max(r[0], box[0]) and min(r[3], box[3]) > max(r[1], box[1]))
         key = (hits, soft_hits, len(set(route)), length, n)
         if best is None or key < best[0]:
-            best = (key, ex, en)
-    return best[1], best[2]
+            best = (key, ex, en, sdy, tdy)
+    return best[1:]

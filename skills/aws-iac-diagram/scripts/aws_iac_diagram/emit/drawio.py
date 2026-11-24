@@ -102,9 +102,10 @@ def emit(ir: dict, layout: Layout, r: rules.Rules, catalog: dict[str, dict]) -> 
         if e["from"] not in layout.placed or e["to"] not in layout.placed:
             continue
         size = (label_width(e["label"]), LABEL_H) if e.get("label") else None
-        ex, en = routes.choose(layout, rects, e["from"], e["to"], label_rects, size)
+        ex, en, sdy, tdy = routes.choose(layout, rects, e["from"], e["to"], label_rects, size)
         style = (_EDGE_STYLE + ("dashed=1;" if e["confidence"] == "inferred" else "")
-                 + f"exitX={ex[0]:g};exitY={ex[1]:g};exitPerimeter=0;entryX={en[0]:g};entryY={en[1]:g};entryPerimeter=0;")
+                 + f"exitX={ex[0]:g};exitY={ex[1]:g};exitPerimeter=0;entryX={en[0]:g};entryY={en[1]:g};entryPerimeter=0;"
+                 + (f"exitDy={sdy:g};" if sdy else "") + (f"entryDy={tdy:g};" if tdy else ""))
         _cell(root, {"id": e["id"], "value": e.get("label") or "", "style": style, "edge": "1", "parent": EDGE_LAYER,
                      "source": e["from"], "target": e["to"]},
               {"relative": "1", "y": str(REVERSE_LABEL_OFFSET)} if e.get("label") and (e["to"], e["from"]) in pairs else {"relative": "1"})
