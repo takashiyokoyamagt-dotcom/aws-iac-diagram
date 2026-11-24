@@ -1,0 +1,354 @@
+{
+ "nodes": [
+  {
+   "id": "alb/alb_client.alb-0",
+   "ok": true,
+   "why": "Modules/ALB/main.tf:8 に対応リソースが実在。type=alb、parent=vpc/networking.aws_vpc は入力と一致"
+  },
+  {
+   "id": "alb/alb_server.alb-0",
+   "ok": true,
+   "why": "Modules/ALB/main.tf:8 に対応リソースが実在。type=alb、parent=vpc/networking.aws_vpc は入力と一致"
+  },
+  {
+   "id": "availability_zone/networking.aws_vpc.az1",
+   "ok": true,
+   "why": "合成の AZ グループ。サブネットの availability_zone（az_names[index]）に対応。親 VPC は正しい"
+  },
+  {
+   "id": "availability_zone/networking.aws_vpc.az2",
+   "ok": true,
+   "why": "合成の AZ グループ。サブネットの availability_zone（az_names[index]）に対応。親 VPC は正しい"
+  },
+  {
+   "id": "dynamodb_table/dynamodb_table.dynamodb_table",
+   "ok": true,
+   "why": "Modules/Dynamodb/main.tf:8 に対応リソースが実在。type=dynamodb_table、parent=None は入力と一致"
+  },
+  {
+   "id": "ecs_service/ecs_service_client.ecs_service",
+   "ok": true,
+   "why": "Modules/ECS/Service/main.tf:8 に対応リソースが実在。type=ecs_service、parent=vpc/networking.aws_vpc は入力と一致"
+  },
+  {
+   "id": "ecs_service/ecs_service_server.ecs_service",
+   "ok": true,
+   "why": "Modules/ECS/Service/main.tf:8 に対応リソースが実在。type=ecs_service、parent=vpc/networking.aws_vpc は入力と一致"
+  },
+  {
+   "id": "internet_gateway/networking.igw",
+   "ok": true,
+   "why": "Modules/Networking/main.tf に対応リソースが実在。type=internet_gateway、parent=vpc/networking.aws_vpc は入力と一致"
+  },
+  {
+   "id": "nat_gateway/networking.natgw",
+   "ok": true,
+   "why": "Modules/Networking/main.tf に対応リソースが実在。type=nat_gateway、parent=subnet/networking.public_subnets-0 は入力と一致"
+  },
+  {
+   "id": "s3_bucket/s3_assets.s3_bucket",
+   "ok": true,
+   "why": "Modules/S3/main.tf:8 に対応リソースが実在。type=s3_bucket、parent=None は入力と一致"
+  },
+  {
+   "id": "s3_bucket/s3_codepipeline.s3_bucket",
+   "ok": true,
+   "why": "Modules/S3/main.tf:8 に対応リソースが実在。type=s3_bucket、parent=None は入力と一致"
+  },
+  {
+   "id": "sns_topic/sns.sns_notifications",
+   "ok": true,
+   "why": "Modules/SNS/main.tf:8 に対応リソースが実在。type=sns_topic、parent=None は入力と一致"
+  },
+  {
+   "id": "subnet/networking.private_subnets_client-0",
+   "ok": true,
+   "why": "Modules/Networking/main.tf に対応リソースが実在。type=subnet、parent=availability_zone/networking.aws_vpc.az1 は入力と一致"
+  },
+  {
+   "id": "subnet/networking.private_subnets_client-1",
+   "ok": true,
+   "why": "Modules/Networking/main.tf に対応リソースが実在。type=subnet、parent=availability_zone/networking.aws_vpc.az2 は入力と一致"
+  },
+  {
+   "id": "subnet/networking.private_subnets_server-0",
+   "ok": true,
+   "why": "Modules/Networking/main.tf に対応リソースが実在。type=subnet、parent=availability_zone/networking.aws_vpc.az1 は入力と一致"
+  },
+  {
+   "id": "subnet/networking.private_subnets_server-1",
+   "ok": true,
+   "why": "Modules/Networking/main.tf に対応リソースが実在。type=subnet、parent=availability_zone/networking.aws_vpc.az2 は入力と一致"
+  },
+  {
+   "id": "subnet/networking.public_subnets-0",
+   "ok": true,
+   "why": "Modules/Networking/main.tf に対応リソースが実在。type=subnet、parent=availability_zone/networking.aws_vpc.az1 は入力と一致"
+  },
+  {
+   "id": "subnet/networking.public_subnets-1",
+   "ok": true,
+   "why": "Modules/Networking/main.tf に対応リソースが実在。type=subnet、parent=availability_zone/networking.aws_vpc.az2 は入力と一致"
+  },
+  {
+   "id": "vpc/networking.aws_vpc",
+   "ok": true,
+   "why": "Modules/Networking/main.tf に対応リソースが実在。type=vpc、parent=None は入力と一致"
+  }
+ ],
+ "edges": [
+  {
+   "id": "alb/alb_client.alb-0->ecs_service/ecs_service_client.ecs_service",
+   "ok": true,
+   "why": "ALB の SG が ECS タスク SG の ingress.security_groups に入り、サービスの network_configuration がそのタスク SG を使う。ポートは var.port_app_* と一致。向き ALB→サービスは正しい"
+  },
+  {
+   "id": "alb/alb_server.alb-0->ecs_service/ecs_service_server.ecs_service",
+   "ok": true,
+   "why": "ALB の SG が ECS タスク SG の ingress.security_groups に入り、サービスの network_configuration がそのタスク SG を使う。ポートは var.port_app_* と一致。向き ALB→サービスは正しい"
+  },
+  {
+   "id": "ecs_service/ecs_service_client.ecs_service->dynamodb_table/dynamodb_table.dynamodb_table",
+   "ok": true,
+   "why": "ecs_task_role の policy statement[2]（dynamodb:*）が DynamoDB を指し、両サービスが同じタスクロールを使う。向きはサービス→テーブルで妥当（推定）"
+  },
+  {
+   "id": "ecs_service/ecs_service_server.ecs_service->dynamodb_table/dynamodb_table.dynamodb_table",
+   "ok": true,
+   "why": "ecs_task_role の policy statement[2]（dynamodb:*）が DynamoDB を指し、両サービスが同じタスクロールを使う。向きはサービス→テーブルで妥当（推定）"
+  },
+  {
+   "id": "subnet/networking.private_subnets_client-0->nat_gateway/networking.natgw",
+   "ok": true,
+   "why": "ルートテーブルの関連付けとルート（NAT/IGW）が入力にある。サブネット→ゲートウェイの向きは出口方向として妥当"
+  },
+  {
+   "id": "subnet/networking.private_subnets_client-1->nat_gateway/networking.natgw",
+   "ok": true,
+   "why": "ルートテーブルの関連付けとルート（NAT/IGW）が入力にある。サブネット→ゲートウェイの向きは出口方向として妥当"
+  },
+  {
+   "id": "subnet/networking.private_subnets_server-0->nat_gateway/networking.natgw",
+   "ok": true,
+   "why": "ルートテーブルの関連付けとルート（NAT/IGW）が入力にある。サブネット→ゲートウェイの向きは出口方向として妥当"
+  },
+  {
+   "id": "subnet/networking.private_subnets_server-1->nat_gateway/networking.natgw",
+   "ok": true,
+   "why": "ルートテーブルの関連付けとルート（NAT/IGW）が入力にある。サブネット→ゲートウェイの向きは出口方向として妥当"
+  }
+ ],
+ "checklist": {
+  "nodes": [
+   {
+    "what": "VPC",
+    "found": true,
+    "node": "vpc/networking.aws_vpc"
+   },
+   {
+    "what": "公開サブネット(2)",
+    "found": true,
+    "node": "subnet/networking.public_subnets-0"
+   },
+   {
+    "what": "プライベートサブネット client(2)",
+    "found": true,
+    "node": "subnet/networking.private_subnets_client-0"
+   },
+   {
+    "what": "プライベートサブネット server(2)",
+    "found": true,
+    "node": "subnet/networking.private_subnets_server-0"
+   },
+   {
+    "what": "Internet Gateway",
+    "found": true,
+    "node": "internet_gateway/networking.igw"
+   },
+   {
+    "what": "NAT Gateway",
+    "found": true,
+    "node": "nat_gateway/networking.natgw"
+   },
+   {
+    "what": "ALB server",
+    "found": true,
+    "node": "alb/alb_server.alb-0"
+   },
+   {
+    "what": "ALB client",
+    "found": true,
+    "node": "alb/alb_client.alb-0"
+   },
+   {
+    "what": "ECS Cluster",
+    "found": false,
+    "node": null,
+    "note": "M-ECS-CLUSTER でサービスに統合（独立ノードなし）"
+   },
+   {
+    "what": "ECS Service server",
+    "found": true,
+    "node": "ecs_service/ecs_service_server.ecs_service"
+   },
+   {
+    "what": "ECS Service client",
+    "found": true,
+    "node": "ecs_service/ecs_service_client.ecs_service"
+   },
+   {
+    "what": "ECR repo server",
+    "found": false,
+    "node": null,
+    "note": "class=unknown（描画対象外）"
+   },
+   {
+    "what": "ECR repo client",
+    "found": false,
+    "node": null,
+    "note": "class=unknown"
+   },
+   {
+    "what": "DynamoDB table",
+    "found": true,
+    "node": "dynamodb_table/dynamodb_table.dynamodb_table"
+   },
+   {
+    "what": "S3 assets bucket",
+    "found": true,
+    "node": "s3_bucket/s3_assets.s3_bucket"
+   },
+   {
+    "what": "CodePipeline",
+    "found": false,
+    "node": null,
+    "note": "class=unknown"
+   },
+   {
+    "what": "CodeBuild server/client",
+    "found": false,
+    "node": null,
+    "note": "class=unknown"
+   },
+   {
+    "what": "CodeDeploy app server/client",
+    "found": false,
+    "node": null,
+    "note": "class=unknown"
+   },
+   {
+    "what": "SNS topic",
+    "found": true,
+    "node": "sns_topic/sns.sns_notifications"
+   },
+   {
+    "what": "ECS task definition server/client",
+    "found": false,
+    "node": null,
+    "note": "M-ECS-TASKDEF でサービスに統合"
+   }
+  ],
+  "edges": [
+   {
+    "what": "IGW→VPC",
+    "found": true,
+    "node": null
+   },
+   {
+    "what": "NAT→公開サブネット",
+    "found": true,
+    "node": null
+   },
+   {
+    "what": "ALB server→公開サブネット",
+    "found": true,
+    "node": null
+   },
+   {
+    "what": "ALB client→公開サブネット",
+    "found": true,
+    "node": null
+   },
+   {
+    "what": "Service→Cluster",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "ALB server→Service server",
+    "found": true,
+    "node": null
+   },
+   {
+    "what": "ALB client→Service client",
+    "found": true,
+    "node": null
+   },
+   {
+    "what": "Service→TaskDef",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "Service server→private server subnets",
+    "found": true,
+    "node": null
+   },
+   {
+    "what": "Service client→private client subnets",
+    "found": true,
+    "node": null
+   },
+   {
+    "what": "TaskDef→ECR",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "CodePipeline→CodeBuild",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "CodePipeline→CodeDeploy",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "CodePipeline→S3",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "CodeDeploy→ECS",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "CodeDeploy→ALB listener",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "CodeDeploy→SNS",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "CodeBuild→ECR",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "Autoscaling→ECS service",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "Route table→IGW/NAT(サブネット→NAT)",
+    "found": true,
+    "node": null
+   }
+  ]
+ }
+}

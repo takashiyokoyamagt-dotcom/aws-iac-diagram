@@ -1,0 +1,625 @@
+{
+ "seed": 20261125,
+ "nodes": [
+  {
+   "attrs": {
+    "endpoint_type": "Interface",
+    "service": "rds"
+   },
+   "category": "resource",
+   "id": "vpc_endpoint/com.amazonaws.eu-west-2.rds",
+   "label": "com.amazonaws.eu-west-2.rds",
+   "name": "com.amazonaws.eu-west-2.rds",
+   "parent": "vpc/endpoint_vpc",
+   "spans": [
+    "subnet/vpc_endpoints.endpoint_subnet-az2a",
+    "subnet/vpc_endpoints.endpoint_subnet-az2b",
+    "subnet/vpc_endpoints.endpoint_subnet-az2c"
+   ],
+   "type": "vpc_endpoint",
+   "address": "module.vpc_endpoints.aws_vpc_endpoint.interface[\"com.amazonaws.eu-west-2.rds\"]"
+  },
+  {
+   "category": "group",
+   "id": "availability_zone/dns_vpc.az1",
+   "label": "AZ 1",
+   "name": "az1",
+   "parent": "vpc/dns_vpc",
+   "synthetic": true,
+   "type": "availability_zone",
+   "address": null
+  },
+  {
+   "category": "resource",
+   "id": "route53_record/sns.eu-west-2.amazonaws.com",
+   "label": "sns.eu-west-2.amazonaws.com",
+   "name": "sns.eu-west-2.amazonaws.com",
+   "parent": null,
+   "type": "route53_record",
+   "address": "module.vpc_endpoints.aws_route53_record.dev_ns[\"com.amazonaws.eu-west-2.sns\"]"
+  },
+  {
+   "attrs": {
+    "access": "private"
+   },
+   "category": "group",
+   "id": "subnet/dns.endpoint_subnet-az2b",
+   "label": "dns.endpoint_subnet-az2b",
+   "name": "dns.endpoint_subnet-az2b",
+   "parent": "availability_zone/dns_vpc.az2",
+   "type": "subnet",
+   "address": "module.dns.aws_subnet.endpoint_subnet[\"az2b\"]"
+  },
+  {
+   "attrs": {
+    "access": "private"
+   },
+   "category": "group",
+   "id": "subnet/network_firewall_vpc.inspection_subnet-eu-west-2c",
+   "label": "network_firewall_vpc.inspection_subnet-eu-west-2c",
+   "name": "network_firewall_vpc.inspection_subnet-eu-west-2c",
+   "parent": "availability_zone/inspection_vpc.az3",
+   "type": "subnet",
+   "address": "module.network_firewall_vpc.aws_subnet.inspection_subnet[\"eu-west-2c\"]"
+  },
+  {
+   "category": "resource",
+   "id": "route53_record/ec2.eu-west-2.amazonaws.com",
+   "label": "ec2.eu-west-2.amazonaws.com",
+   "name": "ec2.eu-west-2.amazonaws.com",
+   "parent": null,
+   "type": "route53_record",
+   "address": "module.vpc_endpoints.aws_route53_record.dev_ns[\"com.amazonaws.eu-west-2.ec2\"]"
+  },
+  {
+   "category": "group",
+   "id": "availability_zone/dns_vpc.az3",
+   "label": "AZ 3",
+   "name": "az3",
+   "parent": "vpc/dns_vpc",
+   "synthetic": true,
+   "type": "availability_zone",
+   "address": null
+  },
+  {
+   "attrs": {
+    "access": "private"
+   },
+   "category": "group",
+   "id": "subnet/network_firewall_vpc.inspection_subnet-eu-west-2a",
+   "label": "network_firewall_vpc.inspection_subnet-eu-west-2a",
+   "name": "network_firewall_vpc.inspection_subnet-eu-west-2a",
+   "parent": "availability_zone/inspection_vpc.az1",
+   "type": "subnet",
+   "address": "module.network_firewall_vpc.aws_subnet.inspection_subnet[\"eu-west-2a\"]"
+  },
+  {
+   "attrs": {
+    "access": "private"
+   },
+   "category": "group",
+   "id": "subnet/dns.attachment_subnet-az2b",
+   "label": "dns.attachment_subnet-az2b",
+   "name": "dns.attachment_subnet-az2b",
+   "parent": "availability_zone/dns_vpc.az2",
+   "type": "subnet",
+   "address": "module.dns.aws_subnet.attachment_subnet[\"az2b\"]"
+  },
+  {
+   "category": "resource",
+   "id": "nat_gateway/network_firewall_vpc.internet-eu-west-2b",
+   "label": "network_firewall_vpc.internet-eu-west-2b",
+   "name": "network_firewall_vpc.internet-eu-west-2b",
+   "parent": "subnet/network_firewall_vpc.internet_subnet-eu-west-2b",
+   "type": "nat_gateway",
+   "address": "module.network_firewall_vpc.aws_nat_gateway.internet[\"eu-west-2b\"]"
+  },
+  {
+   "attrs": {
+    "access": "private"
+   },
+   "category": "group",
+   "id": "subnet/vpc_endpoints.endpoint_subnet-az2a",
+   "label": "vpc_endpoints.endpoint_subnet-az2a",
+   "name": "vpc_endpoints.endpoint_subnet-az2a",
+   "parent": "availability_zone/endpoint_vpc.az1",
+   "type": "subnet",
+   "address": "module.vpc_endpoints.aws_subnet.endpoint_subnet[\"az2a\"]"
+  },
+  {
+   "attrs": {
+    "access": "private"
+   },
+   "category": "group",
+   "id": "subnet/network_firewall_vpc.attachment_subnet-eu-west-2a",
+   "label": "network_firewall_vpc.attachment_subnet-eu-west-2a",
+   "name": "network_firewall_vpc.attachment_subnet-eu-west-2a",
+   "parent": "availability_zone/inspection_vpc.az1",
+   "type": "subnet",
+   "address": "module.network_firewall_vpc.aws_subnet.attachment_subnet[\"eu-west-2a\"]"
+  },
+  {
+   "category": "group",
+   "id": "availability_zone/inspection_vpc.az2",
+   "label": "AZ 2",
+   "name": "az2",
+   "parent": "vpc/inspection_vpc",
+   "synthetic": true,
+   "type": "availability_zone",
+   "address": null
+  },
+  {
+   "category": "resource",
+   "id": "route53_record/rds.eu-west-2.amazonaws.com",
+   "label": "rds.eu-west-2.amazonaws.com",
+   "name": "rds.eu-west-2.amazonaws.com",
+   "parent": null,
+   "type": "route53_record",
+   "address": "module.vpc_endpoints.aws_route53_record.dev_ns[\"com.amazonaws.eu-west-2.rds\"]"
+  },
+  {
+   "attrs": {
+    "access": "private"
+   },
+   "category": "group",
+   "id": "subnet/vpc_endpoints.attachment_subnet-az2a",
+   "label": "vpc_endpoints.attachment_subnet-az2a",
+   "name": "vpc_endpoints.attachment_subnet-az2a",
+   "parent": "availability_zone/endpoint_vpc.az1",
+   "type": "subnet",
+   "address": "module.vpc_endpoints.aws_subnet.attachment_subnet[\"az2a\"]"
+  },
+  {
+   "attrs": {
+    "endpoint_type": "Interface",
+    "service": "sns"
+   },
+   "category": "resource",
+   "id": "vpc_endpoint/com.amazonaws.eu-west-2.sns",
+   "label": "com.amazonaws.eu-west-2.sns",
+   "name": "com.amazonaws.eu-west-2.sns",
+   "parent": "vpc/endpoint_vpc",
+   "spans": [
+    "subnet/vpc_endpoints.endpoint_subnet-az2a",
+    "subnet/vpc_endpoints.endpoint_subnet-az2b",
+    "subnet/vpc_endpoints.endpoint_subnet-az2c"
+   ],
+   "type": "vpc_endpoint",
+   "address": "module.vpc_endpoints.aws_vpc_endpoint.interface[\"com.amazonaws.eu-west-2.sns\"]"
+  },
+  {
+   "category": "group",
+   "id": "availability_zone/endpoint_vpc.az1",
+   "label": "AZ 1",
+   "name": "az1",
+   "parent": "vpc/endpoint_vpc",
+   "synthetic": true,
+   "type": "availability_zone",
+   "address": null
+  },
+  {
+   "attrs": {
+    "access": "private"
+   },
+   "category": "group",
+   "id": "subnet/vpc_endpoints.endpoint_subnet-az2c",
+   "label": "vpc_endpoints.endpoint_subnet-az2c",
+   "name": "vpc_endpoints.endpoint_subnet-az2c",
+   "parent": "availability_zone/endpoint_vpc.az3",
+   "type": "subnet",
+   "address": "module.vpc_endpoints.aws_subnet.endpoint_subnet[\"az2c\"]"
+  },
+  {
+   "attrs": {
+    "access": "private"
+   },
+   "category": "group",
+   "id": "subnet/vpc_endpoints.attachment_subnet-az2b",
+   "label": "vpc_endpoints.attachment_subnet-az2b",
+   "name": "vpc_endpoints.attachment_subnet-az2b",
+   "parent": "availability_zone/endpoint_vpc.az2",
+   "type": "subnet",
+   "address": "module.vpc_endpoints.aws_subnet.attachment_subnet[\"az2b\"]"
+  },
+  {
+   "category": "group",
+   "id": "vpc/dns_vpc",
+   "label": "dns_vpc",
+   "name": "dns_vpc",
+   "parent": null,
+   "type": "vpc",
+   "address": "module.dns.aws_vpc.dns_vpc"
+  },
+  {
+   "attrs": {
+    "endpoint_type": "Interface",
+    "service": "ecs"
+   },
+   "category": "resource",
+   "id": "vpc_endpoint/com.amazonaws.eu-west-2.ecs",
+   "label": "com.amazonaws.eu-west-2.ecs",
+   "name": "com.amazonaws.eu-west-2.ecs",
+   "parent": "vpc/endpoint_vpc",
+   "spans": [
+    "subnet/vpc_endpoints.endpoint_subnet-az2a",
+    "subnet/vpc_endpoints.endpoint_subnet-az2b",
+    "subnet/vpc_endpoints.endpoint_subnet-az2c"
+   ],
+   "type": "vpc_endpoint",
+   "address": "module.vpc_endpoints.aws_vpc_endpoint.interface[\"com.amazonaws.eu-west-2.ecs\"]"
+  },
+  {
+   "category": "group",
+   "id": "availability_zone/dns_vpc.az2",
+   "label": "AZ 2",
+   "name": "az2",
+   "parent": "vpc/dns_vpc",
+   "synthetic": true,
+   "type": "availability_zone",
+   "address": null
+  },
+  {
+   "category": "resource",
+   "id": "route53_record/logs.eu-west-2.amazonaws.com",
+   "label": "logs.eu-west-2.amazonaws.com",
+   "name": "logs.eu-west-2.amazonaws.com",
+   "parent": null,
+   "type": "route53_record",
+   "address": "module.vpc_endpoints.aws_route53_record.dev_ns[\"com.amazonaws.eu-west-2.logs\"]"
+  },
+  {
+   "attrs": {
+    "endpoint_type": "Interface",
+    "service": "autoscaling"
+   },
+   "category": "resource",
+   "id": "vpc_endpoint/com.amazonaws.eu-west-2.autoscaling",
+   "label": "com.amazonaws.eu-west-2.autoscaling",
+   "name": "com.amazonaws.eu-west-2.autoscaling",
+   "parent": "vpc/endpoint_vpc",
+   "spans": [
+    "subnet/vpc_endpoints.endpoint_subnet-az2a",
+    "subnet/vpc_endpoints.endpoint_subnet-az2b",
+    "subnet/vpc_endpoints.endpoint_subnet-az2c"
+   ],
+   "type": "vpc_endpoint",
+   "address": "module.vpc_endpoints.aws_vpc_endpoint.interface[\"com.amazonaws.eu-west-2.autoscaling\"]"
+  },
+  {
+   "category": "group",
+   "id": "availability_zone/endpoint_vpc.az3",
+   "label": "AZ 3",
+   "name": "az3",
+   "parent": "vpc/endpoint_vpc",
+   "synthetic": true,
+   "type": "availability_zone",
+   "address": null
+  },
+  {
+   "attrs": {
+    "endpoint_type": "Interface",
+    "service": "logs"
+   },
+   "category": "resource",
+   "id": "vpc_endpoint/com.amazonaws.eu-west-2.logs",
+   "label": "com.amazonaws.eu-west-2.logs",
+   "name": "com.amazonaws.eu-west-2.logs",
+   "parent": "vpc/endpoint_vpc",
+   "spans": [
+    "subnet/vpc_endpoints.endpoint_subnet-az2a",
+    "subnet/vpc_endpoints.endpoint_subnet-az2b",
+    "subnet/vpc_endpoints.endpoint_subnet-az2c"
+   ],
+   "type": "vpc_endpoint",
+   "address": "module.vpc_endpoints.aws_vpc_endpoint.interface[\"com.amazonaws.eu-west-2.logs\"]"
+  },
+  {
+   "category": "resource",
+   "id": "route53_record/ecs.eu-west-2.amazonaws.com",
+   "label": "ecs.eu-west-2.amazonaws.com",
+   "name": "ecs.eu-west-2.amazonaws.com",
+   "parent": null,
+   "type": "route53_record",
+   "address": "module.vpc_endpoints.aws_route53_record.dev_ns[\"com.amazonaws.eu-west-2.ecs\"]"
+  },
+  {
+   "attrs": {
+    "access": "private"
+   },
+   "category": "group",
+   "id": "subnet/dns.endpoint_subnet-az2a",
+   "label": "dns.endpoint_subnet-az2a",
+   "name": "dns.endpoint_subnet-az2a",
+   "parent": "availability_zone/dns_vpc.az1",
+   "type": "subnet",
+   "address": "module.dns.aws_subnet.endpoint_subnet[\"az2a\"]"
+  },
+  {
+   "category": "resource",
+   "id": "route53_record/sqs.eu-west-2.amazonaws.com",
+   "label": "sqs.eu-west-2.amazonaws.com",
+   "name": "sqs.eu-west-2.amazonaws.com",
+   "parent": null,
+   "type": "route53_record",
+   "address": "module.vpc_endpoints.aws_route53_record.dev_ns[\"com.amazonaws.eu-west-2.sqs\"]"
+  },
+  {
+   "category": "resource",
+   "id": "nat_gateway/network_firewall_vpc.internet-eu-west-2a",
+   "label": "network_firewall_vpc.internet-eu-west-2a",
+   "name": "network_firewall_vpc.internet-eu-west-2a",
+   "parent": "subnet/network_firewall_vpc.internet_subnet-eu-west-2a",
+   "type": "nat_gateway",
+   "address": "module.network_firewall_vpc.aws_nat_gateway.internet[\"eu-west-2a\"]"
+  }
+ ],
+ "edges": [
+  {
+   "confidence": "confirmed",
+   "from": "route53_record/athena.eu-west-2.amazonaws.com",
+   "id": "route53_record/athena.eu-west-2.amazonaws.com->vpc_endpoint/com.amazonaws.eu-west-2.athena",
+   "kind": "request",
+   "label": "",
+   "to": "vpc_endpoint/com.amazonaws.eu-west-2.athena",
+   "evidence": [
+    "module.vpc_endpoints.aws_route53_record.dev_ns[\"com.amazonaws.eu-west-2.athena\"].alias[0].name"
+   ],
+   "rules": [
+    "E-DNS-ALIAS"
+   ]
+  },
+  {
+   "confidence": "confirmed",
+   "from": "route53_record/autoscaling.eu-west-2.amazonaws.com",
+   "id": "route53_record/autoscaling.eu-west-2.amazonaws.com->vpc_endpoint/com.amazonaws.eu-west-2.autoscaling",
+   "kind": "request",
+   "label": "",
+   "to": "vpc_endpoint/com.amazonaws.eu-west-2.autoscaling",
+   "evidence": [
+    "module.vpc_endpoints.aws_route53_record.dev_ns[\"com.amazonaws.eu-west-2.autoscaling\"].alias[0].name"
+   ],
+   "rules": [
+    "E-DNS-ALIAS"
+   ]
+  },
+  {
+   "confidence": "confirmed",
+   "from": "route53_record/ec2.eu-west-2.amazonaws.com",
+   "id": "route53_record/ec2.eu-west-2.amazonaws.com->vpc_endpoint/com.amazonaws.eu-west-2.ec2",
+   "kind": "request",
+   "label": "",
+   "to": "vpc_endpoint/com.amazonaws.eu-west-2.ec2",
+   "evidence": [
+    "module.vpc_endpoints.aws_route53_record.dev_ns[\"com.amazonaws.eu-west-2.ec2\"].alias[0].name"
+   ],
+   "rules": [
+    "E-DNS-ALIAS"
+   ]
+  },
+  {
+   "confidence": "confirmed",
+   "from": "route53_record/ec2messages.eu-west-2.amazonaws.com",
+   "id": "route53_record/ec2messages.eu-west-2.amazonaws.com->vpc_endpoint/com.amazonaws.eu-west-2.ec2messages",
+   "kind": "request",
+   "label": "",
+   "to": "vpc_endpoint/com.amazonaws.eu-west-2.ec2messages",
+   "evidence": [
+    "module.vpc_endpoints.aws_route53_record.dev_ns[\"com.amazonaws.eu-west-2.ec2messages\"].alias[0].name"
+   ],
+   "rules": [
+    "E-DNS-ALIAS"
+   ]
+  },
+  {
+   "confidence": "confirmed",
+   "from": "route53_record/ecs.eu-west-2.amazonaws.com",
+   "id": "route53_record/ecs.eu-west-2.amazonaws.com->vpc_endpoint/com.amazonaws.eu-west-2.ecs",
+   "kind": "request",
+   "label": "",
+   "to": "vpc_endpoint/com.amazonaws.eu-west-2.ecs",
+   "evidence": [
+    "module.vpc_endpoints.aws_route53_record.dev_ns[\"com.amazonaws.eu-west-2.ecs\"].alias[0].name"
+   ],
+   "rules": [
+    "E-DNS-ALIAS"
+   ]
+  },
+  {
+   "confidence": "confirmed",
+   "from": "route53_record/logs.eu-west-2.amazonaws.com",
+   "id": "route53_record/logs.eu-west-2.amazonaws.com->vpc_endpoint/com.amazonaws.eu-west-2.logs",
+   "kind": "request",
+   "label": "",
+   "to": "vpc_endpoint/com.amazonaws.eu-west-2.logs",
+   "evidence": [
+    "module.vpc_endpoints.aws_route53_record.dev_ns[\"com.amazonaws.eu-west-2.logs\"].alias[0].name"
+   ],
+   "rules": [
+    "E-DNS-ALIAS"
+   ]
+  },
+  {
+   "confidence": "confirmed",
+   "from": "route53_record/rds.eu-west-2.amazonaws.com",
+   "id": "route53_record/rds.eu-west-2.amazonaws.com->vpc_endpoint/com.amazonaws.eu-west-2.rds",
+   "kind": "request",
+   "label": "",
+   "to": "vpc_endpoint/com.amazonaws.eu-west-2.rds",
+   "evidence": [
+    "module.vpc_endpoints.aws_route53_record.dev_ns[\"com.amazonaws.eu-west-2.rds\"].alias[0].name"
+   ],
+   "rules": [
+    "E-DNS-ALIAS"
+   ]
+  },
+  {
+   "confidence": "confirmed",
+   "from": "route53_record/sns.eu-west-2.amazonaws.com",
+   "id": "route53_record/sns.eu-west-2.amazonaws.com->vpc_endpoint/com.amazonaws.eu-west-2.sns",
+   "kind": "request",
+   "label": "",
+   "to": "vpc_endpoint/com.amazonaws.eu-west-2.sns",
+   "evidence": [
+    "module.vpc_endpoints.aws_route53_record.dev_ns[\"com.amazonaws.eu-west-2.sns\"].alias[0].name"
+   ],
+   "rules": [
+    "E-DNS-ALIAS"
+   ]
+  },
+  {
+   "confidence": "confirmed",
+   "from": "route53_record/sqs.eu-west-2.amazonaws.com",
+   "id": "route53_record/sqs.eu-west-2.amazonaws.com->vpc_endpoint/com.amazonaws.eu-west-2.sqs",
+   "kind": "request",
+   "label": "",
+   "to": "vpc_endpoint/com.amazonaws.eu-west-2.sqs",
+   "evidence": [
+    "module.vpc_endpoints.aws_route53_record.dev_ns[\"com.amazonaws.eu-west-2.sqs\"].alias[0].name"
+   ],
+   "rules": [
+    "E-DNS-ALIAS"
+   ]
+  },
+  {
+   "confidence": "confirmed",
+   "from": "route53_record/ssm.eu-west-2.amazonaws.com",
+   "id": "route53_record/ssm.eu-west-2.amazonaws.com->vpc_endpoint/com.amazonaws.eu-west-2.ssm",
+   "kind": "request",
+   "label": "",
+   "to": "vpc_endpoint/com.amazonaws.eu-west-2.ssm",
+   "evidence": [
+    "module.vpc_endpoints.aws_route53_record.dev_ns[\"com.amazonaws.eu-west-2.ssm\"].alias[0].name"
+   ],
+   "rules": [
+    "E-DNS-ALIAS"
+   ]
+  },
+  {
+   "confidence": "confirmed",
+   "from": "route53_record/ssmmessages.eu-west-2.amazonaws.com",
+   "id": "route53_record/ssmmessages.eu-west-2.amazonaws.com->vpc_endpoint/com.amazonaws.eu-west-2.ssmmessages",
+   "kind": "request",
+   "label": "",
+   "to": "vpc_endpoint/com.amazonaws.eu-west-2.ssmmessages",
+   "evidence": [
+    "module.vpc_endpoints.aws_route53_record.dev_ns[\"com.amazonaws.eu-west-2.ssmmessages\"].alias[0].name"
+   ],
+   "rules": [
+    "E-DNS-ALIAS"
+   ]
+  },
+  {
+   "confidence": "derived",
+   "from": "subnet/network_firewall_vpc.inspection_subnet-eu-west-2a",
+   "id": "subnet/network_firewall_vpc.inspection_subnet-eu-west-2a->nat_gateway/network_firewall_vpc.internet-eu-west-2a",
+   "kind": "route",
+   "label": "0.0.0.0/0, 64:ff9b::/96",
+   "to": "nat_gateway/network_firewall_vpc.internet-eu-west-2a",
+   "evidence": [
+    "module.network_firewall_vpc.aws_route.inspection_route[\"eu-west-2a\"].nat_gateway_id",
+    "module.network_firewall_vpc.aws_route.inspection_route[\"eu-west-2a\"].route_table_id",
+    "module.network_firewall_vpc.aws_route.inspection_route_natgw_ipv6[\"eu-west-2a\"].nat_gateway_id",
+    "module.network_firewall_vpc.aws_route.inspection_route_natgw_ipv6[\"eu-west-2a\"].route_table_id",
+    "module.network_firewall_vpc.aws_route_table_association.inspection_subnet[\"eu-west-2a\"].route_table_id",
+    "module.network_firewall_vpc.aws_route_table_association.inspection_subnet[\"eu-west-2a\"].subnet_id"
+   ],
+   "rules": [
+    "R-ROUTE"
+   ]
+  },
+  {
+   "confidence": "derived",
+   "from": "subnet/network_firewall_vpc.inspection_subnet-eu-west-2b",
+   "id": "subnet/network_firewall_vpc.inspection_subnet-eu-west-2b->nat_gateway/network_firewall_vpc.internet-eu-west-2b",
+   "kind": "route",
+   "label": "0.0.0.0/0, 64:ff9b::/96",
+   "to": "nat_gateway/network_firewall_vpc.internet-eu-west-2b",
+   "evidence": [
+    "module.network_firewall_vpc.aws_route.inspection_route[\"eu-west-2b\"].nat_gateway_id",
+    "module.network_firewall_vpc.aws_route.inspection_route[\"eu-west-2b\"].route_table_id",
+    "module.network_firewall_vpc.aws_route.inspection_route_natgw_ipv6[\"eu-west-2b\"].nat_gateway_id",
+    "module.network_firewall_vpc.aws_route.inspection_route_natgw_ipv6[\"eu-west-2b\"].route_table_id",
+    "module.network_firewall_vpc.aws_route_table_association.inspection_subnet[\"eu-west-2b\"].route_table_id",
+    "module.network_firewall_vpc.aws_route_table_association.inspection_subnet[\"eu-west-2b\"].subnet_id"
+   ],
+   "rules": [
+    "R-ROUTE"
+   ]
+  },
+  {
+   "confidence": "derived",
+   "from": "subnet/network_firewall_vpc.inspection_subnet-eu-west-2c",
+   "id": "subnet/network_firewall_vpc.inspection_subnet-eu-west-2c->nat_gateway/network_firewall_vpc.internet-eu-west-2c",
+   "kind": "route",
+   "label": "0.0.0.0/0, 64:ff9b::/96",
+   "to": "nat_gateway/network_firewall_vpc.internet-eu-west-2c",
+   "evidence": [
+    "module.network_firewall_vpc.aws_route.inspection_route[\"eu-west-2c\"].nat_gateway_id",
+    "module.network_firewall_vpc.aws_route.inspection_route[\"eu-west-2c\"].route_table_id",
+    "module.network_firewall_vpc.aws_route.inspection_route_natgw_ipv6[\"eu-west-2c\"].nat_gateway_id",
+    "module.network_firewall_vpc.aws_route.inspection_route_natgw_ipv6[\"eu-west-2c\"].route_table_id",
+    "module.network_firewall_vpc.aws_route_table_association.inspection_subnet[\"eu-west-2c\"].route_table_id",
+    "module.network_firewall_vpc.aws_route_table_association.inspection_subnet[\"eu-west-2c\"].subnet_id"
+   ],
+   "rules": [
+    "R-ROUTE"
+   ]
+  },
+  {
+   "confidence": "derived",
+   "from": "subnet/network_firewall_vpc.internet_subnet-eu-west-2a",
+   "id": "subnet/network_firewall_vpc.internet_subnet-eu-west-2a->internet_gateway/inspection_igw",
+   "kind": "route",
+   "label": "0.0.0.0/0",
+   "to": "internet_gateway/inspection_igw",
+   "evidence": [
+    "module.network_firewall_vpc.aws_route.egress_route[\"eu-west-2a\"].gateway_id",
+    "module.network_firewall_vpc.aws_route.egress_route[\"eu-west-2a\"].route_table_id",
+    "module.network_firewall_vpc.aws_route_table_association.internet_subnet[\"eu-west-2a\"].route_table_id",
+    "module.network_firewall_vpc.aws_route_table_association.internet_subnet[\"eu-west-2a\"].subnet_id"
+   ],
+   "rules": [
+    "R-ROUTE"
+   ]
+  },
+  {
+   "confidence": "derived",
+   "from": "subnet/network_firewall_vpc.internet_subnet-eu-west-2b",
+   "id": "subnet/network_firewall_vpc.internet_subnet-eu-west-2b->internet_gateway/inspection_igw",
+   "kind": "route",
+   "label": "0.0.0.0/0",
+   "to": "internet_gateway/inspection_igw",
+   "evidence": [
+    "module.network_firewall_vpc.aws_route.egress_route[\"eu-west-2b\"].gateway_id",
+    "module.network_firewall_vpc.aws_route.egress_route[\"eu-west-2b\"].route_table_id",
+    "module.network_firewall_vpc.aws_route_table_association.internet_subnet[\"eu-west-2b\"].route_table_id",
+    "module.network_firewall_vpc.aws_route_table_association.internet_subnet[\"eu-west-2b\"].subnet_id"
+   ],
+   "rules": [
+    "R-ROUTE"
+   ]
+  },
+  {
+   "confidence": "derived",
+   "from": "subnet/network_firewall_vpc.internet_subnet-eu-west-2c",
+   "id": "subnet/network_firewall_vpc.internet_subnet-eu-west-2c->internet_gateway/inspection_igw",
+   "kind": "route",
+   "label": "0.0.0.0/0",
+   "to": "internet_gateway/inspection_igw",
+   "evidence": [
+    "module.network_firewall_vpc.aws_route.egress_route[\"eu-west-2c\"].gateway_id",
+    "module.network_firewall_vpc.aws_route.egress_route[\"eu-west-2c\"].route_table_id",
+    "module.network_firewall_vpc.aws_route_table_association.internet_subnet[\"eu-west-2c\"].route_table_id",
+    "module.network_firewall_vpc.aws_route_table_association.internet_subnet[\"eu-west-2c\"].subnet_id"
+   ],
+   "rules": [
+    "R-ROUTE"
+   ]
+  }
+ ],
+ "totals": {
+  "nodes": 59,
+  "edges": 17
+ },
+ "unknown": 57
+}

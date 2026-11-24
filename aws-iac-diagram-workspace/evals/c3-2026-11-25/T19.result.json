@@ -1,0 +1,458 @@
+{
+ "nodes": [
+  {
+   "id": "vpc_endpoint/com.amazonaws.eu-west-2.rds",
+   "ok": true,
+   "why": "modules/vpc_endpoints/endpoints.tf:25 aws_vpc_endpoint.interface（subnet_ids＝endpoint_subnet 3 つ） に対応リソースが実在。type=vpc_endpoint、parent=vpc/endpoint_vpc は入力と一致"
+  },
+  {
+   "id": "availability_zone/dns_vpc.az1",
+   "ok": true,
+   "why": "合成の AZ グループ。サブネットの availability_zone（az_names[index]）に対応。親 VPC は正しい"
+  },
+  {
+   "id": "route53_record/sns.eu-west-2.amazonaws.com",
+   "ok": true,
+   "why": "modules/vpc_endpoints/endpoints.tf:62 aws_route53_record.dev_ns に対応リソースが実在。type=route53_record、parent=None は入力と一致"
+  },
+  {
+   "id": "subnet/dns.endpoint_subnet-az2b",
+   "ok": true,
+   "why": "modules/*/vpc.tf の aws_subnet（for_each キーと az_names の対応を確認） に対応リソースが実在。type=subnet、parent=availability_zone/dns_vpc.az2 は入力と一致"
+  },
+  {
+   "id": "subnet/network_firewall_vpc.inspection_subnet-eu-west-2c",
+   "ok": true,
+   "why": "modules/*/vpc.tf の aws_subnet（for_each キーと az_names の対応を確認） に対応リソースが実在。type=subnet、parent=availability_zone/inspection_vpc.az3 は入力と一致"
+  },
+  {
+   "id": "route53_record/ec2.eu-west-2.amazonaws.com",
+   "ok": true,
+   "why": "modules/vpc_endpoints/endpoints.tf:62 aws_route53_record.dev_ns に対応リソースが実在。type=route53_record、parent=None は入力と一致"
+  },
+  {
+   "id": "availability_zone/dns_vpc.az3",
+   "ok": true,
+   "why": "合成の AZ グループ。サブネットの availability_zone（az_names[index]）に対応。親 VPC は正しい"
+  },
+  {
+   "id": "subnet/network_firewall_vpc.inspection_subnet-eu-west-2a",
+   "ok": true,
+   "why": "modules/*/vpc.tf の aws_subnet（for_each キーと az_names の対応を確認） に対応リソースが実在。type=subnet、parent=availability_zone/inspection_vpc.az1 は入力と一致"
+  },
+  {
+   "id": "subnet/dns.attachment_subnet-az2b",
+   "ok": true,
+   "why": "modules/*/vpc.tf の aws_subnet（for_each キーと az_names の対応を確認） に対応リソースが実在。type=subnet、parent=availability_zone/dns_vpc.az2 は入力と一致"
+  },
+  {
+   "id": "nat_gateway/network_firewall_vpc.internet-eu-west-2b",
+   "ok": true,
+   "why": "modules/network_firewall_vpc/vpc.tf:284（subnet_id＝internet_subnet[key]） に対応リソースが実在。type=nat_gateway、parent=subnet/network_firewall_vpc.internet_subnet-eu-west-2b は入力と一致"
+  },
+  {
+   "id": "subnet/vpc_endpoints.endpoint_subnet-az2a",
+   "ok": true,
+   "why": "modules/*/vpc.tf の aws_subnet（for_each キーと az_names の対応を確認） に対応リソースが実在。type=subnet、parent=availability_zone/endpoint_vpc.az1 は入力と一致"
+  },
+  {
+   "id": "subnet/network_firewall_vpc.attachment_subnet-eu-west-2a",
+   "ok": true,
+   "why": "modules/*/vpc.tf の aws_subnet（for_each キーと az_names の対応を確認） に対応リソースが実在。type=subnet、parent=availability_zone/inspection_vpc.az1 は入力と一致"
+  },
+  {
+   "id": "availability_zone/inspection_vpc.az2",
+   "ok": true,
+   "why": "合成の AZ グループ。サブネットの availability_zone（az_names[index]）に対応。親 VPC は正しい"
+  },
+  {
+   "id": "route53_record/rds.eu-west-2.amazonaws.com",
+   "ok": true,
+   "why": "modules/vpc_endpoints/endpoints.tf:62 aws_route53_record.dev_ns に対応リソースが実在。type=route53_record、parent=None は入力と一致"
+  },
+  {
+   "id": "subnet/vpc_endpoints.attachment_subnet-az2a",
+   "ok": true,
+   "why": "modules/*/vpc.tf の aws_subnet（for_each キーと az_names の対応を確認） に対応リソースが実在。type=subnet、parent=availability_zone/endpoint_vpc.az1 は入力と一致"
+  },
+  {
+   "id": "vpc_endpoint/com.amazonaws.eu-west-2.sns",
+   "ok": true,
+   "why": "modules/vpc_endpoints/endpoints.tf:25 aws_vpc_endpoint.interface（subnet_ids＝endpoint_subnet 3 つ） に対応リソースが実在。type=vpc_endpoint、parent=vpc/endpoint_vpc は入力と一致"
+  },
+  {
+   "id": "availability_zone/endpoint_vpc.az1",
+   "ok": true,
+   "why": "合成の AZ グループ。サブネットの availability_zone（az_names[index]）に対応。親 VPC は正しい"
+  },
+  {
+   "id": "subnet/vpc_endpoints.endpoint_subnet-az2c",
+   "ok": true,
+   "why": "modules/*/vpc.tf の aws_subnet（for_each キーと az_names の対応を確認） に対応リソースが実在。type=subnet、parent=availability_zone/endpoint_vpc.az3 は入力と一致"
+  },
+  {
+   "id": "subnet/vpc_endpoints.attachment_subnet-az2b",
+   "ok": true,
+   "why": "modules/*/vpc.tf の aws_subnet（for_each キーと az_names の対応を確認） に対応リソースが実在。type=subnet、parent=availability_zone/endpoint_vpc.az2 は入力と一致"
+  },
+  {
+   "id": "vpc/dns_vpc",
+   "ok": true,
+   "why": "modules/*/vpc.tf の aws_vpc に対応リソースが実在。type=vpc、parent=None は入力と一致"
+  },
+  {
+   "id": "vpc_endpoint/com.amazonaws.eu-west-2.ecs",
+   "ok": true,
+   "why": "modules/vpc_endpoints/endpoints.tf:25 aws_vpc_endpoint.interface（subnet_ids＝endpoint_subnet 3 つ） に対応リソースが実在。type=vpc_endpoint、parent=vpc/endpoint_vpc は入力と一致"
+  },
+  {
+   "id": "availability_zone/dns_vpc.az2",
+   "ok": true,
+   "why": "合成の AZ グループ。サブネットの availability_zone（az_names[index]）に対応。親 VPC は正しい"
+  },
+  {
+   "id": "route53_record/logs.eu-west-2.amazonaws.com",
+   "ok": true,
+   "why": "modules/vpc_endpoints/endpoints.tf:62 aws_route53_record.dev_ns に対応リソースが実在。type=route53_record、parent=None は入力と一致"
+  },
+  {
+   "id": "vpc_endpoint/com.amazonaws.eu-west-2.autoscaling",
+   "ok": true,
+   "why": "modules/vpc_endpoints/endpoints.tf:25 aws_vpc_endpoint.interface（subnet_ids＝endpoint_subnet 3 つ） に対応リソースが実在。type=vpc_endpoint、parent=vpc/endpoint_vpc は入力と一致"
+  },
+  {
+   "id": "availability_zone/endpoint_vpc.az3",
+   "ok": true,
+   "why": "合成の AZ グループ。サブネットの availability_zone（az_names[index]）に対応。親 VPC は正しい"
+  },
+  {
+   "id": "vpc_endpoint/com.amazonaws.eu-west-2.logs",
+   "ok": true,
+   "why": "modules/vpc_endpoints/endpoints.tf:25 aws_vpc_endpoint.interface（subnet_ids＝endpoint_subnet 3 つ） に対応リソースが実在。type=vpc_endpoint、parent=vpc/endpoint_vpc は入力と一致"
+  },
+  {
+   "id": "route53_record/ecs.eu-west-2.amazonaws.com",
+   "ok": true,
+   "why": "modules/vpc_endpoints/endpoints.tf:62 aws_route53_record.dev_ns に対応リソースが実在。type=route53_record、parent=None は入力と一致"
+  },
+  {
+   "id": "subnet/dns.endpoint_subnet-az2a",
+   "ok": true,
+   "why": "modules/*/vpc.tf の aws_subnet（for_each キーと az_names の対応を確認） に対応リソースが実在。type=subnet、parent=availability_zone/dns_vpc.az1 は入力と一致"
+  },
+  {
+   "id": "route53_record/sqs.eu-west-2.amazonaws.com",
+   "ok": true,
+   "why": "modules/vpc_endpoints/endpoints.tf:62 aws_route53_record.dev_ns に対応リソースが実在。type=route53_record、parent=None は入力と一致"
+  },
+  {
+   "id": "nat_gateway/network_firewall_vpc.internet-eu-west-2a",
+   "ok": true,
+   "why": "modules/network_firewall_vpc/vpc.tf:284（subnet_id＝internet_subnet[key]） に対応リソースが実在。type=nat_gateway、parent=subnet/network_firewall_vpc.internet_subnet-eu-west-2a は入力と一致"
+  }
+ ],
+ "edges": [
+  {
+   "id": "route53_record/athena.eu-west-2.amazonaws.com->vpc_endpoint/com.amazonaws.eu-west-2.athena",
+   "ok": true,
+   "why": "aws_route53_record.dev_ns の alias.name が aws_vpc_endpoint.interface[key].dns_entry を参照。キー対応も正しい"
+  },
+  {
+   "id": "route53_record/autoscaling.eu-west-2.amazonaws.com->vpc_endpoint/com.amazonaws.eu-west-2.autoscaling",
+   "ok": true,
+   "why": "aws_route53_record.dev_ns の alias.name が aws_vpc_endpoint.interface[key].dns_entry を参照。キー対応も正しい"
+  },
+  {
+   "id": "route53_record/ec2.eu-west-2.amazonaws.com->vpc_endpoint/com.amazonaws.eu-west-2.ec2",
+   "ok": true,
+   "why": "aws_route53_record.dev_ns の alias.name が aws_vpc_endpoint.interface[key].dns_entry を参照。キー対応も正しい"
+  },
+  {
+   "id": "route53_record/ec2messages.eu-west-2.amazonaws.com->vpc_endpoint/com.amazonaws.eu-west-2.ec2messages",
+   "ok": true,
+   "why": "aws_route53_record.dev_ns の alias.name が aws_vpc_endpoint.interface[key].dns_entry を参照。キー対応も正しい"
+  },
+  {
+   "id": "route53_record/ecs.eu-west-2.amazonaws.com->vpc_endpoint/com.amazonaws.eu-west-2.ecs",
+   "ok": true,
+   "why": "aws_route53_record.dev_ns の alias.name が aws_vpc_endpoint.interface[key].dns_entry を参照。キー対応も正しい"
+  },
+  {
+   "id": "route53_record/logs.eu-west-2.amazonaws.com->vpc_endpoint/com.amazonaws.eu-west-2.logs",
+   "ok": true,
+   "why": "aws_route53_record.dev_ns の alias.name が aws_vpc_endpoint.interface[key].dns_entry を参照。キー対応も正しい"
+  },
+  {
+   "id": "route53_record/rds.eu-west-2.amazonaws.com->vpc_endpoint/com.amazonaws.eu-west-2.rds",
+   "ok": true,
+   "why": "aws_route53_record.dev_ns の alias.name が aws_vpc_endpoint.interface[key].dns_entry を参照。キー対応も正しい"
+  },
+  {
+   "id": "route53_record/sns.eu-west-2.amazonaws.com->vpc_endpoint/com.amazonaws.eu-west-2.sns",
+   "ok": true,
+   "why": "aws_route53_record.dev_ns の alias.name が aws_vpc_endpoint.interface[key].dns_entry を参照。キー対応も正しい"
+  },
+  {
+   "id": "route53_record/sqs.eu-west-2.amazonaws.com->vpc_endpoint/com.amazonaws.eu-west-2.sqs",
+   "ok": true,
+   "why": "aws_route53_record.dev_ns の alias.name が aws_vpc_endpoint.interface[key].dns_entry を参照。キー対応も正しい"
+  },
+  {
+   "id": "route53_record/ssm.eu-west-2.amazonaws.com->vpc_endpoint/com.amazonaws.eu-west-2.ssm",
+   "ok": true,
+   "why": "aws_route53_record.dev_ns の alias.name が aws_vpc_endpoint.interface[key].dns_entry を参照。キー対応も正しい"
+  },
+  {
+   "id": "route53_record/ssmmessages.eu-west-2.amazonaws.com->vpc_endpoint/com.amazonaws.eu-west-2.ssmmessages",
+   "ok": true,
+   "why": "aws_route53_record.dev_ns の alias.name が aws_vpc_endpoint.interface[key].dns_entry を参照。キー対応も正しい"
+  },
+  {
+   "id": "subnet/network_firewall_vpc.inspection_subnet-eu-west-2a->nat_gateway/network_firewall_vpc.internet-eu-west-2a",
+   "ok": true,
+   "why": "ルートテーブルの関連付けとルート（NAT/IGW）が入力にある。サブネット→ゲートウェイの向きは出口方向として妥当"
+  },
+  {
+   "id": "subnet/network_firewall_vpc.inspection_subnet-eu-west-2b->nat_gateway/network_firewall_vpc.internet-eu-west-2b",
+   "ok": true,
+   "why": "ルートテーブルの関連付けとルート（NAT/IGW）が入力にある。サブネット→ゲートウェイの向きは出口方向として妥当"
+  },
+  {
+   "id": "subnet/network_firewall_vpc.inspection_subnet-eu-west-2c->nat_gateway/network_firewall_vpc.internet-eu-west-2c",
+   "ok": true,
+   "why": "ルートテーブルの関連付けとルート（NAT/IGW）が入力にある。サブネット→ゲートウェイの向きは出口方向として妥当"
+  },
+  {
+   "id": "subnet/network_firewall_vpc.internet_subnet-eu-west-2a->internet_gateway/inspection_igw",
+   "ok": true,
+   "why": "ルートテーブルの関連付けとルート（NAT/IGW）が入力にある。サブネット→ゲートウェイの向きは出口方向として妥当"
+  },
+  {
+   "id": "subnet/network_firewall_vpc.internet_subnet-eu-west-2b->internet_gateway/inspection_igw",
+   "ok": true,
+   "why": "ルートテーブルの関連付けとルート（NAT/IGW）が入力にある。サブネット→ゲートウェイの向きは出口方向として妥当"
+  },
+  {
+   "id": "subnet/network_firewall_vpc.internet_subnet-eu-west-2c->internet_gateway/inspection_igw",
+   "ok": true,
+   "why": "ルートテーブルの関連付けとルート（NAT/IGW）が入力にある。サブネット→ゲートウェイの向きは出口方向として妥当"
+  }
+ ],
+ "checklist": {
+  "nodes": [
+   {
+    "what": "Transit Gateway",
+    "found": false,
+    "node": null,
+    "note": "class=unknown（描画対象外）"
+   },
+   {
+    "what": "TGW ルートテーブル",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "Inspection VPC",
+    "found": true,
+    "node": "vpc/inspection_vpc"
+   },
+   {
+    "what": "Endpoints VPC",
+    "found": true,
+    "node": "vpc/endpoint_vpc"
+   },
+   {
+    "what": "DNS VPC",
+    "found": true,
+    "node": "vpc/dns_vpc"
+   },
+   {
+    "what": "Network Firewall",
+    "found": false,
+    "node": null,
+    "note": "class=unknown"
+   },
+   {
+    "what": "NFW policy",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "NFW rule group",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "Inspection TGW attachment",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "Endpoints/DNS TGW attachment",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "NAT Gateway",
+    "found": true,
+    "node": "nat_gateway/network_firewall_vpc.internet-eu-west-2a"
+   },
+   {
+    "what": "Internet Gateway",
+    "found": true,
+    "node": "internet_gateway/inspection_igw"
+   },
+   {
+    "what": "Egress-only IGW",
+    "found": false,
+    "node": null,
+    "note": "unknown"
+   },
+   {
+    "what": "VPC interface endpoints",
+    "found": true,
+    "node": "vpc_endpoint/com.amazonaws.eu-west-2.ec2"
+   },
+   {
+    "what": "Route 53 resolver endpoint",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "Route 53 private hosted zone",
+    "found": false,
+    "node": null,
+    "note": "zone は unknown、レコードのみ描画"
+   },
+   {
+    "what": "VPC IPAM / pool",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "RAM resource share",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "KMS key",
+    "found": false,
+    "node": null,
+    "note": "unknown"
+   },
+   {
+    "what": "CloudWatch log groups",
+    "found": false,
+    "node": null,
+    "note": "hidden 扱い"
+   },
+   {
+    "what": "サブネット",
+    "found": true,
+    "node": "subnet/vpc_endpoints.endpoint_subnet-az2a"
+   }
+  ],
+  "edges": [
+   {
+    "what": "TGW attachment(inspection)→TGW",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "TGW attachment(endpoints)→TGW",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "TGW attachment(dns)→TGW",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "TGW attachment→VPC",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "TGW default route→inspection attachment",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "TGW RT association→attachment",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "NFW→Inspection VPC/subnets",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "NFW→policy",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "policy→rule group",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "NFW logging→log groups",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "NFW logging→NFW",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "NAT→internet subnet",
+    "found": true,
+    "node": null
+   },
+   {
+    "what": "IGW/EIGW→Inspection VPC",
+    "found": true,
+    "node": null
+   },
+   {
+    "what": "VPC endpoint→Endpoints VPC",
+    "found": true,
+    "node": null
+   },
+   {
+    "what": "VPC endpoint→endpoint subnets",
+    "found": true,
+    "node": null
+   },
+   {
+    "what": "Resolver endpoint→DNS subnets",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "Resolver rule→outbound endpoint",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "RAM association→TGW/IPAM/rule",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "IPAM pool→VPC",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "flow logs→VPC/log group",
+    "found": false,
+    "node": null
+   }
+  ]
+ }
+}

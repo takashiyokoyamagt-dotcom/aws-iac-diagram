@@ -1,0 +1,287 @@
+{
+ "seed": 20261125,
+ "nodes": [
+  {
+   "category": "resource",
+   "id": "alb/alb.loadbalancer",
+   "label": "ALB.LoadBalancer",
+   "name": "ALB.LoadBalancer",
+   "parent": "vpc/vpc.vpc",
+   "spans": [
+    "subnet/vpc.publicsubnet1",
+    "subnet/vpc.publicsubnet2"
+   ],
+   "type": "alb",
+   "address": "ALB/LoadBalancer"
+  },
+  {
+   "category": "group",
+   "id": "availability_zone/vpc.vpc.az1",
+   "label": "AZ 1",
+   "name": "az1",
+   "parent": "vpc/vpc.vpc",
+   "synthetic": true,
+   "type": "availability_zone",
+   "address": null
+  },
+  {
+   "category": "group",
+   "id": "availability_zone/vpc.vpc.az2",
+   "label": "AZ 2",
+   "name": "az2",
+   "parent": "vpc/vpc.vpc",
+   "synthetic": true,
+   "type": "availability_zone",
+   "address": null
+  },
+  {
+   "category": "resource",
+   "id": "ecs_service/productservice.service",
+   "label": "ProductService.Service",
+   "name": "ProductService.Service",
+   "parent": null,
+   "type": "ecs_service",
+   "address": "ProductService/Service"
+  },
+  {
+   "category": "resource",
+   "id": "ecs_service/websiteservice.service",
+   "label": "WebsiteService.Service",
+   "name": "WebsiteService.Service",
+   "parent": null,
+   "type": "ecs_service",
+   "address": "WebsiteService/Service"
+  },
+  {
+   "category": "external",
+   "id": "external/internet",
+   "label": "Internet",
+   "name": "internet",
+   "parent": null,
+   "synthetic": true,
+   "type": "external",
+   "address": null
+  },
+  {
+   "category": "resource",
+   "id": "internet_gateway/vpc.internetgateway",
+   "label": "VPC.InternetGateway",
+   "name": "VPC.InternetGateway",
+   "parent": "vpc/vpc.vpc",
+   "type": "internet_gateway",
+   "address": "VPC/InternetGateway"
+  },
+  {
+   "category": "resource",
+   "id": "lambda_function/lifecyclehook.lifecyclehandlerfunction",
+   "label": "LifecycleHook.LifecycleHandlerFunction",
+   "name": "LifecycleHook.LifecycleHandlerFunction",
+   "parent": null,
+   "type": "lambda_function",
+   "address": "LifecycleHook/LifecycleHandlerFunction"
+  },
+  {
+   "category": "resource",
+   "id": "nat_gateway/vpc.natgateway1",
+   "label": "VPC.NatGateway1",
+   "name": "VPC.NatGateway1",
+   "parent": "subnet/vpc.publicsubnet1",
+   "type": "nat_gateway",
+   "address": "VPC/NatGateway1"
+  },
+  {
+   "category": "resource",
+   "id": "nat_gateway/vpc.natgateway2",
+   "label": "VPC.NatGateway2",
+   "name": "VPC.NatGateway2",
+   "parent": "subnet/vpc.publicsubnet2",
+   "type": "nat_gateway",
+   "address": "VPC/NatGateway2"
+  },
+  {
+   "category": "resource",
+   "id": "sns_topic/lifecyclehook.notificationtopic",
+   "label": "LifecycleHook.NotificationTopic",
+   "name": "LifecycleHook.NotificationTopic",
+   "parent": null,
+   "type": "sns_topic",
+   "address": "LifecycleHook/NotificationTopic"
+  },
+  {
+   "attrs": {
+    "access": "private",
+    "cidr": "10.180.24.0/21"
+   },
+   "category": "group",
+   "id": "subnet/vpc.privatesubnet1",
+   "label": "VPC.PrivateSubnet1",
+   "name": "VPC.PrivateSubnet1",
+   "parent": "availability_zone/vpc.vpc.az1",
+   "type": "subnet",
+   "address": "VPC/PrivateSubnet1"
+  },
+  {
+   "attrs": {
+    "access": "private",
+    "cidr": "10.180.32.0/21"
+   },
+   "category": "group",
+   "id": "subnet/vpc.privatesubnet2",
+   "label": "VPC.PrivateSubnet2",
+   "name": "VPC.PrivateSubnet2",
+   "parent": "availability_zone/vpc.vpc.az2",
+   "type": "subnet",
+   "address": "VPC/PrivateSubnet2"
+  },
+  {
+   "attrs": {
+    "access": "public",
+    "cidr": "10.180.8.0/21"
+   },
+   "category": "group",
+   "id": "subnet/vpc.publicsubnet1",
+   "label": "VPC.PublicSubnet1",
+   "name": "VPC.PublicSubnet1",
+   "parent": "availability_zone/vpc.vpc.az1",
+   "type": "subnet",
+   "address": "VPC/PublicSubnet1"
+  },
+  {
+   "attrs": {
+    "access": "public",
+    "cidr": "10.180.16.0/21"
+   },
+   "category": "group",
+   "id": "subnet/vpc.publicsubnet2",
+   "label": "VPC.PublicSubnet2",
+   "name": "VPC.PublicSubnet2",
+   "parent": "availability_zone/vpc.vpc.az2",
+   "type": "subnet",
+   "address": "VPC/PublicSubnet2"
+  },
+  {
+   "attrs": {
+    "cidr": "10.180.0.0/16"
+   },
+   "category": "group",
+   "id": "vpc/vpc.vpc",
+   "label": "VPC.VPC",
+   "name": "VPC.VPC",
+   "parent": null,
+   "type": "vpc",
+   "address": "VPC/VPC"
+  }
+ ],
+ "edges": [
+  {
+   "confidence": "derived",
+   "from": "external/internet",
+   "id": "external/internet->alb/alb.loadbalancer",
+   "kind": "request",
+   "label": "HTTP 80",
+   "to": "alb/alb.loadbalancer",
+   "evidence": [
+    "ALB/LoadBalancer.Properties.Scheme (既定値 internet-facing)",
+    "ALB/LoadBalancer.Properties.SecurityGroups[0]",
+    "ALB/LoadBalancerListener.Properties.LoadBalancerArn",
+    "ALB/LoadBalancerListener.Properties.Port (80)",
+    "SecurityGroups/LoadBalancerSecurityGroup.Properties.SecurityGroupIngress[0].CidrIp (0.0.0.0/0)"
+   ],
+   "rules": [
+    "N-EXT-INTERNET",
+    "R-LB-LISTENER",
+    "R-SG"
+   ]
+  },
+  {
+   "confidence": "derived",
+   "from": "sns_topic/lifecyclehook.notificationtopic",
+   "id": "sns_topic/lifecyclehook.notificationtopic->lambda_function/lifecyclehook.lifecyclehandlerfunction",
+   "kind": "event",
+   "label": "",
+   "to": "lambda_function/lifecyclehook.lifecyclehandlerfunction",
+   "evidence": [
+    "LifecycleHook/LambdaInvokePermission.Properties.FunctionName",
+    "LifecycleHook/LambdaInvokePermission.Properties.SourceArn",
+    "LifecycleHook/NotificationTopic.Properties.Subscription[0].Endpoint"
+   ],
+   "rules": [
+    "R-LAMBDA-PERMISSION",
+    "R-SNS-SUBSCRIPTION"
+   ]
+  },
+  {
+   "confidence": "derived",
+   "from": "subnet/vpc.privatesubnet1",
+   "id": "subnet/vpc.privatesubnet1->nat_gateway/vpc.natgateway1",
+   "kind": "route",
+   "label": "0.0.0.0/0",
+   "to": "nat_gateway/vpc.natgateway1",
+   "evidence": [
+    "VPC/DefaultPrivateRoute1.Properties.NatGatewayId",
+    "VPC/DefaultPrivateRoute1.Properties.RouteTableId",
+    "VPC/PrivateSubnet1RouteTableAssociation.Properties.RouteTableId",
+    "VPC/PrivateSubnet1RouteTableAssociation.Properties.SubnetId"
+   ],
+   "rules": [
+    "R-ROUTE"
+   ]
+  },
+  {
+   "confidence": "derived",
+   "from": "subnet/vpc.privatesubnet2",
+   "id": "subnet/vpc.privatesubnet2->nat_gateway/vpc.natgateway2",
+   "kind": "route",
+   "label": "0.0.0.0/0",
+   "to": "nat_gateway/vpc.natgateway2",
+   "evidence": [
+    "VPC/DefaultPrivateRoute2.Properties.NatGatewayId",
+    "VPC/DefaultPrivateRoute2.Properties.RouteTableId",
+    "VPC/PrivateSubnet2RouteTableAssociation.Properties.RouteTableId",
+    "VPC/PrivateSubnet2RouteTableAssociation.Properties.SubnetId"
+   ],
+   "rules": [
+    "R-ROUTE"
+   ]
+  },
+  {
+   "confidence": "derived",
+   "from": "subnet/vpc.publicsubnet1",
+   "id": "subnet/vpc.publicsubnet1->internet_gateway/vpc.internetgateway",
+   "kind": "route",
+   "label": "0.0.0.0/0",
+   "to": "internet_gateway/vpc.internetgateway",
+   "evidence": [
+    "VPC/DefaultPublicRoute.Properties.GatewayId",
+    "VPC/DefaultPublicRoute.Properties.RouteTableId",
+    "VPC/PublicSubnet1RouteTableAssociation.Properties.RouteTableId",
+    "VPC/PublicSubnet1RouteTableAssociation.Properties.SubnetId"
+   ],
+   "rules": [
+    "R-ROUTE"
+   ]
+  },
+  {
+   "confidence": "derived",
+   "from": "subnet/vpc.publicsubnet2",
+   "id": "subnet/vpc.publicsubnet2->internet_gateway/vpc.internetgateway",
+   "kind": "route",
+   "label": "0.0.0.0/0",
+   "to": "internet_gateway/vpc.internetgateway",
+   "evidence": [
+    "VPC/DefaultPublicRoute.Properties.GatewayId",
+    "VPC/DefaultPublicRoute.Properties.RouteTableId",
+    "VPC/PublicSubnet2RouteTableAssociation.Properties.RouteTableId",
+    "VPC/PublicSubnet2RouteTableAssociation.Properties.SubnetId"
+   ],
+   "rules": [
+    "R-ROUTE"
+   ]
+  }
+ ],
+ "totals": {
+  "nodes": 16,
+  "edges": 6
+ },
+ "unknown": 9
+}

@@ -1,0 +1,326 @@
+{
+ "nodes": [
+  {
+   "id": "alb/alb.loadbalancer",
+   "ok": true,
+   "why": "infrastructure/*.yaml・services/*/service.yaml・master.yaml に対応リソースが実在。type=alb、parent=vpc/vpc.vpc は入力と一致"
+  },
+  {
+   "id": "availability_zone/vpc.vpc.az1",
+   "ok": true,
+   "why": "合成の AZ グループ。サブネットの availability_zone（az_names[index]）に対応。親 VPC は正しい"
+  },
+  {
+   "id": "availability_zone/vpc.vpc.az2",
+   "ok": true,
+   "why": "合成の AZ グループ。サブネットの availability_zone（az_names[index]）に対応。親 VPC は正しい"
+  },
+  {
+   "id": "ecs_service/productservice.service",
+   "ok": true,
+   "why": "infrastructure/*.yaml・services/*/service.yaml・master.yaml に対応リソースが実在。type=ecs_service、parent=None は入力と一致"
+  },
+  {
+   "id": "ecs_service/websiteservice.service",
+   "ok": true,
+   "why": "infrastructure/*.yaml・services/*/service.yaml・master.yaml に対応リソースが実在。type=ecs_service、parent=None は入力と一致"
+  },
+  {
+   "id": "external/internet",
+   "ok": true,
+   "why": "infrastructure/*.yaml・services/*/service.yaml・master.yaml に対応リソースが実在。type=external、parent=None は入力と一致"
+  },
+  {
+   "id": "internet_gateway/vpc.internetgateway",
+   "ok": true,
+   "why": "infrastructure/*.yaml・services/*/service.yaml・master.yaml に対応リソースが実在。type=internet_gateway、parent=vpc/vpc.vpc は入力と一致"
+  },
+  {
+   "id": "lambda_function/lifecyclehook.lifecyclehandlerfunction",
+   "ok": true,
+   "why": "infrastructure/*.yaml・services/*/service.yaml・master.yaml に対応リソースが実在。type=lambda_function、parent=None は入力と一致"
+  },
+  {
+   "id": "nat_gateway/vpc.natgateway1",
+   "ok": true,
+   "why": "infrastructure/*.yaml・services/*/service.yaml・master.yaml に対応リソースが実在。type=nat_gateway、parent=subnet/vpc.publicsubnet1 は入力と一致"
+  },
+  {
+   "id": "nat_gateway/vpc.natgateway2",
+   "ok": true,
+   "why": "infrastructure/*.yaml・services/*/service.yaml・master.yaml に対応リソースが実在。type=nat_gateway、parent=subnet/vpc.publicsubnet2 は入力と一致"
+  },
+  {
+   "id": "sns_topic/lifecyclehook.notificationtopic",
+   "ok": true,
+   "why": "infrastructure/*.yaml・services/*/service.yaml・master.yaml に対応リソースが実在。type=sns_topic、parent=None は入力と一致"
+  },
+  {
+   "id": "subnet/vpc.privatesubnet1",
+   "ok": true,
+   "why": "infrastructure/*.yaml・services/*/service.yaml・master.yaml に対応リソースが実在。type=subnet、parent=availability_zone/vpc.vpc.az1 は入力と一致"
+  },
+  {
+   "id": "subnet/vpc.privatesubnet2",
+   "ok": true,
+   "why": "infrastructure/*.yaml・services/*/service.yaml・master.yaml に対応リソースが実在。type=subnet、parent=availability_zone/vpc.vpc.az2 は入力と一致"
+  },
+  {
+   "id": "subnet/vpc.publicsubnet1",
+   "ok": true,
+   "why": "infrastructure/*.yaml・services/*/service.yaml・master.yaml に対応リソースが実在。type=subnet、parent=availability_zone/vpc.vpc.az1 は入力と一致"
+  },
+  {
+   "id": "subnet/vpc.publicsubnet2",
+   "ok": true,
+   "why": "infrastructure/*.yaml・services/*/service.yaml・master.yaml に対応リソースが実在。type=subnet、parent=availability_zone/vpc.vpc.az2 は入力と一致"
+  },
+  {
+   "id": "vpc/vpc.vpc",
+   "ok": true,
+   "why": "infrastructure/*.yaml・services/*/service.yaml・master.yaml に対応リソースが実在。type=vpc、parent=None は入力と一致"
+  }
+ ],
+ "edges": [
+  {
+   "id": "external/internet->alb/alb.loadbalancer",
+   "ok": true,
+   "why": "ALB は internet-facing（Scheme 省略時の既定）、SG が 0.0.0.0/0 を許可、リスナー 80（load-balancers.yaml:23-45, security-groups.yaml:35）。向きは正しい"
+  },
+  {
+   "id": "sns_topic/lifecyclehook.notificationtopic->lambda_function/lifecyclehook.lifecyclehandlerfunction",
+   "ok": true,
+   "why": ""
+  },
+  {
+   "id": "subnet/vpc.privatesubnet1->nat_gateway/vpc.natgateway1",
+   "ok": true,
+   "why": "ルートテーブルの関連付けとルート（NAT/IGW）が入力にある。サブネット→ゲートウェイの向きは出口方向として妥当"
+  },
+  {
+   "id": "subnet/vpc.privatesubnet2->nat_gateway/vpc.natgateway2",
+   "ok": true,
+   "why": "ルートテーブルの関連付けとルート（NAT/IGW）が入力にある。サブネット→ゲートウェイの向きは出口方向として妥当"
+  },
+  {
+   "id": "subnet/vpc.publicsubnet1->internet_gateway/vpc.internetgateway",
+   "ok": true,
+   "why": "ルートテーブルの関連付けとルート（NAT/IGW）が入力にある。サブネット→ゲートウェイの向きは出口方向として妥当"
+  },
+  {
+   "id": "subnet/vpc.publicsubnet2->internet_gateway/vpc.internetgateway",
+   "ok": true,
+   "why": "ルートテーブルの関連付けとルート（NAT/IGW）が入力にある。サブネット→ゲートウェイの向きは出口方向として妥当"
+  }
+ ],
+ "checklist": {
+  "nodes": [
+   {
+    "what": "VPC",
+    "found": true,
+    "node": "vpc/vpc.vpc"
+   },
+   {
+    "what": "Internet Gateway",
+    "found": true,
+    "node": "internet_gateway/vpc.internetgateway"
+   },
+   {
+    "what": "公開サブネット x2",
+    "found": true,
+    "node": "subnet/vpc.publicsubnet1"
+   },
+   {
+    "what": "プライベートサブネット x2",
+    "found": true,
+    "node": "subnet/vpc.privatesubnet1"
+   },
+   {
+    "what": "NAT Gateway x2",
+    "found": true,
+    "node": "nat_gateway/vpc.natgateway1"
+   },
+   {
+    "what": "EIP x2",
+    "found": false,
+    "node": null,
+    "note": "独立ノードなし（NAT に統合の可能性）"
+   },
+   {
+    "what": "ALB",
+    "found": true,
+    "node": "alb/alb.loadbalancer"
+   },
+   {
+    "what": "ALB Listener",
+    "found": false,
+    "node": null,
+    "note": "ノードなし。ALB→サービスの辺も無い（NORM-RELATION-NOEDGE の警告あり）"
+   },
+   {
+    "what": "ALB Security Group",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "ECS Host Security Group",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "ECS Cluster",
+    "found": false,
+    "node": null,
+    "note": "ノードなし（ECS/ECSCluster が出ていない）"
+   },
+   {
+    "what": "ECS AutoScalingGroup",
+    "found": false,
+    "node": null,
+    "note": "ノードなし"
+   },
+   {
+    "what": "LaunchConfiguration",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "ProductService",
+    "found": true,
+    "node": "ecs_service/productservice.service"
+   },
+   {
+    "what": "WebsiteService",
+    "found": true,
+    "node": "ecs_service/websiteservice.service"
+   },
+   {
+    "what": "Task definitions",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "Target groups",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "Lambda LifecycleHandlerFunction",
+    "found": true,
+    "node": "lambda_function/lifecyclehook.lifecyclehandlerfunction"
+   },
+   {
+    "what": "SNS NotificationTopic",
+    "found": true,
+    "node": "sns_topic/lifecyclehook.notificationtopic"
+   },
+   {
+    "what": "Lifecycle hook",
+    "found": false,
+    "node": null
+   }
+  ],
+  "edges": [
+   {
+    "what": "IGW→VPC",
+    "found": true,
+    "node": null
+   },
+   {
+    "what": "NAT→公開サブネット",
+    "found": true,
+    "node": null
+   },
+   {
+    "what": "NAT→EIP",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "ALB→公開サブネット",
+    "found": true,
+    "node": null
+   },
+   {
+    "what": "ALB→ALB SG",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "Listener→ALB",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "Listener→Default TG",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "ListenerRule→Listener",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "ListenerRule→TG",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "Service→Cluster",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "Service→TaskDef",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "Service→TG（ALB→サービス）",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "TG→VPC",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "ASG→private subnets",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "ASG→LaunchConfig",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "LaunchConfig→Host SG/cluster",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "LifecycleHook→ASG",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "LifecycleHook→SNS",
+    "found": false,
+    "node": null
+   },
+   {
+    "what": "SNS→Lambda",
+    "found": true,
+    "node": null
+   },
+   {
+    "what": "Host SG←ALB SG",
+    "found": false,
+    "node": null
+   }
+  ]
+ }
+}

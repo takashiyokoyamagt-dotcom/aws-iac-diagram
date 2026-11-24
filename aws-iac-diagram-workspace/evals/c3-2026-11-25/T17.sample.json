@@ -1,0 +1,346 @@
+{
+ "seed": 20261125,
+ "nodes": [
+  {
+   "category": "resource",
+   "id": "alb/alb_client.alb-0",
+   "label": "alb_client.alb-0",
+   "name": "alb_client.alb-0",
+   "parent": "vpc/networking.aws_vpc",
+   "spans": [
+    "subnet/networking.public_subnets-0",
+    "subnet/networking.public_subnets-1"
+   ],
+   "type": "alb",
+   "address": "module.alb_client.aws_alb.alb[0]"
+  },
+  {
+   "category": "resource",
+   "id": "alb/alb_server.alb-0",
+   "label": "alb_server.alb-0",
+   "name": "alb_server.alb-0",
+   "parent": "vpc/networking.aws_vpc",
+   "spans": [
+    "subnet/networking.public_subnets-0",
+    "subnet/networking.public_subnets-1"
+   ],
+   "type": "alb",
+   "address": "module.alb_server.aws_alb.alb[0]"
+  },
+  {
+   "category": "group",
+   "id": "availability_zone/networking.aws_vpc.az1",
+   "label": "AZ 1",
+   "name": "az1",
+   "parent": "vpc/networking.aws_vpc",
+   "synthetic": true,
+   "type": "availability_zone",
+   "address": null
+  },
+  {
+   "category": "group",
+   "id": "availability_zone/networking.aws_vpc.az2",
+   "label": "AZ 2",
+   "name": "az2",
+   "parent": "vpc/networking.aws_vpc",
+   "synthetic": true,
+   "type": "availability_zone",
+   "address": null
+  },
+  {
+   "category": "resource",
+   "id": "dynamodb_table/dynamodb_table.dynamodb_table",
+   "label": "dynamodb_table.dynamodb_table",
+   "name": "dynamodb_table.dynamodb_table",
+   "parent": null,
+   "type": "dynamodb_table",
+   "address": "module.dynamodb_table.aws_dynamodb_table.dynamodb_table"
+  },
+  {
+   "category": "resource",
+   "id": "ecs_service/ecs_service_client.ecs_service",
+   "label": "ecs_service_client.ecs_service",
+   "name": "ecs_service_client.ecs_service",
+   "parent": "vpc/networking.aws_vpc",
+   "spans": [
+    "subnet/networking.private_subnets_client-0",
+    "subnet/networking.private_subnets_client-1"
+   ],
+   "type": "ecs_service",
+   "address": "module.ecs_service_client.aws_ecs_service.ecs_service"
+  },
+  {
+   "category": "resource",
+   "id": "ecs_service/ecs_service_server.ecs_service",
+   "label": "ecs_service_server.ecs_service",
+   "name": "ecs_service_server.ecs_service",
+   "parent": "vpc/networking.aws_vpc",
+   "spans": [
+    "subnet/networking.private_subnets_server-0",
+    "subnet/networking.private_subnets_server-1"
+   ],
+   "type": "ecs_service",
+   "address": "module.ecs_service_server.aws_ecs_service.ecs_service"
+  },
+  {
+   "category": "resource",
+   "id": "internet_gateway/networking.igw",
+   "label": "networking.igw",
+   "name": "networking.igw",
+   "parent": "vpc/networking.aws_vpc",
+   "type": "internet_gateway",
+   "address": "module.networking.aws_internet_gateway.igw"
+  },
+  {
+   "category": "resource",
+   "id": "nat_gateway/networking.natgw",
+   "label": "networking.natgw",
+   "name": "networking.natgw",
+   "parent": "subnet/networking.public_subnets-0",
+   "type": "nat_gateway",
+   "address": "module.networking.aws_nat_gateway.natgw"
+  },
+  {
+   "category": "resource",
+   "id": "s3_bucket/s3_assets.s3_bucket",
+   "label": "s3_assets.s3_bucket",
+   "name": "s3_assets.s3_bucket",
+   "parent": null,
+   "type": "s3_bucket",
+   "address": "module.s3_assets.aws_s3_bucket.s3_bucket"
+  },
+  {
+   "category": "resource",
+   "id": "s3_bucket/s3_codepipeline.s3_bucket",
+   "label": "s3_codepipeline.s3_bucket",
+   "name": "s3_codepipeline.s3_bucket",
+   "parent": null,
+   "type": "s3_bucket",
+   "address": "module.s3_codepipeline.aws_s3_bucket.s3_bucket"
+  },
+  {
+   "category": "resource",
+   "id": "sns_topic/sns.sns_notifications",
+   "label": "sns.sns_notifications",
+   "name": "sns.sns_notifications",
+   "parent": null,
+   "type": "sns_topic",
+   "address": "module.sns.aws_sns_topic.sns_notifications"
+  },
+  {
+   "attrs": {
+    "access": "private"
+   },
+   "category": "group",
+   "id": "subnet/networking.private_subnets_client-0",
+   "label": "networking.private_subnets_client-0",
+   "name": "networking.private_subnets_client-0",
+   "parent": "availability_zone/networking.aws_vpc.az1",
+   "type": "subnet",
+   "address": "module.networking.aws_subnet.private_subnets_client[0]"
+  },
+  {
+   "attrs": {
+    "access": "private"
+   },
+   "category": "group",
+   "id": "subnet/networking.private_subnets_client-1",
+   "label": "networking.private_subnets_client-1",
+   "name": "networking.private_subnets_client-1",
+   "parent": "availability_zone/networking.aws_vpc.az2",
+   "type": "subnet",
+   "address": "module.networking.aws_subnet.private_subnets_client[1]"
+  },
+  {
+   "attrs": {
+    "access": "private"
+   },
+   "category": "group",
+   "id": "subnet/networking.private_subnets_server-0",
+   "label": "networking.private_subnets_server-0",
+   "name": "networking.private_subnets_server-0",
+   "parent": "availability_zone/networking.aws_vpc.az1",
+   "type": "subnet",
+   "address": "module.networking.aws_subnet.private_subnets_server[0]"
+  },
+  {
+   "attrs": {
+    "access": "private"
+   },
+   "category": "group",
+   "id": "subnet/networking.private_subnets_server-1",
+   "label": "networking.private_subnets_server-1",
+   "name": "networking.private_subnets_server-1",
+   "parent": "availability_zone/networking.aws_vpc.az2",
+   "type": "subnet",
+   "address": "module.networking.aws_subnet.private_subnets_server[1]"
+  },
+  {
+   "attrs": {
+    "access": "private"
+   },
+   "category": "group",
+   "id": "subnet/networking.public_subnets-0",
+   "label": "networking.public_subnets-0",
+   "name": "networking.public_subnets-0",
+   "parent": "availability_zone/networking.aws_vpc.az1",
+   "type": "subnet",
+   "address": "module.networking.aws_subnet.public_subnets[0]"
+  },
+  {
+   "attrs": {
+    "access": "private"
+   },
+   "category": "group",
+   "id": "subnet/networking.public_subnets-1",
+   "label": "networking.public_subnets-1",
+   "name": "networking.public_subnets-1",
+   "parent": "availability_zone/networking.aws_vpc.az2",
+   "type": "subnet",
+   "address": "module.networking.aws_subnet.public_subnets[1]"
+  },
+  {
+   "attrs": {
+    "cidr": "10.120.0.0/16"
+   },
+   "category": "group",
+   "id": "vpc/networking.aws_vpc",
+   "label": "networking.aws_vpc",
+   "name": "networking.aws_vpc",
+   "parent": null,
+   "type": "vpc",
+   "address": "module.networking.aws_vpc.aws_vpc"
+  }
+ ],
+ "edges": [
+  {
+   "confidence": "derived",
+   "from": "alb/alb_client.alb-0",
+   "id": "alb/alb_client.alb-0->ecs_service/ecs_service_client.ecs_service",
+   "kind": "network",
+   "label": "TCP 80",
+   "to": "ecs_service/ecs_service_client.ecs_service",
+   "evidence": [
+    "module.alb_client.aws_alb.alb[0].security_groups[0]",
+    "module.ecs_service_client.aws_ecs_service.ecs_service.network_configuration[0].security_groups[0]",
+    "module.security_group_ecs_task_client.aws_security_group.sg.ingress[0].security_groups[0]"
+   ],
+   "rules": [
+    "R-SG"
+   ]
+  },
+  {
+   "confidence": "derived",
+   "from": "alb/alb_server.alb-0",
+   "id": "alb/alb_server.alb-0->ecs_service/ecs_service_server.ecs_service",
+   "kind": "network",
+   "label": "TCP 3001",
+   "to": "ecs_service/ecs_service_server.ecs_service",
+   "evidence": [
+    "module.alb_server.aws_alb.alb[0].security_groups[0]",
+    "module.ecs_service_server.aws_ecs_service.ecs_service.network_configuration[0].security_groups[0]",
+    "module.security_group_ecs_task_server.aws_security_group.sg.ingress[0].security_groups[0]"
+   ],
+   "rules": [
+    "R-SG"
+   ]
+  },
+  {
+   "confidence": "inferred",
+   "from": "ecs_service/ecs_service_client.ecs_service",
+   "id": "ecs_service/ecs_service_client.ecs_service->dynamodb_table/dynamodb_table.dynamodb_table",
+   "kind": "data",
+   "label": "",
+   "to": "dynamodb_table/dynamodb_table.dynamodb_table",
+   "evidence": [
+    "module.ecs_role.data.aws_iam_policy_document.role_policy_ecs_task_role.statement[2].resources[0]"
+   ],
+   "rules": [
+    "E-IAM"
+   ]
+  },
+  {
+   "confidence": "inferred",
+   "from": "ecs_service/ecs_service_server.ecs_service",
+   "id": "ecs_service/ecs_service_server.ecs_service->dynamodb_table/dynamodb_table.dynamodb_table",
+   "kind": "data",
+   "label": "",
+   "to": "dynamodb_table/dynamodb_table.dynamodb_table",
+   "evidence": [
+    "module.ecs_role.data.aws_iam_policy_document.role_policy_ecs_task_role.statement[2].resources[0]"
+   ],
+   "rules": [
+    "E-IAM"
+   ]
+  },
+  {
+   "confidence": "derived",
+   "from": "subnet/networking.private_subnets_client-0",
+   "id": "subnet/networking.private_subnets_client-0->nat_gateway/networking.natgw",
+   "kind": "route",
+   "label": "0.0.0.0/0",
+   "to": "nat_gateway/networking.natgw",
+   "evidence": [
+    "module.networking.aws_route_table.rt_private.route[0].gateway_id",
+    "module.networking.aws_route_table_association.rt_assoc_priv_subnets_client[0].route_table_id",
+    "module.networking.aws_route_table_association.rt_assoc_priv_subnets_client[0].subnet_id"
+   ],
+   "rules": [
+    "R-ROUTE"
+   ]
+  },
+  {
+   "confidence": "derived",
+   "from": "subnet/networking.private_subnets_client-1",
+   "id": "subnet/networking.private_subnets_client-1->nat_gateway/networking.natgw",
+   "kind": "route",
+   "label": "0.0.0.0/0",
+   "to": "nat_gateway/networking.natgw",
+   "evidence": [
+    "module.networking.aws_route_table.rt_private.route[0].gateway_id",
+    "module.networking.aws_route_table_association.rt_assoc_priv_subnets_client[1].route_table_id",
+    "module.networking.aws_route_table_association.rt_assoc_priv_subnets_client[1].subnet_id"
+   ],
+   "rules": [
+    "R-ROUTE"
+   ]
+  },
+  {
+   "confidence": "derived",
+   "from": "subnet/networking.private_subnets_server-0",
+   "id": "subnet/networking.private_subnets_server-0->nat_gateway/networking.natgw",
+   "kind": "route",
+   "label": "0.0.0.0/0",
+   "to": "nat_gateway/networking.natgw",
+   "evidence": [
+    "module.networking.aws_route_table.rt_private.route[0].gateway_id",
+    "module.networking.aws_route_table_association.rt_assoc_priv_subnets_server[0].route_table_id",
+    "module.networking.aws_route_table_association.rt_assoc_priv_subnets_server[0].subnet_id"
+   ],
+   "rules": [
+    "R-ROUTE"
+   ]
+  },
+  {
+   "confidence": "derived",
+   "from": "subnet/networking.private_subnets_server-1",
+   "id": "subnet/networking.private_subnets_server-1->nat_gateway/networking.natgw",
+   "kind": "route",
+   "label": "0.0.0.0/0",
+   "to": "nat_gateway/networking.natgw",
+   "evidence": [
+    "module.networking.aws_route_table.rt_private.route[0].gateway_id",
+    "module.networking.aws_route_table_association.rt_assoc_priv_subnets_server[1].route_table_id",
+    "module.networking.aws_route_table_association.rt_assoc_priv_subnets_server[1].subnet_id"
+   ],
+   "rules": [
+    "R-ROUTE"
+   ]
+  }
+ ],
+ "totals": {
+  "nodes": 19,
+  "edges": 8
+ },
+ "unknown": 21
+}
