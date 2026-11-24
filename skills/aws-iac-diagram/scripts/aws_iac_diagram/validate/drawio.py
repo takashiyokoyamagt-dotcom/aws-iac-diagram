@@ -12,6 +12,8 @@ from dataclasses import dataclass, field
 
 BACKGROUND_LAYER = "layer-background"
 DEFAULT_FONT_SIZE = 12
+FRAME_TITLE_X = 32  # 枠の名前は、左上のアイコン（約 25 ピクセル）の右から
+FRAME_TITLE_H = 26
 LINE_HEIGHT = 1.2
 FULL_WIDTH = 1.0
 HALF_WIDTH = 0.6
@@ -221,9 +223,12 @@ def _label_size(text: str, font: int) -> tuple[float, float]:
 
 
 def node_label_rect(v: Vertex) -> Rect | None:
-    """アイコンの真下の中央。枠のラベルは枠の中に描くので対象外。"""
-    if v.is_container or not v.label:
+    """アイコンは真下の中央。枠は左上の名前（枠のアイコンの右。C6 で辺のラベルが重なると指摘された。2026-11-25 に足した）。"""
+    if not v.label:
         return None
+    if v.is_container:
+        w, h = _label_size(v.label, v.font_size)
+        return (v.rect[0], v.rect[1], v.rect[0] + FRAME_TITLE_X + w, v.rect[1] + FRAME_TITLE_H)
     w, h = _label_size(v.label, v.font_size)
     cx = (v.rect[0] + v.rect[2]) / 2
     return (cx - w / 2, v.rect[3], cx + w / 2, v.rect[3] + h + 3)  # 描画では名前が数ピクセル下に出る（2026-11-24 の目視で確かめた）
@@ -309,7 +314,10 @@ def check_labels(d: Diagram) -> list[Problem]:
     for e in sorted(d.edges, key=lambda x: x.id):
         rs = all_routes[e.id]
         for nid, r in sorted(node_rects.items()):
-            if all(_route_hits(x, r) for x in rs):  # 端のアイコン自身のラベル（真下）も数える（下から出る線が自分の名前を貫く）
+            # 端のアイコン自身の名前（真下）も数える（下から出る線が自分の名前を貫く）。ただし、端そのものか端の祖先の枠の名前は、
+            # 線がその枠に出入りするので数えない（枠の名前に辺のラベルが重なるのは、上の辺のラベルの検査で数える）
+            exempt = d.vertices[nid].is_container and (nid in (e.source, e.target) or nid in _ancestors(d, e.source) | _ancestors(d, e.target))
+            if not exempt and all(_route_hits(x, r) for x in rs):
                 out.append(Problem("label", f"line:{e.id}", f"label:{nid}"))
         for f, qs in placed:
             # 端を共にする辺（同じ NAT に集まる辺など）は、終わりの線分が重なるので数えない

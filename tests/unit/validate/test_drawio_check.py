@@ -81,7 +81,7 @@ class CheckTest(unittest.TestCase):
     def test_empty_frame_is_a_frame(self):
         d = drawio.parse(doc(v("f", 0, 0, 100, 100, style="container=1;", value="x")))
         self.assertTrue(d.vertices["f"].is_container)
-        self.assertIsNone(drawio.node_label_rect(d.vertices["f"]))
+        self.assertEqual(drawio.node_label_rect(d.vertices["f"])[:2], (0.0, 0.0))  # 枠の名前は左上
 
     def test_icon_ids_containing_label_are_not_label_checks(self):
         d = drawio.parse(doc(v("label-a", 0, 0), v("label-b", 0, 41)))

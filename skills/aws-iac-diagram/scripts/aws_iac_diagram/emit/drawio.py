@@ -96,7 +96,9 @@ def emit(ir: dict, layout: Layout, r: rules.Rules, catalog: dict[str, dict]) -> 
     label_rects = {}  # アイコンのラベル（真下の中央）。線がなるべく通らないようにする
     for i, r in rects.items():
         n = by_id.get(i)
-        if n is not None and n["category"] != "group" and n["label"]:
+        if n is not None and n["category"] == "group" and n["label"]:  # 枠の左上の名前
+            label_rects[i] = (r[0], r[1], r[0] + 32 + label_width(n["label"]), r[1] + 26)
+        elif n is not None and n["label"]:
             w = label_width(n["label"])
             cx = (r[0] + r[2]) / 2
             label_rects[i] = (cx - w / 2, r[3], cx + w / 2, r[3] + LABEL_H + 3)  # 描画では名前が数ピクセル下に出る
