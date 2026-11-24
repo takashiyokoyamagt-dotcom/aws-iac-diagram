@@ -63,6 +63,43 @@ def path(src: Rect, dst: Rect, exit_: tuple[float, float], entry: tuple[float, f
     return [p, (p[0], my), (q[0], my), q]
 
 
+_CTX: dict = {}
+
+
+def _context(layout: Layout, rects: dict[str, Rect], soft: dict[str, Rect] | None) -> dict:
+    """配置ごとの下ごしらえ（直前の配置の分だけ覚える。結果は覚えない計算と同じ）。"""
+    key = (id(layout), id(rects), id(soft))
+    if _CTX.get("key") == key:
+        return _CTX
+    kids: dict[str, list[str]] = {}
+    for i, p in layout.placed.items():
+        if p.parent is not None:
+            kids.setdefault(p.parent, []).append(i)
+    ancestors: dict[str, set[str]] = {}
+    for i in layout.placed:
+        out, p = set(), layout.placed[i].parent
+        while p is not None:
+            out.add(p)
+            p = layout.placed[p].parent
+        ancestors[i] = out
+    descendants: dict[str, set[str]] = {}
+    for i in layout.placed:
+        out, stack = set(), list(kids.get(i, []))
+        while stack:
+            c = stack.pop()
+            out.add(c)
+            stack.extend(kids.get(c, []))
+        descendants[i] = out
+    m = SOFT_MARGIN
+    _CTX.clear()
+    _CTX.update(key=key, kids=kids, ancestors=ancestors, descendants=descendants,
+                rects=[(i, rects[i]) for i in sorted(rects)],
+                soft=[(r[0] - m, r[1] - m, r[2] + m, r[3] + m) for _, r in sorted((soft or {}).items())],
+                icons=[r for i, r in rects.items() if not kids.get(i)],
+                refs=(layout, rects, soft))  # id が使い回されないよう、元の物を持っておく
+    return _CTX
+
+
 def layout_is_group(layout: Layout, kids: dict[str, list[str]], i: str) -> bool:
     return bool(kids.get(i))
 
@@ -120,28 +157,14 @@ def _hits(a: Point, b: Point, r: Rect) -> bool:
 
 def choose(layout: Layout, rects: dict[str, Rect], src: str, dst: str,
            soft: dict[str, Rect] | None = None, label: tuple[float, float] | None = None) -> tuple:
-    """(exit, entry, exit の dy, entry の dy)。"""
-    """ほかのノードを通らない形のうち、ラベル（soft。ノード id → ラベルの矩形）を通らず、折れが少なく短いもの。"""
-    def ancestors(i: str) -> set[str]:
-        out, p = set(), layout.placed[i].parent
-        while p is not None:
-            out.add(p)
-            p = layout.placed[p].parent
-        return out
-    kids: dict[str, list[str]] = {}
-    for i, p in layout.placed.items():
-        if p.parent is not None:
-            kids.setdefault(p.parent, []).append(i)
-
-    def descendants(i: str) -> set[str]:
-        out, stack = set(), list(kids.get(i, []))
-        while stack:
-            c = stack.pop()
-            out.add(c)
-            stack.extend(kids.get(c, []))
-        return out
-    allowed = {src, dst} | ancestors(src) | ancestors(dst) | descendants(src) | descendants(dst)
-    others = [rects[i] for i in sorted(rects) if i not in allowed]
+    """(exit, entry, exit の dy, entry の dy)。ほかのノードを通らない形のうち、ラベル（soft。ノード id → ラベルの矩形）を
+    通らず、折れが少なく短いもの。1 つの配置の中で同じ計算を繰り返さないよう、木の形と矩形の並びは配置ごとに 1 回だけ作る。"""
+    ctx = _context(layout, rects, soft)
+    kids, ancestors, descendants = ctx["kids"], ctx["ancestors"], ctx["descendants"]
+    allowed = {src, dst} | ancestors[src] | ancestors[dst] | descendants[src] | descendants[dst]
+    others = [r for i, r in ctx["rects"] if i not in allowed]
+    soft_boxes = ctx["soft"]
+    icon_rects = ctx["icons"]
     best = None
     for n, shape in enumerate(SHAPES):
         ex, en = ports(rects[src], rects[dst], shape)
@@ -150,16 +173,15 @@ def choose(layout: Layout, rects: dict[str, Rect], src: str, dst: str,
         route = path(rects[src], rects[dst], ex, en, sdy, tdy)
         hits = sum(1 for r in others if any(_hits(a, b, r) for a, b in zip(route, route[1:])))
         length = sum(abs(a[0] - b[0]) + abs(a[1] - b[1]) for a, b in zip(route, route[1:]))
-        soft_hits = sum(1 for i, r in sorted((soft or {}).items())  # 端のアイコン自身のラベルも避ける。すぐそばも避ける（余白 SOFT_MARGIN）
-                        if any(_hits(a, b, (r[0] - SOFT_MARGIN, r[1] - SOFT_MARGIN, r[2] + SOFT_MARGIN, r[3] + SOFT_MARGIN))
-                               for a, b in zip(route, route[1:])))
+        soft_hits = sum(1 for r in soft_boxes  # 端のアイコン自身のラベルも避ける。すぐそばも避ける（余白 SOFT_MARGIN）
+                        if any(_hits(a, b, r) for a, b in zip(route, route[1:])))
         if label is not None:  # 辺のラベル（経路の中点）が、端も含めてアイコンに重ならないように
             m = _midpoint(route)
             dx, dy = label_offset(route, label[0], label[1])
             m = (m[0] + dx, m[1] + dy)
             box = (m[0] - label[0] / 2, m[1] - label[1] / 2, m[0] + label[0] / 2, m[1] + label[1] / 2)
-            soft_hits += sum(1 for i, r in rects.items() if not layout_is_group(layout, kids, i)
-                             and min(r[2], box[2]) > max(r[0], box[0]) and min(r[3], box[3]) > max(r[1], box[1]))
+            soft_hits += sum(1 for r in icon_rects
+                             if min(r[2], box[2]) > max(r[0], box[0]) and min(r[3], box[3]) > max(r[1], box[1]))
         key = (hits + (100 if _backwards(route, ex, en) else 0), soft_hits, len(set(route)), length, n)
         if best is None or key < best[0]:
             best = (key, ex, en, sdy, tdy)

@@ -1,0 +1,270 @@
+{
+ "nodes": [
+  {
+   "what": "VPC",
+   "found": true,
+   "node": "vpc/vpc.vpc",
+   "note": ""
+  },
+  {
+   "what": "Internet Gateway",
+   "found": true,
+   "node": "internet_gateway/vpc.internetgateway",
+   "note": ""
+  },
+  {
+   "what": "公開サブネット x2",
+   "found": true,
+   "node": "subnet/vpc.publicsubnet1,2",
+   "note": ""
+  },
+  {
+   "what": "プライベートサブネット x2",
+   "found": true,
+   "node": "subnet/vpc.privatesubnet1,2",
+   "note": ""
+  },
+  {
+   "what": "NAT Gateway x2",
+   "found": true,
+   "node": "nat_gateway/vpc.natgateway1,2",
+   "note": ""
+  },
+  {
+   "what": "EIP x2",
+   "found": false,
+   "node": null,
+   "note": "統合: NAT に統合"
+  },
+  {
+   "what": "ALB",
+   "found": true,
+   "node": "alb/alb.loadbalancer",
+   "note": ""
+  },
+  {
+   "what": "ALB Listener",
+   "found": false,
+   "node": null,
+   "note": "統合"
+  },
+  {
+   "what": "ALB Security Group",
+   "found": false,
+   "node": null,
+   "note": "統合: 辺に統合"
+  },
+  {
+   "what": "ECS Host Security Group",
+   "found": false,
+   "node": null,
+   "note": "統合: 辺に統合"
+  },
+  {
+   "what": "ECS Cluster",
+   "found": false,
+   "node": null,
+   "note": "統合: service に統合"
+  },
+  {
+   "what": "ECS AutoScalingGroup",
+   "found": true,
+   "node": "autoscaling_group/ecs.ecsautoscalinggroup",
+   "note": ""
+  },
+  {
+   "what": "LaunchConfiguration",
+   "found": false,
+   "node": null,
+   "note": "統合: ASG に統合"
+  },
+  {
+   "what": "ProductService ECS Service",
+   "found": true,
+   "node": "ecs_service/productservice.service",
+   "note": ""
+  },
+  {
+   "what": "WebsiteService ECS Service",
+   "found": true,
+   "node": "ecs_service/websiteservice.service",
+   "note": ""
+  },
+  {
+   "what": "Task definitions",
+   "found": false,
+   "node": null,
+   "note": "統合"
+  },
+  {
+   "what": "Target groups",
+   "found": false,
+   "node": null,
+   "note": "統合: ALB→service 辺に統合"
+  },
+  {
+   "what": "Lambda LifecycleHandlerFunction",
+   "found": true,
+   "node": "lambda_function/lifecyclehook.lifecyclehandlerfunction",
+   "note": ""
+  },
+  {
+   "what": "SNS NotificationTopic",
+   "found": true,
+   "node": "sns_topic/lifecyclehook.notificationtopic",
+   "note": ""
+  },
+  {
+   "what": "Lifecycle hook",
+   "found": false,
+   "node": null,
+   "note": "統合: ASG に統合"
+  }
+ ],
+ "edges": [
+  {
+   "from": "Internet Gateway",
+   "to": "VPC",
+   "found": true,
+   "edge": null,
+   "note": "parent が VPC"
+  },
+  {
+   "from": "NAT Gateway",
+   "to": "公開サブネット",
+   "found": true,
+   "edge": null,
+   "note": "parent が公開サブネット"
+  },
+  {
+   "from": "NAT Gateway",
+   "to": "EIP",
+   "found": false,
+   "edge": null,
+   "note": "統合"
+  },
+  {
+   "from": "ALB",
+   "to": "公開サブネット",
+   "found": true,
+   "edge": null,
+   "note": "spans"
+  },
+  {
+   "from": "ALB",
+   "to": "ALB Security Group",
+   "found": false,
+   "edge": null,
+   "note": "統合"
+  },
+  {
+   "from": "Listener",
+   "to": "ALB",
+   "found": false,
+   "edge": null,
+   "note": "統合"
+  },
+  {
+   "from": "Listener",
+   "to": "Default target group",
+   "found": false,
+   "edge": null,
+   "note": "統合"
+  },
+  {
+   "from": "ListenerRule(product)",
+   "to": "Listener",
+   "found": false,
+   "edge": null,
+   "note": "統合"
+  },
+  {
+   "from": "ListenerRule",
+   "to": "Target group",
+   "found": false,
+   "edge": null,
+   "note": "統合"
+  },
+  {
+   "from": "ECS Service(product)",
+   "to": "ECS Cluster",
+   "found": false,
+   "edge": null,
+   "note": "統合"
+  },
+  {
+   "from": "ECS Service",
+   "to": "Task definition",
+   "found": false,
+   "edge": null,
+   "note": "統合"
+  },
+  {
+   "from": "ECS Service",
+   "to": "Target group",
+   "found": "逆",
+   "edge": "alb/alb.loadbalancer->ecs_service/*",
+   "note": "IR は ALB→Service（TG は辺に統合）"
+  },
+  {
+   "from": "Target group",
+   "to": "VPC",
+   "found": false,
+   "edge": null,
+   "note": "統合（TG 統合のため）"
+  },
+  {
+   "from": "ASG",
+   "to": "プライベートサブネット",
+   "found": true,
+   "edge": null,
+   "note": "ASG の spans"
+  },
+  {
+   "from": "ASG",
+   "to": "LaunchConfiguration",
+   "found": false,
+   "edge": null,
+   "note": "統合"
+  },
+  {
+   "from": "LaunchConfiguration",
+   "to": "ECS Host SG / ECS cluster",
+   "found": false,
+   "edge": null,
+   "note": "統合"
+  },
+  {
+   "from": "Lifecycle hook",
+   "to": "ASG",
+   "found": false,
+   "edge": null,
+   "note": "統合"
+  },
+  {
+   "from": "Lifecycle hook",
+   "to": "SNS topic",
+   "found": true,
+   "edge": "autoscaling_group->sns_topic",
+   "note": "hook は統合され ASG→SNS の辺として出る"
+  },
+  {
+   "from": "SNS topic",
+   "to": "Lambda",
+   "found": true,
+   "edge": "sns->lambda",
+   "note": ""
+  },
+  {
+   "from": "ECS host SG",
+   "to": "ALB SG",
+   "found": true,
+   "edge": "alb->autoscaling_group (network)",
+   "note": "SG 間の ingress は ALB→ASG の辺に統合して出る"
+  }
+ ],
+ "wrong": [
+  "ALB→ASG の network 辺: SG ingress が根拠で妥当",
+  "productservice/websiteservice に parent・spans が無い（VPC 内に表示されない）"
+ ]
+}

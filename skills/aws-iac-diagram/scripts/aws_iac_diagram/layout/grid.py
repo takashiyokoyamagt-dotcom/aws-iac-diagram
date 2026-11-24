@@ -4,6 +4,7 @@
 """
 from __future__ import annotations
 
+import functools
 import math
 import unicodedata
 from dataclasses import dataclass, field
@@ -49,6 +50,7 @@ class Layout:
     height: int = 0
 
 
+@functools.lru_cache(maxsize=4096)
 def label_width(text: str, font: int = FONT) -> int:
     return math.ceil(sum((1.0 if unicodedata.east_asian_width(c) in "WFA" else 0.6) * font for c in text))
 

@@ -1,0 +1,271 @@
+{
+ "nodes": [
+  {
+   "what": "VPC",
+   "found": true,
+   "node": "vpc/networking.aws_vpc",
+   "note": ""
+  },
+  {
+   "what": "公開サブネット(2)",
+   "found": true,
+   "node": "subnet/networking.public_subnets-0,-1",
+   "note": ""
+  },
+  {
+   "what": "プライベートサブネット client(2)",
+   "found": true,
+   "node": "subnet/networking.private_subnets_client-0,-1",
+   "note": ""
+  },
+  {
+   "what": "プライベートサブネット server(2)",
+   "found": true,
+   "node": "subnet/networking.private_subnets_server-0,-1",
+   "note": ""
+  },
+  {
+   "what": "Internet Gateway",
+   "found": true,
+   "node": "internet_gateway/networking.igw",
+   "note": ""
+  },
+  {
+   "what": "NAT Gateway",
+   "found": true,
+   "node": "nat_gateway/networking.natgw",
+   "note": ""
+  },
+  {
+   "what": "ALB server",
+   "found": true,
+   "node": "alb/alb_server.alb-0",
+   "note": ""
+  },
+  {
+   "what": "ALB client",
+   "found": true,
+   "node": "alb/alb_client.alb-0",
+   "note": ""
+  },
+  {
+   "what": "ECS Cluster",
+   "found": false,
+   "node": null,
+   "note": "統合: ecs_service 2件に merged_into"
+  },
+  {
+   "what": "ECS Service server",
+   "found": true,
+   "node": "ecs_service/ecs_service_server.ecs_service",
+   "note": ""
+  },
+  {
+   "what": "ECS Service client",
+   "found": true,
+   "node": "ecs_service/ecs_service_client.ecs_service",
+   "note": ""
+  },
+  {
+   "what": "ECR repo server",
+   "found": true,
+   "node": "ecr_repository/repo-server",
+   "note": ""
+  },
+  {
+   "what": "ECR repo client",
+   "found": true,
+   "node": "ecr_repository/repo-client",
+   "note": ""
+  },
+  {
+   "what": "DynamoDB table",
+   "found": true,
+   "node": "dynamodb_table/dynamodb_table.dynamodb_table",
+   "note": ""
+  },
+  {
+   "what": "S3 assets bucket",
+   "found": true,
+   "node": "s3_bucket/s3_assets.s3_bucket",
+   "note": ""
+  },
+  {
+   "what": "CodePipeline",
+   "found": true,
+   "node": "codepipeline/codepipeline.aws_codepipeline",
+   "note": ""
+  },
+  {
+   "what": "CodeBuild server/client",
+   "found": true,
+   "node": "codebuild_project/codebuild_server|client.aws_codebuild",
+   "note": ""
+  },
+  {
+   "what": "CodeDeploy app server/client",
+   "found": true,
+   "node": "codedeploy_app/codedeploy_server|client.main",
+   "note": ""
+  },
+  {
+   "what": "SNS topic",
+   "found": true,
+   "node": "sns_topic/sns.sns_notifications",
+   "note": ""
+  },
+  {
+   "what": "ECS task definition server/client",
+   "found": false,
+   "node": null,
+   "note": "統合: ecs_service に merged_into"
+  }
+ ],
+ "edges": [
+  {
+   "from": "Internet Gateway",
+   "to": "VPC",
+   "found": true,
+   "edge": null,
+   "note": "辺なし。IGW の parent が VPC（包含）"
+  },
+  {
+   "from": "NAT Gateway",
+   "to": "公開サブネット",
+   "found": true,
+   "edge": null,
+   "note": "NAT の parent が公開サブネット-0（包含）"
+  },
+  {
+   "from": "ALB server",
+   "to": "公開サブネット",
+   "found": true,
+   "edge": null,
+   "note": "ALB の spans"
+  },
+  {
+   "from": "ALB client",
+   "to": "公開サブネット",
+   "found": true,
+   "edge": null,
+   "note": "ALB の spans"
+  },
+  {
+   "from": "ECS Service server",
+   "to": "ECS Cluster",
+   "found": false,
+   "edge": null,
+   "note": "統合（クラスタが service に統合）"
+  },
+  {
+   "from": "ECS Service server",
+   "to": "ALB server(target group経由)",
+   "found": "逆",
+   "edge": "alb/alb_server.alb-0->ecs_service/ecs_service_server.ecs_service",
+   "note": "IR は ALB→Service（通信の向き）"
+  },
+  {
+   "from": "ECS Service client",
+   "to": "ALB client(target group)",
+   "found": "逆",
+   "edge": "alb/alb_client.alb-0->ecs_service/ecs_service_client.ecs_service",
+   "note": "同上"
+  },
+  {
+   "from": "ECS Service server",
+   "to": "ECS task definition server",
+   "found": false,
+   "edge": null,
+   "note": "統合"
+  },
+  {
+   "from": "ECS Service server",
+   "to": "private server subnets",
+   "found": true,
+   "edge": null,
+   "note": "service の spans"
+  },
+  {
+   "from": "ECS Service client",
+   "to": "private client subnets",
+   "found": true,
+   "edge": null,
+   "note": "service の spans"
+  },
+  {
+   "from": "ECS task definition",
+   "to": "ECR repo",
+   "found": true,
+   "edge": "ecs_service/*->ecr_repository/repo-*",
+   "note": "タスク定義が統合された service から ECR へ"
+  },
+  {
+   "from": "CodePipeline",
+   "to": "CodeBuild",
+   "found": true,
+   "edge": "codepipeline->codebuild_project/* (2)",
+   "note": ""
+  },
+  {
+   "from": "CodePipeline",
+   "to": "CodeDeploy",
+   "found": true,
+   "edge": "codepipeline->codedeploy_app/* (2)",
+   "note": ""
+  },
+  {
+   "from": "CodePipeline",
+   "to": "S3 artifact bucket",
+   "found": true,
+   "edge": "codepipeline->s3_codepipeline",
+   "note": ""
+  },
+  {
+   "from": "CodeDeploy",
+   "to": "ECS Service/Cluster",
+   "found": true,
+   "edge": "codedeploy_app/*->ecs_service/* (2)",
+   "note": ""
+  },
+  {
+   "from": "CodeDeploy",
+   "to": "ALB listener",
+   "found": false,
+   "edge": null,
+   "note": "リスナーは統合済みで、CodeDeploy→ALB/リスナーの辺なし"
+  },
+  {
+   "from": "CodeDeploy",
+   "to": "SNS topic",
+   "found": true,
+   "edge": "codedeploy_app/*->sns (2)",
+   "note": ""
+  },
+  {
+   "from": "CodeBuild",
+   "to": "ECR",
+   "found": true,
+   "edge": "codebuild_project/*->ecr_repository/* (2)",
+   "note": ""
+  },
+  {
+   "from": "Autoscaling",
+   "to": "ECS service",
+   "found": false,
+   "edge": null,
+   "note": "app autoscaling は hidden（H-APP-AUTOSCALING）"
+  },
+  {
+   "from": "Route table",
+   "to": "IGW / NAT",
+   "found": true,
+   "edge": "subnet/private_*->nat_gateway/natgw (4)",
+   "note": "NAT 側は出る。公開サブネット→IGW の route 辺は無い（公開RTは hidden H-RT-NOROUTE）"
+  }
+ ],
+ "wrong": [
+  "codebuild_server→dynamodb: 環境変数で参照、正しい",
+  "ecs_service_client→dynamodb: inferred。共有 ecs_role の IAM 文のみが根拠で、client が DynamoDB を使うかは不明（過剰の可能性）",
+  "ターゲットグループ(blue/green)は統合"
+ ]
+}

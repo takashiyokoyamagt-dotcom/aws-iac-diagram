@@ -1,0 +1,283 @@
+{
+ "nodes": [
+  {
+   "what": "Transit Gateway",
+   "found": true,
+   "node": "transit_gateway/tgw.org_tgw",
+   "note": ""
+  },
+  {
+   "what": "TGW ルートテーブル(複数)",
+   "found": false,
+   "node": null,
+   "note": "統合: TGW に merged_into"
+  },
+  {
+   "what": "Inspection VPC",
+   "found": true,
+   "node": "vpc/inspection_vpc",
+   "note": ""
+  },
+  {
+   "what": "Endpoints VPC",
+   "found": true,
+   "node": "vpc/endpoint_vpc",
+   "note": ""
+  },
+  {
+   "what": "DNS VPC",
+   "found": true,
+   "node": "vpc/dns_vpc",
+   "note": ""
+  },
+  {
+   "what": "Network Firewall",
+   "found": true,
+   "node": "network_firewall/networkfirewall",
+   "note": ""
+  },
+  {
+   "what": "Network Firewall policy",
+   "found": false,
+   "node": null,
+   "note": "統合: NFW に統合"
+  },
+  {
+   "what": "NFW rule group",
+   "found": false,
+   "node": null,
+   "note": "統合: NFW に統合"
+  },
+  {
+   "what": "Inspection VPC の TGW attachment",
+   "found": false,
+   "node": null,
+   "note": "統合: vpc->tgw 辺に統合"
+  },
+  {
+   "what": "Endpoints/DNS VPC の TGW attachment",
+   "found": false,
+   "node": null,
+   "note": "統合: vpc->tgw 辺に統合"
+  },
+  {
+   "what": "NAT Gateway",
+   "found": true,
+   "node": "nat_gateway/network_firewall_vpc.internet-eu-west-2a|b|c",
+   "note": ""
+  },
+  {
+   "what": "Internet Gateway",
+   "found": true,
+   "node": "internet_gateway/inspection_igw",
+   "note": ""
+  },
+  {
+   "what": "Egress-only IGW",
+   "found": true,
+   "node": "egress_only_internet_gateway/inspection_eigw",
+   "note": ""
+  },
+  {
+   "what": "VPC interface endpoints",
+   "found": true,
+   "node": "vpc_endpoint/com.amazonaws.eu-west-2.* (11)",
+   "note": ""
+  },
+  {
+   "what": "Route 53 resolver endpoint",
+   "found": true,
+   "node": "route53_resolver_endpoint/org-inbound|outbound",
+   "note": ""
+  },
+  {
+   "what": "Route 53 private hosted zone",
+   "found": true,
+   "node": "route53_zone/dns.root_private ほか",
+   "note": ""
+  },
+  {
+   "what": "VPC IPAM / pool",
+   "found": false,
+   "node": null,
+   "note": "hidden（H-IPAM）"
+  },
+  {
+   "what": "RAM resource share",
+   "found": false,
+   "node": null,
+   "note": "hidden（H-RAM）"
+  },
+  {
+   "what": "KMS key (ログ)",
+   "found": true,
+   "node": "kms_key/log_key",
+   "note": "辺なしの孤立ノード"
+  },
+  {
+   "what": "CloudWatch log groups",
+   "found": false,
+   "node": null,
+   "note": "hidden（H-LOGS）"
+  },
+  {
+   "what": "サブネット",
+   "found": true,
+   "node": "subnet/* (15)",
+   "note": ""
+  }
+ ],
+ "edges": [
+  {
+   "from": "TGW attachment(inspection)",
+   "to": "Transit Gateway",
+   "found": true,
+   "edge": "vpc/inspection_vpc->tgw",
+   "note": "attachment は辺に統合、VPC→TGW で対応"
+  },
+  {
+   "from": "TGW attachment(endpoints)",
+   "to": "Transit Gateway",
+   "found": true,
+   "edge": "vpc/endpoint_vpc->tgw",
+   "note": "同上"
+  },
+  {
+   "from": "TGW attachment(dns)",
+   "to": "Transit Gateway",
+   "found": true,
+   "edge": "vpc/dns_vpc->tgw",
+   "note": "同上"
+  },
+  {
+   "from": "TGW attachment",
+   "to": "各VPC",
+   "found": true,
+   "edge": "vpc/*->transit_gateway/tgw.org_tgw",
+   "note": "同上（3 VPC）"
+  },
+  {
+   "from": "TGW route(default)",
+   "to": "inspection attachment",
+   "found": true,
+   "edge": "transit_gateway/tgw.org_tgw->vpc/inspection_vpc",
+   "note": "route 種別"
+  },
+  {
+   "from": "TGW route table association",
+   "to": "attachment",
+   "found": false,
+   "edge": null,
+   "note": "統合: association は vpc->tgw 辺に統合"
+  },
+  {
+   "from": "Network Firewall",
+   "to": "Inspection VPC / inspection subnets",
+   "found": true,
+   "edge": null,
+   "note": "parent と spans"
+  },
+  {
+   "from": "Network Firewall",
+   "to": "Firewall policy",
+   "found": false,
+   "edge": null,
+   "note": "統合"
+  },
+  {
+   "from": "Firewall policy",
+   "to": "rule group",
+   "found": false,
+   "edge": null,
+   "note": "統合"
+  },
+  {
+   "from": "NFW logging",
+   "to": "CloudWatch log groups",
+   "found": false,
+   "edge": null,
+   "note": "log group は hidden、logging は NFW に統合"
+  },
+  {
+   "from": "NFW logging",
+   "to": "Network Firewall",
+   "found": false,
+   "edge": null,
+   "note": "統合"
+  },
+  {
+   "from": "NAT Gateway",
+   "to": "internet subnet / EIP",
+   "found": true,
+   "edge": null,
+   "note": "NAT の parent が internet subnet（EIP は統合）"
+  },
+  {
+   "from": "IGW / EIGW",
+   "to": "Inspection VPC",
+   "found": true,
+   "edge": null,
+   "note": "parent が inspection_vpc"
+  },
+  {
+   "from": "VPC endpoint",
+   "to": "Endpoints VPC",
+   "found": true,
+   "edge": null,
+   "note": "parent"
+  },
+  {
+   "from": "VPC endpoint",
+   "to": "endpoint subnets",
+   "found": true,
+   "edge": null,
+   "note": "spans"
+  },
+  {
+   "from": "Resolver endpoint",
+   "to": "DNS VPC subnets",
+   "found": true,
+   "edge": null,
+   "note": "spans"
+  },
+  {
+   "from": "Resolver rule",
+   "to": "outbound endpoint",
+   "found": false,
+   "edge": null,
+   "note": "統合"
+  },
+  {
+   "from": "RAM resource association",
+   "to": "TGW / IPAM / resolver rule",
+   "found": false,
+   "edge": null,
+   "note": "RAM は hidden"
+  },
+  {
+   "from": "IPAM pool",
+   "to": "VPCs",
+   "found": false,
+   "edge": null,
+   "note": "IPAM は hidden"
+  },
+  {
+   "from": "flow logs",
+   "to": "VPC / log group",
+   "found": false,
+   "edge": null,
+   "note": "flow_log・log group は hidden"
+  },
+  {
+   "from": "log group",
+   "to": "KMS key",
+   "found": false,
+   "edge": null,
+   "note": "log group が hidden のため KMS は孤立"
+  }
+ ],
+ "wrong": [
+  "route53_record→vpc_endpoint（request）11本: 妥当だがレコードを別ノードで 11 個描くので冗長",
+  "全 attachment/inspection サブネット→EIGW の route 辺: 大筋は妥当だが全件の根拠は未確認"
+ ]
+}
