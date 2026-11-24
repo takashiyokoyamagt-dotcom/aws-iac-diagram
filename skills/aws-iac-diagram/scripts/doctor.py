@@ -160,6 +160,7 @@ REQUIRED_FILES = [
     "scripts/doctor.py",
     "scripts/find_aws_icon.py",
     "scripts/diagram.py",
+    "scripts/make_diagram.py",
     "scripts/normalize_ir.py",
     "scripts/validate_ir.py",
 ]

@@ -4,7 +4,7 @@
 - 書いてあるスクリプトが実在し、`scripts/` の直下の入口がすべて書いてある。辞書の保守用（maintenance/）は書かない。
 - 書いてあるコマンドは `uv run "<SKILL>/scripts/…"` の 1 行で、シェルの機能（`&&`・`|`・`>`・`;`・`$`）を使わない。
 - 書いてあるオプション（`--out` など）は、どれかの入口のスクリプトが実際に持っている。
-- まだ無いもの（入力から図まで一度に進める手順）を、使えるように書いていない。
+- 基本の手順（make_diagram.py → result.json → coverage.md）が書いてある（フェーズ 6）。
 """
 from __future__ import annotations
 
@@ -70,7 +70,7 @@ class SkillEntryTest(unittest.TestCase):
 
     def test_real_skill_md(self):
         text = SKILL_MD.read_text(encoding="utf-8")
-        self.assertEqual(entry_scripts(), {"diagram.py", "doctor.py", "adapt_tf.py", "adapt_cfn.py", "normalize_ir.py", "validate_ir.py", "find_aws_icon.py"})
+        self.assertEqual(entry_scripts(), {"make_diagram.py", "diagram.py", "doctor.py", "adapt_tf.py", "adapt_cfn.py", "normalize_ir.py", "validate_ir.py", "find_aws_icon.py"})
         self.assertEqual(problems_in(text, entry_scripts(), self.sources()), [])
         self.assertGreaterEqual(len(commands(text)), 5)  # 空振りの防止
 
@@ -83,10 +83,11 @@ class SkillEntryTest(unittest.TestCase):
         self.assertFalse(any((SKILL / "references" / n).exists() for n in ("resource-catalog.md", "relation-resources.md", "edge-rules.md")))
         self.assertTrue((SKILL / "data" / "rules" / "relations.toml").is_file())
 
-    def test_states_what_is_not_available(self):
+    def test_states_the_main_flow(self):
         body = SKILL_MD.read_text(encoding="utf-8")
-        self.assertIn("準備中", body)
-        self.assertRegex(body, r"入力から図まで一度に進める手順はまだありません")
+        self.assertNotIn("準備中", body)
+        for word in ("make_diagram.py", "result.json", "questions", "coverage.md", "skipped", "推定"):
+            self.assertIn(word, body)
 
     def test_check_finds_problems(self):
         good = SKILL_MD.read_text(encoding="utf-8")

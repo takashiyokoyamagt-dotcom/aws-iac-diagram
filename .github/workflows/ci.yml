@@ -18,7 +18,7 @@ jobs:
       matrix:
         os: [ubuntu-24.04, windows-2025]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
 
@@ -124,6 +124,38 @@ jobs:
           uv run "$skill\scripts\validate_ir.py" "$cfnout"
           if ($LASTEXITCODE -ne 0) { throw "validate_ir (cfn raw) exit code was $LASTEXITCODE" }
           exit 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.20.0"
+      - name: mmdc（3 形式の検証用）
+        run: npm install -g @mermaid-js/mermaid-cli@12.0.0
+      - name: draw.io・xvfb・フォント（Linux）
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          curl -fsSL -o drawio.deb https://github.com/jgraph/drawio-desktop/releases/download/v32.4.1/drawio-amd64-32.4.1.deb
+          echo "f4455b3bba3d3b539c3cd069218fc64f0462b1b01610fe8d11acc3ca8566f32b  drawio.deb" | sha256sum -c -
+          sudo apt-get update
+          sudo apt-get install -y ./drawio.deb xvfb fonts-noto-cjk libasound2t64
+          rm drawio.deb
+      - name: draw.io（Windows。zip を展開して DRAWIO に）
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP 'drawio.zip'
+          Invoke-WebRequest -Uri 'https://github.com/jgraph/drawio-desktop/releases/download/v32.4.1/draw.io-x64-32.4.1.zip' -OutFile $zip
+          $h = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+          if ($h -ne '5587c2a5bb730195c8b967757fef0ea5db9cb12748cf71773cdce57712ab77b9') { throw "sha256 mismatch: $h" }
+          $dir = Join-Path $env:RUNNER_TEMP 'drawio'
+          Expand-Archive $zip -DestinationPath $dir
+          $exe = Get-ChildItem $dir -Recurse -Filter 'draw.io.exe' | Select-Object -First 1
+          "DRAWIO=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+      - name: 3 形式の生成と検証（自作 5 構成 × TF／CFN）
+        shell: bash
+        env:
+          AWS_IAC_DIAGRAM_XVFB: "1"
+        run: uv run python aws-iac-diagram-workspace/tools/ci_render_check.py --out-dir "$RUNNER_TEMP/render"
 
       - name: SKILL の起動（bash、日本語とスペースを含むパス）
         if: runner.os == 'Linux'
