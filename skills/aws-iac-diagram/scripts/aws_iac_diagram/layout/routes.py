@@ -13,6 +13,7 @@ LABEL_GAP = LABEL_H + 5 # アイコンの下から出入りする線は、名前
 Rect = tuple[float, float, float, float]
 Point = tuple[float, float]
 SHAPES = ("hv", "vh", "hh", "vv")
+SOFT_MARGIN = 6  # 線が名前のすぐそばを通らないように（C6 の指摘。検査より広く避ける）
 
 
 def absolute(layout: Layout) -> dict[str, Rect]:
@@ -91,6 +92,24 @@ def label_offset(route: list[Point], w: float, h: float) -> tuple[float, float]:
     return (0.0, -(h / 2 + 4))
 
 
+def _backwards(route: list[Point], ex: tuple[float, float], en: tuple[float, float]) -> bool:
+    """出入りの辺の向きと、線の進む向きが逆か（下の辺から入るのに上から下りてくる、など）。そうした線は名前や
+    アイコンの上を通るので、ほかの形が無いときだけ使う。"""
+    (p, p1), (q0, q) = (route[0], route[1]), (route[-2], route[-1])
+
+    def wrong(f: tuple[float, float], a: Point, b: Point) -> bool:  # a → b が、辺 f から外へ向かう向きでない
+        if f[1] == 1.0:
+            return b[1] < a[1]
+        if f[1] == 0.0:
+            return b[1] > a[1]
+        if f[0] == 1.0:
+            return b[0] < a[0]
+        if f[0] == 0.0:
+            return b[0] > a[0]
+        return False
+    return wrong(ex, p, p1) or wrong(en, q, q0)
+
+
 def _hits(a: Point, b: Point, r: Rect) -> bool:
     x1, x2 = sorted((a[0], b[0]))
     y1, y2 = sorted((a[1], b[1]))
@@ -131,8 +150,9 @@ def choose(layout: Layout, rects: dict[str, Rect], src: str, dst: str,
         route = path(rects[src], rects[dst], ex, en, sdy, tdy)
         hits = sum(1 for r in others if any(_hits(a, b, r) for a, b in zip(route, route[1:])))
         length = sum(abs(a[0] - b[0]) + abs(a[1] - b[1]) for a, b in zip(route, route[1:]))
-        soft_hits = sum(1 for i, r in sorted((soft or {}).items())  # 端のアイコン自身のラベルも避ける
-                        if any(_hits(a, b, r) for a, b in zip(route, route[1:])))
+        soft_hits = sum(1 for i, r in sorted((soft or {}).items())  # 端のアイコン自身のラベルも避ける。すぐそばも避ける（余白 SOFT_MARGIN）
+                        if any(_hits(a, b, (r[0] - SOFT_MARGIN, r[1] - SOFT_MARGIN, r[2] + SOFT_MARGIN, r[3] + SOFT_MARGIN))
+                               for a, b in zip(route, route[1:])))
         if label is not None:  # 辺のラベル（経路の中点）が、端も含めてアイコンに重ならないように
             m = _midpoint(route)
             dx, dy = label_offset(route, label[0], label[1])
@@ -140,7 +160,7 @@ def choose(layout: Layout, rects: dict[str, Rect], src: str, dst: str,
             box = (m[0] - label[0] / 2, m[1] - label[1] / 2, m[0] + label[0] / 2, m[1] + label[1] / 2)
             soft_hits += sum(1 for i, r in rects.items() if not layout_is_group(layout, kids, i)
                              and min(r[2], box[2]) > max(r[0], box[0]) and min(r[3], box[3]) > max(r[1], box[1]))
-        key = (hits, soft_hits, len(set(route)), length, n)
+        key = (hits + (100 if _backwards(route, ex, en) else 0), soft_hits, len(set(route)), length, n)
         if best is None or key < best[0]:
             best = (key, ex, en, sdy, tdy)
     return best[1:]

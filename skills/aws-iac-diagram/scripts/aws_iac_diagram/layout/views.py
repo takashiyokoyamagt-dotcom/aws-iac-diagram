@@ -110,7 +110,17 @@ def split(view: View) -> list[View]:
     return _assemble(view, sheets, by_id)
 
 
+def distinct_labels(nodes: list[dict]) -> list[dict]:
+    """同じ名前のノードが 2 つ以上あれば、名前の後に型を添える（C6 の指摘。SNS と SQS がどちらも shop-order-events など）。
+    IR の label は変えず、図に描く名前だけを変える（.drawio と .mmd は同じ名前になる）。"""
+    count: dict[str, int] = {}
+    for n in nodes:
+        count[n["label"]] = count.get(n["label"], 0) + 1
+    return [n if count[n["label"]] < 2 else {**n, "label": f"{n['label']} ({n['type']})"} for n in nodes]
+
+
 def build(ir: dict) -> list[View]:
+    ir = {**ir, "nodes": distinct_labels(ir["nodes"])}
     by_id = {n["id"]: n for n in ir["nodes"]}
     groups = {n["id"] for n in ir["nodes"] if n["category"] == "group"}
 
@@ -119,15 +129,14 @@ def build(ir: dict) -> list[View]:
                    [e for e in ir["edges"] if e["from"] in net_ids and e["to"] in net_ids])
 
     app_edges = [e for e in ir["edges"] if e["kind"] not in APP_HIDDEN_KINDS]
-    leaves = {n["id"] for n in ir["nodes"] if n["category"] != "group"}
     ends = {x for e in app_edges for x in (e["from"], e["to"])}
-    app_ids = _with_ancestors(leaves | (ends & groups), by_id)
+    app_ids = _with_ancestors(ends, by_id)  # 詳細図は流れの図なので、辺の無いノードは出さない（C6 の指摘。全体図には出る）
     detail = View("detail", [n for n in ir["nodes"] if n["id"] in app_ids], app_edges)
 
     overview = View("overview", list(ir["nodes"]), list(ir["edges"]))
     views = [overview]
     if groups:  # 枠が無ければネットワーク図は空に近いので出さない（C6 の指摘）
         views.append(network)
-    if ({n["id"] for n in detail.nodes}, {e["id"] for e in detail.edges}) != ({n["id"] for n in ir["nodes"]}, {e["id"] for e in ir["edges"]}):
-        views.append(detail)  # 全体図と同じなら出さない
+    if app_edges and ({n["id"] for n in detail.nodes}, {e["id"] for e in detail.edges}) != ({n["id"] for n in ir["nodes"]}, {e["id"] for e in ir["edges"]}):
+        views.append(detail)  # 流れの辺が無いか、全体図と同じなら出さない
     return [sheet for v in views for sheet in split(v)]

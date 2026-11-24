@@ -13,7 +13,7 @@ sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / 
 import support  # noqa: E402,F401
 from aws_iac_diagram.core import rules  # noqa: E402
 from aws_iac_diagram.emit import drawio as emit_drawio  # noqa: E402
-from aws_iac_diagram.layout import search  # noqa: E402
+from aws_iac_diagram.layout import search, views  # noqa: E402
 from aws_iac_diagram.validate import drawio as check_drawio  # noqa: E402
 
 EXPECTED = Path(__file__).resolve().parents[3] / "aws-iac-diagram-workspace" / "expected"
@@ -32,13 +32,14 @@ class SearchTest(unittest.TestCase):
         self.assertEqual(search.best(nodes, [], lambda layout: -layout.width)[1].width, max(widths))
 
     def test_remaining_problems_do_not_grow(self):
-        """正解 IR の 17 入力で、見やすさの問題が 0 件。"""
+        """正解 IR の 17 入力のすべてのビュー（diagram.py と同じ分け方）で、見やすさの問題が 0 件。"""
         r, catalog, total = rules.default(), emit_drawio.load_catalog(), Counter()
         for f in FILES:
             ir = json.loads(f.read_text(encoding="utf-8"))
-            _, layout, _ = search.best(ir["nodes"], ir["edges"],
-                                       lambda c: check_drawio.score(emit_drawio.emit(ir, c, r, catalog)))
-            total.update(p.kind for p in check_drawio.check(emit_drawio.emit(ir, layout, r, catalog)))
+            for v in views.build(ir):
+                sub = {"name": ir["name"], "nodes": v.nodes, "edges": v.edges}
+                _, layout, _ = search.best(v.nodes, v.edges, lambda c: check_drawio.score(emit_drawio.emit(sub, c, r, catalog)))
+                total.update(p.kind for p in check_drawio.check(emit_drawio.emit(sub, layout, r, catalog)))
         self.assertEqual(dict(total), {})
 
 

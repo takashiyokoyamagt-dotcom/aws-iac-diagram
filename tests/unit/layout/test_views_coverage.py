@@ -49,6 +49,11 @@ class ViewsTest(unittest.TestCase):
                 for n in v.nodes:
                     self.assertTrue(n["parent"] is None or n["parent"] in have, f.name)
 
+    def test_same_labels_get_the_type(self):
+        a, b = {**node("a"), "label": "x"}, {**node("b"), "label": "x", "type": "y"}
+        got = views.build({"nodes": [a, b, node("c")], "edges": []})[0]
+        self.assertEqual(sorted(n["label"] for n in got.nodes), ["c", "x (lambda_function)", "x (y)"])
+
     def test_detail_hides_route_edges(self):
         ir = {"nodes": [node("a"), node("b"), node("c")], "edges": [edge("a", "b", "route"), edge("a", "c")]}
         detail = next(v for v in views.build(ir) if v.name == "detail")

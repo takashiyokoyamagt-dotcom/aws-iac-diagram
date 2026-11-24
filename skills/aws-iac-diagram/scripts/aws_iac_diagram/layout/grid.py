@@ -82,13 +82,17 @@ def degrees(edges: list[dict]) -> dict[str, int]:
     return out
 
 
-def _sort_key(p: Params, rank: dict[str, int]):
+def _sort_key(p: Params, rank: dict[str, int], deg: dict[str, int] | None = None):
+    """辺の無いノードは後ろ（流れの図の間に散らばらないように。C6 の指摘）。"""
+    def lone(n: dict) -> int:
+        return 0 if deg is None or deg.get(n["id"], 0) else 1
+
     def key(n: dict) -> tuple:
         if p.order in ("layer", "layered"):
-            return (rank.get(n["id"], 0), n["id"])
+            return (lone(n), rank.get(n["id"], 0), n["id"])
         if p.order == "degree":
-            return (-rank.get(n["id"], 0), n["id"])
-        return (0, n["id"])
+            return (lone(n), -rank.get(n["id"], 0), n["id"])
+        return (lone(n), 0, n["id"])
     return key
 
 
@@ -139,7 +143,7 @@ def _place_group(n: dict, kids: dict, p: Params, rank: dict[str, int], deg: dict
     枠の中のアイコンの位置: top（子の枠の上）／side（子の枠の右）／center（子の枠の真ん中の列。横に並ぶときだけ。縦なら side）。
     """
     children = kids.get(n["id"], [])
-    leaves = sorted((c for c in children if c["category"] != "group"), key=_sort_key(p, rank))
+    leaves = sorted((c for c in children if c["category"] != "group"), key=_sort_key(p, rank, deg))
     groups = sorted((c for c in children if c["category"] == "group"),
                     key=lambda c: (_group_order(c)[0] * (-1 if p.public_last else 1), *_sort_key(p, rank)(c)))
     vertical = (n["type"] == "availability_zone") != p.flip
@@ -190,14 +194,14 @@ def place(nodes: list[dict], params: Params = Params(), edges: list[dict] | tupl
     out = Layout()
     deg = degrees(list(edges))
     rank = layers(nodes, list(edges)) if params.order in ("layer", "layered") else deg
-    key = _sort_key(params, rank)
+    key = _sort_key(params, rank, deg)
     kids: dict[str, list[dict]] = {}
     for n in nodes:
         if n["parent"] is not None:
             kids.setdefault(n["parent"], []).append(n)
     roots = [n for n in nodes if n["parent"] is None]
     left = sorted((n for n in roots if n["category"] == "external" and not params.merge_external), key=key)
-    groups = sorted((n for n in roots if n["category"] == "group"), key=lambda n: (_group_order(n)[0], *key(n)))
+    groups = sorted((n for n in roots if n["category"] == "group"), key=lambda n: (_group_order(n)[0], *_sort_key(params, rank)(n)))
     if params.hub != "none":
         groups = _arrange_hub(groups, kids, deg, params.hub)
     right = sorted((n for n in roots if n["category"] != "group" and n["id"] not in {x["id"] for x in left}), key=key)
