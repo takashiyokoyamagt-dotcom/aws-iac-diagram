@@ -40,7 +40,7 @@ class MakeDiagramTest(unittest.TestCase):
         code, res = run("--input", str(FX / "tf" / "three-tier"), "--var-file", str(FX / "tf" / "three-tier" / "env" / "dev.tfvars"), "--no-external")
         self.assertEqual(code, 0, res.get("steps"))
         self.assertEqual(res["questions"], [])
-        self.assertEqual(sorted(res["diagram"]["views"]), ["detail", "network", "overview"])
+        self.assertEqual(sorted(res["diagram"]["views"]), ["detail", "network", "overview"])  # VPC があり、ルートの辺がある
         self.assertIn("three-tier.overview.drawio", res["_files"])
         self.assertIn("three-tier.overview.mmd", res["_files"])
         self.assertIn("coverage.md", res["_files"])

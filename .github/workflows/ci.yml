@@ -149,8 +149,13 @@ jobs:
           if ($h -ne '5587c2a5bb730195c8b967757fef0ea5db9cb12748cf71773cdce57712ab77b9') { throw "sha256 mismatch: $h" }
           $dir = Join-Path $env:RUNNER_TEMP 'drawio'
           Expand-Archive $zip -DestinationPath $dir
-          $exe = Get-ChildItem $dir -Recurse -Filter 'draw.io.exe' | Select-Object -First 1
-          "DRAWIO=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          $exe = Get-ChildItem $dir -Recurse -File | Where-Object { $_.Name -in @('draw.io.exe', 'drawio.exe') } | Select-Object -First 1
+          if ($null -eq $exe) {
+            Get-ChildItem $dir -Recurse -File -Filter '*.exe' | Select-Object -First 20 | ForEach-Object { $_.FullName }
+            throw 'draw.io の実行ファイルが zip の中に見つからない'
+          }
+          Write-Output "DRAWIO=$($exe.FullName)"
+          Add-Content -Path $env:GITHUB_ENV -Value "DRAWIO=$($exe.FullName)" -Encoding utf8
       - name: 3 形式の生成と検証（自作 5 構成 × TF／CFN）
         shell: bash
         env:

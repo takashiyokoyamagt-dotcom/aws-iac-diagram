@@ -96,6 +96,14 @@ class CheckTest(unittest.TestCase):
         self.assertEqual([p.subject for p in drawio.check_view(good, {"a", "z"}, [{"id": "e", "confidence": "inferred"}])],
                          ["missing-node", "dashed", "legend"])
 
+    def test_ports_fix_the_route(self):
+        style = "exitX=1;exitY=0.5;exitPerimeter=0;entryX=0.5;entryY=0;entryPerimeter=0;"
+        cell = e("e", "a", "b").replace('edge="1"', f'style="{style}" edge="1"')
+        d = drawio.parse(doc(v("a", 0, 0), v("b", 200, 200), cell))
+        self.assertEqual(drawio.edge_routes(d, d.edges[0]), [[(40.0, 20.0), (220.0, 20.0), (220.0, 200.0)]])
+        # 指定した 1 通りが塞がれれば、ほかの形が空いていても貫通にする
+        self.assertEqual(kinds(v("a", 0, 0), v("b", 200, 200), v("x", 100, 0), cell), ["pierce"])
+
     def test_routes_are_the_four_models(self):
         rs = drawio.routes((0, 0), (10, 20))
         self.assertEqual(rs[0], [(0, 0), (10, 0), (10, 20)])

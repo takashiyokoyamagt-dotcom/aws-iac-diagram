@@ -9,6 +9,7 @@ import json
 import xml.etree.ElementTree as ET
 
 from aws_iac_diagram.core import paths, rules
+from aws_iac_diagram.layout import routes
 from aws_iac_diagram.layout.grid import PAD, Layout
 
 BACKGROUND_LAYER = "layer-background"
@@ -89,10 +90,13 @@ def emit(ir: dict, layout: Layout, r: rules.Rules, catalog: dict[str, dict]) -> 
         _cell(root, {"id": LEGEND_ID, "value": LEGEND_TEXT, "style": _LEGEND_STYLE, "vertex": "1", "parent": "1"},
               {"x": str(MARGIN), "y": str(layout.height + MARGIN + PAD), "width": "240", "height": str(LEGEND_H)})
     pairs = {(e["from"], e["to"]) for e in ir["edges"] if e.get("label")}
+    rects = routes.absolute(layout)
     for e in sorted(ir["edges"], key=lambda x: x["id"]):
         if e["from"] not in layout.placed or e["to"] not in layout.placed:
             continue
-        style = _EDGE_STYLE + ("dashed=1;" if e["confidence"] == "inferred" else "")
+        ex, en = routes.choose(layout, rects, e["from"], e["to"])
+        style = (_EDGE_STYLE + ("dashed=1;" if e["confidence"] == "inferred" else "")
+                 + f"exitX={ex[0]:g};exitY={ex[1]:g};exitPerimeter=0;entryX={en[0]:g};entryY={en[1]:g};entryPerimeter=0;")
         _cell(root, {"id": e["id"], "value": e.get("label") or "", "style": style, "edge": "1", "parent": EDGE_LAYER,
                      "source": e["from"], "target": e["to"]},
               {"relative": "1", "y": str(REVERSE_LABEL_OFFSET)} if e.get("label") and (e["to"], e["from"]) in pairs else {"relative": "1"})

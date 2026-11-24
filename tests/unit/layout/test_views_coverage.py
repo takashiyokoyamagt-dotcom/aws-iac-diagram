@@ -30,11 +30,16 @@ class ViewsTest(unittest.TestCase):
         for f in FILES:
             ir = json.loads(f.read_text(encoding="utf-8"))
             got = {v.name: v for v in views.build(ir)}
-            self.assertEqual(sorted(got), ["detail", "network", "overview"], f.name)
+            has_groups = any(n["category"] == "group" for n in ir["nodes"])
+            self.assertEqual("network" in got, has_groups, f.name)
+            if "detail" in got:  # 全体図と同じ詳細図は出さない
+                self.assertNotEqual({e["id"] for e in got["detail"].edges} | {n["id"] for n in got["detail"].nodes},
+                                    {e["id"] for e in ir["edges"]} | {n["id"] for n in ir["nodes"]}, f.name)
             self.assertEqual({n["id"] for n in got["overview"].nodes}, {n["id"] for n in ir["nodes"]}, f.name)
             self.assertEqual({e["id"] for e in got["overview"].edges}, {e["id"] for e in ir["edges"]}, f.name)
             groups = {n["id"] for n in ir["nodes"] if n["category"] == "group"}
-            self.assertLessEqual(groups, {n["id"] for n in got["network"].nodes}, f.name)
+            if groups:
+                self.assertLessEqual(groups, {n["id"] for n in got["network"].nodes}, f.name)
             ids = {n["id"] for n in ir["nodes"]}
             for v in got.values():
                 have = {n["id"] for n in v.nodes}
@@ -45,9 +50,9 @@ class ViewsTest(unittest.TestCase):
                     self.assertTrue(n["parent"] is None or n["parent"] in have, f.name)
 
     def test_detail_hides_route_edges(self):
-        ir = {"nodes": [node("a"), node("b")], "edges": [edge("a", "b", "route")]}
+        ir = {"nodes": [node("a"), node("b"), node("c")], "edges": [edge("a", "b", "route"), edge("a", "c")]}
         detail = next(v for v in views.build(ir) if v.name == "detail")
-        self.assertEqual(detail.edges, [])
+        self.assertEqual([e["id"] for e in detail.edges], ["a->c"])
 
     def test_split_keeps_every_edge_and_the_limit(self):
         nodes = [node("v", category="group", type_="vpc"), node("w", category="group", type_="vpc")]

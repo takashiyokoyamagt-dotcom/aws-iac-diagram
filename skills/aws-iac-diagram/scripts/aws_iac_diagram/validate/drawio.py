@@ -43,6 +43,7 @@ class Edge:
     label: str
     font_size: int
     offset: float = 0.0  # ラベルを辺から離す量（mxGeometry の y。辺の向きに直角）
+    ports: tuple | None = None  # ((exitX, exitY), (entryX, entryY))。あれば経路はこの 1 通り
 
 
 @dataclass
@@ -106,9 +107,32 @@ def parse(xml_text: str) -> Diagram:
         if v.parent in vertices:
             vertices[v.parent].children.append(v.id)
     edges = [Edge(cid, c.get("source", ""), c.get("target", ""), c.get("value", ""), _font(_style(c.get("style", ""))),
-                  float(c.find("mxGeometry").get("y", 0)) if c.find("mxGeometry") is not None else 0.0)
+                  float(c.find("mxGeometry").get("y", 0)) if c.find("mxGeometry") is not None else 0.0,
+                  _ports(_style(c.get("style", ""))))
              for cid, c in cells.items() if c.get("edge") == "1"]
     return Diagram(vertices, edges)
+
+
+def _ports(style: dict[str, str]) -> tuple | None:
+    try:
+        return ((float(style["exitX"]), float(style["exitY"])), (float(style["entryX"]), float(style["entryY"])))
+    except (KeyError, ValueError):
+        return None
+
+
+def port_route(src: Rect, dst: Rect, ports: tuple) -> list[Point]:
+    """出入りの辺が決まった辺の経路。最初と最後の線分の向きは出入りの辺で決まり、Z 字の折れ目は中央。"""
+    (ex, ey), (nx, ny) = ports
+    p = (src[0] + (src[2] - src[0]) * ex, src[1] + (src[3] - src[1]) * ey)
+    q = (dst[0] + (dst[2] - dst[0]) * nx, dst[1] + (dst[3] - dst[1]) * ny)
+    first_h, last_h = ey == 0.5 and ex in (0.0, 1.0), ny == 0.5 and nx in (0.0, 1.0)
+    if first_h != last_h:
+        return [p, (q[0], p[1]), q] if first_h else [p, (p[0], q[1]), q]
+    if first_h:
+        mx = (p[0] + q[0]) / 2
+        return [p, (mx, p[1]), (mx, q[1]), q]
+    my = (p[1] + q[1]) / 2
+    return [p, (p[0], my), (q[0], my), q]
 
 
 def _area_overlap(a: Rect, b: Rect) -> bool:
@@ -197,6 +221,9 @@ def node_label_rect(v: Vertex) -> Rect | None:
 
 
 def edge_routes(d: Diagram, e: Edge) -> list[list[Point]]:
+    """出入りの辺が指定されていればその 1 通り（draw.io はその形を引く）、無ければ CRITERIA 2.1 の 4 通り。"""
+    if e.ports is not None:
+        return [port_route(d.vertices[e.source].rect, d.vertices[e.target].rect, e.ports)]
     sc, tc = _center(d.vertices[e.source].rect), _center(d.vertices[e.target].rect)
     return routes(endpoint(d, e.source, tc), endpoint(d, e.target, sc))
 

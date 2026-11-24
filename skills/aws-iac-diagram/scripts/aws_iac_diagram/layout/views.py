@@ -124,5 +124,10 @@ def build(ir: dict) -> list[View]:
     app_ids = _with_ancestors(leaves | (ends & groups), by_id)
     detail = View("detail", [n for n in ir["nodes"] if n["id"] in app_ids], app_edges)
 
-    views = [View("overview", list(ir["nodes"]), list(ir["edges"])), network, detail]
+    overview = View("overview", list(ir["nodes"]), list(ir["edges"]))
+    views = [overview]
+    if groups:  # 枠が無ければネットワーク図は空に近いので出さない（C6 の指摘）
+        views.append(network)
+    if ({n["id"] for n in detail.nodes}, {e["id"] for e in detail.edges}) != ({n["id"] for n in ir["nodes"]}, {e["id"] for e in ir["edges"]}):
+        views.append(detail)  # 全体図と同じなら出さない
     return [sheet for v in views for sheet in split(v)]

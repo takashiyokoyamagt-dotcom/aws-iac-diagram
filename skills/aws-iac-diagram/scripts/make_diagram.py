@@ -72,7 +72,9 @@ def tf_question(input_dir: Path, raw_path: Path) -> dict | None:
     """値の無い変数があり、自動では読まれない *.tfvars があれば、どれを使うかの質問。"""
     raw = json.loads(raw_path.read_text(encoding="utf-8"))
     missing = sorted(k for k, v in raw.get("evaluation", {}).get("vars", {}).items() if v.get("source") is None)
-    candidates = [p.relative_to(input_dir).as_posix() for p in tf_build.var_file_candidates(input_dir)]
+    # 下のフォルダに *.tf があれば、それは別のルート（例など）の変数なので候補にしない
+    candidates = [p.relative_to(input_dir).as_posix() for p in tf_build.var_file_candidates(input_dir)
+                  if p.parent == input_dir or not any(p.parent.glob("*.tf"))]
     if not missing or not candidates:
         return None
     return {"id": "tf-var-file", "question": "どの環境の変数のファイルで図を作りますか（--var-file で渡す）",
