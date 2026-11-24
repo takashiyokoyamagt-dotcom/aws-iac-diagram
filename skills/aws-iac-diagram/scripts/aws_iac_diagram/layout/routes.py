@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from aws_iac_diagram.layout.grid import LABEL_H, Layout
 
-LABEL_GAP = LABEL_H + 2  # アイコンの下から出入りする線は、名前（真下のラベル）の下から始める（exitDy・entryDy）
+LABEL_GAP = LABEL_H + 5 # アイコンの下から出入りする線は、名前（真下のラベル）の下から始める（exitDy・entryDy）
 
 Rect = tuple[float, float, float, float]
 Point = tuple[float, float]
@@ -77,6 +77,20 @@ def _midpoint(route: list[Point]) -> Point:
     return route[-1]
 
 
+def label_offset(route: list[Point], w: float, h: float) -> tuple[float, float]:
+    """辺のラベルを線の脇に置くずれ（draw.io は線をラベルの背景の上に描くので、線の上に置くと文字を貫く）。
+    横の線分なら上（右向き）か下（左向き）、縦の線分なら右（下向き）か左（上向き）。往復の辺は反対の側になる。"""
+    lengths = [abs(p[0] - q[0]) + abs(p[1] - q[1]) for p, q in zip(route, route[1:])]
+    rest = sum(lengths) / 2
+    for (p, q), n in zip(zip(route, route[1:]), lengths):
+        if rest <= n and n > 0:
+            if p[1] == q[1]:
+                return (0.0, -(h / 2 + 4) if q[0] > p[0] else h / 2 + 4)
+            return (w / 2 + 4 if q[1] > p[1] else -(w / 2 + 4), 0.0)
+        rest -= n
+    return (0.0, -(h / 2 + 4))
+
+
 def _hits(a: Point, b: Point, r: Rect) -> bool:
     x1, x2 = sorted((a[0], b[0]))
     y1, y2 = sorted((a[1], b[1]))
@@ -121,6 +135,8 @@ def choose(layout: Layout, rects: dict[str, Rect], src: str, dst: str,
                         if any(_hits(a, b, r) for a, b in zip(route, route[1:])))
         if label is not None:  # 辺のラベル（経路の中点）が、端も含めてアイコンに重ならないように
             m = _midpoint(route)
+            dx, dy = label_offset(route, label[0], label[1])
+            m = (m[0] + dx, m[1] + dy)
             box = (m[0] - label[0] / 2, m[1] - label[1] / 2, m[0] + label[0] / 2, m[1] + label[1] / 2)
             soft_hits += sum(1 for i, r in rects.items() if not layout_is_group(layout, kids, i)
                              and min(r[2], box[2]) > max(r[0], box[0]) and min(r[3], box[3]) > max(r[1], box[1]))

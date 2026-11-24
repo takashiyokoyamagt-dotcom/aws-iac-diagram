@@ -17,12 +17,11 @@ EDGE_LAYER = "layer-edges"
 MARGIN = 40
 LEGEND_ID = "legend"
 LEGEND_H = 24
-REVERSE_LABEL_OFFSET = 16  # 往復の辺のラベルが重ならないよう、辺から離す量（向きが逆なので、それぞれ反対の側に出る）
 LEGEND_TEXT = "凡例: 破線 = 推定の関係"
 
 _FALLBACK_ICON = "shape:internet"
 _AZ_STYLE = "rounded=0;dashed=1;fillColor=none;strokeColor=#147EBA;fontColor=#147EBA;verticalAlign=top;align=left;spacingLeft=8;html=1;container=1;"
-_EDGE_STYLE = "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#545B64;fontSize=12;"
+_EDGE_STYLE = "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#545B64;fontSize=12;labelBackgroundColor=#FFFFFF;"
 _LEGEND_STYLE = "text;html=1;align=left;verticalAlign=middle;strokeColor=none;fillColor=none;fontSize=12;"
 _BACKGROUND_STYLE = "rounded=0;fillColor=#FFFFFF;strokeColor=none;"
 
@@ -46,10 +45,13 @@ def node_style(node: dict, r: rules.Rules, catalog: dict[str, dict]) -> str:
     raise KeyError(f"描けるアイコンが無い: {node['type']}")
 
 
-def _cell(root: ET.Element, attrs: dict[str, str], geometry: dict[str, str] | None = None) -> None:
+def _cell(root: ET.Element, attrs: dict[str, str], geometry: dict[str, str] | None = None,
+          offset: tuple[float, float] | None = None) -> None:
     cell = ET.SubElement(root, "mxCell", attrs)
     if geometry is not None:
-        ET.SubElement(cell, "mxGeometry", {**geometry, "as": "geometry"})
+        g = ET.SubElement(cell, "mxGeometry", {**geometry, "as": "geometry"})
+        if offset is not None:  # 辺のラベルのずれ（waypoint ではない）
+            ET.SubElement(g, "mxPoint", {"x": f"{offset[0]:g}", "y": f"{offset[1]:g}", "as": "offset"})
 
 
 def emit(ir: dict, layout: Layout, r: rules.Rules, catalog: dict[str, dict]) -> str:
@@ -97,7 +99,8 @@ def emit(ir: dict, layout: Layout, r: rules.Rules, catalog: dict[str, dict]) -> 
         if n is not None and n["category"] != "group" and n["label"]:
             w = label_width(n["label"])
             cx = (r[0] + r[2]) / 2
-            label_rects[i] = (cx - w / 2, r[3], cx + w / 2, r[3] + LABEL_H)
+            label_rects[i] = (cx - w / 2, r[3], cx + w / 2, r[3] + LABEL_H + 3)  # 描画では名前が数ピクセル下に出る
+    obstacles = list(label_rects.values()) + [r for i, r in rects.items() if by_id.get(i, {}).get("category") != "group"]
     for e in sorted(ir["edges"], key=lambda x: x["id"]):
         if e["from"] not in layout.placed or e["to"] not in layout.placed:
             continue
@@ -106,8 +109,20 @@ def emit(ir: dict, layout: Layout, r: rules.Rules, catalog: dict[str, dict]) -> 
         style = (_EDGE_STYLE + ("dashed=1;" if e["confidence"] == "inferred" else "")
                  + f"exitX={ex[0]:g};exitY={ex[1]:g};exitPerimeter=0;entryX={en[0]:g};entryY={en[1]:g};entryPerimeter=0;"
                  + (f"exitDy={sdy:g};" if sdy else "") + (f"entryDy={tdy:g};" if tdy else ""))
+        offset = None
+        if size is not None:
+            route = routes.path(rects[e["from"]], rects[e["to"]], ex, en, sdy, tdy)
+            offset = routes.label_offset(route, *size)
+            if (e["to"], e["from"]) not in pairs:  # 往復の辺でなければ、アイコンや名前に当たるとき反対の側に置く
+                mid = routes._midpoint(route)
+
+                def blocked(o: tuple[float, float]) -> bool:
+                    box = (mid[0] + o[0] - size[0] / 2, mid[1] + o[1] - size[1] / 2, mid[0] + o[0] + size[0] / 2, mid[1] + o[1] + size[1] / 2)
+                    return any(min(r[2], box[2]) > max(r[0], box[0]) and min(r[3], box[3]) > max(r[1], box[1]) for r in obstacles)
+                flipped = (-offset[0], -offset[1])
+                if blocked(offset) and not blocked(flipped):
+                    offset = flipped
         _cell(root, {"id": e["id"], "value": e.get("label") or "", "style": style, "edge": "1", "parent": EDGE_LAYER,
-                     "source": e["from"], "target": e["to"]},
-              {"relative": "1", "y": str(REVERSE_LABEL_OFFSET)} if e.get("label") and (e["to"], e["from"]) in pairs else {"relative": "1"})
+                     "source": e["from"], "target": e["to"]}, {"relative": "1"}, offset)
     ET.indent(mxfile, space="  ")
     return ET.tostring(mxfile, encoding="unicode") + "\n"

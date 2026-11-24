@@ -43,6 +43,7 @@ class Edge:
     label: str
     font_size: int
     offset: float = 0.0  # ラベルを辺から離す量（mxGeometry の y。辺の向きに直角）
+    label_shift: tuple[float, float] | None = None  # mxPoint as="offset"（ラベルを線の脇へずらす量。画面の座標）
     ports: tuple | None = None  # ((exitX, exitY), (entryX, entryY))。あれば経路はこの 1 通り
 
 
@@ -108,9 +109,15 @@ def parse(xml_text: str) -> Diagram:
             vertices[v.parent].children.append(v.id)
     edges = [Edge(cid, c.get("source", ""), c.get("target", ""), c.get("value", ""), _font(_style(c.get("style", ""))),
                   float(c.find("mxGeometry").get("y", 0)) if c.find("mxGeometry") is not None else 0.0,
-                  _ports(_style(c.get("style", ""))))
+                  ports=_ports(_style(c.get("style", ""))), label_shift=_label_shift(c))
              for cid, c in cells.items() if c.get("edge") == "1"]
     return Diagram(vertices, edges)
+
+
+def _label_shift(c: ET.Element) -> tuple[float, float] | None:
+    g = c.find("mxGeometry")
+    p = None if g is None else g.find("mxPoint[@as='offset']")
+    return None if p is None else (float(p.get("x", 0)), float(p.get("y", 0)))
 
 
 def _ports(style: dict[str, str]) -> tuple | None:
@@ -219,7 +226,7 @@ def node_label_rect(v: Vertex) -> Rect | None:
         return None
     w, h = _label_size(v.label, v.font_size)
     cx = (v.rect[0] + v.rect[2]) / 2
-    return (cx - w / 2, v.rect[3], cx + w / 2, v.rect[3] + h)
+    return (cx - w / 2, v.rect[3], cx + w / 2, v.rect[3] + h + 3)  # 描画では名前が数ピクセル下に出る（2026-11-24 の目視で確かめた）
 
 
 def edge_routes(d: Diagram, e: Edge) -> list[list[Point]]:
@@ -234,7 +241,11 @@ def _edge_label_rects(d: Diagram, e: Edge) -> list[Rect]:
     if not e.label:
         return []
     w, h = _label_size(e.label, e.font_size)
-    return [(m[0] - w / 2, m[1] - h / 2, m[0] + w / 2, m[1] + h / 2) for m in (_midpoint(r, e.offset) for r in edge_routes(d, e))]
+    if e.label_shift is not None:
+        mids = [(m[0] + e.label_shift[0], m[1] + e.label_shift[1]) for m in (_midpoint(r) for r in edge_routes(d, e))]
+    else:
+        mids = [_midpoint(r, e.offset) for r in edge_routes(d, e)]
+    return [(m[0] - w / 2, m[1] - h / 2, m[0] + w / 2, m[1] + h / 2) for m in mids]
 
 
 def check_overlap(d: Diagram) -> list[Problem]:

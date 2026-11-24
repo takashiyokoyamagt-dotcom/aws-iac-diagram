@@ -1,0 +1,314 @@
+{
+ "C01/templates.overview.png": {
+  "正しさ": 4,
+  "読みやすさ": 4,
+  "配置": 4,
+  "ラベル": 5,
+  "凡例": 5,
+  "指摘": "S3BucketLogs が孤立。概ね良好"
+ },
+ "C02/webapp.overview.png": {
+  "正しさ": 3,
+  "読みやすさ": 2,
+  "配置": 2,
+  "ラベル": 2,
+  "凡例": 5,
+  "指摘": "配置2: API GW から出る線が CloudFront・Lambda・認証・S3 のアイコン上を横切る。ラベル2: 'GET /jwt, OPTIONS /jwt' が CloudFront 名の上に重なり名前が読めない。S3 5個が散在"
+ },
+ "C05/master.overview.png": {
+  "正しさ": 4,
+  "読みやすさ": 3,
+  "配置": 4,
+  "ラベル": 4,
+  "凡例": 5,
+  "指摘": "サービス群が VPC 外に並ぶだけで ALB との線なし。AZ2 が左で順序逆。IGW 近くの線はやや込む"
+ },
+ "C05/master.network.png": {
+  "正しさ": 4,
+  "読みやすさ": 4,
+  "配置": 3,
+  "ラベル": 3,
+  "凡例": 5,
+  "指摘": "ALB が VPC 外・IGW 付近。0.0.0.0/0 ラベルが線に接触。AZ 順が逆"
+ },
+ "C05/master.detail.png": {
+  "正しさ": 3,
+  "読みやすさ": 3,
+  "配置": 4,
+  "ラベル": 4,
+  "凡例": 5,
+  "指摘": "Private サブネット無し・NAT への線なしで流れが見えない"
+ },
+ "T03/learn-terraform-rds.overview.png": {
+  "正しさ": 3,
+  "読みやすさ": 3,
+  "配置": 3,
+  "ラベル": 3,
+  "凡例": 5,
+  "指摘": "RDS が VPC 内に置かれサブネットと無関係。垂直線が '0.0.0.0/0' ラベルを横切る"
+ },
+ "T03/learn-terraform-rds.network.png": {
+  "正しさ": 4,
+  "読みやすさ": 4,
+  "配置": 4,
+  "ラベル": 3,
+  "凡例": 5,
+  "指摘": "垂直線が 0.0.0.0/0 ラベルに重なる"
+ },
+ "T03/learn-terraform-rds.detail.png": {
+  "正しさ": 3,
+  "読みやすさ": 2,
+  "配置": 4,
+  "ラベル": 4,
+  "凡例": 5,
+  "指摘": "RDS と IGW が並ぶだけで流れが無い"
+ },
+ "T06/eventbridge-sns-lambda-terraform.overview.png": {
+  "正しさ": 5,
+  "読みやすさ": 5,
+  "配置": 5,
+  "ラベル": 5,
+  "凡例": 5,
+  "指摘": "良好"
+ },
+ "T06s/eventbridge-sns-lambda.overview.png": {
+  "正しさ": 5,
+  "読みやすさ": 5,
+  "配置": 5,
+  "ラベル": 5,
+  "凡例": 5,
+  "指摘": "良好"
+ },
+ "T07/apigw-lambda-dynamodb-terraform.overview.png": {
+  "正しさ": 4,
+  "読みやすさ": 4,
+  "配置": 4,
+  "ラベル": 4,
+  "凡例": 5,
+  "指摘": "lambda_bucket が孤立。凡例あり"
+ },
+ "T07s/apigw-lambda-dynamodb.overview.png": {
+  "正しさ": 5,
+  "読みやすさ": 5,
+  "配置": 5,
+  "ラベル": 4,
+  "凡例": 5,
+  "指摘": "良好。縦線とラベル近接"
+ },
+ "T09/sample-bedrock-knowledge-base-terraform.overview.png": {
+  "正しさ": 4,
+  "読みやすさ": 3,
+  "配置": 3,
+  "ラベル": 3,
+  "凡例": 5,
+  "指摘": "KB から下への双方向線が不明瞭。S3→KB の線がアイコン名近くを通る"
+ },
+ "T11/apigw-sfn-crud-terraform.overview.png": {
+  "正しさ": 5,
+  "読みやすさ": 5,
+  "配置": 5,
+  "ラベル": 4,
+  "凡例": 5,
+  "指摘": "良好。Internet 線がラベルに接する"
+ },
+ "T11s/apigw-sfn-crud.overview.png": {
+  "正しさ": 5,
+  "読みやすさ": 5,
+  "配置": 5,
+  "ラベル": 4,
+  "凡例": 5,
+  "指摘": "Api 名と線が接触気味"
+ },
+ "T12/examples.overview.png": {
+  "正しさ": 3,
+  "読みやすさ": 3,
+  "配置": 2,
+  "ラベル": 2,
+  "凡例": 5,
+  "指摘": "配置2・ラベル2: crawler→catalog と pipeline→S3 の水平線が 'data-quality-pipeline-catalog-crawler' と 'data-quality-pipeline' の名前の上を通る"
+ },
+ "T16/learn-terraform-provision-eks-cluster.overview.png": {
+  "正しさ": 3,
+  "読みやすさ": 3,
+  "配置": 3,
+  "ラベル": 2,
+  "凡例": 5,
+  "指摘": "ラベル2: IGW 上の 0.0.0.0/0 ラベルを垂直線が横切る、eks.this-0 アイコン近くで線がラベルに重なる。eks.kms がアイコン不明で VPC 外"
+ },
+ "T16/learn-terraform-provision-eks-cluster.network.png": {
+  "正しさ": 4,
+  "読みやすさ": 3,
+  "配置": 3,
+  "ラベル": 2,
+  "凡例": 5,
+  "指摘": "ラベル2: 上部 0.0.0.0/0 ラベルを public-0 からの垂直線が貫く。NAT 位置が AZ1 だけで偏る"
+ },
+ "T16/learn-terraform-provision-eks-cluster.detail.png": {
+  "正しさ": 3,
+  "読みやすさ": 2,
+  "配置": 4,
+  "ラベル": 4,
+  "凡例": 5,
+  "指摘": "EKS・NAT・IGW が並ぶだけで流れが無い。2点: 読みやすさ"
+ },
+ "T17/infrastructure.overview.png": {
+  "正しさ": 3,
+  "読みやすさ": 2,
+  "配置": 2,
+  "ラベル": 2,
+  "凡例": 5,
+  "指摘": "配置2・ラベル2: NAT 行の水平線と '0.0.0.0/0' ラベル3つが重なり込み合う。ECS 名の上を点線・矢印が通る。DynamoDB への破線が ECS 名上を通る"
+ },
+ "T17/infrastructure.network.png": {
+  "正しさ": 3,
+  "読みやすさ": 3,
+  "配置": 2,
+  "ラベル": 2,
+  "凡例": 5,
+  "指摘": "配置2・ラベル2: サブネット間を横切る線が他サブネットの上を通り、0.0.0.0/0 ラベルが線に重なる"
+ },
+ "T17/infrastructure.detail.png": {
+  "正しさ": 3,
+  "読みやすさ": 2,
+  "配置": 3,
+  "ラベル": 2,
+  "凡例": 5,
+  "指摘": "ラベル2: ecs_service_client の名前の上を破線が通る。ALB→ECS の線が無く流れが読めない"
+ },
+ "T19/aws-network-hub-for-terraform.detail.png": {
+  "正しさ": 3,
+  "読みやすさ": 3,
+  "配置": 4,
+  "ラベル": 4,
+  "凡例": 5,
+  "指摘": "Route53 とエンドポイントの線のみ。ネットワーク全体との接続が不明"
+ },
+ "T19/aws-network-hub-for-terraform.network.png": {
+  "正しさ": 3,
+  "読みやすさ": 3,
+  "配置": 3,
+  "ラベル": 3,
+  "凡例": 5,
+  "指摘": "inspection_igw 名が 0.0.0.0/0 線に重なる。Endpoint VPC のサブネットとエンドポイントが分離。TGW 等なく関係不明"
+ },
+ "T19/aws-network-hub-for-terraform.overview-1.png": {
+  "正しさ": 4,
+  "読みやすさ": 4,
+  "配置": 5,
+  "ラベル": 5,
+  "凡例": 5,
+  "指摘": "良好"
+ },
+ "T19/aws-network-hub-for-terraform.overview-2.png": {
+  "正しさ": 4,
+  "読みやすさ": 4,
+  "配置": 4,
+  "ラベル": 5,
+  "凡例": 5,
+  "指摘": "エンドポイントとサブネットの関係が示されない"
+ },
+ "T19/aws-network-hub-for-terraform.overview-3.png": {
+  "正しさ": 4,
+  "読みやすさ": 3,
+  "配置": 3,
+  "ラベル": 3,
+  "凡例": 5,
+  "指摘": "inspection_igw 名の上を 0.0.0.0/0 の線が通る"
+ },
+ "T19/aws-network-hub-for-terraform.overview-4.png": {
+  "正しさ": 4,
+  "読みやすさ": 4,
+  "配置": 4,
+  "ラベル": 5,
+  "凡例": 5,
+  "指摘": "VPC 外の Route53 から線が来る。概ね良好"
+ },
+ "tf-rag/rag.overview.png": {
+  "正しさ": 4,
+  "読みやすさ": 3,
+  "配置": 2,
+  "ラベル": 2,
+  "凡例": 5,
+  "指摘": "配置2・ラベル2: rag-ingest→rag-kb の水平線が 'rag-kb' と 'amazon.titan-embed-text-v2:0' の名前を貫く。rag-query 名の上を破線が通る"
+ },
+ "tf-serverless-api/serverless-api.overview.png": {
+  "正しさ": 4,
+  "読みやすさ": 3,
+  "配置": 2,
+  "ラベル": 2,
+  "凡例": 5,
+  "指摘": "配置2・ラベル2: 水平線が shop-api-handler と shop-stream-processor の名前の上を通る。同名 shop-order-events が SNS と SQS で2つ"
+ },
+ "tf-three-tier-modules/three-tier-modules.overview.png": {
+  "正しさ": 4,
+  "読みやすさ": 4,
+  "配置": 3,
+  "ラベル": 4,
+  "凡例": 5,
+  "指摘": "流れは読める。NAT から IGW への線が長いがラベルとは重ならない"
+ },
+ "tf-three-tier-modules/three-tier-modules.network.png": {
+  "正しさ": 4,
+  "読みやすさ": 4,
+  "配置": 4,
+  "ラベル": 4,
+  "凡例": 5,
+  "指摘": "良好。ALB が VPC 内のサブネット外"
+ },
+ "tf-three-tier-modules/three-tier-modules.detail.png": {
+  "正しさ": 4,
+  "読みやすさ": 5,
+  "配置": 4,
+  "ラベル": 5,
+  "凡例": 5,
+  "指摘": "ALB→app→DB が縦に明快"
+ },
+ "tf-three-tier/three-tier.overview.png": {
+  "正しさ": 4,
+  "読みやすさ": 4,
+  "配置": 3,
+  "ラベル": 4,
+  "凡例": 5,
+  "指摘": "流れは読める"
+ },
+ "tf-three-tier/three-tier.network.png": {
+  "正しさ": 4,
+  "読みやすさ": 4,
+  "配置": 4,
+  "ラベル": 4,
+  "凡例": 5,
+  "指摘": "良好"
+ },
+ "tf-three-tier/three-tier.detail.png": {
+  "正しさ": 4,
+  "読みやすさ": 5,
+  "配置": 4,
+  "ラベル": 5,
+  "凡例": 5,
+  "指摘": "明快"
+ },
+ "tf-vpc-endpoints/vpc-endpoints.overview.png": {
+  "正しさ": 3,
+  "読みやすさ": 2,
+  "配置": 2,
+  "ラベル": 2,
+  "凡例": 5,
+  "指摘": "配置2・ラベル2: net-app から出る線が net-ec2messages・net-s3 付近を横切り、TCP 443 と s3 prefix list ラベルが線と重なる。IGW 名 'net' が矢印と重なる"
+ },
+ "tf-vpc-endpoints/vpc-endpoints.network.png": {
+  "正しさ": 4,
+  "読みやすさ": 3,
+  "配置": 3,
+  "ラベル": 3,
+  "凡例": 5,
+  "指摘": "IGW 名 'net' が矢印に重なる。エンドポイントがサブネット外で中央に並ぶ"
+ },
+ "tf-vpc-endpoints/vpc-endpoints.detail.png": {
+  "正しさ": 3,
+  "読みやすさ": 2,
+  "配置": 4,
+  "ラベル": 4,
+  "凡例": 5,
+  "指摘": "線が無く net-app とエンドポイントの関係が見えない"
+ }
+}

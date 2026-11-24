@@ -50,7 +50,8 @@ class GridDrawioTest(unittest.TestCase):
             for c in cells:
                 if c.get("edge") == "1":
                     self.assertEqual(c.get("parent"), "layer-edges", name)
-                    self.assertEqual(c.find("mxGeometry").findall("*"), [], name)  # waypoint を置かない
+                    kids = c.find("mxGeometry").findall("*")  # waypoint を置かない（ラベルのずれ offset だけ）
+                    self.assertEqual([k.get("as") for k in kids if k.get("as") != "offset"], [], name)
             seen = set()
             for c in cells:
                 self.assertTrue(c.get("parent") is None or c.get("parent") in seen, f"{name}: 親が先に無い {c.get('id')}")
