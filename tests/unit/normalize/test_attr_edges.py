@@ -115,7 +115,9 @@ class OtherAttrTest(unittest.TestCase):
 class DeliveryTest(unittest.TestCase):
     def test_pipeline_build_image_codedeploy_and_notifications(self):
         e, r, nodes = norm("tf", [
-            resource("aws_codepipeline.p", "aws_codepipeline", {"name": "p"}),
+            resource("aws_codepipeline.p", "aws_codepipeline", {"name": "p", "stage": [
+                {"action": [{"category": "Source"}]}, {"action": [{"category": "Build"}]}, {"action": [{"category": "Deploy"}]}]}),
+            resource("aws_ecr_repository.src", "aws_ecr_repository", {"name": "src"}),
             resource("aws_codebuild_project.b", "aws_codebuild_project", {"name": "b"}),
             resource("aws_codedeploy_app.d", "aws_codedeploy_app", {"name": "d"}),
             resource("aws_codedeploy_deployment_group.g", "aws_codedeploy_deployment_group"),
@@ -128,8 +130,9 @@ class DeliveryTest(unittest.TestCase):
             resource("aws_autoscaling_group.asg", "aws_autoscaling_group", {"name": "asg"}),
             resource("aws_autoscaling_lifecycle_hook.h", "aws_autoscaling_lifecycle_hook"),
         ], [
-            ref("aws_codepipeline.p", "stage[0].action[0].configuration.ProjectName", "aws_codebuild_project.b", "name"),
-            ref("aws_codepipeline.p", "stage[1].action[0].configuration.DeploymentGroupName", "aws_codedeploy_deployment_group.g", "deployment_group_name"),
+            ref("aws_codepipeline.p", "stage[0].action[0].configuration.RepositoryName", "aws_ecr_repository.src", "name"),
+            ref("aws_codepipeline.p", "stage[1].action[0].configuration.ProjectName", "aws_codebuild_project.b", "name"),
+            ref("aws_codepipeline.p", "stage[2].action[0].configuration.DeploymentGroupName", "aws_codedeploy_deployment_group.g", "deployment_group_name"),
             ref("aws_codepipeline.p", "artifact_store[0].location", "aws_s3_bucket.art", "bucket"),
             ref("aws_codebuild_project.b", "environment[0].environment_variable[0].value", "aws_ecr_repository.r", "repository_url"),
             ref("aws_codedeploy_deployment_group.g", "app_name", "aws_codedeploy_app.d", "name"),
@@ -143,12 +146,14 @@ class DeliveryTest(unittest.TestCase):
             ref("aws_autoscaling_lifecycle_hook.h", "notification_target_arn", "aws_sns_topic.t", "arn"),
         ])
         self.assertEqual(e, {
-            "codepipeline/p->codebuild_project/b": ("request", "", "confirmed"),
-            "codepipeline/p->codedeploy_app/d": ("request", "", "confirmed"),
+            # ソースのアクションは、データの流れに合わせてソース → パイプライン。ビルド・デプロイの起動は通信でないので event
+            "ecr_repository/src->codepipeline/p": ("data", "", "confirmed"),
+            "codepipeline/p->codebuild_project/b": ("event", "", "confirmed"),
+            "codepipeline/p->codedeploy_app/d": ("event", "", "confirmed"),
             "codepipeline/p->s3_bucket/art": ("data", "", "confirmed"),
             "codebuild_project/b->ecr_repository/r": ("data", "", "confirmed"),
             "ecs_service/s->ecr_repository/r": ("data", "", "confirmed"),
-            "codedeploy_app/d->ecs_service/s": ("request", "", "confirmed"),
+            "codedeploy_app/d->ecs_service/s": ("event", "", "confirmed"),
             "codedeploy_app/d->sns_topic/t": ("event", "", "confirmed"),
             "autoscaling_group/asg->sns_topic/t": ("event", "", "confirmed"),
         })
@@ -157,6 +162,40 @@ class DeliveryTest(unittest.TestCase):
         self.assertEqual(r["ecs_service/s->ecr_repository/r"], ["E-CONTAINER-IMAGE"])
         self.assertEqual(r["codedeploy_app/d->ecs_service/s"], ["E-CODEDEPLOY-TARGET"])
         self.assertEqual(r["autoscaling_group/asg->sns_topic/t"], ["E-NOTIFICATION"])
+
+    def test_cfn_pipeline_source_action(self):
+        e, r, _ = norm("cfn", [
+            resource("P", "AWS::CodePipeline::Pipeline", {"Name": "p", "Stages": [
+                {"Actions": [{"ActionTypeId": {"Category": "Source"}}]}, {"Actions": [{"ActionTypeId": {"Category": "Build"}}]}]}, fmt="cfn"),
+            resource("Src", "AWS::S3::Bucket", {"BucketName": "src"}, fmt="cfn"),
+            resource("B", "AWS::CodeBuild::Project", {"Name": "b"}, fmt="cfn"),
+        ], [
+            ref("P", "Properties.Stages[0].Actions[0].Configuration.S3Bucket", "Src"),
+            ref("P", "Properties.Stages[1].Actions[0].Configuration.ProjectName", "B"),
+        ])
+        self.assertEqual(e, {"s3_bucket/src->codepipeline/p": ("data", "", "confirmed"), "codepipeline/p->codebuild_project/b": ("event", "", "confirmed")})
+
+
+class KmsTest(unittest.TestCase):
+    def test_key_is_drawn_alias_merged_and_references_are_not_edges(self):
+        ir = build.normalize(raw_ir("tf", [
+            resource("aws_kms_key.k", "aws_kms_key", {"tags": {"Name": "k"}}),
+            resource("aws_kms_alias.a", "aws_kms_alias", {"name": "alias/k"}),
+            resource("aws_s3_bucket.b", "aws_s3_bucket", {"bucket": "b"}),
+            resource("aws_s3_bucket_server_side_encryption_configuration.c", "aws_s3_bucket_server_side_encryption_configuration"),
+            resource("aws_sqs_queue.q", "aws_sqs_queue", {"name": "q"}),
+        ], [
+            ref("aws_kms_alias.a", "target_key_id", "aws_kms_key.k", "key_id"),
+            ref("aws_s3_bucket_server_side_encryption_configuration.c", "bucket", "aws_s3_bucket.b", "id"),
+            ref("aws_s3_bucket_server_side_encryption_configuration.c",
+                "rule[0].apply_server_side_encryption_by_default[0].kms_master_key_id", "aws_kms_key.k", "arn"),
+            ref("aws_sqs_queue.q", "kms_master_key_id", "aws_kms_key.k", "arn"),
+        ]), RULES, "t")
+        self.assertEqual(sorted(n["id"] for n in ir["nodes"]), ["kms_key/k", "s3_bucket/b", "sqs_queue/q"])
+        self.assertEqual(ir["edges"], [])
+        cls = {x["address"]: (x["class"], x.get("rule"), tuple(x.get("into", ()))) for x in ir["sources"]["tf"]["resources"]}
+        self.assertEqual(cls["aws_kms_alias.a"], ("merged_into", "M-KMS-ALIAS", ("kms_key/k",)))
+        self.assertEqual([d for d in ir["diagnostics"] if d["code"] == "NORM-UNUSED-REF"], [])
 
 class IamTest(unittest.TestCase):
     def _tf(self, statements, extra_res=(), extra_refs=()):

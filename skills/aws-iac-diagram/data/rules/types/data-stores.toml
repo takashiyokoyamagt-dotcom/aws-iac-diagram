@@ -29,3 +29,13 @@ cfn = ["AWS::S3::Bucket"]
 name_attr = { tf = "bucket", cfn = "BucketName" }
 icon = ["resource_icon:s3"]
 data = true
+
+[[type]]
+id = "kms_key"
+class = "drawn"
+category = "resource"
+tf = ["aws_kms_key"]
+cfn = ["AWS::KMS::Key"]
+name_attr = {}
+icon = ["resource_icon:key_management_service"]
+icon_note = "データを守る鍵として、データストアと並べて描く。ほかのリソースからの `kms_key_id` などの参照は辺にしない（E-NOEDGE-KMS）"

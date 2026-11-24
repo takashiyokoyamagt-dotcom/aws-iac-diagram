@@ -155,7 +155,7 @@ OTHER_TABLES = {
     "synthetic": {"id": ("text", True), "trigger": ("text", True), "node": ("text", True), "edges": ("text", True)},
     "label_format": {"subject": ("text", True), "format": ("text", True), "example": ("str", True)},
     "noedge": {"id": ("text", True), "attrs": ("strs", True), "use": ("strs", True), "match": ("text", True),
-               "use_text": ("text", True), "from_class": ("strs1", False), "except_rules": ("strs", False)},
+               "use_text": ("text", True), "from_class": ("strs1", False), "except_rules": ("strs", False), "to_types": ("strs1", False)},
     "nonode": {"id": ("text", True), "target": ("text", True), "handling": ("text", True)},
     "placement": {"id": ("text", True), "types": ("strs1", True), "content": ("text", True)},
     "attr": {"type": ("text", True), "name": ("text", True), "values": ("strs1", True), "source": ("text", True), "rule": ("text", True)},
@@ -740,8 +740,11 @@ def _cross_checks(rules: Rules, good: Rules, rules_dir: Path, errs: list[str]) -
         for x in r.get("except_rules", ()):
             if x not in rules.merged_ids:
                 errs.append(f"{r.file}: {r.id} の except_rules {x!r} が統合の規則（M-*）にない")
-        if not r.get("attrs") and not has_fc:
-            errs.append(f"{r.file}: {r.id} は attrs が空なのに from_class が無い（何にも当たらない規則）")
+        for t in r.get("to_types", ()):
+            if t not in drawn_ids:
+                errs.append(f"{r.file}: {r.id} の to_types の {t!r} が描く型にない")
+        if not r.get("attrs") and not has_fc and not r.get("to_types"):
+            errs.append(f"{r.file}: {r.id} は attrs が空なのに from_class も to_types も無い（何にも当たらない規則）")
     if refs_as and not any(x in refs_as for r in rules.noedge for x in _strs_of(r.get("except_rules"))):  # 確信度と同じ理由ですべての行
         errs.append(f"types: refs_as_target の {refs_as} を、辺にしない参照の except_rules が指していない")
 

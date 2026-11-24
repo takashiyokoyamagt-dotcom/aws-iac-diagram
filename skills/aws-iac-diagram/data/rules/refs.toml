@@ -49,6 +49,14 @@ match = "参照する側を統合先にする参照: `cluster`／`Cluster`、`ta
 use_text = "統合先のノード（M-*）"
 
 [[noedge]]
+id = "E-NOEDGE-KMS"
+attrs = []
+to_types = ["kms_key"]
+use = []
+match = "参照先が KMS の鍵（描く型 kms_key）の参照（kms_key_id・kms_master_key_id・KmsKeyId など、属性名によらない）。2026-11-25 に KMS の鍵を描く型にしたときに足した。属性名で当てないのは、鍵を作らない入力（T16 の encryption_config がモジュールの鍵を指すなど）の参照の分類を変えないため"
+use_text = "（描かない。鍵はノードとして描くが、ほぼすべてのリソースが参照しうるので辺にしない）"
+
+[[noedge]]
 id = "E-NOEDGE-DEPENDS"
 attrs = ["depends_on"]
 use = []

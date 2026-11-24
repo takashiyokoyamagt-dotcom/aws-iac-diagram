@@ -226,7 +226,7 @@ raw IR → normalized IR。段階は設計草案（`docs/dev-notes/phase3-design
 
 | ファイル | 表 | 中身 |
 |---|---|---|
-| `types/*.toml`（名前の昇順） | `[[type]]` | 描く型 42（`network`・`compute`・`data-stores`・`integration`・`ai-analytics`・`edge-web`・`devtools`）、統合 M-* 24 と非表示 H-* 21（`merged-and-hidden`）。TF と CFN の型を 1 行に並べる |
+| `types/*.toml`（名前の昇順） | `[[type]]` | 描く型 43（`network`・`compute`・`data-stores`・`integration`・`ai-analytics`・`edge-web`・`devtools`）、統合 M-* 25 と非表示 H-* 20（`merged-and-hidden`）。TF と CFN の型を 1 行に並べる |
 | `relations.toml` | `[[relation]]` | R-* 18（関係リソース → 辺） |
 | `edges.toml` | `[[confidence]]` `[[edge]]` `[[kind_by_target]]` `[[iam_action_kind]]` `[[merge_priority]]` `[[synthetic]]` `[[label_format]]` | 確信度、辺の規則 E-*、kind の対応表、まとめ方の優先順、合成ノード N-*、ラベルの書式 |
 | `refs.toml` | `[[noedge]]` `[[nonode]]` | E-NOEDGE-* 7、E-REF-NONODE |

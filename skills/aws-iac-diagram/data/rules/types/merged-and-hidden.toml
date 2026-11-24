@@ -223,6 +223,14 @@ into = { node_types = ["autoscaling_group"], select = "その Auto Scaling グ�
 reason = "グループの起動の設定とスケーリング・ライフサイクルの設定で、通信経路を持たない。起動設定の SG は R-SG の辺の起点をグループに移すときに使う。ライフサイクルフックの通知先は E-NOTIFICATION"
 
 [[type]]
+id = "M-KMS-ALIAS"
+class = "merged_into"
+tf = ["aws_kms_alias"]
+cfn = ["AWS::KMS::Alias"]
+into = { node_types = ["kms_key"], select = "その鍵（`target_key_id`／`TargetKeyId`）" }
+reason = "鍵の別名。鍵と同じもの"
+
+[[type]]
 id = "H-IAM"
 class = "hidden"
 tf = ["aws_iam_role", "aws_iam_role_policy", "aws_iam_role_policy_attachment", "aws_iam_instance_profile", "aws_iam_policy",
@@ -392,11 +400,3 @@ tf = ["aws_ssm_parameter"]
 cfn = ["AWS::SSM::Parameter"]
 applies = "`aws_ssm_parameter`、`AWS::SSM::Parameter`"
 reason = "設定の値の置き場で、構成上の役割は値を渡すことだけ（TF の `data.aws_ssm_parameter` は H-DATA）"
-
-[[type]]
-id = "H-KMS"
-class = "hidden"
-tf = ["aws_kms_key", "aws_kms_alias"]
-cfn = ["AWS::KMS::Key", "AWS::KMS::Alias"]
-applies = "`aws_kms_key`、`aws_kms_alias`、`AWS::KMS::Key`、`AWS::KMS::Alias`"
-reason = "暗号化の鍵。ほぼすべてのリソースが参照しうるので、描くと辺が増えるだけで構成が読めなくなる"

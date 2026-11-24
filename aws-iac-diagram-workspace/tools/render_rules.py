@@ -202,7 +202,8 @@ def t_label_format(r: rule_data.Rules) -> str:
 def t_noedge(r: rule_data.Rules) -> str:
     rows = []
     for x in r.noedge:
-        keys = btl(x.attrs) if x.attrs else ("参照する側が " + btl(x.from_class, "・") + " の規則（" + btl(x.except_rules) + " は除く）" if "from_class" in x.fields else "")
+        keys = btl(x.attrs) if x.attrs else ("参照する側が " + btl(x.from_class, "・") + " の規則（" + btl(x.except_rules) + " は除く）" if "from_class" in x.fields
+                                             else "参照先の型が " + btl(x.to_types, "・") if "to_types" in x.fields else "")
         rows.append([bt(x.id), x.match, keys, x.use_text])
     return table(["規則ID", "当たる参照（原文）", "機械が読む属性名（中立キー）", "代わりに使うところ"], rows)
 
@@ -317,6 +318,7 @@ COLUMN_DOC = {
     ("noedge", "use_text"): "代わりに使うところ（原文）",
     ("noedge", "from_class"): "属性名でなく、参照する側のリソースの class（`merged_into`・`hidden`）で当てる",
     ("noedge", "except_rules"): "`from_class` で当たるうち、除く統合の規則（M-*。`refs_as_target` の行）",
+    ("noedge", "to_types"): "属性名でなく、参照先の描く型で当てる（KMS の鍵など。属性名の行より先に見る）",
     ("nonode", "id"): "規則 ID（`E-REF-NONODE`）",
     ("nonode", "target"): "参照先（原文）",
     ("nonode", "handling"): "扱い（原文）",

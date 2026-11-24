@@ -113,7 +113,7 @@ confidence = "confirmed"
 [[edge]]
 id = "E-PIPELINE"
 input = "CodePipeline のアクションの設定（`stage[].action[].configuration`／`Stages[].Actions[].Configuration`）と、成果物の置き場（`artifact_store[].location`／`ArtifactStore.Location`・`ArtifactStores[].ArtifactStore.Location`）が、ほかのリソースへの参照"
-edge = "パイプライン → アクションの相手（CodeBuild のプロジェクト、CodeDeploy のアプリケーション（デプロイグループは M-CODEDEPLOY-GROUP の統合先）、ECR、S3 など）、パイプライン → 成果物のバケット"
+edge = "パイプライン → ビルド・デプロイなどのアクションの相手（CodeBuild のプロジェクト、CodeDeploy のアプリケーション（デプロイグループは M-CODEDEPLOY-GROUP の統合先）など）、パイプライン → 成果物のバケット。ソースのアクション（`category`／`ActionTypeId.Category` が `Source`。ECR・S3・CodeCommit など、パイプラインが取り込む側）は、データの流れに合わせて **ソース → パイプライン**"
 kind = ""
 kind_by = "kind_by_target"
 kind_note = "参照先の型で決める（下の表）。表に無い型は辺にしない"
@@ -139,7 +139,7 @@ confidence = "confirmed"
 id = "E-CODEDEPLOY-TARGET"
 input = "M-CODEDEPLOY-GROUP で統合したデプロイグループの配る先（`ecs_service[].service_name`／`ECSServices[].ServiceName`、`autoscaling_groups`／`AutoScalingGroups`）が、ほかのリソースへの参照。クラスタ（`cluster_name`／`ClusterName`）は辺にしない（M-ECS-CLUSTER でクラスタのサービスすべてに統合されているので、別のサービスへの辺になる）"
 edge = "アプリケーション → ECS サービス・Auto Scaling グループ"
-kind = "request"
+kind = "event"
 confidence = "confirmed"
 
 [[edge]]
@@ -168,9 +168,12 @@ kind = "event"
 types = ["sns_topic", "sqs_queue", "eventbridge_rule"]
 
 [[kind_by_target]]
+kind = "event"
+types = ["codebuild_project", "codedeploy_app", "codepipeline"]
+
+[[kind_by_target]]
 kind = "request"
-types = ["lambda_function", "apigw_*", "bedrock_knowledge_base", "bedrock_model", "sfn_state_machine", "glue_job", "glue_crawler", "cognito_user_pool", "eks_cluster",
-         "codebuild_project", "codedeploy_app", "codepipeline"]
+types = ["lambda_function", "apigw_*", "bedrock_knowledge_base", "bedrock_model", "sfn_state_machine", "glue_job", "glue_crawler", "cognito_user_pool", "eks_cluster"]
 
 [[iam_action_kind]]
 kind = "request"

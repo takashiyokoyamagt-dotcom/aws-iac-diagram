@@ -16,8 +16,9 @@ E-DNS-ALIAS、E-GLUE-TARGET、E-AUTHORIZER、E-PIPELINE・E-BUILD-ENV・E-CONTAI
 - **E-AUTHORIZER（confirmed、request）:** M-APIGW-AUTHORIZER で統合したオーソライザーの `provider_arns`／`ProviderARNs`（ユーザープール）と
   `authorizer_uri`／`AuthorizerUri`（Lambda）→ 統合先の API から。統合先の API そのものへの参照（自分への辺）は捨てる。
 - **E-PIPELINE・E-BUILD-ENV（confirmed、kind は参照先の型）:** CodePipeline のアクションの設定と成果物の置き場、CodeBuild の環境変数の参照。
+  ソースのアクション（`category`／`ActionTypeId.Category` が `Source`）の参照は、データの流れに合わせてソース → パイプライン。
 - **E-CONTAINER-IMAGE（confirmed、data）:** タスク定義のコンテナのイメージ（統合先のサービスから）、Lambda の `image_uri` → ECR。
-- **E-CODEDEPLOY-TARGET（confirmed、request）・E-NOTIFICATION（confirmed、event）:** 統合したデプロイグループ（M-CODEDEPLOY-GROUP）の配る先・
+- **E-CODEDEPLOY-TARGET・E-NOTIFICATION（confirmed、event。デプロイは通信ではない）:** 統合したデプロイグループ（M-CODEDEPLOY-GROUP）の配る先・
   通知先、統合したライフサイクルフック（M-ASG-PARTS）と Auto Scaling グループの通知先 → 統合先（自分）から。
 
 参照の無い根拠（文字列の一致）は `<address>.<位置> (<説明>)` で書く（ir-schema の 4 章の例外）。
@@ -31,7 +32,7 @@ import re
 from dataclasses import replace
 
 from aws_iac_diagram.normalize import synthetic, view
-from aws_iac_diagram.normalize.relations_base import Candidate, Context, make, path_keys
+from aws_iac_diagram.normalize.relations_base import Candidate, Context, make, path_keys, value_at
 
 MODULE = "module"
 _IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
@@ -209,17 +210,47 @@ def _drawn(ctx: Context, *types: str) -> list[tuple[str, tuple[str, ...]]]:
     return [(r.address, (ctx.nodes[r.address]["id"],)) for r in ctx.drawn(*types)]
 
 
+_ACTION = re.compile(r"^(?:Properties\.)?(?:stage|Stages)\[\d+\]\.(?:action|Actions)\[\d+\]")
+
+
+def _is_source_action(res, path: str) -> bool:
+    """参照の位置のアクションが、ソースのアクション（TF の `category`、CFN の `ActionTypeId.Category` が `Source`）か。"""
+    m = _ACTION.match(path)
+    action = value_at(dict(res.props), m.group(0)) if m else None
+    if not isinstance(action, dict):
+        return False
+    type_id = action.get("ActionTypeId")
+    category = action.get("category", type_id.get("Category") if isinstance(type_id, dict) else None)
+    return view.plain_str(category) == "Source"
+
+
+def pipeline_candidates(ctx: Context) -> list[Candidate]:
+    """E-PIPELINE: パイプライン → アクションの相手・成果物のバケット。ソースのアクションの相手は、相手 → パイプライン。"""
+    out = []
+    for res in ctx.drawn("codepipeline"):
+        me = ctx.nodes[res.address]["id"]
+        refs = ctx.refs(res.address, ("stage", "action", "configuration"), ("stages", "actions", "configuration"), ("artifactstore",),
+                        ("artifactstores",))
+        for t, ref in ctx.targets(refs):
+            k = kind_of(ctx, t)
+            if k is None:
+                continue
+            source = _is_source_action(ctx.index.by_address[res.address], ref["path"])
+            out.append(make(t, me, "E-PIPELINE", k, "", [ref], confidence="confirmed") if source
+                       else make(me, t, "E-PIPELINE", k, "", [ref], confidence="confirmed"))
+    return out
+
+
 def delivery_candidates(ctx: Context) -> list[Candidate]:
     """CI/CD とコンテナのイメージ、通知の辺（E-PIPELINE・E-BUILD-ENV・E-CONTAINER-IMAGE・E-CODEDEPLOY-TARGET・E-NOTIFICATION）。"""
-    out = _from(ctx, _drawn(ctx, "codepipeline"), "E-PIPELINE", None,
-                [("stage", "action", "configuration"), ("stages", "actions", "configuration"), ("artifactstore",), ("artifactstores",)])
+    out = pipeline_candidates(ctx)
     out += _from(ctx, _drawn(ctx, "codebuild_project"), "E-BUILD-ENV", None,
                  [("environment", "environmentvariable", "value"), ("environment", "environmentvariables", "value")])
     ecr = ("ecr_repository",)
     out += _from(ctx, _merged(ctx, "M-ECS-TASKDEF"), "E-CONTAINER-IMAGE", "data", [("containerdefinitions", "image")], ecr)
     out += _from(ctx, _drawn(ctx, "lambda_function"), "E-CONTAINER-IMAGE", "data", [("imageuri",), ("code", "imageuri")], ecr)
     groups = _merged(ctx, "M-CODEDEPLOY-GROUP")
-    out += _from(ctx, groups, "E-CODEDEPLOY-TARGET", "request",
+    out += _from(ctx, groups, "E-CODEDEPLOY-TARGET", "event",
                  [("ecsservice", "servicename"), ("ecsservices", "servicename"), ("autoscalinggroups",)], ("ecs_service", "autoscaling_group"))
     out += _from(ctx, groups, "E-NOTIFICATION", "event", [("triggerconfiguration", "triggertargetarn"), ("triggerconfigurations", "triggertargetarn")])
     out += _from(ctx, _merged(ctx, "M-ASG-PARTS"), "E-NOTIFICATION", "event", [("notificationtargetarn",)])

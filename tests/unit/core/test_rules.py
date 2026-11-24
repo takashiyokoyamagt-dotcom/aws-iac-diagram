@@ -31,18 +31,18 @@ class ShippedRulesTest(unittest.TestCase):
 
     def test_row_counts_per_table(self):
         r = self.r
-        self.assertEqual((len(r.drawn), len(r.merged), len(r.hidden), len(r.relations)), (42, 24, 21, 18))
+        self.assertEqual((len(r.drawn), len(r.merged), len(r.hidden), len(r.relations)), (43, 25, 20, 18))
         self.assertEqual((len(r.confidences), len(r.edges), len(r.kind_by_target), len(r.iam_action_kinds), len(r.merge_priority),
-                          len(r.synthetic), len(r.label_formats)), (3, 17, 3, 3, 6, 2, 6))
-        self.assertEqual((len(r.noedge), len(r.nonode), len(r.placement), len(r.attrs)), (7, 1, 5, 1))
+                          len(r.synthetic), len(r.label_formats)), (3, 17, 4, 3, 6, 2, 6))
+        self.assertEqual((len(r.noedge), len(r.nonode), len(r.placement), len(r.attrs)), (8, 1, 5, 1))
 
     def test_rule_ids_per_prefix(self):
         ids = self.r.rule_ids
         by = {p: sorted(i for i in ids if i.startswith(p)) for p in ("E-", "H-", "M-", "N-", "P-", "R-")}
-        self.assertEqual({p: len(v) for p, v in by.items()}, {"E-": 25, "H-": 21, "M-": 24, "N-": 3, "P-": 4, "R-": 18})
-        self.assertEqual(len(ids), 95)
+        self.assertEqual({p: len(v) for p, v in by.items()}, {"E-": 26, "H-": 20, "M-": 25, "N-": 3, "P-": 4, "R-": 18})
+        self.assertEqual(len(ids), 96)
         self.assertEqual(self.r.edge_ids | self.r.ref_ids, frozenset(by["E-"]))
-        self.assertEqual(len(self.r.ref_ids), 8)  # E-NOEDGE-* 7 と E-REF-NONODE
+        self.assertEqual(len(self.r.ref_ids), 9)  # E-NOEDGE-* 8 と E-REF-NONODE
         self.assertEqual(self.r.synthetic_ids | {i for i in self.r.placement_ids if i.startswith("N-")}, frozenset(by["N-"]))
         self.assertEqual(self.r.placement_ids - {"N-AZ"}, frozenset(by["P-"]))
         self.assertTrue(self.r.drawn_ids.isdisjoint(ids))  # 描く型の名前は規則 ID と混ざらない
@@ -87,7 +87,7 @@ class ShippedRulesTest(unittest.TestCase):
         d = self.r.drawable_types()
         self.assertEqual(d["AWS::CloudFormation::Stack"], {"module"})
         self.assertEqual(d["aws_lb"], {"alb"})
-        self.assertEqual(len(d), 85)
+        self.assertEqual(len(d), 87)
         self.assertNotIn("module", d)  # TF の黒箱の入力の型は module だが、規則表には書かない（validate_ir.py の BLACKBOX_TYPES）
 
     def test_column_values_match_the_schema_enums(self):
@@ -523,6 +523,13 @@ class StructureTest(unittest.TestCase):
     def test_refs_as_target_must_be_used_by_an_exception(self):
         edit(self.dir, "refs.toml", 'except_rules = ["M-ECS-TASKDEF", "M-APIGW-AUTHORIZER"]', "except_rules = []")
         self.assertBroken("refs_as_target の ['M-ECS-TASKDEF', 'M-APIGW-AUTHORIZER'] を、辺にしない参照の except_rules が指していない")
+
+    def test_to_types_must_be_drawn_types(self):
+        edit(self.dir, "refs.toml", 'to_types = ["kms_key"]', 'to_types = ["kms_keyy"]')
+        self.assertBroken("E-NOEDGE-KMS の to_types の 'kms_keyy' が描く型にない")
+        self.setUp()
+        edit(self.dir, "refs.toml", 'to_types = ["kms_key"]\n', "")
+        self.assertBroken("E-NOEDGE-KMS は attrs が空なのに from_class も to_types も無い")
 
     def test_all_problems_are_collected(self):
         edit(self.dir, "relations.toml", 'id = "R-ROUTE"', 'id = "R-SG"')

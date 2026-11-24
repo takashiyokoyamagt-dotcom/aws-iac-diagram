@@ -4,7 +4,7 @@
   2. `nonode`  参照先にノードが無い（E-REF-NONODE。参照先が非表示 H-*、または辺に変換した（仮でない）関係リソース R-*）。
                refs.md のとおり、E-NOEDGE の表より先に当てる
   3. `noedge`  辺にしない参照（refs.toml の `[[noedge]]` を上から当てはめる。最初は E-NOEDGE-FROM-RULE（参照する側が R-*・M-*・H-* に
-               分類された。M-ECS-TASKDEF・M-APIGW-AUTHORIZER を除く）、次から属性名で当てる: path の最後の要素の中立キー、当たらなければ
+               分類された。M-ECS-TASKDEF・M-APIGW-AUTHORIZER を除く）、参照先の描く型で当てる行（`to_types`。E-NOEDGE-KMS）、次から属性名で当てる: path の最後の要素の中立キー、当たらなければ
                最初の要素（SAM の `Policies` の中の参照は E-NOEDGE-ROLE、`vpc_config` の中は E-NOEDGE-PLACEMENT）。`["aws:SourceArn"]` の
                ような引用符つきの添字と、map の属性（環境変数・タグなど）の中のキーは属性名にしない。M-* から自分の統合先への
                参照（除外の規則 M-APIGW-AUTHORIZER を含む）も E-NOEDGE-FROM-RULE。描くリソースから自分に統合された M-* への参照
@@ -63,10 +63,11 @@ def account(index: Index, decisions: dict[str, Decision], rules: Rules, used: fr
     描くリソースの address → ノードの id（M-* から自分の統合先への参照を見分けるため）。"""
     node_of = node_of or {}
     attr_rules = [(r, {neutral_key(a) for a in r.attrs}) for r in rules.noedge if r.attrs]
+    type_rules = [(r, frozenset(r.get("to_types", ()))) for r in rules.noedge if r.get("to_types")]
     from_rule = next((r for r in rules.noedge if r.id == FROM_RULE), None)
     out = []
     for ref in [r for refs in index.refs_from.values() for r in refs]:
-        out.append(_classify(ref, decisions, used, attr_rules, from_rule, node_of))
+        out.append(_classify(ref, decisions, used, attr_rules, from_rule, node_of, type_rules))
     order = {ref_key(r): i for i, r in enumerate(x for refs in index.refs_from.values() for x in refs)}
     return sorted(out, key=lambda e: (e.ref["from"], order[ref_key(e.ref)]))
 
@@ -80,7 +81,7 @@ def _nodes_of(address: str, decisions, node_of) -> set[str]:
     return set()
 
 
-def _classify(ref: dict, decisions, used, attr_rules, from_rule, node_of) -> Entry:
+def _classify(ref: dict, decisions, used, attr_rules, from_rule, node_of, type_rules=()) -> Entry:
     if ref_key(ref) in used:
         return Entry(ref, "edge", None)
     if is_depends_on(ref):
@@ -104,6 +105,11 @@ def _classify(ref: dict, decisions, used, attr_rules, from_rule, node_of) -> Ent
     if (ref["from"] in node_of and t is not None and t.cls == "merged_into" and (t.rule or "").startswith("M-")
             and set(t.into) and set(t.into) <= mine):
         return Entry(ref, "noedge", MERGE)
+    # 参照先の型で当てる行（E-NOEDGE-KMS。KMS の鍵への参照は属性名によらず辺にしない）
+    to_type = node_of[ref["to"]].split("/", 1)[0] if ref["to"] in node_of else None
+    for row, types in type_rules:
+        if to_type in types:
+            return Entry(ref, "noedge", row.id)
     for key in _keys(ref["path"]):
         for row, keys in attr_rules:
             if key in keys:

@@ -21,6 +21,7 @@
 | `use_text` | 文字列 | 必須 | 代わりに使うところ（原文） |
 | `from_class` | 文字列の配列（1 つ以上） | 省略可 | 属性名でなく、参照する側のリソースの class（`merged_into`・`hidden`）で当てる |
 | `except_rules` | 文字列の配列 | 省略可 | `from_class` で当たるうち、除く統合の規則（M-*。`refs_as_target` の行） |
+| `to_types` | 文字列の配列（1 つ以上） | 省略可 | 属性名でなく、参照先の描く型で当てる（KMS の鍵など。属性名の行より先に見る） |
 
 **`[[nonode]]`**
 
@@ -58,6 +59,7 @@
 | `E-NOEDGE-ROLE` | `role`・`role_arn`・`execution_role_arn`・`task_role_arn`・`iam_instance_profile`／`Role`・`RoleArn`・`ExecutionRoleArn`・`TaskRoleArn`・`IamInstanceProfile`、SAM の `Policies`（ポリシーテンプレートの中の参照も含む） | `role`、`role_arn`、`execution_role_arn`、`task_role_arn`、`iam_instance_profile`、`Policies` | E-IAM |
 | `E-NOEDGE-LOG` | ロググループへの参照（`log_group_name`、`awslogs-group`／`LogGroupName`） | `log_group_name`、`awslogs-group` | （描かない） |
 | `E-NOEDGE-MERGE` | 参照する側を統合先にする参照: `cluster`／`Cluster`、`task_definition`／`TaskDefinition`、`allocation_id`／`AllocationId` | `cluster`、`task_definition`、`allocation_id` | 統合先のノード（M-*） |
+| `E-NOEDGE-KMS` | 参照先が KMS の鍵（描く型 kms_key）の参照（kms_key_id・kms_master_key_id・KmsKeyId など、属性名によらない）。2026-11-25 に KMS の鍵を描く型にしたときに足した。属性名で当てないのは、鍵を作らない入力（T16 の encryption_config がモジュールの鍵を指すなど）の参照の分類を変えないため | 参照先の型が `kms_key` | （描かない。鍵はノードとして描くが、ほぼすべてのリソースが参照しうるので辺にしない） |
 | `E-NOEDGE-DEPENDS` | `depends_on`／`DependsOn` | `depends_on` | （描かない。作る順序だけの依存） |
 
 <!-- /rules-table -->

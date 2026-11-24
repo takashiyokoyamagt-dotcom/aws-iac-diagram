@@ -14,7 +14,8 @@
   `TransitGatewayId` の TGW（`network`、ラベルなし）。アタッチメントを `transit_gateway_attachment_id` で指す TGW のルートテーブルへの
   関連付け・伝播も、その辺の `members` にする。
 - R-TGW-ROUTE: TGW のルートの宛先のアタッチメント（`transit_gateway_attachment_id`）の TGW → その VPC（`route`、ラベルは宛先の CIDR）。
-  宛先の無いルート（blackhole）は辺を作らない。
+  宛先の無いルート（blackhole）は辺を作らない。アタッチメントの VPC か TGW が 1 つに決まらなければ、どちらの規則も辺を作らない
+  （推測で全部の VPC へ出さない）。同じ (TGW, VPC) のルートは E-MERGE で 1 本にまとまる（ラベルは CIDR を辞書順に `, ` でつなぐ）。
 
 ここは標準ライブラリと core と normalize の view・classify・relations_base だけを使う。
 """
@@ -121,6 +122,8 @@ def tgw_candidates(ctx: Context) -> list[Candidate]:
     parts = [r.address for r in ctx.resources(TGW_ATTACH_RULE) if r.address not in attachments]
     for att in attachments:
         vpcs, tgws = _attachment_ends(ctx, att)
+        if len(vpcs) != 1 or len(tgws) != 1:
+            continue  # VPC か TGW が 1 つに決まらないアタッチメントは、推測で全部へ辺を出さない
         members = (att,) + tuple(p for p in parts if any(r["to"] == att for r in ctx.refs(p, ("transitgatewayattachmentid",))))
         for vpc, vref in vpcs:
             for tgw, tref in tgws:
@@ -131,7 +134,9 @@ def tgw_candidates(ctx: Context) -> list[Candidate]:
             if aref["to"] not in attachments:
                 continue
             vpcs, tgws = _attachment_ends(ctx, aref["to"])
-            for tgw, tref in tgws:
-                for vpc, vref in vpcs:
-                    out.append(make(tgw, vpc, TGW_ROUTE_RULE, "route", cidr, [aref, tref, vref], (r.address,)))
+            if len(vpcs) != 1 or len(tgws) != 1:
+                continue
+            (vpc, vref), (tgw, tref) = vpcs[0], tgws[0]
+            # 同じ (TGW, VPC) のルート（ルートテーブル・宛先 CIDR ごと）は E-MERGE で 1 本になり、CIDR は `, ` でつながる
+            out.append(make(tgw, vpc, TGW_ROUTE_RULE, "route", cidr, [aref, tref, vref], (r.address,)))
     return out

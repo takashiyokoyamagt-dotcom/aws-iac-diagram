@@ -71,6 +71,7 @@
 | `db_instance` | data-stores | resource | `aws_db_instance` | `AWS::RDS::DBInstance` | `identifier` ／ `DBInstanceIdentifier` | `shape:rds_instance` |  |
 | `dynamodb_table` | data-stores | resource | `aws_dynamodb_table` | `AWS::DynamoDB::Table`、`AWS::Serverless::SimpleTable` | `name` ／ `TableName` | `resource_icon:dynamodb` |  |
 | `s3_bucket` | data-stores | resource | `aws_s3_bucket` | `AWS::S3::Bucket` | `bucket` ／ `BucketName` | `resource_icon:s3` | ○ |
+| `kms_key` | data-stores | resource | `aws_kms_key` | `AWS::KMS::Key` | （タグのみ） | `resource_icon:key_management_service` （データを守る鍵として、データストアと並べて描く。ほかのリソースからの `kms_key_id` などの参照は辺にしない（E-NOEDGE-KMS）） |  |
 | `ecr_repository` | devtools | resource | `aws_ecr_repository` | `AWS::ECR::Repository` | `name` ／ `RepositoryName` | `resource_icon:ecr` |  |
 | `codepipeline` | devtools | resource | `aws_codepipeline` | `AWS::CodePipeline::Pipeline` | `name` ／ `Name` | `resource_icon:codepipeline` |  |
 | `codebuild_project` | devtools | resource | `aws_codebuild_project` | `AWS::CodeBuild::Project` | `name` ／ `Name` | `resource_icon:codebuild` |  |
@@ -105,7 +106,7 @@
 - `subnet` の `attrs.access` の決め方は [placement.md](placement.md)。
 - **既存の `data` を描く（`data = true`）:** `data` ブロックは H-DATA（描かない）が既定だが、描く型の `data`（`data.aws_vpc`・`data.aws_subnet`・`data.aws_s3_bucket` など）が描くリソースから参照されていれば、既存のノードとして描く（ir-schema の 7.4。T09 の `data.aws_s3_bucket`）。手順 1 では**方針をデータに持たせただけ**で、動きは変えていない（`validate_ir.py` は使わない）。どの型を描くかは手順 2 で決めた: 設計案（`docs/dev-notes/phase3-design-draft.md` の 8 章の 3）の推奨 (c) のとおり、`data = true` の 3 つ（`vpc`・`subnet`・`s3_bucket`）だけ。参照されていない `data` は H-DATA。
 - **統合の 2 段:** 統合先がさらに統合される行（M-LAUNCH-TEMPLATE → ノードグループ（M-EKS-PARTS）→ クラスタ）は、描く型に着くまで統合をたどる。
-- **2026-11-25 に足した描く型（凍結を解いた拡張。C3 の大きいサンプル T17・T19・C05 の unknown から）:** 図の主役になるものを描く。`transit_gateway`・`egress_only_internet_gateway`・`network_firewall`・`route53_resolver_endpoint`（network）、`autoscaling_group`（compute）、`route53_zone`（edge-web）、`ecr_repository`・`codepipeline`・`codebuild_project`・`codedeploy_app`（新しいファイル `devtools.toml`）。Route 53 はレコードに加えてホストゾーンも描く（プライベートのホストゾーンは VPC の DNS の構成そのもので、T19 の点検表が求める）。Egress-only のインターネットゲートウェイは辞書に専用のアイコンが無いので、インターネットゲートウェイのアイコンを使い名前で見分ける。Auto Scaling グループは枠（`group:group_auto_scaling_group`）ではなくアイコンにする（中に描くインスタンスが IR に無い）。ネットワーク図に出す型（`layout/views.py` の `NETWORK_TYPES`）にも、TGW・Egress-only IGW・Network Firewall・Resolver のエンドポイントを足した。
+- **2026-11-25 に足した描く型（凍結を解いた拡張。C3 の大きいサンプル T17・T19・C05 の unknown から）:** 図の主役になるものを描く。`transit_gateway`・`egress_only_internet_gateway`・`network_firewall`・`route53_resolver_endpoint`（network）、`autoscaling_group`（compute）、`route53_zone`（edge-web）、`kms_key`（data-stores。第三者レビューの指摘で、非表示から描く型にした。鍵だけを作る入力（T20:foundation/kms-keys）が空の図にならないように。エイリアスは M-KMS-ALIAS で鍵に統合し、ほかのリソースからの `kms_key_id` などの参照は E-NOEDGE-KMS で辺にしない）、`ecr_repository`・`codepipeline`・`codebuild_project`・`codedeploy_app`（新しいファイル `devtools.toml`）。Route 53 はレコードに加えてホストゾーンも描く（プライベートのホストゾーンは VPC の DNS の構成そのもので、T19 の点検表が求める）。Egress-only のインターネットゲートウェイは辞書に専用のアイコンが無いので、インターネットゲートウェイのアイコンを使い名前で見分ける。Auto Scaling グループは枠（`group:group_auto_scaling_group`）ではなくアイコンにする（中に描くインスタンスが IR に無い）。ネットワーク図に出す型（`layout/views.py` の `NETWORK_TYPES`）にも、TGW・Egress-only IGW・Network Firewall・Resolver のエンドポイントを足した。
 
 ## 2. 統合する型（M-*。`class: merged_into`、`into` はノード）
 
@@ -138,6 +139,7 @@
 | `M-RESOLVER-RULE` | `aws_route53_resolver_rule`、`aws_route53_resolver_rule_association` | `AWS::Route53Resolver::ResolverRule`、`AWS::Route53Resolver::ResolverRuleAssociation` | 転送に使うアウトバウンドのエンドポイント（`resolver_endpoint_id`／`ResolverEndpointId`。関連付けはルールを通して 2 段たどる） → `route53_resolver_endpoint` | DNS の問い合わせの転送の設定。エンドポイントの付属品で、単独で描く意味が無い（エンドポイントの無い SYSTEM のルールは H-NO-TARGET） |
 | `M-CODEDEPLOY-GROUP` | `aws_codedeploy_deployment_group`、`aws_codedeploy_deployment_config` | `AWS::CodeDeploy::DeploymentGroup`、`AWS::CodeDeploy::DeploymentConfig` | そのアプリケーション（`app_name`／`ApplicationName`。デプロイの設定はデプロイグループを通して 2 段たどる） → `codedeploy_app` | デプロイの単位と方式。配る先（ECS サービス・Auto Scaling グループ）と通知先は E-CODEDEPLOY-TARGET・E-NOTIFICATION でアプリケーションからの辺にする |
 | `M-ASG-PARTS` | `aws_launch_configuration`、`aws_autoscaling_lifecycle_hook`、`aws_autoscaling_policy`、`aws_autoscaling_schedule` | `AWS::AutoScaling::LaunchConfiguration`、`AWS::AutoScaling::LifecycleHook`、`AWS::AutoScaling::ScalingPolicy`、`AWS::AutoScaling::ScheduledAction` | その Auto Scaling グループ（起動設定はグループが参照、ほかは `autoscaling_group_name`／`AutoScalingGroupName`） → `autoscaling_group` | グループの起動の設定とスケーリング・ライフサイクルの設定で、通信経路を持たない。起動設定の SG は R-SG の辺の起点をグループに移すときに使う。ライフサイクルフックの通知先は E-NOTIFICATION |
+| `M-KMS-ALIAS` | `aws_kms_alias` | `AWS::KMS::Alias` | その鍵（`target_key_id`／`TargetKeyId`） → `kms_key` | 鍵の別名。鍵と同じもの |
 
 <!-- /rules-table -->
 
@@ -168,11 +170,10 @@
 | `H-IPAM` | `aws_vpc_ipam`、`aws_vpc_ipam_scope`、`aws_vpc_ipam_pool`、`aws_vpc_ipam_pool_cidr`、`AWS::EC2::IPAM`、`AWS::EC2::IPAMScope`、`AWS::EC2::IPAMPool`、`AWS::EC2::IPAMPoolCidr` | TF: `aws_vpc_ipam`、`aws_vpc_ipam_scope`、`aws_vpc_ipam_pool`、`aws_vpc_ipam_pool_cidr`；CFN: `AWS::EC2::IPAM`、`AWS::EC2::IPAMScope`、`AWS::EC2::IPAMPool`、`AWS::EC2::IPAMPoolCidr` | IP アドレスの割り当ての管理で、通信経路を持たない |
 | `H-VPC-DHCP` | `aws_vpc_dhcp_options`、`aws_vpc_dhcp_options_association`、`AWS::EC2::DHCPOptions`、`AWS::EC2::VPCDHCPOptionsAssociation` | TF: `aws_vpc_dhcp_options`、`aws_vpc_dhcp_options_association`；CFN: `AWS::EC2::DHCPOptions`、`AWS::EC2::VPCDHCPOptionsAssociation` | VPC の DNS サーバー・ドメイン名の設定で、通信経路を持たない |
 | `H-SSM-PARAMETER` | `aws_ssm_parameter`、`AWS::SSM::Parameter` | TF: `aws_ssm_parameter`；CFN: `AWS::SSM::Parameter` | 設定の値の置き場で、構成上の役割は値を渡すことだけ（TF の `data.aws_ssm_parameter` は H-DATA） |
-| `H-KMS` | `aws_kms_key`、`aws_kms_alias`、`AWS::KMS::Key`、`AWS::KMS::Alias` | TF: `aws_kms_key`、`aws_kms_alias`；CFN: `AWS::KMS::Key`、`AWS::KMS::Alias` | 暗号化の鍵。ほぼすべてのリソースが参照しうるので、描くと辺が増えるだけで構成が読めなくなる |
 
 <!-- /rules-table -->
 
-- **2026-11-25 に足した統合・非表示:** 付属品は統合（M-TGW-ROUTE-TABLE・M-NFW-CONFIG・M-RESOLVER-RULE・M-CODEDEPLOY-GROUP・M-ASG-PARTS。M-LAUNCH-TEMPLATE の統合先に `autoscaling_group` を足した）、統合先が無いか描く意味の無い設定は非表示（H-APP-AUTOSCALING・H-RAM・H-IPAM・H-VPC-DHCP・H-SSM-PARAMETER・H-KMS。H-IAM に `aws_iam_policy_attachment` を足した）。Application Auto Scaling を統合でなく非表示にしたのは、対象を `resource_id`（`service/<クラスタ>/<サービス>`）の文字列で指し、T17 のように参照がクラスタにしか届かないと、M-ECS-CLUSTER をたどってクラスタのサービスすべてに統合してしまうため（取り違えるより描かない）。`aws_iam_policy_attachment` は H-IAM に入れたが、E-IAM の材料にはしていない（`iam.py` が読むのは `aws_iam_role_policy_attachment` だけ。限界）。
+- **2026-11-25 に足した統合・非表示:** 付属品は統合（M-TGW-ROUTE-TABLE・M-NFW-CONFIG・M-RESOLVER-RULE・M-CODEDEPLOY-GROUP・M-ASG-PARTS。M-LAUNCH-TEMPLATE の統合先に `autoscaling_group` を足した）、統合先が無いか描く意味の無い設定は非表示（H-APP-AUTOSCALING・H-RAM・H-IPAM・H-VPC-DHCP・H-SSM-PARAMETER。H-IAM に `aws_iam_policy_attachment` を足した）。Application Auto Scaling を統合でなく非表示にしたのは、対象を `resource_id`（`service/<クラスタ>/<サービス>`）の文字列で指し、T17 のように参照がクラスタにしか届かないと、M-ECS-CLUSTER をたどってクラスタのサービスすべてに統合してしまうため（取り違えるより描かない）。`aws_iam_policy_attachment` は H-IAM に入れたが、E-IAM の材料にはしていない（`iam.py` が読むのは `aws_iam_role_policy_attachment` だけ。限界）。
 - `H-RELATION-NOEDGE` と `H-NO-TARGET` は、正規化が分類の確定（`scripts/aws_iac_diagram/normalize/classify.py`）で付ける（型では決まらない）。フェーズ 3 の手順 5 の後に規則表の凍結を解いて足した（それまでは分類を仮のまま残していた。ir-schema の 8 章）。どちらも、見落としに気づけるよう warn の診断（`NORM-RELATION-NOEDGE`・`NORM-MERGE-TARGET`）を一緒に出す。
 - IAM だけを作るモジュールの H-IAM は、`module_sources_file` の一覧（`data/module-summaries/iam-only-sources.md`。説明は [module-summaries.md](../module-summaries.md) の 4章）の source の前方一致で判定する（`core/module_sources.py` の `iam_only()`。アダプタの診断の文言と正規化が同じ判定を使う）。
 

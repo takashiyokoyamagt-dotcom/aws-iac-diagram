@@ -32,7 +32,7 @@ import normalize_public_check as chk  # noqa: E402
 import survey_public  # noqa: E402
 
 # 入力 → (リソース, ノード, 辺, R-SG の辺, unknown, NORM-UNUSED-REF)（2026-11-08 の測定。規則表は手順 2 で凍結したもの。
-# 2026-11-25 の規則表の拡張で、新しい型を含む 21 入力を測り直した。WORKLOG の「規則表の拡張（C3 の結果を受けて）」）。
+# 2026-11-25 の規則表の拡張で、新しい型を含む 22 入力を測り直した。WORKLOG の「規則表の拡張（C3 の結果を受けて）」）。
 # `unknown` の型と NORM-UNUSED-REF の属性名の内訳は、道具の表（`normalize_public_check.py` を引数なしで）で出す
 PINNED = {
     "T01": (5, 2, 1, 0, 0, 0),
@@ -47,7 +47,7 @@ PINNED = {
     "T10": (11, 4, 2, 2, 0, 1),
     "T11": (29, 4, 3, 0, 0, 0),
     "T12": (29, 5, 4, 0, 0, 6),
-    "T13": (46, 22, 5, 0, 3, 17),
+    "T13": (46, 23, 5, 0, 3, 17),
     "T14": (55, 19, 8, 0, 9, 15),
     "T15": (90, 3, 2, 0, 1, 1),
     "T16": (65, 14, 6, 0, 0, 1),
@@ -55,7 +55,7 @@ PINNED = {
     "T18:environment": (23, 8, 0, 0, 2, 3),
     "T18:eks-blue": (26, 10, 0, 0, 2, 19),
     "T18:eks-green": (26, 10, 0, 0, 2, 19),
-    "T19": (198, 76, 45, 0, 0, 22),
+    "T19": (198, 77, 45, 0, 0, 22),
     "T20:datasources/aurora": (44, 2, 0, 0, 8, 11),
     "T20:datasources/cockroach": (41, 4, 6, 6, 3, 5),
     "T20:datasources/data-generator": (38, 1, 0, 0, 0, 0),
@@ -66,7 +66,7 @@ PINNED = {
     "T20:foundation/buckets": (31, 4, 0, 0, 4, 4),
     "T20:foundation/glue-databases": (51, 8, 0, 0, 16, 24),
     "T20:foundation/iam-roles": (34, 0, 0, 0, 1, 0),
-    "T20:foundation/kms-keys": (22, 0, 0, 0, 0, 0),
+    "T20:foundation/kms-keys": (22, 10, 0, 0, 0, 0),
     "T20:foundation/network": (31, 6, 3, 0, 0, 0),
     "T20:foundation/s3-tables": (39, 0, 0, 0, 27, 41),
     "T20:ingestion-layer/debezium-aurora": (21, 0, 0, 0, 3, 4),

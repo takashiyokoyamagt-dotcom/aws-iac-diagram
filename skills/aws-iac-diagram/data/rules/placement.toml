@@ -51,8 +51,9 @@ types = [
     "codepipeline",
     "codebuild_project",
     "codedeploy_app",
+    "kms_key",
 ]
-content = "VPC に入らないリソース（Lambda、DynamoDB、S3、SNS、SQS、API Gateway、Bedrock、OpenSearch Serverless、EventBridge、Step Functions、Glue、Cognito、Transit Gateway（VPC とはアタッチメントの辺で結ぶ）、ECR、CodePipeline・CodeBuild・CodeDeploy）、グローバルなもの（CloudFront、Route 53 のレコードとホストゾーン、CloudFront 用の WAF）と `external` は `parent: null`。「AWS Cloud」やリージョンの枠は配置の段階で描き、IR には入れない"
+content = "VPC に入らないリソース（Lambda、DynamoDB、S3、SNS、SQS、API Gateway、Bedrock、OpenSearch Serverless、EventBridge、Step Functions、Glue、Cognito、Transit Gateway（VPC とはアタッチメントの辺で結ぶ）、ECR、CodePipeline・CodeBuild・CodeDeploy、KMS の鍵）、グローバルなもの（CloudFront、Route 53 のレコードとホストゾーン、CloudFront 用の WAF）と `external` は `parent: null`。「AWS Cloud」やリージョンの枠は配置の段階で描き、IR には入れない"
 
 [[attr]]
 type = "subnet"

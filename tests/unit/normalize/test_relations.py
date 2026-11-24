@@ -183,6 +183,30 @@ class LbTest(unittest.TestCase):
         self.assertIn("Rule.Properties.ListenerArn", o.ev["alb/alb->autoscaling_group/asg"]["evidence"])
 
 
+    def test_default_action_and_rule_to_the_same_group_make_one_edge(self):
+        # リスナーの既定のアクションとルールが同じターゲットグループに転送するとき、LB → ターゲットの辺は 1 本で、
+        # members（into）はリスナー・ルール・グループのすべてが同じ辺になる
+        o = Out("tf", [
+            R("aws_lb.alb", "aws_lb", {"name": "alb"}), R("aws_lb_listener.l", "aws_lb_listener"),
+            R("aws_lb_listener_rule.r", "aws_lb_listener_rule"),
+            R("aws_lb_target_group.tg", "aws_lb_target_group", {"protocol": "HTTP", "port": 8080}),
+            R("aws_ecs_service.svc", "aws_ecs_service", {"name": "svc"}),
+        ], [
+            ref("aws_lb_listener.l", "load_balancer_arn", "aws_lb.alb", "arn"),
+            ref("aws_lb_listener.l", "default_action[0].target_group_arn", "aws_lb_target_group.tg", "arn"),
+            ref("aws_lb_listener_rule.r", "listener_arn", "aws_lb_listener.l", "arn"),
+            ref("aws_lb_listener_rule.r", "action[0].target_group_arn", "aws_lb_target_group.tg", "arn"),
+            ref("aws_ecs_service.svc", "load_balancer[0].target_group_arn", "aws_lb_target_group.tg", "arn"),
+        ])
+        self.assertEqual(o.edges, {"alb/alb->ecs_service/svc": ("request", "HTTP 8080", "derived")})
+        self.assertEqual(o.ev["alb/alb->ecs_service/svc"]["rules"], ["R-LB-LISTENER", "R-LB-TG"])
+        for a in ("aws_lb_listener.l", "aws_lb_listener_rule.r"):
+            self.assertEqual(o.cls[a], ("merged_into", "R-LB-LISTENER", ("alb/alb->ecs_service/svc",)), a)
+        self.assertEqual(o.cls["aws_lb_target_group.tg"], ("merged_into", "R-LB-TG", ("alb/alb->ecs_service/svc",)))
+        self.assertTrue({"aws_lb_listener.l.default_action[0].target_group_arn", "aws_lb_listener_rule.r.action[0].target_group_arn"}
+                        <= set(o.ev["alb/alb->ecs_service/svc"]["evidence"]))
+
+
 class TgwTest(unittest.TestCase):
     def test_attachment_route_table_parts_and_routes(self):
         o = Out("tf", [
@@ -214,6 +238,22 @@ class TgwTest(unittest.TestCase):
         # 宛先の無いルート（blackhole）は辺ができず、fallback も無いので H-RELATION-NOEDGE
         self.assertEqual(o.cls["aws_ec2_transit_gateway_route.blackhole"], ("hidden", "H-RELATION-NOEDGE", ()))
         self.assertIn(("NORM-RELATION-NOEDGE", "aws_ec2_transit_gateway_route.blackhole"), o.diags)
+
+    def test_routes_to_the_same_vpc_merge_into_one_edge(self):
+        # ルートテーブル・CIDR ごとのルートが同じ (TGW, VPC) を指すときは 1 本（ラベルは CIDR を辞書順に `, ` でつなぐ）
+        o = Out("tf", [
+            R("aws_vpc.b", "aws_vpc", tag("b")), R("aws_ec2_transit_gateway.t", "aws_ec2_transit_gateway", tag("t")),
+            R("aws_ec2_transit_gateway_vpc_attachment.b", "aws_ec2_transit_gateway_vpc_attachment"),
+            R("aws_ec2_transit_gateway_route.v4", "aws_ec2_transit_gateway_route", {"destination_cidr_block": "0.0.0.0/0"}),
+            R("aws_ec2_transit_gateway_route.v6", "aws_ec2_transit_gateway_route", {"destination_cidr_block": "::/0"}),
+        ], [
+            ref("aws_ec2_transit_gateway_vpc_attachment.b", "vpc_id", "aws_vpc.b", "id"),
+            ref("aws_ec2_transit_gateway_vpc_attachment.b", "transit_gateway_id", "aws_ec2_transit_gateway.t", "id"),
+            ref("aws_ec2_transit_gateway_route.v4", "transit_gateway_attachment_id", "aws_ec2_transit_gateway_vpc_attachment.b", "id"),
+            ref("aws_ec2_transit_gateway_route.v6", "transit_gateway_attachment_id", "aws_ec2_transit_gateway_vpc_attachment.b", "id"),
+        ])
+        self.assertEqual(o.edges, {"vpc/b->transit_gateway/t": ("network", "", "derived"),
+                                   "transit_gateway/t->vpc/b": ("route", "0.0.0.0/0, ::/0", "derived")})
 
 class ApiTest(unittest.TestCase):
     def test_tf_http_api(self):

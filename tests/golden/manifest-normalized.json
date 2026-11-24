@@ -148,11 +148,11 @@
    "sha256": "413d2b57ddd069ff8ad96a372dfed8f676af97554219f747c79b65fa6fe83e42"
   },
   "cfn/public/sample-multi-source-cdc-iceberg-lakehouse/iac/bootstrap/tf-backend-cf-stack.yml": {
-   "bytes": 2958,
+   "bytes": 3511,
    "edges": 0,
    "exit": 0,
-   "nodes": 2,
-   "sha256": "aede46aef5f2f47d1cec0352883b8f2c4ceb7241e00b6e95258bb4cd181a1896"
+   "nodes": 3,
+   "sha256": "5bc1ef94aa83472fe89e0960e5e742444b1ef30c05a5819c6ba207de03f1eefa"
   },
   "cfn/public/serverless-patterns/apigw-lambda-dynamodb/template.yaml": {
    "bytes": 3817,
@@ -344,18 +344,18 @@
    "sha256": "99203f7daff34ca77871f428f3eba43bdcc16fbf20a03f936bebe906098b05b2"
   },
   "tf/public/amazon-ecs-fullstack-app-terraform/Infrastructure": {
-   "bytes": 71217,
+   "bytes": 71205,
    "edges": 24,
    "exit": 0,
    "nodes": 27,
-   "sha256": "990dd317910bf83ad7d746ed0b5e87438c1bee8eb62292693192d540144fd7fe"
+   "sha256": "6348696f47273251c7e0fb5d6bcbccb9ab79d8667afa06018d7c0f1bbfb7fcce"
   },
   "tf/public/aws-network-hub-for-terraform": {
-   "bytes": 150339,
+   "bytes": 150760,
    "edges": 45,
    "exit": 0,
-   "nodes": 76,
-   "sha256": "f4414c8d2d766aaa27cf60205b398ed9a493ce4c6eab4bcb937110833973b67f"
+   "nodes": 77,
+   "sha256": "64d2847e431461c3fb111fb3229a8c5f53dd3b7e086622c63d07f46073750147"
   },
   "tf/public/aws-transit-gateway-vpc-terraform": {
    "bytes": 8616,
@@ -365,11 +365,11 @@
    "sha256": "bcc79b902aa790a4211960c06b3fab0ea5e8872acfd8f412ec256a3b7f725f7f"
   },
   "tf/public/hub-and-spoke-with-shared-services-vpc-terraform": {
-   "bytes": 31978,
+   "bytes": 32258,
    "edges": 5,
    "exit": 0,
-   "nodes": 22,
-   "sha256": "b1d840dea010fa87a825a093dcae15ffe4aefd735ff0f59a2a3d41113a6f0408"
+   "nodes": 23,
+   "sha256": "1b322ca8d7d6950cbf99bca402475178c84eff49ae7d9e7d3cad9fca160f987b"
   },
   "tf/public/learn-terraform-aws-asg": {
    "bytes": 6668,
@@ -477,11 +477,11 @@
    "sha256": "2528b9e52997de1b8d5c99b160e6cd2826bc6e3c48b753cb5e076cdcc1a2dcb7"
   },
   "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/foundation/kms-keys": {
-   "bytes": 4823,
+   "bytes": 9320,
    "edges": 0,
    "exit": 0,
-   "nodes": 0,
-   "sha256": "6bd2189708f0706ebb1ca9db69ddb7846c4dc80060a2dd1468d4663f2b124bf2"
+   "nodes": 10,
+   "sha256": "bf1fe2723016a306b2f1938886371d1c3770f540456dda3c49beb4bddc866fb2"
   },
   "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/foundation/network": {
    "bytes": 13523,
