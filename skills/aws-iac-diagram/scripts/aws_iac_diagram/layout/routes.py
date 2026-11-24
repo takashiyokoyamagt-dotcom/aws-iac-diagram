@@ -59,6 +59,21 @@ def path(src: Rect, dst: Rect, exit_: tuple[float, float], entry: tuple[float, f
     return [p, (p[0], my), (q[0], my), q]
 
 
+def layout_is_group(layout: Layout, kids: dict[str, list[str]], i: str) -> bool:
+    return bool(kids.get(i))
+
+
+def _midpoint(route: list[Point]) -> Point:
+    lengths = [abs(p[0] - q[0]) + abs(p[1] - q[1]) for p, q in zip(route, route[1:])]
+    rest = sum(lengths) / 2
+    for (p, q), n in zip(zip(route, route[1:]), lengths):
+        if rest <= n and n > 0:
+            t = rest / n
+            return (p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t)
+        rest -= n
+    return route[-1]
+
+
 def _hits(a: Point, b: Point, r: Rect) -> bool:
     x1, x2 = sorted((a[0], b[0]))
     y1, y2 = sorted((a[1], b[1]))
@@ -67,8 +82,9 @@ def _hits(a: Point, b: Point, r: Rect) -> bool:
     return r[1] < y1 < r[3] and x2 > r[0] and x1 < r[2]
 
 
-def choose(layout: Layout, rects: dict[str, Rect], src: str, dst: str) -> tuple[tuple[float, float], tuple[float, float]]:
-    """ほかのノードを通らない形のうち、折れが少なく短いもの。どれも通るなら通る数が最小のもの。"""
+def choose(layout: Layout, rects: dict[str, Rect], src: str, dst: str,
+           soft: dict[str, Rect] | None = None, label: tuple[float, float] | None = None) -> tuple[tuple[float, float], tuple[float, float]]:
+    """ほかのノードを通らない形のうち、ラベル（soft。ノード id → ラベルの矩形）を通らず、折れが少なく短いもの。"""
     def ancestors(i: str) -> set[str]:
         out, p = set(), layout.placed[i].parent
         while p is not None:
@@ -95,7 +111,14 @@ def choose(layout: Layout, rects: dict[str, Rect], src: str, dst: str) -> tuple[
         route = path(rects[src], rects[dst], ex, en)
         hits = sum(1 for r in others if any(_hits(a, b, r) for a, b in zip(route, route[1:])))
         length = sum(abs(a[0] - b[0]) + abs(a[1] - b[1]) for a, b in zip(route, route[1:]))
-        key = (hits, len(set(route)), length, n)
+        soft_hits = sum(1 for i, r in sorted((soft or {}).items()) if i not in (src, dst)
+                        and any(_hits(a, b, r) for a, b in zip(route, route[1:])))
+        if label is not None:  # 辺のラベル（経路の中点）が、端も含めてアイコンに重ならないように
+            m = _midpoint(route)
+            box = (m[0] - label[0] / 2, m[1] - label[1] / 2, m[0] + label[0] / 2, m[1] + label[1] / 2)
+            soft_hits += sum(1 for i, r in rects.items() if not layout_is_group(layout, kids, i)
+                             and min(r[2], box[2]) > max(r[0], box[0]) and min(r[3], box[3]) > max(r[1], box[1]))
+        key = (hits, soft_hits, len(set(route)), length, n)
         if best is None or key < best[0]:
             best = (key, ex, en)
     return best[1], best[2]

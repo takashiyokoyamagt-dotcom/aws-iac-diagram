@@ -10,7 +10,7 @@ import xml.etree.ElementTree as ET
 
 from aws_iac_diagram.core import paths, rules
 from aws_iac_diagram.layout import routes
-from aws_iac_diagram.layout.grid import PAD, Layout
+from aws_iac_diagram.layout.grid import LABEL_H, PAD, Layout, label_width
 
 BACKGROUND_LAYER = "layer-background"
 EDGE_LAYER = "layer-edges"
@@ -91,10 +91,18 @@ def emit(ir: dict, layout: Layout, r: rules.Rules, catalog: dict[str, dict]) -> 
               {"x": str(MARGIN), "y": str(layout.height + MARGIN + PAD), "width": "240", "height": str(LEGEND_H)})
     pairs = {(e["from"], e["to"]) for e in ir["edges"] if e.get("label")}
     rects = routes.absolute(layout)
+    label_rects = {}  # アイコンのラベル（真下の中央）。線がなるべく通らないようにする
+    for i, r in rects.items():
+        n = by_id.get(i)
+        if n is not None and n["category"] != "group" and n["label"]:
+            w = label_width(n["label"])
+            cx = (r[0] + r[2]) / 2
+            label_rects[i] = (cx - w / 2, r[3], cx + w / 2, r[3] + LABEL_H)
     for e in sorted(ir["edges"], key=lambda x: x["id"]):
         if e["from"] not in layout.placed or e["to"] not in layout.placed:
             continue
-        ex, en = routes.choose(layout, rects, e["from"], e["to"])
+        size = (label_width(e["label"]), LABEL_H) if e.get("label") else None
+        ex, en = routes.choose(layout, rects, e["from"], e["to"], label_rects, size)
         style = (_EDGE_STYLE + ("dashed=1;" if e["confidence"] == "inferred" else "")
                  + f"exitX={ex[0]:g};exitY={ex[1]:g};exitPerimeter=0;entryX={en[0]:g};entryY={en[1]:g};entryPerimeter=0;")
         _cell(root, {"id": e["id"], "value": e.get("label") or "", "style": style, "edge": "1", "parent": EDGE_LAYER,

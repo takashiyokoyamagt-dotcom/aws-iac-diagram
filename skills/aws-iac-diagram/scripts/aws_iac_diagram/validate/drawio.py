@@ -288,8 +288,20 @@ def check_labels(d: Diagram) -> list[Problem]:
                 out.append(Problem("label", f"edge:{e.id}", name))
     for i, (e, rs) in enumerate(placed):
         for f, qs in placed[i + 1:]:
-            if all(_area_overlap(x, y) for x in rs for y in qs):
+            same = e.label == f.label and bool({e.source, e.target} & {f.source, f.target})  # 同じ端に集まる同じ文字のラベル（0.0.0.0/0 など）は 1 つに読める
+            if not same and all(_area_overlap(x, y) for x in rs for y in qs):
                 out.append(Problem("label", f"edge:{e.id}", f"edge:{f.id}"))
+    # 線がラベルの上を通る（C6 の指摘。2026-11-24 に足した）: 端でないノードのラベル、ほかの辺のラベル。経路のどれでも通るときだけ
+    all_routes = {e.id: edge_routes(d, e) for e in d.edges}
+    for e in sorted(d.edges, key=lambda x: x.id):
+        rs = all_routes[e.id]
+        for nid, r in sorted(node_rects.items()):
+            if nid not in (e.source, e.target) and all(_route_hits(x, r) for x in rs):
+                out.append(Problem("label", f"line:{e.id}", f"label:{nid}"))
+        for f, qs in placed:
+            # 端を共にする辺（同じ NAT に集まる辺など）は、終わりの線分が重なるので数えない
+            if f.id != e.id and not ({e.source, e.target} & {f.source, f.target}) and all(_route_hits(x, q) for x in rs for q in qs):
+                out.append(Problem("label", f"line:{e.id}", f"edge:{f.id}"))
     return out
 
 
@@ -367,5 +379,5 @@ def score(xml_text: str) -> int:
     ys = [v.rect[3] for v in d.vertices.values()] or [1]
     aspect = abs(max(xs) / max(max(ys), 1) - 16 / 9)
     bad = len(check_overlap(d)) + len(check_overflow(d))
-    return (bad * 100000 + len(check_pierce(d)) * 10000 + len(check_labels(d)) * 1000 + crossings * 100 + bends * 10
+    return (bad * 1000000 + len(check_pierce(d)) * 50000 + len(check_labels(d)) * 1000 + crossings * 100 + bends * 10
             + int(length / 10) + int(aspect * 10))

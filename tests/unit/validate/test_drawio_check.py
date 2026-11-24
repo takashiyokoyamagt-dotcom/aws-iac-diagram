@@ -104,6 +104,15 @@ class CheckTest(unittest.TestCase):
         # 指定した 1 通りが塞がれれば、ほかの形が空いていても貫通にする
         self.assertEqual(kinds(v("a", 0, 0), v("b", 200, 200), v("x", 100, 0), cell), ["pierce"])
 
+    def test_line_over_a_label(self):
+        style = "exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.5;entryPerimeter=0;"
+        cell = e("e", "a", "b").replace('edge="1"', f'style="{style}" edge="1"')
+        # x のラベル（y=150〜164）の上を、a→b の線（y=150）が通る。アイコン x は線の上にあるので貫通ではない
+        cells = [v("a", 0, 130), v("b", 300, 130), v("x", 140, 100, 40, 40, value="longlabel"), cell]
+        self.assertIn("label", kinds(*cells))
+        cells[2] = v("x", 140, 100, 40, 40)
+        self.assertEqual(kinds(*cells), [])
+
     def test_routes_are_the_four_models(self):
         rs = drawio.routes((0, 0), (10, 20))
         self.assertEqual(rs[0], [(0, 0), (10, 0), (10, 20)])
