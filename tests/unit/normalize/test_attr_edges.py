@@ -112,6 +112,52 @@ class OtherAttrTest(unittest.TestCase):
         })
 
 
+class DeliveryTest(unittest.TestCase):
+    def test_pipeline_build_image_codedeploy_and_notifications(self):
+        e, r, nodes = norm("tf", [
+            resource("aws_codepipeline.p", "aws_codepipeline", {"name": "p"}),
+            resource("aws_codebuild_project.b", "aws_codebuild_project", {"name": "b"}),
+            resource("aws_codedeploy_app.d", "aws_codedeploy_app", {"name": "d"}),
+            resource("aws_codedeploy_deployment_group.g", "aws_codedeploy_deployment_group"),
+            resource("aws_ecr_repository.r", "aws_ecr_repository", {"name": "r"}),
+            resource("aws_s3_bucket.art", "aws_s3_bucket", {"bucket": "art"}),
+            resource("aws_ecs_cluster.c", "aws_ecs_cluster"),
+            resource("aws_ecs_service.s", "aws_ecs_service", {"name": "s"}),
+            resource("aws_ecs_task_definition.td", "aws_ecs_task_definition"),
+            resource("aws_sns_topic.t", "aws_sns_topic", {"name": "t"}),
+            resource("aws_autoscaling_group.asg", "aws_autoscaling_group", {"name": "asg"}),
+            resource("aws_autoscaling_lifecycle_hook.h", "aws_autoscaling_lifecycle_hook"),
+        ], [
+            ref("aws_codepipeline.p", "stage[0].action[0].configuration.ProjectName", "aws_codebuild_project.b", "name"),
+            ref("aws_codepipeline.p", "stage[1].action[0].configuration.DeploymentGroupName", "aws_codedeploy_deployment_group.g", "deployment_group_name"),
+            ref("aws_codepipeline.p", "artifact_store[0].location", "aws_s3_bucket.art", "bucket"),
+            ref("aws_codebuild_project.b", "environment[0].environment_variable[0].value", "aws_ecr_repository.r", "repository_url"),
+            ref("aws_codedeploy_deployment_group.g", "app_name", "aws_codedeploy_app.d", "name"),
+            ref("aws_codedeploy_deployment_group.g", "ecs_service[0].cluster_name", "aws_ecs_cluster.c", "name"),
+            ref("aws_codedeploy_deployment_group.g", "ecs_service[0].service_name", "aws_ecs_service.s", "name"),
+            ref("aws_codedeploy_deployment_group.g", "trigger_configuration[0].trigger_target_arn", "aws_sns_topic.t", "arn"),
+            ref("aws_ecs_service.s", "cluster", "aws_ecs_cluster.c", "id"),
+            ref("aws_ecs_service.s", "task_definition", "aws_ecs_task_definition.td", "arn"),
+            ref("aws_ecs_task_definition.td", "container_definitions[0].image", "aws_ecr_repository.r", "repository_url"),
+            ref("aws_autoscaling_lifecycle_hook.h", "autoscaling_group_name", "aws_autoscaling_group.asg", "name"),
+            ref("aws_autoscaling_lifecycle_hook.h", "notification_target_arn", "aws_sns_topic.t", "arn"),
+        ])
+        self.assertEqual(e, {
+            "codepipeline/p->codebuild_project/b": ("request", "", "confirmed"),
+            "codepipeline/p->codedeploy_app/d": ("request", "", "confirmed"),
+            "codepipeline/p->s3_bucket/art": ("data", "", "confirmed"),
+            "codebuild_project/b->ecr_repository/r": ("data", "", "confirmed"),
+            "ecs_service/s->ecr_repository/r": ("data", "", "confirmed"),
+            "codedeploy_app/d->ecs_service/s": ("request", "", "confirmed"),
+            "codedeploy_app/d->sns_topic/t": ("event", "", "confirmed"),
+            "autoscaling_group/asg->sns_topic/t": ("event", "", "confirmed"),
+        })
+        self.assertEqual(r["codepipeline/p->codebuild_project/b"], ["E-PIPELINE"])
+        self.assertEqual(r["codebuild_project/b->ecr_repository/r"], ["E-BUILD-ENV"])
+        self.assertEqual(r["ecs_service/s->ecr_repository/r"], ["E-CONTAINER-IMAGE"])
+        self.assertEqual(r["codedeploy_app/d->ecs_service/s"], ["E-CODEDEPLOY-TARGET"])
+        self.assertEqual(r["autoscaling_group/asg->sns_topic/t"], ["E-NOTIFICATION"])
+
 class IamTest(unittest.TestCase):
     def _tf(self, statements, extra_res=(), extra_refs=()):
         return norm("tf", [

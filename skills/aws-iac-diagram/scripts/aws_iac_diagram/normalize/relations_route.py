@@ -10,6 +10,11 @@
 - 辺の候補の `members`（その辺に統合される関係リソース）: ルートテーブル、その関連付け（自分のサブネットの辺だけ）、ルート（自分の宛先の辺）。
   辺が 1 本も無いルートテーブル・関連付け・ルートは、分類の確定で fallback の H-RT-NOROUTE になる。
 - `access`: `0.0.0.0/0` → インターネットゲートウェイのルートの辺があれば `public`、無ければ `private`（関連付けの無いサブネットも private）。
+- R-TGW-ATTACH（`tgw_candidates`）: Transit Gateway の VPC アタッチメントごとに、`vpc_id`／`VpcId` の VPC → `transit_gateway_id`／
+  `TransitGatewayId` の TGW（`network`、ラベルなし）。アタッチメントを `transit_gateway_attachment_id` で指す TGW のルートテーブルへの
+  関連付け・伝播も、その辺の `members` にする。
+- R-TGW-ROUTE: TGW のルートの宛先のアタッチメント（`transit_gateway_attachment_id`）の TGW → その VPC（`route`、ラベルは宛先の CIDR）。
+  宛先の無いルート（blackhole）は辺を作らない。
 
 ここは標準ライブラリと core と normalize の view・classify・relations_base だけを使う。
 """
@@ -28,6 +33,9 @@ ASSOC = ("aws_route_table_association", "AWS::EC2::SubnetRouteTableAssociation")
 CIDR_KEYS = ("cidr_block", "ipv6_cidr_block", "destination_cidr_block", "destination_ipv6_cidr_block")
 _ROUTE_INDEX = re.compile(r"^route\[(\d+)\]")
 PUBLIC_CIDRS = ("0.0.0.0/0",)
+TGW_ATTACH_RULE = "R-TGW-ATTACH"
+TGW_ROUTE_RULE = "R-TGW-ROUTE"
+TGW_ATTACHMENT = ("aws_ec2_transit_gateway_vpc_attachment", "AWS::EC2::TransitGatewayVpcAttachment", "AWS::EC2::TransitGatewayAttachment")
 
 
 def _cidr(props) -> str:
@@ -98,3 +106,32 @@ def route_candidates(ctx: Context) -> tuple[list[Candidate], dict[str, str]]:
                      for c in out)
         access[nid] = "public" if public else "private"
     return out, access
+
+
+def _attachment_ends(ctx: Context, att: str) -> tuple[list[tuple[str, dict]], list[tuple[str, dict]]]:
+    """アタッチメントの (VPC, 参照) と (TGW, 参照)。"""
+    return (ctx.targets(ctx.refs(att, ("vpcid",)), ("vpc",)),
+            ctx.targets(ctx.refs(att, ("transitgatewayid",)), ("transit_gateway",)))
+
+
+def tgw_candidates(ctx: Context) -> list[Candidate]:
+    """R-TGW-ATTACH（VPC → TGW）と R-TGW-ROUTE（TGW → 宛先のアタッチメントの VPC）の辺の候補。"""
+    out: list[Candidate] = []
+    attachments = [r.address for r in ctx.resources(TGW_ATTACH_RULE, TGW_ATTACHMENT)]
+    parts = [r.address for r in ctx.resources(TGW_ATTACH_RULE) if r.address not in attachments]
+    for att in attachments:
+        vpcs, tgws = _attachment_ends(ctx, att)
+        members = (att,) + tuple(p for p in parts if any(r["to"] == att for r in ctx.refs(p, ("transitgatewayattachmentid",))))
+        for vpc, vref in vpcs:
+            for tgw, tref in tgws:
+                out.append(make(vpc, tgw, TGW_ATTACH_RULE, "network", "", [vref, tref], members))
+    for r in ctx.resources(TGW_ROUTE_RULE):
+        cidr = _cidr(dict(r.props))
+        for aref in ctx.refs(r.address, ("transitgatewayattachmentid",)):
+            if aref["to"] not in attachments:
+                continue
+            vpcs, tgws = _attachment_ends(ctx, aref["to"])
+            for tgw, tref in tgws:
+                for vpc, vref in vpcs:
+                    out.append(make(tgw, vpc, TGW_ROUTE_RULE, "route", cidr, [aref, tref, vref], (r.address,)))
+    return out

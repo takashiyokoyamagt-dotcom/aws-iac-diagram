@@ -1,0 +1,39 @@
+# 描く型: 開発・デプロイの型（コンテナのレジストリ・CI/CD）
+# 規則表の「型」の行。スキーマと読み方は docs/spec/rules/types.md、検査は scripts/aws_iac_diagram/core/rules.py。
+# 1 行 = 1 つの [[type]]。id は規則 ID（描く型は正規の型名）。ファイルは types/ の名前の昇順に、行は書いた順に読む。
+
+[[type]]
+id = "ecr_repository"
+class = "drawn"
+category = "resource"
+tf = ["aws_ecr_repository"]
+cfn = ["AWS::ECR::Repository"]
+name_attr = { tf = "name", cfn = "RepositoryName" }
+icon = ["resource_icon:ecr"]
+
+[[type]]
+id = "codepipeline"
+class = "drawn"
+category = "resource"
+tf = ["aws_codepipeline"]
+cfn = ["AWS::CodePipeline::Pipeline"]
+name_attr = { tf = "name", cfn = "Name" }
+icon = ["resource_icon:codepipeline"]
+
+[[type]]
+id = "codebuild_project"
+class = "drawn"
+category = "resource"
+tf = ["aws_codebuild_project"]
+cfn = ["AWS::CodeBuild::Project"]
+name_attr = { tf = "name", cfn = "Name" }
+icon = ["resource_icon:codebuild"]
+
+[[type]]
+id = "codedeploy_app"
+class = "drawn"
+category = "resource"
+tf = ["aws_codedeploy_app"]
+cfn = ["AWS::CodeDeploy::Application"]
+name_attr = { tf = "name", cfn = "ApplicationName" }
+icon = ["resource_icon:codedeploy"]

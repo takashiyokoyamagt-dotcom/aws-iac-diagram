@@ -52,3 +52,12 @@ tf = ["aws_eks_cluster"]
 cfn = ["AWS::EKS::Cluster"]
 name_attr = { tf = "name", cfn = "Name" }
 icon = ["resource_icon:eks"]
+
+[[type]]
+id = "autoscaling_group"
+class = "drawn"
+category = "resource"
+tf = ["aws_autoscaling_group"]
+cfn = ["AWS::AutoScaling::AutoScalingGroup"]
+name_attr = { tf = "name", cfn = "AutoScalingGroupName" }
+icon = ["resource_icon:auto_scaling2"]

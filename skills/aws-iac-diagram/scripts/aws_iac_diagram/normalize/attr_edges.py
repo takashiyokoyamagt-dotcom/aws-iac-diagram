@@ -1,5 +1,5 @@
 """属性の参照から作る辺（edges.toml の `[[edge]]`）: E-ENV-REF・E-ENV-STR、E-KB-STORAGE・E-BEDROCK-EMBEDDING、E-CDN-ORIGIN・E-CDN-WAF、
-E-DNS-ALIAS、E-GLUE-TARGET、E-AUTHORIZER。
+E-DNS-ALIAS、E-GLUE-TARGET、E-AUTHORIZER、E-PIPELINE・E-BUILD-ENV・E-CONTAINER-IMAGE・E-CODEDEPLOY-TARGET・E-NOTIFICATION。
 
 - **E-ENV-REF（confirmed）:** 計算リソース（Lambda の `environment.variables`／`Environment.Variables`、ECS のタスク定義の
   `container_definitions[].environment[].value`／`ContainerDefinitions[].Environment[].Value`。タスク定義は M-ECS-TASKDEF で統合した
@@ -15,6 +15,10 @@ E-DNS-ALIAS、E-GLUE-TARGET、E-AUTHORIZER。
   Route 53 のエイリアス、Glue のクローラのデータベースとターゲット。
 - **E-AUTHORIZER（confirmed、request）:** M-APIGW-AUTHORIZER で統合したオーソライザーの `provider_arns`／`ProviderARNs`（ユーザープール）と
   `authorizer_uri`／`AuthorizerUri`（Lambda）→ 統合先の API から。統合先の API そのものへの参照（自分への辺）は捨てる。
+- **E-PIPELINE・E-BUILD-ENV（confirmed、kind は参照先の型）:** CodePipeline のアクションの設定と成果物の置き場、CodeBuild の環境変数の参照。
+- **E-CONTAINER-IMAGE（confirmed、data）:** タスク定義のコンテナのイメージ（統合先のサービスから）、Lambda の `image_uri` → ECR。
+- **E-CODEDEPLOY-TARGET（confirmed、request）・E-NOTIFICATION（confirmed、event）:** 統合したデプロイグループ（M-CODEDEPLOY-GROUP）の配る先・
+  通知先、統合したライフサイクルフック（M-ASG-PARTS）と Auto Scaling グループの通知先 → 統合先（自分）から。
 
 参照の無い根拠（文字列の一致）は `<address>.<位置> (<説明>)` で書く（ir-schema の 4 章の例外）。
 
@@ -182,5 +186,47 @@ def authorizer_candidates(ctx: Context) -> list[Candidate]:
     return out
 
 
+def _merged(ctx: Context, rule: str) -> list[tuple[str, tuple[str, ...]]]:
+    """確定した M-*（rule）のリソースと、その統合先のノード（address の順）。"""
+    return [(a, ctx.decisions[a].into) for a in sorted(ctx.decisions)
+            if ctx.decisions[a].cls == "merged_into" and ctx.decisions[a].rule == rule and not ctx.decisions[a].provisional]
+
+
+def _from(ctx: Context, sources, rule: str, kind: str | None, keypaths, target_types=None) -> list[Candidate]:
+    """sources（(address, 辺の起点のノード)）の keypaths の参照 → 参照先。kind が None なら参照先の型（表に無ければ作らない）。"""
+    out = []
+    for address, froms in sources:
+        for t, ref in ctx.targets(ctx.refs(address, *keypaths), target_types):
+            k = kind or kind_of(ctx, t)
+            if k is None:
+                continue
+            for f in froms:
+                out.append(make(f, t, rule, k, "", [ref], confidence="confirmed"))
+    return out
+
+
+def _drawn(ctx: Context, *types: str) -> list[tuple[str, tuple[str, ...]]]:
+    return [(r.address, (ctx.nodes[r.address]["id"],)) for r in ctx.drawn(*types)]
+
+
+def delivery_candidates(ctx: Context) -> list[Candidate]:
+    """CI/CD とコンテナのイメージ、通知の辺（E-PIPELINE・E-BUILD-ENV・E-CONTAINER-IMAGE・E-CODEDEPLOY-TARGET・E-NOTIFICATION）。"""
+    out = _from(ctx, _drawn(ctx, "codepipeline"), "E-PIPELINE", None,
+                [("stage", "action", "configuration"), ("stages", "actions", "configuration"), ("artifactstore",), ("artifactstores",)])
+    out += _from(ctx, _drawn(ctx, "codebuild_project"), "E-BUILD-ENV", None,
+                 [("environment", "environmentvariable", "value"), ("environment", "environmentvariables", "value")])
+    ecr = ("ecr_repository",)
+    out += _from(ctx, _merged(ctx, "M-ECS-TASKDEF"), "E-CONTAINER-IMAGE", "data", [("containerdefinitions", "image")], ecr)
+    out += _from(ctx, _drawn(ctx, "lambda_function"), "E-CONTAINER-IMAGE", "data", [("imageuri",), ("code", "imageuri")], ecr)
+    groups = _merged(ctx, "M-CODEDEPLOY-GROUP")
+    out += _from(ctx, groups, "E-CODEDEPLOY-TARGET", "request",
+                 [("ecsservice", "servicename"), ("ecsservices", "servicename"), ("autoscalinggroups",)], ("ecs_service", "autoscaling_group"))
+    out += _from(ctx, groups, "E-NOTIFICATION", "event", [("triggerconfiguration", "triggertargetarn"), ("triggerconfigurations", "triggertargetarn")])
+    out += _from(ctx, _merged(ctx, "M-ASG-PARTS"), "E-NOTIFICATION", "event", [("notificationtargetarn",)])
+    out += _from(ctx, _drawn(ctx, "autoscaling_group"), "E-NOTIFICATION", "event", [("notificationconfigurations", "topicarn")])
+    return out
+
+
 def attr_candidates(ctx: Context, models: dict) -> list[Candidate]:
-    return env_candidates(ctx, models) + kb_candidates(ctx, models) + cdn_dns_glue_candidates(ctx) + authorizer_candidates(ctx)
+    return (env_candidates(ctx, models) + kb_candidates(ctx, models) + cdn_dns_glue_candidates(ctx) + authorizer_candidates(ctx)
+            + delivery_candidates(ctx))

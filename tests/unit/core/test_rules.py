@@ -31,16 +31,16 @@ class ShippedRulesTest(unittest.TestCase):
 
     def test_row_counts_per_table(self):
         r = self.r
-        self.assertEqual((len(r.drawn), len(r.merged), len(r.hidden), len(r.relations)), (32, 19, 15, 16))
+        self.assertEqual((len(r.drawn), len(r.merged), len(r.hidden), len(r.relations)), (42, 24, 21, 18))
         self.assertEqual((len(r.confidences), len(r.edges), len(r.kind_by_target), len(r.iam_action_kinds), len(r.merge_priority),
-                          len(r.synthetic), len(r.label_formats)), (3, 12, 3, 3, 6, 2, 6))
+                          len(r.synthetic), len(r.label_formats)), (3, 17, 3, 3, 6, 2, 6))
         self.assertEqual((len(r.noedge), len(r.nonode), len(r.placement), len(r.attrs)), (7, 1, 5, 1))
 
     def test_rule_ids_per_prefix(self):
         ids = self.r.rule_ids
         by = {p: sorted(i for i in ids if i.startswith(p)) for p in ("E-", "H-", "M-", "N-", "P-", "R-")}
-        self.assertEqual({p: len(v) for p, v in by.items()}, {"E-": 20, "H-": 15, "M-": 19, "N-": 3, "P-": 4, "R-": 16})
-        self.assertEqual(len(ids), 77)
+        self.assertEqual({p: len(v) for p, v in by.items()}, {"E-": 25, "H-": 21, "M-": 24, "N-": 3, "P-": 4, "R-": 18})
+        self.assertEqual(len(ids), 95)
         self.assertEqual(self.r.edge_ids | self.r.ref_ids, frozenset(by["E-"]))
         self.assertEqual(len(self.r.ref_ids), 8)  # E-NOEDGE-* 7 と E-REF-NONODE
         self.assertEqual(self.r.synthetic_ids | {i for i in self.r.placement_ids if i.startswith("N-")}, frozenset(by["N-"]))
@@ -87,7 +87,7 @@ class ShippedRulesTest(unittest.TestCase):
         d = self.r.drawable_types()
         self.assertEqual(d["AWS::CloudFormation::Stack"], {"module"})
         self.assertEqual(d["aws_lb"], {"alb"})
-        self.assertEqual(len(d), 65)
+        self.assertEqual(len(d), 85)
         self.assertNotIn("module", d)  # TF の黒箱の入力の型は module だが、規則表には書かない（validate_ir.py の BLACKBOX_TYPES）
 
     def test_column_values_match_the_schema_enums(self):
@@ -246,7 +246,7 @@ class StructureTest(unittest.TestCase):
         return cm.exception.problems
 
     def test_bad_toml(self):
-        edit(self.dir, "types/compute.toml", 'class = "drawn"', "class = ", count=5)
+        edit(self.dir, "types/compute.toml", 'class = "drawn"', "class = ", count=6)
         self.assertBroken("types/compute.toml: TOML として読めない")
 
     def test_not_utf8(self):
@@ -272,7 +272,7 @@ class StructureTest(unittest.TestCase):
         edit(self.dir, "types/network.toml", 'tf = ["aws_vpc"]', 'tf = "aws_vpc"')
         self.assertBroken("'tf' は文字列の配列")
         self.setUp()
-        edit(self.dir, "types/network.toml", 'name_attr = { tf = "name", cfn = "Name" }', 'name_attr = { tf = 1 }')
+        edit(self.dir, "types/network.toml", 'name_attr = { tf = "name", cfn = "Name" }', 'name_attr = { tf = 1 }', count=2)
         self.assertBroken("'name_attr'")
         self.setUp()
         edit(self.dir, "edges.toml", "rank = 1", 'rank = "1"')
@@ -288,7 +288,7 @@ class StructureTest(unittest.TestCase):
         edit(self.dir, "types/network.toml", 'id = "vpc"', 'id = "R-VPC"')
         self.assertBroken("描く型の id 'R-VPC' は正規の型名")
         self.setUp()
-        edit(self.dir, "types/network.toml", 'class = "drawn"', 'class = "visible"', count=8)
+        edit(self.dir, "types/network.toml", 'class = "drawn"', 'class = "visible"', count=12)
         self.assertBroken("class は ['drawn', 'merged_into', 'hidden'] のどれか")
         self.setUp()
         edit(self.dir, "relations.toml", 'id = "R-SG"', 'id = "E-SG"')
@@ -548,7 +548,7 @@ class DeterminismTest(unittest.TestCase):
             if r.file not in order:
                 order.append(r.file)
         self.assertEqual(order, sorted(order))
-        self.assertEqual(len(order), 7)
+        self.assertEqual(len(order), 8)
 
     def test_error_messages_do_not_depend_on_directory_listing_order(self):
         with tempfile.TemporaryDirectory() as t:

@@ -31,7 +31,8 @@ from support.main_set import MAIN_SET
 import normalize_public_check as chk  # noqa: E402
 import survey_public  # noqa: E402
 
-# 入力 → (リソース, ノード, 辺, R-SG の辺, unknown, NORM-UNUSED-REF)（2026-11-08 の測定。規則表は手順 2 で凍結したもの）。
+# 入力 → (リソース, ノード, 辺, R-SG の辺, unknown, NORM-UNUSED-REF)（2026-11-08 の測定。規則表は手順 2 で凍結したもの。
+# 2026-11-25 の規則表の拡張で、新しい型を含む 21 入力を測り直した。WORKLOG の「規則表の拡張（C3 の結果を受けて）」）。
 # `unknown` の型と NORM-UNUSED-REF の属性名の内訳は、道具の表（`normalize_public_check.py` を引数なしで）で出す
 PINNED = {
     "T01": (5, 2, 1, 0, 0, 0),
@@ -43,31 +44,31 @@ PINNED = {
     "T07": (17, 5, 3, 0, 0, 2),
     "T08": (11, 4, 2, 0, 0, 4),
     "T09": (17, 4, 3, 0, 0, 0),
-    "T10": (11, 3, 1, 1, 3, 3),
+    "T10": (11, 4, 2, 2, 0, 1),
     "T11": (29, 4, 3, 0, 0, 0),
     "T12": (29, 5, 4, 0, 0, 6),
-    "T13": (46, 16, 5, 0, 14, 21),
+    "T13": (46, 22, 5, 0, 3, 17),
     "T14": (55, 19, 8, 0, 9, 15),
     "T15": (90, 3, 2, 0, 1, 1),
     "T16": (65, 14, 6, 0, 0, 1),
-    "T17": (139, 19, 8, 2, 21, 49),
-    "T18:environment": (23, 7, 0, 0, 3, 3),
+    "T17": (139, 27, 24, 4, 0, 3),
+    "T18:environment": (23, 8, 0, 0, 2, 3),
     "T18:eks-blue": (26, 10, 0, 0, 2, 19),
     "T18:eks-green": (26, 10, 0, 0, 2, 19),
-    "T19": (198, 59, 17, 0, 57, 58),
-    "T20:datasources/aurora": (44, 2, 0, 0, 12, 13),
-    "T20:datasources/cockroach": (41, 4, 6, 6, 5, 7),
-    "T20:datasources/data-generator": (38, 1, 0, 0, 1, 1),
-    "T20:datasources/msk": (33, 1, 0, 0, 9, 7),
-    "T20:datasources/oracle": (37, 1, 0, 0, 13, 7),
-    "T20:flink": (48, 0, 0, 0, 21, 4),
+    "T19": (198, 76, 45, 0, 0, 22),
+    "T20:datasources/aurora": (44, 2, 0, 0, 8, 11),
+    "T20:datasources/cockroach": (41, 4, 6, 6, 3, 5),
+    "T20:datasources/data-generator": (38, 1, 0, 0, 0, 0),
+    "T20:datasources/msk": (33, 1, 0, 0, 5, 5),
+    "T20:datasources/oracle": (37, 1, 0, 0, 6, 4),
+    "T20:flink": (48, 0, 0, 0, 20, 4),
     "T20:foundation/athena": (4, 0, 0, 0, 1, 0),
-    "T20:foundation/buckets": (31, 4, 0, 0, 8, 8),
-    "T20:foundation/glue-databases": (51, 8, 0, 0, 24, 32),
-    "T20:foundation/iam-roles": (34, 0, 0, 0, 6, 0),
-    "T20:foundation/kms-keys": (22, 0, 0, 0, 20, 10),
-    "T20:foundation/network": (31, 6, 3, 0, 6, 2),
-    "T20:foundation/s3-tables": (39, 0, 0, 0, 29, 43),
+    "T20:foundation/buckets": (31, 4, 0, 0, 4, 4),
+    "T20:foundation/glue-databases": (51, 8, 0, 0, 16, 24),
+    "T20:foundation/iam-roles": (34, 0, 0, 0, 1, 0),
+    "T20:foundation/kms-keys": (22, 0, 0, 0, 0, 0),
+    "T20:foundation/network": (31, 6, 3, 0, 0, 0),
+    "T20:foundation/s3-tables": (39, 0, 0, 0, 27, 41),
     "T20:ingestion-layer/debezium-aurora": (21, 0, 0, 0, 3, 4),
     "T20:ingestion-layer/debezium-oracle": (23, 0, 0, 0, 3, 4),
     "T20:ingestion-layer/dms-aurora": (23, 0, 0, 0, 5, 4),
@@ -80,10 +81,10 @@ PINNED = {
     "T20:ingestion-layer/firehose-streams/msk-financial-firehose-stream": (43, 0, 0, 0, 11, 2),
     "T20:ingestion-layer/firehose-streams/oracle-brokerage-msk-firehose-stream": (54, 1, 0, 0, 11, 4),
     "T20:ingestion-layer/firehose-streams/oracle-financial-msk-firehose-stream": (54, 1, 0, 0, 11, 4),
-    "T20:ingestion-layer/msk-ingest": (55, 2, 0, 0, 25, 15),
+    "T20:ingestion-layer/msk-ingest": (55, 2, 0, 0, 11, 11),
     "P01:simple": (175, 7, 0, 0, 0, 0),
-    "P01:complete": (220, 32, 15, 0, 8, 2),
-    "P02": (145, 17, 7, 1, 7, 13),
+    "P01:complete": (220, 32, 15, 0, 6, 1),
+    "P02": (145, 17, 8, 1, 2, 4),
     "P03": (97, 19, 6, 0, 0, 2),
     "P04": (57, 15, 3, 0, 8, 8),
     "C01": (16, 5, 3, 0, 0, 2),
@@ -92,7 +93,7 @@ PINNED = {
     "C04:VPCPeering-Requester": (15, 0, 0, 0, 1, 0),
     "C04:VPCPeering-Accepter": (18, 1, 0, 0, 1, 1),
     "C04:VPCPeering-Updates": (12, 0, 0, 0, 0, 0),
-    "C05": (63, 16, 6, 1, 9, 14),
+    "C05": (63, 17, 10, 2, 0, 4),
     "T01s": (3, 2, 1, 0, 0, 0),
     "T05s": (2, 2, 1, 0, 0, 0),
     "T06s": (4, 3, 2, 0, 0, 0),
@@ -143,7 +144,7 @@ class PublicSamplesTest(unittest.TestCase):
     def test_t19_and_t20_edges(self):
         # 設計草案の 8 章の 6: R-SG の辺の組合せは T19・T20 で増えない（T19 は R-SG の辺 0、T20 は 26 ルートで 6）
         t19 = self.results["T19"]
-        self.assertEqual((t19["edges"], t19["edges_r_sg"], t19["edges_by_kind"]), (17, 0, {"request": 11, "route": 6}))
+        self.assertEqual((t19["edges"], t19["edges_r_sg"], t19["edges_by_kind"]), (45, 0, {"network": 3, "request": 11, "route": 31}))
         t20 = [r for i, r in self.results.items() if i.startswith("T20:")]
         self.assertEqual((sum(r["edges"] for r in t20), sum(r["edges_r_sg"] for r in t20)), (9, 6))
 

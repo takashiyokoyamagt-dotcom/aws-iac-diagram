@@ -3,7 +3,11 @@
 - ターゲットグループ（`aws_lb_target_group`／`AWS::ElasticLoadBalancingV2::TargetGroup`）ごとに、
   ① そのグループに転送するリスナー（グループへの参照を持つ R-LB-LISTENER のリソース）の LB（`load_balancer_arn`／`LoadBalancerArn`）と、
   ② ターゲット（ECS サービスの `load_balancer[].target_group_arn`／`LoadBalancers[].TargetGroupArn`、
-  `aws_lb_target_group_attachment` の `target_id`、CFN のグループの `Targets[].Id`）を集め、LB × ターゲットの辺を作る。
+  `aws_lb_target_group_attachment` の `target_id`、CFN のグループの `Targets[].Id`、Auto Scaling グループの
+  `target_group_arns`／`TargetGroupARNs`、`aws_autoscaling_attachment` の `autoscaling_group_name`）を集め、LB × ターゲットの辺を作る。
+  `aws_alb_*` は `aws_lb_*` の別名として同じに扱う。
+- リスナーのルール（`aws_lb_listener_rule`／`AWS::ElasticLoadBalancingV2::ListenerRule`。R-LB-LISTENER）は LB を直接指さないので、
+  `listener_arn`／`ListenerArn` のリスナーの LB を使う（根拠と `members` にはルールとリスナーの両方を入れる）。
   **参照はターゲット → グループだが、向きは LB → ターゲット**（A2）。
 - ラベルはターゲットグループの `<PROTOCOL> <port>`（`HTTP 8080`）。リスナーのラベル（`HTTP 80`）は internet → LB の辺のもの
   （`listener_candidates`。インターネット向けで SG が `0.0.0.0/0` を許す LB だけ。辺を作るかは N-EXT-INTERNET（synthetic.py）が決める）。
@@ -17,40 +21,61 @@ from aws_iac_diagram.normalize.relations_base import Candidate, Context, label_p
 
 TG_RULE = "R-LB-TG"
 LISTENER_RULE = "R-LB-LISTENER"
-TG = ("aws_lb_target_group", "AWS::ElasticLoadBalancingV2::TargetGroup")
-ATTACHMENT = ("aws_lb_target_group_attachment",)
+TG = ("aws_lb_target_group", "aws_alb_target_group", "AWS::ElasticLoadBalancingV2::TargetGroup")
+# attachment の型 → (グループを指す位置, ターゲットを指す位置)
+ATTACHMENTS = {
+    "aws_lb_target_group_attachment": ("targetgrouparn", "targetid"),
+    "aws_alb_target_group_attachment": ("targetgrouparn", "targetid"),
+    "aws_autoscaling_attachment": ("lbtargetgrouparn", "autoscalinggroupname"),
+}
+
+
+def _listener_lbs(ctx: Context, lst: str) -> list[tuple[str, list[dict], tuple[str, ...]]]:
+    """リスナー（またはリスナーのルール）の LB: (LB のノード, 参照, members)。ルールは `listener_arn` のリスナーの LB。"""
+    direct = [(lb, [ref], (lst,)) for lb, ref in ctx.targets(ctx.refs(lst, ("loadbalancerarn",)), ("alb",))]
+    if direct:
+        return direct
+    out = []
+    for lref in ctx.refs(lst, ("listenerarn",)):
+        parent = lref["to"]
+        if parent == lst:
+            continue
+        for lb, ref in ctx.targets(ctx.refs(parent, ("loadbalancerarn",)), ("alb",)):
+            out.append((lb, [lref, ref], (lst, parent)))
+    return out
 
 
 def lb_candidates(ctx: Context) -> list[Candidate]:
     out: list[Candidate] = []
     listeners = ctx.resources(LISTENER_RULE)
-    attachments = ctx.resources(TG_RULE, ATTACHMENT)
+    attachments = ctx.resources(TG_RULE, tuple(ATTACHMENTS))
     for g in [x.address for x in ctx.resources(TG_RULE, TG)]:
         label = label_protocol_port(ctx.value(g, "protocol"), ctx.value(g, "port"))
-        # 転送するリスナーと、その LB: (LB のノード, 参照, リスナーの address)
-        lbs: list[tuple[str, list[dict], str]] = []
+        # 転送するリスナー（ルール）と、その LB: (LB のノード, 参照, リスナー（とルール）の address)
+        lbs: list[tuple[str, list[dict], tuple[str, ...]]] = []
         for lst in listeners:
             to_group = [r for r in ctx.refs(lst.address) if r["to"] == g]
             if to_group:
-                for lb, lb_ref in ctx.targets(ctx.refs(lst.address, ("loadbalancerarn",)), ("alb",)):
-                    lbs.append((lb, to_group + [lb_ref], lst.address))
+                for lb, lb_refs, members in _listener_lbs(ctx, lst.address):
+                    lbs.append((lb, to_group + lb_refs, members))
         # ターゲット: (ノード, 参照, attachment の address か None)
         targets: list[tuple[str, list[dict], str | None]] = []
         for a in sorted(ctx.nodes):
-            for ref in ctx.refs(a, ("loadbalancer", "targetgrouparn"), ("loadbalancers", "targetgrouparn")):
+            for ref in ctx.refs(a, ("loadbalancer", "targetgrouparn"), ("loadbalancers", "targetgrouparn"), ("targetgrouparns",)):
                 if ref["to"] == g:
                     targets.append((ctx.nodes[a]["id"], [ref], None))
         for t, ref in ctx.targets(ctx.refs(g, ("targets", "id"))):
             targets.append((t, [ref], None))
         for att in attachments:
-            to_group = [r for r in ctx.refs(att.address, ("targetgrouparn",)) if r["to"] == g]
+            group_key, target_key = ATTACHMENTS[att.type]
+            to_group = [r for r in ctx.refs(att.address, (group_key,)) if r["to"] == g]
             if to_group:
-                for t, ref in ctx.targets(ctx.refs(att.address, ("targetid",))):
+                for t, ref in ctx.targets(ctx.refs(att.address, (target_key,))):
                     targets.append((t, [ref] + to_group, att.address))
         for lb, lst_refs, lst in lbs:
             for t, t_refs, att in targets:
                 out.append(make(lb, t, TG_RULE, "request", label, t_refs, (g,) + ((att,) if att else ())))
-                out.append(make(lb, t, LISTENER_RULE, "request", "", lst_refs, (lst,)))
+                out.append(make(lb, t, LISTENER_RULE, "request", "", lst_refs, lst))
     return out
 
 

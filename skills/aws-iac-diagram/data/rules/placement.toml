@@ -9,8 +9,8 @@ content = "サブネットの AZ ごとに `availability_zone` のノードを V
 
 [[placement]]
 id = "P-VPC"
-types = ["internet_gateway", "vpc_endpoint"]
-content = "インターネットゲートウェイ、Gateway 型の VPC エンドポイント、複数の AZ にまたがるリソースの `parent` は VPC"
+types = ["internet_gateway", "vpc_endpoint", "egress_only_internet_gateway"]
+content = "インターネットゲートウェイ、Egress-only インターネットゲートウェイ、Gateway 型の VPC エンドポイント、複数の AZ にまたがるリソースの `parent` は VPC"
 
 [[placement]]
 id = "P-SUBNET"
@@ -19,8 +19,8 @@ content = "サブネットを1つだけ指定するリソース（NAT ゲート�
 
 [[placement]]
 id = "P-SPANS"
-types = ["alb", "ecs_service", "vpc_endpoint", "db_instance", "eks_cluster"]
-content = "サブネットを2つ以上指定するリソース（ALB、ECS サービス、Interface 型の VPC エンドポイント、DB サブネットグループ経由の DB、`vpc_config.subnet_ids`／`ResourcesVpcConfig.SubnetIds` の EKS クラスタ）は、`spans` にそのサブネットを並べ、`parent` はそれらの最も近い共通の祖先（AZ が違えば VPC）にする。描き方（サブネットごとに複製するか、またがる箱にするか）は配置（フェーズ4）で決める"
+types = ["alb", "ecs_service", "vpc_endpoint", "db_instance", "eks_cluster", "autoscaling_group", "network_firewall", "route53_resolver_endpoint"]
+content = "サブネットを2つ以上指定するリソース（ALB、ECS サービス、Interface 型の VPC エンドポイント、DB サブネットグループ経由の DB、`vpc_config.subnet_ids`／`ResourcesVpcConfig.SubnetIds` の EKS クラスタ、`vpc_zone_identifier`／`VPCZoneIdentifier` の Auto Scaling グループ、`subnet_mapping`／`SubnetMappings` の Network Firewall、`ip_address[].subnet_id`／`IpAddresses[].SubnetId` の Route 53 Resolver のエンドポイント）は、`spans` にそのサブネットを並べ、`parent` はそれらの最も近い共通の祖先（AZ が違えば VPC）にする。描き方（サブネットごとに複製するか、またがる箱にするか）は配置（フェーズ4）で決める"
 
 [[placement]]
 id = "P-REGIONAL"
@@ -45,8 +45,14 @@ types = [
     "glue_crawler",
     "glue_catalog_database",
     "external",
+    "transit_gateway",
+    "route53_zone",
+    "ecr_repository",
+    "codepipeline",
+    "codebuild_project",
+    "codedeploy_app",
 ]
-content = "VPC に入らないリソース（Lambda、DynamoDB、S3、SNS、SQS、API Gateway、Bedrock、OpenSearch Serverless、EventBridge、Step Functions、Glue、Cognito）、グローバルなもの（CloudFront、Route 53 のレコード、CloudFront 用の WAF）と `external` は `parent: null`。「AWS Cloud」やリージョンの枠は配置の段階で描き、IR には入れない"
+content = "VPC に入らないリソース（Lambda、DynamoDB、S3、SNS、SQS、API Gateway、Bedrock、OpenSearch Serverless、EventBridge、Step Functions、Glue、Cognito、Transit Gateway（VPC とはアタッチメントの辺で結ぶ）、ECR、CodePipeline・CodeBuild・CodeDeploy）、グローバルなもの（CloudFront、Route 53 のレコードとホストゾーン、CloudFront 用の WAF）と `external` は `parent: null`。「AWS Cloud」やリージョンの枠は配置の段階で描き、IR には入れない"
 
 [[attr]]
 type = "subnet"

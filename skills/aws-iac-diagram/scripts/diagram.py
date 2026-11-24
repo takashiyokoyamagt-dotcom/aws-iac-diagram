@@ -38,7 +38,15 @@ def render_view(ir: dict, view: views.View, r: rules.Rules, catalog: dict) -> tu
     sub = {"name": f"{ir['name']}-{view.name}", "nodes": view.nodes, "edges": view.edges}
     name, layout, _ = search.best(view.nodes, view.edges, lambda c: check_drawio.score(emit_drawio.emit(sub, c, r, catalog)))
     xml = emit_drawio.emit(sub, layout, r, catalog)
-    return name, xml, check_drawio.check(xml)
+    problems = check_drawio.check(xml)
+    if problems:  # 問題が残るときだけ、ほかの辺のラベルも避けて線の形を選び直す（既定の出力は変えない）
+        name2, layout2, _ = search.best(view.nodes, view.edges,
+                                        lambda c: check_drawio.score(emit_drawio.emit(sub, c, r, catalog, avoid_edge_labels=True)))
+        xml2 = emit_drawio.emit(sub, layout2, r, catalog, avoid_edge_labels=True)
+        problems2 = check_drawio.check(xml2)
+        if len(problems2) < len(problems):
+            return f"{name2}-a", xml2, problems2
+    return name, xml, problems
 
 
 def _external_checks(stem: Path, state: dict) -> tuple[dict, list[str]]:

@@ -179,18 +179,58 @@ id = "M-LAUNCH-TEMPLATE"
 class = "merged_into"
 tf = ["aws_launch_template"]
 cfn = ["AWS::EC2::LaunchTemplate"]
-into = { node_types = ["eks_cluster", "ec2_instance"], select = "それを使うインスタンス、またはそれを使うノードグループのクラスタ（ノードグループは M-EKS-PARTS でクラスタに統合されるので、統合を 2 段たどる）" }
+into = { node_types = ["eks_cluster", "ec2_instance", "autoscaling_group"], select = "それを使うインスタンス・Auto Scaling グループ、またはそれを使うノードグループのクラスタ（ノードグループは M-EKS-PARTS でクラスタに統合されるので、統合を 2 段たどる）" }
 reason = "起動の設定で、通信経路を持たない。中の SG（`vpc_security_group_ids`）は R-SG の辺の起点を統合先に移すときに使う（手順 5）"
+
+[[type]]
+id = "M-TGW-ROUTE-TABLE"
+class = "merged_into"
+tf = ["aws_ec2_transit_gateway_route_table"]
+cfn = ["AWS::EC2::TransitGatewayRouteTable"]
+into = { node_types = ["transit_gateway"], select = "その Transit Gateway（`transit_gateway_id`／`TransitGatewayId`）" }
+reason = "Transit Gateway の中の経路の表。経路は R-TGW-ROUTE（TGW → 宛先の VPC）、表への関連付け・伝播は R-TGW-ATTACH の辺に入れる"
+
+[[type]]
+id = "M-NFW-CONFIG"
+class = "merged_into"
+tf = ["aws_networkfirewall_firewall_policy", "aws_networkfirewall_rule_group", "aws_networkfirewall_logging_configuration"]
+cfn = ["AWS::NetworkFirewall::FirewallPolicy", "AWS::NetworkFirewall::RuleGroup", "AWS::NetworkFirewall::LoggingConfiguration"]
+into = { node_types = ["network_firewall"], select = "それを使うファイアウォール（ポリシーはファイアウォールが参照、ルールグループはポリシーが参照するので統合を 2 段たどる、ログの設定は `firewall_arn`／`FirewallArn`）" }
+reason = "ファイアウォールの設定（検査の規則とログの送り先）で、通信経路を持たない"
+
+[[type]]
+id = "M-RESOLVER-RULE"
+class = "merged_into"
+tf = ["aws_route53_resolver_rule", "aws_route53_resolver_rule_association"]
+cfn = ["AWS::Route53Resolver::ResolverRule", "AWS::Route53Resolver::ResolverRuleAssociation"]
+into = { node_types = ["route53_resolver_endpoint"], select = "転送に使うアウトバウンドのエンドポイント（`resolver_endpoint_id`／`ResolverEndpointId`。関連付けはルールを通して 2 段たどる）" }
+reason = "DNS の問い合わせの転送の設定。エンドポイントの付属品で、単独で描く意味が無い（エンドポイントの無い SYSTEM のルールは H-NO-TARGET）"
+
+[[type]]
+id = "M-CODEDEPLOY-GROUP"
+class = "merged_into"
+tf = ["aws_codedeploy_deployment_group", "aws_codedeploy_deployment_config"]
+cfn = ["AWS::CodeDeploy::DeploymentGroup", "AWS::CodeDeploy::DeploymentConfig"]
+into = { node_types = ["codedeploy_app"], select = "そのアプリケーション（`app_name`／`ApplicationName`。デプロイの設定はデプロイグループを通して 2 段たどる）" }
+reason = "デプロイの単位と方式。配る先（ECS サービス・Auto Scaling グループ）と通知先は E-CODEDEPLOY-TARGET・E-NOTIFICATION でアプリケーションからの辺にする"
+
+[[type]]
+id = "M-ASG-PARTS"
+class = "merged_into"
+tf = ["aws_launch_configuration", "aws_autoscaling_lifecycle_hook", "aws_autoscaling_policy", "aws_autoscaling_schedule"]
+cfn = ["AWS::AutoScaling::LaunchConfiguration", "AWS::AutoScaling::LifecycleHook", "AWS::AutoScaling::ScalingPolicy", "AWS::AutoScaling::ScheduledAction"]
+into = { node_types = ["autoscaling_group"], select = "その Auto Scaling グループ（起動設定はグループが参照、ほかは `autoscaling_group_name`／`AutoScalingGroupName`）" }
+reason = "グループの起動の設定とスケーリング・ライフサイクルの設定で、通信経路を持たない。起動設定の SG は R-SG の辺の起点をグループに移すときに使う。ライフサイクルフックの通知先は E-NOTIFICATION"
 
 [[type]]
 id = "H-IAM"
 class = "hidden"
 tf = ["aws_iam_role", "aws_iam_role_policy", "aws_iam_role_policy_attachment", "aws_iam_instance_profile", "aws_iam_policy",
-      "aws_iam_openid_connect_provider"]
+      "aws_iam_openid_connect_provider", "aws_iam_policy_attachment"]
 cfn = ["AWS::IAM::Role", "AWS::IAM::Policy", "AWS::IAM::InstanceProfile", "AWS::IAM::ManagedPolicy", "AWS::IAM::RolePolicy",
        "AWS::IAM::OIDCProvider"]
 tf_data = ["aws_iam_policy_document", "aws_iam_policy"]
-applies = "`aws_iam_role`、`aws_iam_role_policy`、`aws_iam_role_policy_attachment`、`aws_iam_instance_profile`、`aws_iam_policy`、`aws_iam_openid_connect_provider`、`data.aws_iam_policy_document`、`data.aws_iam_policy`、`AWS::IAM::Role`、`AWS::IAM::Policy`、`AWS::IAM::InstanceProfile`、`AWS::IAM::ManagedPolicy`、`AWS::IAM::RolePolicy`、`AWS::IAM::OIDCProvider`"
+applies = "`aws_iam_role`、`aws_iam_role_policy`、`aws_iam_role_policy_attachment`、`aws_iam_instance_profile`、`aws_iam_policy`、`aws_iam_openid_connect_provider`、`aws_iam_policy_attachment`、`data.aws_iam_policy_document`、`data.aws_iam_policy`、`AWS::IAM::Role`、`AWS::IAM::Policy`、`AWS::IAM::InstanceProfile`、`AWS::IAM::ManagedPolicy`、`AWS::IAM::RolePolicy`、`AWS::IAM::OIDCProvider`"
 evidence_source = true
 module_sources_file = "data/module-summaries/iam-only-sources.md"
 reason = "権限は図に描かない。ただし非表示にする前に E-IAM（推定の辺）の材料として使う"
@@ -310,3 +350,53 @@ cfn = ["AWS::CloudFormation::CustomResource"]
 cfn_note = "`Custom::<名前>` の型は TOML の型の形（`AWS::…`）に合わないので書けない。raw に出たら unknown として報告される"
 applies = "`AWS::CloudFormation::CustomResource`（カスタムリソース）"
 reason = "デプロイの時に 1 回だけ動く処理。裏の Lambda は描く型として描かれる"
+
+[[type]]
+id = "H-APP-AUTOSCALING"
+class = "hidden"
+tf = ["aws_appautoscaling_target", "aws_appautoscaling_policy", "aws_appautoscaling_scheduled_action"]
+cfn = ["AWS::ApplicationAutoScaling::ScalableTarget", "AWS::ApplicationAutoScaling::ScalingPolicy"]
+cfn_note = "スケジュールは `ScalableTarget` の `ScheduledActions` のプロパティ"
+applies = "`aws_appautoscaling_target`、`aws_appautoscaling_policy`、`aws_appautoscaling_scheduled_action`、`AWS::ApplicationAutoScaling::ScalableTarget`、`AWS::ApplicationAutoScaling::ScalingPolicy`"
+reason = "ECS サービス・DynamoDB などの台数の自動調整の設定で、通信経路を持たない（アラームと同じ運用の付属品。H-OBSERVABILITY）。統合にしないのは、対象を `resource_id` の文字列（`service/<クラスタ>/<サービス>`）で指し、参照がクラスタにしか届かない入力（T17）で統合先のサービスを取り違えるため"
+
+[[type]]
+id = "H-RAM"
+class = "hidden"
+tf = ["aws_ram_resource_share", "aws_ram_resource_association", "aws_ram_principal_association"]
+cfn = ["AWS::RAM::ResourceShare"]
+cfn_note = "共有するリソースと相手は `ResourceShare` の `ResourceArns`・`Principals` のプロパティ"
+applies = "`aws_ram_resource_share`、`aws_ram_resource_association`、`aws_ram_principal_association`、`AWS::RAM::ResourceShare`"
+reason = "アカウントをまたいでリソースを共有する設定で、通信経路を持たない（共有される TGW・Resolver のルールなどは描く）"
+
+[[type]]
+id = "H-IPAM"
+class = "hidden"
+tf = ["aws_vpc_ipam", "aws_vpc_ipam_scope", "aws_vpc_ipam_pool", "aws_vpc_ipam_pool_cidr"]
+cfn = ["AWS::EC2::IPAM", "AWS::EC2::IPAMScope", "AWS::EC2::IPAMPool", "AWS::EC2::IPAMPoolCidr"]
+applies = "`aws_vpc_ipam`、`aws_vpc_ipam_scope`、`aws_vpc_ipam_pool`、`aws_vpc_ipam_pool_cidr`、`AWS::EC2::IPAM`、`AWS::EC2::IPAMScope`、`AWS::EC2::IPAMPool`、`AWS::EC2::IPAMPoolCidr`"
+reason = "IP アドレスの割り当ての管理で、通信経路を持たない"
+
+[[type]]
+id = "H-VPC-DHCP"
+class = "hidden"
+tf = ["aws_vpc_dhcp_options", "aws_vpc_dhcp_options_association"]
+cfn = ["AWS::EC2::DHCPOptions", "AWS::EC2::VPCDHCPOptionsAssociation"]
+applies = "`aws_vpc_dhcp_options`、`aws_vpc_dhcp_options_association`、`AWS::EC2::DHCPOptions`、`AWS::EC2::VPCDHCPOptionsAssociation`"
+reason = "VPC の DNS サーバー・ドメイン名の設定で、通信経路を持たない"
+
+[[type]]
+id = "H-SSM-PARAMETER"
+class = "hidden"
+tf = ["aws_ssm_parameter"]
+cfn = ["AWS::SSM::Parameter"]
+applies = "`aws_ssm_parameter`、`AWS::SSM::Parameter`"
+reason = "設定の値の置き場で、構成上の役割は値を渡すことだけ（TF の `data.aws_ssm_parameter` は H-DATA）"
+
+[[type]]
+id = "H-KMS"
+class = "hidden"
+tf = ["aws_kms_key", "aws_kms_alias"]
+cfn = ["AWS::KMS::Key", "AWS::KMS::Alias"]
+applies = "`aws_kms_key`、`aws_kms_alias`、`AWS::KMS::Key`、`AWS::KMS::Alias`"
+reason = "暗号化の鍵。ほぼすべてのリソースが参照しうるので、描くと辺が増えるだけで構成が読めなくなる"

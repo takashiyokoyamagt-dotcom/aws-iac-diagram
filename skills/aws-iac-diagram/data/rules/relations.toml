@@ -32,9 +32,10 @@ confidence = "derived"
 [[relation]]
 id = "R-LB-LISTENER"
 class = "merged_into"
-tf = ["aws_lb_listener"]
-cfn = ["AWS::ElasticLoadBalancingV2::Listener"]
-edge = "（インターネット向けの LB なら）`external/internet` → LB と、LB → 転送先のターゲット"
+tf = ["aws_lb_listener", "aws_alb_listener", "aws_lb_listener_rule", "aws_alb_listener_rule"]
+cfn = ["AWS::ElasticLoadBalancingV2::Listener", "AWS::ElasticLoadBalancingV2::ListenerRule"]
+tf_note = "`aws_alb_*` は `aws_lb_*` の別名"
+edge = "（インターネット向けの LB なら）`external/internet` → LB と、LB → 転送先のターゲット。リスナーのルール（`aws_lb_listener_rule`／`ListenerRule`）は、`listener_arn`／`ListenerArn` のリスナーの LB → ルールの転送先のターゲット"
 kind = "request"
 label = "internet → LB はリスナーの `<PROTOCOL> <port>`（`HTTP 80`）"
 confidence = "derived"
@@ -42,11 +43,14 @@ confidence = "derived"
 [[relation]]
 id = "R-LB-TG"
 class = "merged_into"
-tf = ["aws_lb_target_group", "aws_lb_target_group_attachment"]
+tf = ["aws_lb_target_group", "aws_lb_target_group_attachment", "aws_alb_target_group", "aws_alb_target_group_attachment",
+      "aws_autoscaling_attachment"]
 cfn = ["AWS::ElasticLoadBalancingV2::TargetGroup"]
-tf_props = ["aws_ecs_service.load_balancer"]
-cfn_props = ["AWS::ECS::Service.LoadBalancers"]
-edge = "LB → ターゲット（ECS サービス、EC2、Lambda）。**参照はサービス → ターゲットグループだが、向きは LB → サービス**"
+tf_props = ["aws_ecs_service.load_balancer", "aws_autoscaling_group.target_group_arns"]
+cfn_props = ["AWS::ECS::Service.LoadBalancers", "AWS::AutoScaling::AutoScalingGroup.TargetGroupARNs"]
+tf_note = "`aws_alb_*` は `aws_lb_*` の別名。`aws_autoscaling_attachment`（`lb_target_group_arn` と `autoscaling_group_name`）は、グループの `target_group_arns` を別リソースにしたもの"
+cfn_note = "Auto Scaling グループとの対応はグループの `TargetGroupARNs` のプロパティ"
+edge = "LB → ターゲット（ECS サービス、EC2、Lambda、Auto Scaling グループ）。**参照はサービス → ターゲットグループだが、向きは LB → サービス**"
 kind = "request"
 label = "ターゲットグループの `<PROTOCOL> <port>`（`HTTP 8080`）"
 confidence = "derived"
@@ -188,4 +192,26 @@ cfn = ["AWS::Glue::Trigger"]
 edge = "条件（`predicate`／`Predicate` のジョブ・クローラ）→ 起動するジョブ・クローラ（`actions`／`Actions`）。条件の無いトリガー（スケジュール・オンデマンド）は辺を作らない"
 kind = "event"
 label = "（なし）"
+confidence = "derived"
+
+[[relation]]
+id = "R-TGW-ATTACH"
+class = "merged_into"
+tf = ["aws_ec2_transit_gateway_vpc_attachment", "aws_ec2_transit_gateway_route_table_association",
+      "aws_ec2_transit_gateway_route_table_propagation"]
+cfn = ["AWS::EC2::TransitGatewayVpcAttachment", "AWS::EC2::TransitGatewayAttachment", "AWS::EC2::TransitGatewayRouteTableAssociation",
+       "AWS::EC2::TransitGatewayRouteTablePropagation"]
+edge = "アタッチメントの VPC（`vpc_id`／`VpcId`）→ Transit Gateway（`transit_gateway_id`／`TransitGatewayId`）。TGW のルートテーブルへの関連付け・伝播（`transit_gateway_attachment_id`／`TransitGatewayAttachmentId` でアタッチメントを指す）は、そのアタッチメントの辺に入れる"
+kind = "network"
+label = "（なし）"
+confidence = "derived"
+
+[[relation]]
+id = "R-TGW-ROUTE"
+class = "merged_into"
+tf = ["aws_ec2_transit_gateway_route"]
+cfn = ["AWS::EC2::TransitGatewayRoute"]
+edge = "Transit Gateway → ルートの宛先のアタッチメント（`transit_gateway_attachment_id`／`TransitGatewayAttachmentId`）の VPC。TGW はアタッチメントの `transit_gateway_id` で決める。宛先の無いルート（`blackhole`）は辺を作らない"
+kind = "route"
+label = "宛先の CIDR（`0.0.0.0/0`）"
 confidence = "derived"

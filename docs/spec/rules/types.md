@@ -67,13 +67,19 @@
 | `lambda_function` | compute | resource | `aws_lambda_function` | `AWS::Lambda::Function`、`AWS::Serverless::Function` | `function_name` ／ `FunctionName` | `resource_icon:lambda` |  |
 | `module` | compute | resource | 黒箱のモジュールの呼び出し（A5 の要約表に無いレジストリモジュール、`git::` などのリモートのソース）。IAM だけのモジュールは H-IAM ［条件: raw の via が `module_blackbox` のとき］ | `AWS::CloudFormation::Stack`、`AWS::Serverless::Application` （読めないネストスタックと、SAM のアプリケーション） | モジュール呼び出しの名前 | `group:group_aws_cloud_alt` （仮。フェーズ4 で決める） |  |
 | `eks_cluster` | compute | resource | `aws_eks_cluster` | `AWS::EKS::Cluster` | `name` ／ `Name` | `resource_icon:eks` |  |
+| `autoscaling_group` | compute | resource | `aws_autoscaling_group` | `AWS::AutoScaling::AutoScalingGroup` | `name` ／ `AutoScalingGroupName` | `resource_icon:auto_scaling2` |  |
 | `db_instance` | data-stores | resource | `aws_db_instance` | `AWS::RDS::DBInstance` | `identifier` ／ `DBInstanceIdentifier` | `shape:rds_instance` |  |
 | `dynamodb_table` | data-stores | resource | `aws_dynamodb_table` | `AWS::DynamoDB::Table`、`AWS::Serverless::SimpleTable` | `name` ／ `TableName` | `resource_icon:dynamodb` |  |
 | `s3_bucket` | data-stores | resource | `aws_s3_bucket` | `AWS::S3::Bucket` | `bucket` ／ `BucketName` | `resource_icon:s3` | ○ |
+| `ecr_repository` | devtools | resource | `aws_ecr_repository` | `AWS::ECR::Repository` | `name` ／ `RepositoryName` | `resource_icon:ecr` |  |
+| `codepipeline` | devtools | resource | `aws_codepipeline` | `AWS::CodePipeline::Pipeline` | `name` ／ `Name` | `resource_icon:codepipeline` |  |
+| `codebuild_project` | devtools | resource | `aws_codebuild_project` | `AWS::CodeBuild::Project` | `name` ／ `Name` | `resource_icon:codebuild` |  |
+| `codedeploy_app` | devtools | resource | `aws_codedeploy_app` | `AWS::CodeDeploy::Application` | `name` ／ `ApplicationName` | `resource_icon:codedeploy` |  |
 | `cloudfront_distribution` | edge-web | resource | `aws_cloudfront_distribution` （名前の属性が無い（`Name` タグか論理名。K-NAME）） | `AWS::CloudFront::Distribution` | （タグのみ） | `resource_icon:cloudfront` |  |
 | `route53_record` | edge-web | resource | `aws_route53_record` | `AWS::Route53::RecordSet`、`AWS::Route53::RecordSetGroup` （`RecordSetGroup` は複数のレコードをまとめて 1 ノードにする（名前は `RecordSets[].Name` の中なので、`Name` タグか論理名）） | `name` ／ `Name` | `resource_icon:route_53` （ホストゾーンは描かない（多くは既存のゾーンを ID で指すだけ）） |  |
 | `cognito_user_pool` | edge-web | resource | `aws_cognito_user_pool` | `AWS::Cognito::UserPool` | `name` ／ `UserPoolName` | `resource_icon:cognito` |  |
 | `waf_web_acl` | edge-web | resource | `aws_wafv2_web_acl` | `AWS::WAFv2::WebACL` | `name` ／ `Name` | `resource_icon:waf` |  |
+| `route53_zone` | edge-web | resource | `aws_route53_zone` | `AWS::Route53::HostedZone` | `name` ／ `Name` | `shape:hosted_zone` |  |
 | `apigw_http_api` | integration | resource | `aws_apigatewayv2_api` ［条件: 対象の型: `aws_apigatewayv2_api`、`AWS::ApiGatewayV2::Api`。`protocol_type`／`ProtocolType` が `HTTP` のとき］ | `AWS::ApiGatewayV2::Api`、`AWS::Serverless::HttpApi` | `name` ／ `Name` | `resource_icon:api_gateway` |  |
 | `apigw_rest_api` | integration | resource | `aws_api_gateway_rest_api` | `AWS::ApiGateway::RestApi`、`AWS::Serverless::Api` | `name` ／ `Name` | `resource_icon:api_gateway` |  |
 | `sns_topic` | integration | resource | `aws_sns_topic` | `AWS::SNS::Topic` | `name` ／ `TopicName` | `resource_icon:sns` |  |
@@ -88,6 +94,10 @@
 | `vpc_endpoint` | network | resource | `aws_vpc_endpoint` | `AWS::EC2::VPCEndpoint` | （タグのみ） | `shape:endpoints` |  |
 | `alb` | network | resource | `aws_lb`、`aws_alb` ［条件: `load_balancer_type`／`Type` が `application` のとき（省略時は `application`）］ | `AWS::ElasticLoadBalancingV2::LoadBalancer` | `name` ／ `Name` | `shape:application_load_balancer` |  |
 | `external` | network | external | （合成: N-EXT-INTERNET） | （合成: N-EXT-INTERNET） | Internet | `shape:internet_alt2` |  |
+| `egress_only_internet_gateway` | network | resource | `aws_egress_only_internet_gateway` | `AWS::EC2::EgressOnlyInternetGateway` | （タグのみ） | `shape:internet_gateway` （辞書に Egress-only の専用のアイコンが無いので、インターネットゲートウェイのものを使う（名前で見分ける）） |  |
+| `transit_gateway` | network | resource | `aws_ec2_transit_gateway` | `AWS::EC2::TransitGateway` | （タグのみ） | `resource_icon:transit_gateway` |  |
+| `network_firewall` | network | resource | `aws_networkfirewall_firewall` | `AWS::NetworkFirewall::Firewall` | `name` ／ `FirewallName` | `resource_icon:network_firewall` |  |
+| `route53_resolver_endpoint` | network | resource | `aws_route53_resolver_endpoint` | `AWS::Route53Resolver::ResolverEndpoint` | `name` ／ `Name` | `shape:route_53_resolver` |  |
 
 <!-- /rules-table -->
 
@@ -95,6 +105,7 @@
 - `subnet` の `attrs.access` の決め方は [placement.md](placement.md)。
 - **既存の `data` を描く（`data = true`）:** `data` ブロックは H-DATA（描かない）が既定だが、描く型の `data`（`data.aws_vpc`・`data.aws_subnet`・`data.aws_s3_bucket` など）が描くリソースから参照されていれば、既存のノードとして描く（ir-schema の 7.4。T09 の `data.aws_s3_bucket`）。手順 1 では**方針をデータに持たせただけ**で、動きは変えていない（`validate_ir.py` は使わない）。どの型を描くかは手順 2 で決めた: 設計案（`docs/dev-notes/phase3-design-draft.md` の 8 章の 3）の推奨 (c) のとおり、`data = true` の 3 つ（`vpc`・`subnet`・`s3_bucket`）だけ。参照されていない `data` は H-DATA。
 - **統合の 2 段:** 統合先がさらに統合される行（M-LAUNCH-TEMPLATE → ノードグループ（M-EKS-PARTS）→ クラスタ）は、描く型に着くまで統合をたどる。
+- **2026-11-25 に足した描く型（凍結を解いた拡張。C3 の大きいサンプル T17・T19・C05 の unknown から）:** 図の主役になるものを描く。`transit_gateway`・`egress_only_internet_gateway`・`network_firewall`・`route53_resolver_endpoint`（network）、`autoscaling_group`（compute）、`route53_zone`（edge-web）、`ecr_repository`・`codepipeline`・`codebuild_project`・`codedeploy_app`（新しいファイル `devtools.toml`）。Route 53 はレコードに加えてホストゾーンも描く（プライベートのホストゾーンは VPC の DNS の構成そのもので、T19 の点検表が求める）。Egress-only のインターネットゲートウェイは辞書に専用のアイコンが無いので、インターネットゲートウェイのアイコンを使い名前で見分ける。Auto Scaling グループは枠（`group:group_auto_scaling_group`）ではなくアイコンにする（中に描くインスタンスが IR に無い）。ネットワーク図に出す型（`layout/views.py` の `NETWORK_TYPES`）にも、TGW・Egress-only IGW・Network Firewall・Resolver のエンドポイントを足した。
 
 ## 2. 統合する型（M-*。`class: merged_into`、`into` はノード）
 
@@ -121,7 +132,12 @@
 | `M-ACM-CERT` | `aws_acm_certificate`、`aws_acm_certificate_validation` | `AWS::CertificateManager::Certificate` | それを使うリソース（CloudFront、ALB のリスナー、API のカスタムドメイン） → `cloudfront_distribution`・`alb`・`apigw_http_api`・`apigw_rest_api` | TLS の設定。通信経路を持たない |
 | `M-COGNITO-CONFIG` | `aws_cognito_user_pool_client`、`aws_cognito_user_pool_domain` | `AWS::Cognito::UserPoolClient`、`AWS::Cognito::UserPoolDomain` | そのユーザープール → `cognito_user_pool` | ユーザープールの設定 |
 | `M-EKS-PARTS` | `aws_eks_node_group`、`aws_eks_addon`、`aws_eks_access_entry`、`aws_eks_access_policy_association`、`aws_eks_fargate_profile` | `AWS::EKS::Nodegroup`、`AWS::EKS::Addon`、`AWS::EKS::AccessEntry`、`AWS::EKS::FargateProfile` | そのクラスタ → `eks_cluster` | クラスタの部品。ノードグループもクラスタの中の計算資源として 1 つのノードにまとめる（ノードグループごとに描くかはフェーズ 4 の B2 の詳細図で決める） |
-| `M-LAUNCH-TEMPLATE` | `aws_launch_template` | `AWS::EC2::LaunchTemplate` | それを使うインスタンス、またはそれを使うノードグループのクラスタ（ノードグループは M-EKS-PARTS でクラスタに統合されるので、統合を 2 段たどる） → `eks_cluster`・`ec2_instance` | 起動の設定で、通信経路を持たない。中の SG（`vpc_security_group_ids`）は R-SG の辺の起点を統合先に移すときに使う（手順 5） |
+| `M-LAUNCH-TEMPLATE` | `aws_launch_template` | `AWS::EC2::LaunchTemplate` | それを使うインスタンス・Auto Scaling グループ、またはそれを使うノードグループのクラスタ（ノードグループは M-EKS-PARTS でクラスタに統合されるので、統合を 2 段たどる） → `eks_cluster`・`ec2_instance`・`autoscaling_group` | 起動の設定で、通信経路を持たない。中の SG（`vpc_security_group_ids`）は R-SG の辺の起点を統合先に移すときに使う（手順 5） |
+| `M-TGW-ROUTE-TABLE` | `aws_ec2_transit_gateway_route_table` | `AWS::EC2::TransitGatewayRouteTable` | その Transit Gateway（`transit_gateway_id`／`TransitGatewayId`） → `transit_gateway` | Transit Gateway の中の経路の表。経路は R-TGW-ROUTE（TGW → 宛先の VPC）、表への関連付け・伝播は R-TGW-ATTACH の辺に入れる |
+| `M-NFW-CONFIG` | `aws_networkfirewall_firewall_policy`、`aws_networkfirewall_rule_group`、`aws_networkfirewall_logging_configuration` | `AWS::NetworkFirewall::FirewallPolicy`、`AWS::NetworkFirewall::RuleGroup`、`AWS::NetworkFirewall::LoggingConfiguration` | それを使うファイアウォール（ポリシーはファイアウォールが参照、ルールグループはポリシーが参照するので統合を 2 段たどる、ログの設定は `firewall_arn`／`FirewallArn`） → `network_firewall` | ファイアウォールの設定（検査の規則とログの送り先）で、通信経路を持たない |
+| `M-RESOLVER-RULE` | `aws_route53_resolver_rule`、`aws_route53_resolver_rule_association` | `AWS::Route53Resolver::ResolverRule`、`AWS::Route53Resolver::ResolverRuleAssociation` | 転送に使うアウトバウンドのエンドポイント（`resolver_endpoint_id`／`ResolverEndpointId`。関連付けはルールを通して 2 段たどる） → `route53_resolver_endpoint` | DNS の問い合わせの転送の設定。エンドポイントの付属品で、単独で描く意味が無い（エンドポイントの無い SYSTEM のルールは H-NO-TARGET） |
+| `M-CODEDEPLOY-GROUP` | `aws_codedeploy_deployment_group`、`aws_codedeploy_deployment_config` | `AWS::CodeDeploy::DeploymentGroup`、`AWS::CodeDeploy::DeploymentConfig` | そのアプリケーション（`app_name`／`ApplicationName`。デプロイの設定はデプロイグループを通して 2 段たどる） → `codedeploy_app` | デプロイの単位と方式。配る先（ECS サービス・Auto Scaling グループ）と通知先は E-CODEDEPLOY-TARGET・E-NOTIFICATION でアプリケーションからの辺にする |
+| `M-ASG-PARTS` | `aws_launch_configuration`、`aws_autoscaling_lifecycle_hook`、`aws_autoscaling_policy`、`aws_autoscaling_schedule` | `AWS::AutoScaling::LaunchConfiguration`、`AWS::AutoScaling::LifecycleHook`、`AWS::AutoScaling::ScalingPolicy`、`AWS::AutoScaling::ScheduledAction` | その Auto Scaling グループ（起動設定はグループが参照、ほかは `autoscaling_group_name`／`AutoScalingGroupName`） → `autoscaling_group` | グループの起動の設定とスケーリング・ライフサイクルの設定で、通信経路を持たない。起動設定の SG は R-SG の辺の起点をグループに移すときに使う。ライフサイクルフックの通知先は E-NOTIFICATION |
 
 <!-- /rules-table -->
 
@@ -132,7 +148,7 @@
 
 | 規則ID | 対象（原文） | 機械が読む型・条件 | 理由・補足 |
 |---|---|---|---|
-| `H-IAM` | `aws_iam_role`、`aws_iam_role_policy`、`aws_iam_role_policy_attachment`、`aws_iam_instance_profile`、`aws_iam_policy`、`aws_iam_openid_connect_provider`、`data.aws_iam_policy_document`、`data.aws_iam_policy`、`AWS::IAM::Role`、`AWS::IAM::Policy`、`AWS::IAM::InstanceProfile`、`AWS::IAM::ManagedPolicy`、`AWS::IAM::RolePolicy`、`AWS::IAM::OIDCProvider` | TF: `aws_iam_role`、`aws_iam_role_policy`、`aws_iam_role_policy_attachment`、`aws_iam_instance_profile`、`aws_iam_policy`、`aws_iam_openid_connect_provider`；CFN: `AWS::IAM::Role`、`AWS::IAM::Policy`、`AWS::IAM::InstanceProfile`、`AWS::IAM::ManagedPolicy`、`AWS::IAM::RolePolicy`、`AWS::IAM::OIDCProvider`；TF の data: `aws_iam_policy_document`、`aws_iam_policy`；E-IAM の材料にしてから非表示（モジュールは `data/module-summaries/iam-only-sources.md` の source の前方一致） | 権限は図に描かない。ただし非表示にする前に E-IAM（推定の辺）の材料として使う |
+| `H-IAM` | `aws_iam_role`、`aws_iam_role_policy`、`aws_iam_role_policy_attachment`、`aws_iam_instance_profile`、`aws_iam_policy`、`aws_iam_openid_connect_provider`、`aws_iam_policy_attachment`、`data.aws_iam_policy_document`、`data.aws_iam_policy`、`AWS::IAM::Role`、`AWS::IAM::Policy`、`AWS::IAM::InstanceProfile`、`AWS::IAM::ManagedPolicy`、`AWS::IAM::RolePolicy`、`AWS::IAM::OIDCProvider` | TF: `aws_iam_role`、`aws_iam_role_policy`、`aws_iam_role_policy_attachment`、`aws_iam_instance_profile`、`aws_iam_policy`、`aws_iam_openid_connect_provider`、`aws_iam_policy_attachment`；CFN: `AWS::IAM::Role`、`AWS::IAM::Policy`、`AWS::IAM::InstanceProfile`、`AWS::IAM::ManagedPolicy`、`AWS::IAM::RolePolicy`、`AWS::IAM::OIDCProvider`；TF の data: `aws_iam_policy_document`、`aws_iam_policy`；E-IAM の材料にしてから非表示（モジュールは `data/module-summaries/iam-only-sources.md` の source の前方一致） | 権限は図に描かない。ただし非表示にする前に E-IAM（推定の辺）の材料として使う |
 | `H-LOGS` | `aws_cloudwatch_log_group`、`AWS::Logs::LogGroup` | TF: `aws_cloudwatch_log_group`；CFN: `AWS::Logs::LogGroup` | 運用の付属品。全体図には出さない（B2 の詳細図で出す余地はある） |
 | `H-OBSERVABILITY` | `aws_flow_log`、`aws_cloudwatch_metric_alarm`、`aws_cloudwatch_dashboard`、`AWS::EC2::FlowLog`、`AWS::CloudWatch::Alarm`、`AWS::CloudWatch::Dashboard` | TF: `aws_flow_log`、`aws_cloudwatch_metric_alarm`、`aws_cloudwatch_dashboard`；CFN: `AWS::EC2::FlowLog`、`AWS::CloudWatch::Alarm`、`AWS::CloudWatch::Dashboard` | 同上。フローログの送り先のロググループも H-LOGS で非表示になる |
 | `H-DATA` | IAM 以外の TF の `data` ブロック（`aws_ssm_parameter`、`aws_caller_identity`、`archive_file` など） | ほかの行に当たらない TF の data ブロックすべて | 値を引くためのもの。ただし `data = true` の描く型（`data.aws_vpc`・`data.aws_subnet`・`data.aws_s3_bucket`）の data が描くリソースから参照されていれば、既存のノードとして描く（ir-schema の 7.4。2026-11-07 に設計草案 8 章の 3 の推奨 (c) で決定。参照されていなければ H-DATA。主セットの T09 が該当） |
@@ -147,9 +163,16 @@
 | `H-NONAWS` | AWS 以外のプロバイダの型のうち、H-UTILITY・M-AOSS-INDEX に当たらないもの（kubernetes、helm、tls、local など）。awscc の型は同じ名前の CFN の型として扱うので、ここには入らない | （型では決まらない。辺・条件のあとで決まる） | AWS の構成図の対象外（ir-schema の 7.4） |
 | `H-VPC-DEFAULTS` | `aws_default_security_group`、`aws_default_network_acl`、`aws_default_route_table` | TF: `aws_default_security_group`、`aws_default_network_acl`、`aws_default_route_table` | 既定のリソースを管理下に置くためのもので、構成上の役割が無い（terraform-aws-modules/vpc が既定で作る） |
 | `H-CFN-CUSTOM` | `AWS::CloudFormation::CustomResource`（カスタムリソース） | CFN: `AWS::CloudFormation::CustomResource` | デプロイの時に 1 回だけ動く処理。裏の Lambda は描く型として描かれる |
+| `H-APP-AUTOSCALING` | `aws_appautoscaling_target`、`aws_appautoscaling_policy`、`aws_appautoscaling_scheduled_action`、`AWS::ApplicationAutoScaling::ScalableTarget`、`AWS::ApplicationAutoScaling::ScalingPolicy` | TF: `aws_appautoscaling_target`、`aws_appautoscaling_policy`、`aws_appautoscaling_scheduled_action`；CFN: `AWS::ApplicationAutoScaling::ScalableTarget`、`AWS::ApplicationAutoScaling::ScalingPolicy` | ECS サービス・DynamoDB などの台数の自動調整の設定で、通信経路を持たない（アラームと同じ運用の付属品。H-OBSERVABILITY）。統合にしないのは、対象を `resource_id` の文字列（`service/<クラスタ>/<サービス>`）で指し、参照がクラスタにしか届かない入力（T17）で統合先のサービスを取り違えるため |
+| `H-RAM` | `aws_ram_resource_share`、`aws_ram_resource_association`、`aws_ram_principal_association`、`AWS::RAM::ResourceShare` | TF: `aws_ram_resource_share`、`aws_ram_resource_association`、`aws_ram_principal_association`；CFN: `AWS::RAM::ResourceShare` | アカウントをまたいでリソースを共有する設定で、通信経路を持たない（共有される TGW・Resolver のルールなどは描く） |
+| `H-IPAM` | `aws_vpc_ipam`、`aws_vpc_ipam_scope`、`aws_vpc_ipam_pool`、`aws_vpc_ipam_pool_cidr`、`AWS::EC2::IPAM`、`AWS::EC2::IPAMScope`、`AWS::EC2::IPAMPool`、`AWS::EC2::IPAMPoolCidr` | TF: `aws_vpc_ipam`、`aws_vpc_ipam_scope`、`aws_vpc_ipam_pool`、`aws_vpc_ipam_pool_cidr`；CFN: `AWS::EC2::IPAM`、`AWS::EC2::IPAMScope`、`AWS::EC2::IPAMPool`、`AWS::EC2::IPAMPoolCidr` | IP アドレスの割り当ての管理で、通信経路を持たない |
+| `H-VPC-DHCP` | `aws_vpc_dhcp_options`、`aws_vpc_dhcp_options_association`、`AWS::EC2::DHCPOptions`、`AWS::EC2::VPCDHCPOptionsAssociation` | TF: `aws_vpc_dhcp_options`、`aws_vpc_dhcp_options_association`；CFN: `AWS::EC2::DHCPOptions`、`AWS::EC2::VPCDHCPOptionsAssociation` | VPC の DNS サーバー・ドメイン名の設定で、通信経路を持たない |
+| `H-SSM-PARAMETER` | `aws_ssm_parameter`、`AWS::SSM::Parameter` | TF: `aws_ssm_parameter`；CFN: `AWS::SSM::Parameter` | 設定の値の置き場で、構成上の役割は値を渡すことだけ（TF の `data.aws_ssm_parameter` は H-DATA） |
+| `H-KMS` | `aws_kms_key`、`aws_kms_alias`、`AWS::KMS::Key`、`AWS::KMS::Alias` | TF: `aws_kms_key`、`aws_kms_alias`；CFN: `AWS::KMS::Key`、`AWS::KMS::Alias` | 暗号化の鍵。ほぼすべてのリソースが参照しうるので、描くと辺が増えるだけで構成が読めなくなる |
 
 <!-- /rules-table -->
 
+- **2026-11-25 に足した統合・非表示:** 付属品は統合（M-TGW-ROUTE-TABLE・M-NFW-CONFIG・M-RESOLVER-RULE・M-CODEDEPLOY-GROUP・M-ASG-PARTS。M-LAUNCH-TEMPLATE の統合先に `autoscaling_group` を足した）、統合先が無いか描く意味の無い設定は非表示（H-APP-AUTOSCALING・H-RAM・H-IPAM・H-VPC-DHCP・H-SSM-PARAMETER・H-KMS。H-IAM に `aws_iam_policy_attachment` を足した）。Application Auto Scaling を統合でなく非表示にしたのは、対象を `resource_id`（`service/<クラスタ>/<サービス>`）の文字列で指し、T17 のように参照がクラスタにしか届かないと、M-ECS-CLUSTER をたどってクラスタのサービスすべてに統合してしまうため（取り違えるより描かない）。`aws_iam_policy_attachment` は H-IAM に入れたが、E-IAM の材料にはしていない（`iam.py` が読むのは `aws_iam_role_policy_attachment` だけ。限界）。
 - `H-RELATION-NOEDGE` と `H-NO-TARGET` は、正規化が分類の確定（`scripts/aws_iac_diagram/normalize/classify.py`）で付ける（型では決まらない）。フェーズ 3 の手順 5 の後に規則表の凍結を解いて足した（それまでは分類を仮のまま残していた。ir-schema の 8 章）。どちらも、見落としに気づけるよう warn の診断（`NORM-RELATION-NOEDGE`・`NORM-MERGE-TARGET`）を一緒に出す。
 - IAM だけを作るモジュールの H-IAM は、`module_sources_file` の一覧（`data/module-summaries/iam-only-sources.md`。説明は [module-summaries.md](../module-summaries.md) の 4章）の source の前方一致で判定する（`core/module_sources.py` の `iam_only()`。アダプタの診断の文言と正規化が同じ判定を使う）。
 

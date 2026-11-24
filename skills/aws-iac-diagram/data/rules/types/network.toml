@@ -81,3 +81,40 @@ cfn = []
 name_attr = {}
 name_from = "Internet"
 icon = ["shape:internet_alt2"]
+
+[[type]]
+id = "egress_only_internet_gateway"
+class = "drawn"
+category = "resource"
+tf = ["aws_egress_only_internet_gateway"]
+cfn = ["AWS::EC2::EgressOnlyInternetGateway"]
+name_attr = {}
+icon = ["shape:internet_gateway"]
+icon_note = "辞書に Egress-only の専用のアイコンが無いので、インターネットゲートウェイのものを使う（名前で見分ける）"
+
+[[type]]
+id = "transit_gateway"
+class = "drawn"
+category = "resource"
+tf = ["aws_ec2_transit_gateway"]
+cfn = ["AWS::EC2::TransitGateway"]
+name_attr = {}
+icon = ["resource_icon:transit_gateway"]
+
+[[type]]
+id = "network_firewall"
+class = "drawn"
+category = "resource"
+tf = ["aws_networkfirewall_firewall"]
+cfn = ["AWS::NetworkFirewall::Firewall"]
+name_attr = { tf = "name", cfn = "FirewallName" }
+icon = ["resource_icon:network_firewall"]
+
+[[type]]
+id = "route53_resolver_endpoint"
+class = "drawn"
+category = "resource"
+tf = ["aws_route53_resolver_endpoint"]
+cfn = ["AWS::Route53Resolver::ResolverEndpoint"]
+name_attr = { tf = "name", cfn = "Name" }
+icon = ["shape:route_53_resolver"]

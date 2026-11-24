@@ -30,7 +30,7 @@ MODULE = "module"
 HANDLED = frozenset({
     "R-ROUTE", "R-VPCE-GATEWAY", "R-LB-LISTENER", "R-LB-TG", "R-APIGW-HTTP", "R-APIGW-REST", "R-LAMBDA-PERMISSION",
     "R-LAMBDA-ESM", "R-SNS-SUBSCRIPTION", "R-SQS-QUEUE-POLICY", "R-S3-NOTIFICATION", "R-BEDROCK-DATA-SOURCE",
-    "R-EVENTS-TARGET", "R-SNS-TOPIC-POLICY", "R-GLUE-TRIGGER", "R-SG",
+    "R-EVENTS-TARGET", "R-SNS-TOPIC-POLICY", "R-GLUE-TRIGGER", "R-SG", "R-TGW-ATTACH", "R-TGW-ROUTE",
 })
 
 
@@ -99,7 +99,7 @@ def build_edges(ctx: Context) -> EdgeResult:
     route, access = relations_route.route_candidates(ctx)
     models: dict[str, dict] = {}
     sg = relations_sg.sg_candidates(ctx, access)
-    cands = route + relations_lb.lb_candidates(ctx) + relations_api.api_candidates(ctx) + relations_events.event_candidates(ctx)
+    cands = route + relations_route.tgw_candidates(ctx) + relations_lb.lb_candidates(ctx) + relations_api.api_candidates(ctx) + relations_events.event_candidates(ctx)
     cands += sg.candidates + synthetic.internet_candidates(ctx, sg)
     cands += attr_edges.attr_candidates(ctx, models) + iam.iam_candidates(ctx, models)
     cands = blackbox(iam.suppress(cands), ctx.node_type)

@@ -141,18 +141,18 @@
    "sha256": "586dda89084088157da7d20227bcda1b89e7bb3b865de3bc52909063bae6062b"
   },
   "cfn/public/ecs-refarch-cloudformation/master.yaml": {
-   "bytes": 35341,
-   "edges": 6,
+   "bytes": 36612,
+   "edges": 10,
    "exit": 0,
-   "nodes": 16,
-   "sha256": "ca4d4b354decf77c3ee0c4cb224c67dca5b917904335333b37b402ca0e6f0b3c"
+   "nodes": 17,
+   "sha256": "413d2b57ddd069ff8ad96a372dfed8f676af97554219f747c79b65fa6fe83e42"
   },
   "cfn/public/sample-multi-source-cdc-iceberg-lakehouse/iac/bootstrap/tf-backend-cf-stack.yml": {
-   "bytes": 3806,
+   "bytes": 2958,
    "edges": 0,
    "exit": 0,
    "nodes": 2,
-   "sha256": "f49f461b00b00b0843580dc162c0471ca25603a30563b9cab6caf853d1139821"
+   "sha256": "aede46aef5f2f47d1cec0352883b8f2c4ceb7241e00b6e95258bb4cd181a1896"
   },
   "cfn/public/serverless-patterns/apigw-lambda-dynamodb/template.yaml": {
    "bytes": 3817,
@@ -190,11 +190,11 @@
    "sha256": "5555715ba9015ee4b94c7c562e5fbc412e07b46bbd63f18d3b4c0d47c72fb87e"
   },
   "tf/combined/edge": {
-   "bytes": 11399,
+   "bytes": 11435,
    "edges": 5,
    "exit": 0,
    "nodes": 11,
-   "sha256": "b52cbda060de626eec2af6bf3d7d074519807f52df733c64b073375d715b9a69"
+   "sha256": "da2bc711fa489dceff74eb497d6025e478e2c576c0afd19122cd836934775e20"
   },
   "tf/combined/rag": {
    "bytes": 20000,
@@ -295,11 +295,11 @@
    "sha256": "22d4e30ee9a3453cacbd3820b3852a80ae6a5c21006bf4866f4c76158832dcd1"
   },
   "tf/plan-only/edge": {
-   "bytes": 10505,
+   "bytes": 10541,
    "edges": 3,
    "exit": 0,
    "nodes": 11,
-   "sha256": "2e342f117cc141b107b8ff3a4fad474a67f40d336a9ddb36dfc26eee135507c6"
+   "sha256": "1373a5a1e3deaf776a65bd1126b78ea6362e1ef884b9e5fae36c625ee69400f6"
   },
   "tf/plan-only/rag": {
    "bytes": 19338,
@@ -344,18 +344,18 @@
    "sha256": "99203f7daff34ca77871f428f3eba43bdcc16fbf20a03f936bebe906098b05b2"
   },
   "tf/public/amazon-ecs-fullstack-app-terraform/Infrastructure": {
-   "bytes": 70353,
-   "edges": 8,
+   "bytes": 71217,
+   "edges": 24,
    "exit": 0,
-   "nodes": 19,
-   "sha256": "81c960c13853c46a3a8ece9cd4e7a4bc3c5aa0ba613ccd888c4d7de3a91f7c23"
+   "nodes": 27,
+   "sha256": "990dd317910bf83ad7d746ed0b5e87438c1bee8eb62292693192d540144fd7fe"
   },
   "tf/public/aws-network-hub-for-terraform": {
-   "bytes": 117073,
-   "edges": 17,
+   "bytes": 150339,
+   "edges": 45,
    "exit": 0,
-   "nodes": 59,
-   "sha256": "658f5ede043025df5047d5ac6870669311c5cee279109f8bbca4cba691c0589b"
+   "nodes": 76,
+   "sha256": "f4414c8d2d766aaa27cf60205b398ed9a493ce4c6eab4bcb937110833973b67f"
   },
   "tf/public/aws-transit-gateway-vpc-terraform": {
    "bytes": 8616,
@@ -365,18 +365,18 @@
    "sha256": "bcc79b902aa790a4211960c06b3fab0ea5e8872acfd8f412ec256a3b7f725f7f"
   },
   "tf/public/hub-and-spoke-with-shared-services-vpc-terraform": {
-   "bytes": 30234,
+   "bytes": 31978,
    "edges": 5,
    "exit": 0,
-   "nodes": 16,
-   "sha256": "90baae9603e6d0bffd7a159f152e5146ea56cc97530e6df6d69bf3e7830a09c8"
+   "nodes": 22,
+   "sha256": "b1d840dea010fa87a825a093dcae15ffe4aefd735ff0f59a2a3d41113a6f0408"
   },
   "tf/public/learn-terraform-aws-asg": {
-   "bytes": 5535,
-   "edges": 1,
+   "bytes": 6668,
+   "edges": 2,
    "exit": 0,
-   "nodes": 3,
-   "sha256": "dd526f441a29bce552fff702a833c6e071d3f843cdae005d49b07fd151af661b"
+   "nodes": 4,
+   "sha256": "952eb32264824f062c35cae054fb26a9978af1e2f936b3ae64903f83fe7efe2c"
   },
   "tf/public/learn-terraform-provision-eks-cluster": {
    "bytes": 30354,
@@ -407,46 +407,46 @@
    "sha256": "37248d01591f4ccaa9c5f68c25a016ee519fa506fd220356166e084fe7054f3b"
   },
   "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/datasources/aurora": {
-   "bytes": 16620,
+   "bytes": 16152,
    "edges": 0,
    "exit": 0,
    "nodes": 2,
-   "sha256": "3189be9add7287cc9f15082173a20e99a05cc36f7efa6c152f161d401c0cbce7"
+   "sha256": "804fc9ea1a39df1fa5e0c85726c15baf645cf14c3f7ef5c27aceca8ab326e7f6"
   },
   "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/datasources/cockroach": {
-   "bytes": 25868,
+   "bytes": 25409,
    "edges": 6,
    "exit": 0,
    "nodes": 4,
-   "sha256": "30ae492643fbce693e035ddeb47b6378a35a46993c7e0a377a04eecf437de6c6"
+   "sha256": "f6e97ef3d76ea468ce76dc0004f3f735cdeb72991a1dc7a01cd8c0c981693e95"
   },
   "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/datasources/data-generator": {
-   "bytes": 10063,
+   "bytes": 9825,
    "edges": 0,
    "exit": 0,
    "nodes": 1,
-   "sha256": "afd760c96b407d74838f2eb7bbc772f55cb3cabb81a0403ebd291f97a76c76ad"
+   "sha256": "8a59ec8a0f9c3760352c17a35e380da68909312004b67b2fb475a00ebc802362"
   },
   "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/datasources/msk": {
-   "bytes": 10651,
+   "bytes": 10206,
    "edges": 0,
    "exit": 0,
    "nodes": 1,
-   "sha256": "92063e5242cb4b7eda72f4b0ebcd36c746eeefe38677980fda5b80d6f68a44a1"
+   "sha256": "8dfb0de2e424a99784344114ec22c086792925aeb9a4bf172be8de9bfd66addf"
   },
   "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/datasources/oracle": {
-   "bytes": 10817,
+   "bytes": 10241,
    "edges": 0,
    "exit": 0,
    "nodes": 1,
-   "sha256": "e9fb96cbe1a61b508a60b405598827a4c5b74a2f7965326285ed7b990580c746"
+   "sha256": "ce4667d1760b1bd01beab41ad672e54e57de7878f9a733d350cb9c614836eddf"
   },
   "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/flink": {
-   "bytes": 11950,
+   "bytes": 11986,
    "edges": 0,
    "exit": 0,
    "nodes": 0,
-   "sha256": "fa1245a512f1cd76bc3e7b3726acabf7eef63ad9c8b112f8dfdc8b12a4f661a3"
+   "sha256": "60f1b2ea19fae0d7afd3620ae558387611adc6561e64dcc52f5f1ea9ef579293"
   },
   "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/foundation/athena": {
    "bytes": 1293,
@@ -456,46 +456,46 @@
    "sha256": "379561d809ce68b6a24ff3196d746c2c9adedc89bb8522c090e039a978f0bac1"
   },
   "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/foundation/buckets": {
-   "bytes": 14328,
+   "bytes": 13294,
    "edges": 0,
    "exit": 0,
    "nodes": 4,
-   "sha256": "28d99012397160f8f89b97fa9ed867cae6570e1acd7333d79fa25eae5df20328"
+   "sha256": "5e26ced3555d56e576712363e1208047f14237b515897f30aa6a660a5ea95fc5"
   },
   "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/foundation/glue-databases": {
-   "bytes": 26635,
+   "bytes": 24387,
    "edges": 0,
    "exit": 0,
    "nodes": 8,
-   "sha256": "5daf0f1278fddf9c67b9004a0f40d2a5de922b020b9f059d9f82290cabf9063d"
+   "sha256": "3ec68b6910470ffdcf3acf8802c869bb0c0052158bba59285f60ad7953a2875e"
   },
   "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/foundation/iam-roles": {
-   "bytes": 7728,
+   "bytes": 7908,
    "edges": 0,
    "exit": 0,
    "nodes": 0,
-   "sha256": "c9067a49d5334da1b33c69a5075dac5c594ed49945d1956e1164d666edd8aed2"
+   "sha256": "2528b9e52997de1b8d5c99b160e6cd2826bc6e3c48b753cb5e076cdcc1a2dcb7"
   },
   "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/foundation/kms-keys": {
-   "bytes": 7089,
+   "bytes": 4823,
    "edges": 0,
    "exit": 0,
    "nodes": 0,
-   "sha256": "46e63c247b47a2fd8c76765190b8b4480ebf25f4212a564934ece2b2eb219562"
+   "sha256": "6bd2189708f0706ebb1ca9db69ddb7846c4dc80060a2dd1468d4663f2b124bf2"
   },
   "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/foundation/network": {
-   "bytes": 13793,
+   "bytes": 13523,
    "edges": 3,
    "exit": 0,
    "nodes": 6,
-   "sha256": "e3e10a900824cd7d7e746737c6cb899d7756d80095b9da0c629cd9e4eeae1a66"
+   "sha256": "68a288c0af20bfa9f2db6ebf52c5839de7f901144a29be27b3960f6548427ef0"
   },
   "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/foundation/s3-tables": {
-   "bytes": 20620,
+   "bytes": 20130,
    "edges": 0,
    "exit": 0,
    "nodes": 0,
-   "sha256": "e08db66bb9dd5f6974d9695b6ad0c65126a12e884f488f56f1774edaf155d25b"
+   "sha256": "ccdc1981bdde245234da69ddca7a1ee750ed4680b1db2c03fa7344f378b62117"
   },
   "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/ingestion-layer/debezium-aurora": {
    "bytes": 6855,
@@ -582,11 +582,11 @@
    "sha256": "aa8f5961cf30c7045587fcdd202acfc74210cc3b420bc57465239056c8a46ccb"
   },
   "tf/public/sample-multi-source-cdc-iceberg-lakehouse/iac/roots/ingestion-layer/msk-ingest": {
-   "bytes": 18785,
+   "bytes": 18100,
    "edges": 0,
    "exit": 0,
    "nodes": 2,
-   "sha256": "e9facd4ba196b5e90704b3d3286695df89c1aecca2652a4c13f602ecb48c222e"
+   "sha256": "c5c65d4cf58acde37fb83abc65406677f7d96ef96aac5878f40bbb19c508f717"
   },
   "tf/public/serverless-patterns/apigw-lambda-dynamodb-terraform": {
    "bytes": 8772,
@@ -645,11 +645,11 @@
    "sha256": "292b3c65797b7bc62a80a5e0a1242cb292bf6f2ddaa2966e61ec273034ea6f25"
   },
   "tf/public/terraform-aws-ecs/examples/fargate": {
-   "bytes": 56335,
-   "edges": 7,
+   "bytes": 54434,
+   "edges": 8,
    "exit": 0,
    "nodes": 17,
-   "sha256": "1156cff1d7f532770a20dcd4a2d4386448ed52d4c51ec1cdb27618e37ca31785"
+   "sha256": "8f2f4f42662e5c5e763c21a0f1d01e27dc9eb53073e69a2fc5f0fda3a68acc70"
   },
   "tf/public/terraform-aws-eks-blueprints/patterns/blue-green-upgrade/eks-blue": {
    "bytes": 17584,
@@ -666,11 +666,11 @@
    "sha256": "a5f335c0ba24d4c247d705e96bd3c38f23e5f19b4b74a30b06e90354ad92dffb"
   },
   "tf/public/terraform-aws-eks-blueprints/patterns/blue-green-upgrade/environment": {
-   "bytes": 10604,
+   "bytes": 10897,
    "edges": 0,
    "exit": 0,
-   "nodes": 7,
-   "sha256": "b93f10efff6ae93d691679ed92ab8b1577dc9c216ea314649aeacfa21ffe4f50"
+   "nodes": 8,
+   "sha256": "dc40f4afef4ae218abed26e005b27b134c557a7eaa6bf7c2f04609b99bdc2f77"
   },
   "tf/public/terraform-aws-eks/examples/eks-managed-node-group": {
    "bytes": 43140,
@@ -694,11 +694,11 @@
    "sha256": "762266a720315e0a472f22ee5d247b8305106667a26d80d01dd473ccf0fc97bf"
   },
   "tf/public/terraform-aws-vpc/examples/complete": {
-   "bytes": 79346,
+   "bytes": 79106,
    "edges": 15,
    "exit": 0,
    "nodes": 32,
-   "sha256": "958c126a2546949c888b452fb9e2e95c0efd3947f9bd080bec32d65eba891d64"
+   "sha256": "eae080226e7aed9d215e8da3692f8c89a1d2d47b2d748ccd126c3da59c785f37"
   },
   "tf/public/terraform-aws-vpc/examples/simple": {
    "bytes": 43051,

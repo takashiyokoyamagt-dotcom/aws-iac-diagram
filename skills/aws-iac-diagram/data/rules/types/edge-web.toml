@@ -40,3 +40,12 @@ tf = ["aws_wafv2_web_acl"]
 cfn = ["AWS::WAFv2::WebACL"]
 name_attr = { tf = "name", cfn = "Name" }
 icon = ["resource_icon:waf"]
+
+[[type]]
+id = "route53_zone"
+class = "drawn"
+category = "resource"
+tf = ["aws_route53_zone"]
+cfn = ["AWS::Route53::HostedZone"]
+name_attr = { tf = "name", cfn = "Name" }
+icon = ["shape:hosted_zone"]

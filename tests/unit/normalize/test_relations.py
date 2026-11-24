@@ -143,6 +143,78 @@ class LbTest(unittest.TestCase):
         self.assertIn(("NORM-RELATION-NOEDGE", "Redirect"), o.diags)
 
 
+    def test_alb_aliases_listener_rule_and_autoscaling_group(self):
+        # aws_alb_* は aws_lb_* の別名。リスナーのルールは listener_arn のリスナーの LB を使う。Auto Scaling グループもターゲット
+        o = Out("tf", [
+            R("aws_alb.alb", "aws_alb", {"name": "alb"}), R("aws_alb_listener.l", "aws_alb_listener"),
+            R("aws_lb_listener_rule.r", "aws_lb_listener_rule"),
+            R("aws_alb_target_group.tg", "aws_alb_target_group", {"protocol": "HTTP", "port": 8080}),
+            R("aws_lb_target_group.asg_tg", "aws_lb_target_group", {"protocol": "HTTP", "port": 80}),
+            R("aws_ecs_service.svc", "aws_ecs_service", {"name": "svc"}),
+            R("aws_autoscaling_group.asg", "aws_autoscaling_group", {"name": "asg"}),
+            R("aws_autoscaling_attachment.a", "aws_autoscaling_attachment"),
+        ], [
+            ref("aws_alb_listener.l", "load_balancer_arn", "aws_alb.alb", "arn"),
+            ref("aws_lb_listener_rule.r", "listener_arn", "aws_alb_listener.l", "arn"),
+            ref("aws_lb_listener_rule.r", "action[0].target_group_arn", "aws_alb_target_group.tg", "arn"),
+            ref("aws_ecs_service.svc", "load_balancer[0].target_group_arn", "aws_alb_target_group.tg", "arn"),
+            ref("aws_alb_listener.l", "default_action[0].target_group_arn", "aws_lb_target_group.asg_tg", "arn"),
+            ref("aws_autoscaling_attachment.a", "lb_target_group_arn", "aws_lb_target_group.asg_tg", "arn"),
+            ref("aws_autoscaling_attachment.a", "autoscaling_group_name", "aws_autoscaling_group.asg", "id"),
+        ])
+        self.assertEqual(o.edges, {"alb/alb->ecs_service/svc": ("request", "HTTP 8080", "derived"),
+                                   "alb/alb->autoscaling_group/asg": ("request", "HTTP 80", "derived")})
+        self.assertEqual(o.cls["aws_lb_listener_rule.r"], ("merged_into", "R-LB-LISTENER", ("alb/alb->ecs_service/svc",)))
+        self.assertEqual(o.cls["aws_alb_listener.l"][2], ("alb/alb->autoscaling_group/asg", "alb/alb->ecs_service/svc"))
+        self.assertEqual(o.cls["aws_autoscaling_attachment.a"], ("merged_into", "R-LB-TG", ("alb/alb->autoscaling_group/asg",)))
+
+    def test_cfn_listener_rule_and_asg_target_group_arns(self):
+        o = Out("cfn", [
+            C("Alb", "AWS::ElasticLoadBalancingV2::LoadBalancer", {"Name": "alb"}),
+            C("Lst", "AWS::ElasticLoadBalancingV2::Listener"), C("Rule", "AWS::ElasticLoadBalancingV2::ListenerRule"),
+            C("Tg", "AWS::ElasticLoadBalancingV2::TargetGroup", {"Protocol": "HTTP", "Port": 80}),
+            C("Asg", "AWS::AutoScaling::AutoScalingGroup", {"AutoScalingGroupName": "asg"}),
+        ], [
+            ref("Lst", "Properties.LoadBalancerArn", "Alb"), ref("Rule", "Properties.ListenerArn", "Lst"),
+            ref("Rule", "Properties.Actions[0].TargetGroupArn", "Tg"), ref("Asg", "Properties.TargetGroupARNs[0]", "Tg"),
+        ])
+        self.assertEqual(o.edges, {"alb/alb->autoscaling_group/asg": ("request", "HTTP 80", "derived")})
+        self.assertEqual(o.cls["Lst"][:2], ("merged_into", "R-LB-LISTENER"))
+        self.assertIn("Rule.Properties.ListenerArn", o.ev["alb/alb->autoscaling_group/asg"]["evidence"])
+
+
+class TgwTest(unittest.TestCase):
+    def test_attachment_route_table_parts_and_routes(self):
+        o = Out("tf", [
+            R("aws_vpc.a", "aws_vpc", tag("a")), R("aws_vpc.b", "aws_vpc", tag("b")),
+            R("aws_ec2_transit_gateway.t", "aws_ec2_transit_gateway", tag("t")),
+            R("aws_ec2_transit_gateway_route_table.rt", "aws_ec2_transit_gateway_route_table"),
+            R("aws_ec2_transit_gateway_vpc_attachment.a", "aws_ec2_transit_gateway_vpc_attachment"),
+            R("aws_ec2_transit_gateway_vpc_attachment.b", "aws_ec2_transit_gateway_vpc_attachment"),
+            R("aws_ec2_transit_gateway_route_table_association.a", "aws_ec2_transit_gateway_route_table_association"),
+            R("aws_ec2_transit_gateway_route.default", "aws_ec2_transit_gateway_route", {"destination_cidr_block": "0.0.0.0/0"}),
+            R("aws_ec2_transit_gateway_route.blackhole", "aws_ec2_transit_gateway_route", {"destination_cidr_block": "10.0.0.0/8", "blackhole": True}),
+        ], [
+            ref("aws_ec2_transit_gateway_route_table.rt", "transit_gateway_id", "aws_ec2_transit_gateway.t", "id"),
+            ref("aws_ec2_transit_gateway_vpc_attachment.a", "vpc_id", "aws_vpc.a", "id"),
+            ref("aws_ec2_transit_gateway_vpc_attachment.a", "transit_gateway_id", "aws_ec2_transit_gateway.t", "id"),
+            ref("aws_ec2_transit_gateway_vpc_attachment.b", "vpc_id", "aws_vpc.b", "id"),
+            ref("aws_ec2_transit_gateway_vpc_attachment.b", "transit_gateway_id", "aws_ec2_transit_gateway.t", "id"),
+            ref("aws_ec2_transit_gateway_route_table_association.a", "transit_gateway_attachment_id", "aws_ec2_transit_gateway_vpc_attachment.a", "id"),
+            ref("aws_ec2_transit_gateway_route_table_association.a", "transit_gateway_route_table_id", "aws_ec2_transit_gateway_route_table.rt", "id"),
+            ref("aws_ec2_transit_gateway_route.default", "transit_gateway_attachment_id", "aws_ec2_transit_gateway_vpc_attachment.b", "id"),
+            ref("aws_ec2_transit_gateway_route.default", "transit_gateway_route_table_id", "aws_ec2_transit_gateway_route_table.rt", "id"),
+            ref("aws_ec2_transit_gateway_route.blackhole", "transit_gateway_route_table_id", "aws_ec2_transit_gateway_route_table.rt", "id"),
+        ])
+        self.assertEqual(o.edges, {"vpc/a->transit_gateway/t": ("network", "", "derived"), "vpc/b->transit_gateway/t": ("network", "", "derived"),
+                                   "transit_gateway/t->vpc/b": ("route", "0.0.0.0/0", "derived")})
+        self.assertEqual(o.cls["aws_ec2_transit_gateway_route_table.rt"], ("merged_into", "M-TGW-ROUTE-TABLE", ("transit_gateway/t",)))
+        self.assertEqual(o.cls["aws_ec2_transit_gateway_route_table_association.a"], ("merged_into", "R-TGW-ATTACH", ("vpc/a->transit_gateway/t",)))
+        self.assertEqual(o.cls["aws_ec2_transit_gateway_route.default"], ("merged_into", "R-TGW-ROUTE", ("transit_gateway/t->vpc/b",)))
+        # 宛先の無いルート（blackhole）は辺ができず、fallback も無いので H-RELATION-NOEDGE
+        self.assertEqual(o.cls["aws_ec2_transit_gateway_route.blackhole"], ("hidden", "H-RELATION-NOEDGE", ()))
+        self.assertIn(("NORM-RELATION-NOEDGE", "aws_ec2_transit_gateway_route.blackhole"), o.diags)
+
 class ApiTest(unittest.TestCase):
     def test_tf_http_api(self):
         o = Out("tf", [

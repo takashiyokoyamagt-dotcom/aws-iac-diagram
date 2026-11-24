@@ -54,7 +54,9 @@ def _cell(root: ET.Element, attrs: dict[str, str], geometry: dict[str, str] | No
             ET.SubElement(g, "mxPoint", {"x": f"{offset[0]:g}", "y": f"{offset[1]:g}", "as": "offset"})
 
 
-def emit(ir: dict, layout: Layout, r: rules.Rules, catalog: dict[str, dict]) -> str:
+def emit(ir: dict, layout: Layout, r: rules.Rules, catalog: dict[str, dict], avoid_edge_labels: bool = False) -> str:
+    """`avoid_edge_labels` が真なら、線の形を選ぶときに、ほかの辺のラベル（1 回目の経路で置いた位置）も避ける。既定の経路で
+    問題が残る図だけに使う（diagram.py の render_view。既定の出力は変えない）。"""
     has_inferred = any(e["confidence"] == "inferred" for e in ir["edges"])
     legend_extra = LEGEND_H + PAD if has_inferred else 0
     width, height = layout.width + 2 * MARGIN, layout.height + 2 * MARGIN + legend_extra
@@ -103,11 +105,28 @@ def emit(ir: dict, layout: Layout, r: rules.Rules, catalog: dict[str, dict]) -> 
             cx = (r[0] + r[2]) / 2
             label_rects[i] = (cx - w / 2, r[3], cx + w / 2, r[3] + LABEL_H + 3)  # 描画では名前が数ピクセル下に出る
     obstacles = list(label_rects.values()) + [r for i, r in rects.items() if by_id.get(i, {}).get("category") != "group"]
+    edge_boxes: dict[str, routes.Rect] = {}
+    first: dict[str, list] = {}  # 1 回目の経路（ラベルをほかの線の通らない側に置くために使う）
+    if avoid_edge_labels:  # 1 回目: 既定の経路と、そのラベルの位置（端を共にしない辺のラベルを、2 回目に避ける）
+        for e in sorted(ir["edges"], key=lambda x: x["id"]):
+            if e["from"] in layout.placed and e["to"] in layout.placed:
+                size = (label_width(e["label"]), LABEL_H) if e.get("label") else None
+                ex, en, sdy, tdy = routes.choose(layout, rects, e["from"], e["to"], label_rects, size)
+                route = routes.path(rects[e["from"]], rects[e["to"]], ex, en, sdy, tdy)
+                first[e["id"]] = route
+                if size is not None:
+                    mid, o = routes._midpoint(route), routes.label_offset(route, *size)
+                    edge_boxes[e["id"]] = (mid[0] + o[0] - size[0] / 2, mid[1] + o[1] - size[1] / 2,
+                                           mid[0] + o[0] + size[0] / 2, mid[1] + o[1] + size[1] / 2)
+    ends = {e["id"]: {e["from"], e["to"]} for e in ir["edges"]}
     for e in sorted(ir["edges"], key=lambda x: x["id"]):
         if e["from"] not in layout.placed or e["to"] not in layout.placed:
             continue
         size = (label_width(e["label"]), LABEL_H) if e.get("label") else None
-        ex, en, sdy, tdy = routes.choose(layout, rects, e["from"], e["to"], label_rects, size)
+        soft = label_rects
+        if edge_boxes:
+            soft = {**label_rects, **{f"edge:{i}": b for i, b in edge_boxes.items() if i != e["id"] and not (ends[i] & ends[e["id"]])}}
+        ex, en, sdy, tdy = routes.choose(layout, rects, e["from"], e["to"], soft, size)
         style = (_EDGE_STYLE + ("dashed=1;" if e["confidence"] == "inferred" else "")
                  + f"exitX={ex[0]:g};exitY={ex[1]:g};exitPerimeter=0;entryX={en[0]:g};entryY={en[1]:g};entryPerimeter=0;"
                  + (f"exitDy={sdy:g};" if sdy else "") + (f"entryDy={tdy:g};" if tdy else ""))
@@ -120,7 +139,11 @@ def emit(ir: dict, layout: Layout, r: rules.Rules, catalog: dict[str, dict]) -> 
 
                 def blocked(o: tuple[float, float]) -> bool:
                     box = (mid[0] + o[0] - size[0] / 2, mid[1] + o[1] - size[1] / 2, mid[0] + o[0] + size[0] / 2, mid[1] + o[1] + size[1] / 2)
-                    return any(min(r[2], box[2]) > max(r[0], box[0]) and min(r[3], box[3]) > max(r[1], box[1]) for r in obstacles)
+                    if any(min(r[2], box[2]) > max(r[0], box[0]) and min(r[3], box[3]) > max(r[1], box[1]) for r in obstacles):
+                        return True
+                    # avoid_edge_labels のときは、端を共にしないほかの辺の線（1 回目の経路）が通る側も避ける
+                    return any(any(routes._hits(a, b, box) for a, b in zip(rt, rt[1:]))
+                               for i, rt in first.items() if i != e["id"] and not (ends[i] & ends[e["id"]]))
                 flipped = (-offset[0], -offset[1])
                 if blocked(offset) and not blocked(flipped):
                     offset = flipped

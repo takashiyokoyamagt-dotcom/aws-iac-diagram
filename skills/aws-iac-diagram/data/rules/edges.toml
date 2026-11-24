@@ -11,7 +11,8 @@ iam_action_default = "none"                               # どの行にも当�
 [[confidence]]
 level = "confirmed"
 basis = "設定の属性からの直接の参照（`aws_dynamodb_table.orders.name`、`!Ref OrdersTable`、`!GetAtt Database.Endpoint.Address`）。モジュールの出力・変数、ネストスタックの出力・パラメータを通っても、元が参照なら確定"
-rules = ["E-ENV-REF", "E-KB-STORAGE", "E-CDN-ORIGIN", "E-CDN-WAF", "E-DNS-ALIAS", "E-GLUE-TARGET", "E-AUTHORIZER"]
+rules = ["E-ENV-REF", "E-KB-STORAGE", "E-CDN-ORIGIN", "E-CDN-WAF", "E-DNS-ALIAS", "E-GLUE-TARGET", "E-AUTHORIZER", "E-PIPELINE",
+         "E-BUILD-ENV", "E-CONTAINER-IMAGE", "E-CODEDEPLOY-TARGET", "E-NOTIFICATION"]
 draw = "実線"
 
 [[confidence]]
@@ -110,6 +111,45 @@ kind = "request"
 confidence = "confirmed"
 
 [[edge]]
+id = "E-PIPELINE"
+input = "CodePipeline のアクションの設定（`stage[].action[].configuration`／`Stages[].Actions[].Configuration`）と、成果物の置き場（`artifact_store[].location`／`ArtifactStore.Location`・`ArtifactStores[].ArtifactStore.Location`）が、ほかのリソースへの参照"
+edge = "パイプライン → アクションの相手（CodeBuild のプロジェクト、CodeDeploy のアプリケーション（デプロイグループは M-CODEDEPLOY-GROUP の統合先）、ECR、S3 など）、パイプライン → 成果物のバケット"
+kind = ""
+kind_by = "kind_by_target"
+kind_note = "参照先の型で決める（下の表）。表に無い型は辺にしない"
+confidence = "confirmed"
+
+[[edge]]
+id = "E-BUILD-ENV"
+input = "CodeBuild のプロジェクトの環境変数（`environment[].environment_variable[].value`／`Environment.EnvironmentVariables[].Value`）の値が、ほかのリソースへの参照"
+edge = "プロジェクト → 参照先（イメージを置く ECR、ビルドが読み書きするテーブルなど）"
+kind = ""
+kind_by = "kind_by_target"
+kind_note = "参照先の型で決める（下の表）。表に無い型は辺にしない"
+confidence = "confirmed"
+
+[[edge]]
+id = "E-CONTAINER-IMAGE"
+input = "ECS のタスク定義のコンテナのイメージ（`container_definitions[].image`／`ContainerDefinitions[].Image`。M-ECS-TASKDEF で統合したサービスの参照として扱う）、Lambda の `image_uri`／`Code.ImageUri` が、ECR のリポジトリへの参照"
+edge = "サービス・関数 → リポジトリ（イメージを取りに行く）"
+kind = "data"
+confidence = "confirmed"
+
+[[edge]]
+id = "E-CODEDEPLOY-TARGET"
+input = "M-CODEDEPLOY-GROUP で統合したデプロイグループの配る先（`ecs_service[].service_name`／`ECSServices[].ServiceName`、`autoscaling_groups`／`AutoScalingGroups`）が、ほかのリソースへの参照。クラスタ（`cluster_name`／`ClusterName`）は辺にしない（M-ECS-CLUSTER でクラスタのサービスすべてに統合されているので、別のサービスへの辺になる）"
+edge = "アプリケーション → ECS サービス・Auto Scaling グループ"
+kind = "request"
+confidence = "confirmed"
+
+[[edge]]
+id = "E-NOTIFICATION"
+input = "通知先の参照: M-CODEDEPLOY-GROUP のデプロイグループの `trigger_configuration[].trigger_target_arn`／`TriggerConfigurations[].TriggerTargetArn`、M-ASG-PARTS のライフサイクルフックの `notification_target_arn`／`NotificationTargetARN`、Auto Scaling グループの `NotificationConfigurations[].TopicARN`"
+edge = "統合先（アプリケーション・Auto Scaling グループ）→ 通知先（SNS など）"
+kind = "event"
+confidence = "confirmed"
+
+[[edge]]
 id = "E-MERGE"
 input = "同じ順序付きの組に、複数の規則から辺ができた"
 edge = "1本にまとめる"
@@ -121,7 +161,7 @@ confidence_note = "強い方"
 
 [[kind_by_target]]
 kind = "data"
-types = ["dynamodb_table", "s3_bucket", "db_instance", "opensearchserverless_collection", "glue_catalog_database"]
+types = ["dynamodb_table", "s3_bucket", "db_instance", "opensearchserverless_collection", "glue_catalog_database", "ecr_repository"]
 
 [[kind_by_target]]
 kind = "event"
@@ -129,7 +169,8 @@ types = ["sns_topic", "sqs_queue", "eventbridge_rule"]
 
 [[kind_by_target]]
 kind = "request"
-types = ["lambda_function", "apigw_*", "bedrock_knowledge_base", "bedrock_model", "sfn_state_machine", "glue_job", "glue_crawler", "cognito_user_pool", "eks_cluster"]
+types = ["lambda_function", "apigw_*", "bedrock_knowledge_base", "bedrock_model", "sfn_state_machine", "glue_job", "glue_crawler", "cognito_user_pool", "eks_cluster",
+         "codebuild_project", "codedeploy_app", "codepipeline"]
 
 [[iam_action_kind]]
 kind = "request"
@@ -162,7 +203,7 @@ actions_note = "`dynamodb:*`（読み書き・ストリームの読み取り）�
 
 [[merge_priority]]
 rank = 1
-rules = ["R-LB-*", "R-APIGW-*", "R-ROUTE", "R-VPCE-GATEWAY"]
+rules = ["R-LB-*", "R-APIGW-*", "R-ROUTE", "R-VPCE-GATEWAY", "R-TGW-*"]
 
 [[merge_priority]]
 rank = 2
@@ -170,7 +211,8 @@ rules = ["R-LAMBDA-ESM", "R-SNS-SUBSCRIPTION", "R-S3-NOTIFICATION", "R-BEDROCK-D
 
 [[merge_priority]]
 rank = 3
-rules = ["E-ENV-REF", "E-KB-STORAGE", "E-BEDROCK-EMBEDDING", "E-CDN-ORIGIN", "E-CDN-WAF", "E-DNS-ALIAS", "E-GLUE-TARGET", "E-AUTHORIZER"]
+rules = ["E-ENV-REF", "E-KB-STORAGE", "E-BEDROCK-EMBEDDING", "E-CDN-ORIGIN", "E-CDN-WAF", "E-DNS-ALIAS", "E-GLUE-TARGET", "E-AUTHORIZER",
+         "E-PIPELINE", "E-BUILD-ENV", "E-CONTAINER-IMAGE", "E-CODEDEPLOY-TARGET", "E-NOTIFICATION"]
 
 [[merge_priority]]
 rank = 4
