@@ -351,11 +351,11 @@
    "sha256": "6348696f47273251c7e0fb5d6bcbccb9ab79d8667afa06018d7c0f1bbfb7fcce"
   },
   "tf/public/aws-network-hub-for-terraform": {
-   "bytes": 150760,
-   "edges": 45,
+   "bytes": 158749,
+   "edges": 51,
    "exit": 0,
    "nodes": 77,
-   "sha256": "64d2847e431461c3fb111fb3229a8c5f53dd3b7e086622c63d07f46073750147"
+   "sha256": "a7fa03511b7a9c232eb12a84eda4fc415d65cd76868bb99d0c01cad69e381145"
   },
   "tf/public/aws-transit-gateway-vpc-terraform": {
    "bytes": 8616,

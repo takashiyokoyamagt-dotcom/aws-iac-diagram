@@ -539,7 +539,7 @@ CRITERIA 1.2: 「正解 IR は、ツールの出力を見る前に、別のサ�
 **7. フェーズ 3 に含めるか後回しにするか。**
 - 含める: 1.1・1.2・1.4（対）・1.8・X1〜X4・6 章の X4／`unknown`／検証、C5（決定論）、診断コード、golden。
 - 後回し（推奨。PLAN のフェーズ 3 行に無い）: **1.3（大きいサンプルの抜き取りと点検表。T17・T19・C05）、1.7（変異テストの道具）、5 章（目視の採点）、`coverage.md`・`result.json`（フェーズ 5・6）**。ただしフェーズ 3 の中で大きいサンプルの X4 と `unknown` の件数、辺の数は報告する。
-- `pruned`・`unevaluated` の参照: フェーズ 3 は使わず件数だけを残す（4.2）。`unevaluated` に実際の関係が入る例（plan JSON の `after_unknown`、`TF-PLAN-EXTRA-REF`）を主セットで測り、辺の再現率が足りなければ、推定の辺として使うことを手順 6 で再検討。
+- `pruned`・`unevaluated` の参照: フェーズ 3 は使わず件数だけを残す（4.2）。`unevaluated` に実際の関係が入る例（plan JSON の `after_unknown`、`TF-PLAN-EXTRA-REF`）を主セットで測り、辺の再現率が足りなければ、推定の辺として使うことを手順 6 で再検討。（2026-11-25: R-ROUTE の宛先だけ、描くノード 1 つに決まるときに `inferred` の辺として使うことにした。network-hub の Network Firewall への経路。`docs/spec/rules/relations.md` の R-ROUTE）
 
 **8. T18 の eks 19.x の要約表の要否ほか。**
 - eks 19.x の要約表: **不要**（推奨）。T18 は補助セットで、基準は X4 と件数の報告だけ（CRITERIA 6 章）。黒箱（`module`）で描く（ir-schema 2 章・CRITERIA 2.3 の A5）。

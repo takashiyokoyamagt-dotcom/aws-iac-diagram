@@ -55,7 +55,7 @@ PINNED = {
     "T18:environment": (23, 8, 0, 0, 2, 3),
     "T18:eks-blue": (26, 10, 0, 0, 2, 19),
     "T18:eks-green": (26, 10, 0, 0, 2, 19),
-    "T19": (198, 77, 45, 0, 0, 22),
+    "T19": (198, 77, 51, 0, 0, 22),
     "T20:datasources/aurora": (44, 2, 0, 0, 8, 11),
     "T20:datasources/cockroach": (41, 4, 6, 6, 3, 5),
     "T20:datasources/data-generator": (38, 1, 0, 0, 0, 0),
@@ -144,7 +144,7 @@ class PublicSamplesTest(unittest.TestCase):
     def test_t19_and_t20_edges(self):
         # 設計草案の 8 章の 6: R-SG の辺の組合せは T19・T20 で増えない（T19 は R-SG の辺 0、T20 は 26 ルートで 6）
         t19 = self.results["T19"]
-        self.assertEqual((t19["edges"], t19["edges_r_sg"], t19["edges_by_kind"]), (45, 0, {"network": 3, "request": 11, "route": 31}))
+        self.assertEqual((t19["edges"], t19["edges_r_sg"], t19["edges_by_kind"]), (51, 0, {"network": 3, "request": 11, "route": 37}))
         t20 = [r for i, r in self.results.items() if i.startswith("T20:")]
         self.assertEqual((sum(r["edges"] for r in t20), sum(r["edges_r_sg"] for r in t20)), (9, 6))
 

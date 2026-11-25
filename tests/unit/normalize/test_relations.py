@@ -9,7 +9,7 @@ from pathlib import Path
 
 # tests/ を import の道に入れる（`python tests/.../test_x.py` で直接動かすときのため。discover では要らないが害は無い）
 sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "support").is_dir())))
-from support.raw_builders import raw_ir, ref, resource
+from support.raw_builders import raw_ir, ref, reference, resource
 from aws_iac_diagram.core import rules as rules_mod  # noqa: E402
 from aws_iac_diagram.normalize import build, edges  # noqa: E402
 from aws_iac_diagram.normalize.relations_base import Candidate, path_keys  # noqa: E402
@@ -91,6 +91,26 @@ class RouteTest(unittest.TestCase):
         self.assertEqual(o.cls["aws_route_table_association.db"], ("hidden", "H-RT-NOROUTE", ()))
         self.assertEqual((o.attrs["subnet/pub"]["access"], o.attrs["subnet/priv"]["access"], o.attrs["subnet/db"]["access"]),
                          ("public", "private", "private"))
+
+    def test_unevaluated_route_target_is_inferred_only_when_unique(self):
+        # 宛先が作るまで決まらない値（Network Firewall の firewall_status から引く vpc_endpoint_id）: 描くノード 1 つに決まれば推定の辺
+        res = [R("aws_vpc.v", "aws_vpc", tag("net")), R("aws_subnet.att", "aws_subnet", tag("att")),
+               R("aws_networkfirewall_firewall.fw", "aws_networkfirewall_firewall", {"name": "fw"}),
+               R("aws_nat_gateway.nat", "aws_nat_gateway", tag("nat")),
+               R("aws_route_table.att", "aws_route_table"), R("aws_route_table_association.att", "aws_route_table_association"),
+               R("aws_route.fw", "aws_route", {"destination_cidr_block": "0.0.0.0/0", "vpc_endpoint_id": {"$unknown": "x"}})]
+        base = [ref("aws_route.fw", "route_table_id", "aws_route_table.att", "id"),
+                ref("aws_route_table_association.att", "route_table_id", "aws_route_table.att", "id"),
+                ref("aws_route_table_association.att", "subnet_id", "aws_subnet.att", "id")]
+        uneval = reference("aws_route.fw", "vpc_endpoint_id", "aws_networkfirewall_firewall.fw", "firewall_status", state="unevaluated")
+        o = Out("tf", res, base + [uneval])
+        self.assertEqual(o.edges, {"subnet/att->network_firewall/fw": ("route", "0.0.0.0/0", "inferred")})
+        # 2 つに当たるなら推測で出さない
+        other = reference("aws_route.fw", "vpc_endpoint_id", "aws_nat_gateway.nat", "id", state="unevaluated")
+        self.assertEqual(Out("tf", res, base + [uneval, other]).edges, {})
+        # 宛先の属性でない位置（タグなど）の unevaluated は見ない
+        tagref = reference("aws_route.fw", "tags.x", "aws_networkfirewall_firewall.fw", "arn", state="unevaluated")
+        self.assertEqual(Out("tf", res, base + [tagref]).edges, {})
 
     def test_cfn_routes_and_gateway_endpoint(self):
         o = Out("cfn", [

@@ -152,7 +152,11 @@ class Index:
         self.by_address: dict[str, Resource] = {r.address: r for r in self.resources}
         self.refs_from: dict[str, list[dict]] = {}
         self.refs_to: dict[str, list[dict]] = {}
+        # unevaluated の参照（from 別）。辺の根拠には使わない。例外は R-ROUTE の推定の辺だけ（relations_route の `_inferred_targets`）
+        self.unevaluated_from: dict[str, list[dict]] = {}
         for ref in raw.get("references", []):
+            if ref.get("state") == "unevaluated":
+                self.unevaluated_from.setdefault(ref["from"], []).append(ref)
             if ref.get("state") != "active":
                 continue
             self.refs_from.setdefault(ref["from"], []).append(ref)

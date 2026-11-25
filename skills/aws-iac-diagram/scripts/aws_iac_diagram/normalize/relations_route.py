@@ -5,6 +5,8 @@
   ルートの宛先（TF のインラインの `route` ブロック、`aws_route`／`AWS::EC2::Route`）の描くノードを集め、サブネット × 宛先の辺を作る。
   ラベルは宛先の CIDR（同じ組に 2 つ以上あれば辞書順に `, ` でつなぐ）。宛先が描くノードでない（ピアリング、TGW など表に無い型）
   ルートは辺にしない。
+  宛先の属性が評価できない（`unevaluated` の参照だけ。Network Firewall の `firewall_status` から引く `vpc_endpoint_id` など）ルートは、
+  その参照が描くノード 1 つに決まるときだけ、確信度 `inferred`（破線）の辺にする（`unevaluated` を使わない設計草案の 4.2 の、唯一の例外）。
 - Gateway 型の VPC エンドポイントの `route_table_ids`／`RouteTableIds` のルートテーブルに関連付いたサブネット → エンドポイントの辺。
   R-ROUTE（関連付け）と R-VPCE-GATEWAY（エンドポイントの属性）の両方の根拠を持つ。ラベルは `<サービス> prefix list`。
 - 辺の候補の `members`（その辺に統合される関係リソース）: ルートテーブル、その関連付け（自分のサブネットの辺だけ）、ルート（自分の宛先の辺）。
@@ -33,6 +35,10 @@ ROUTE = ("aws_route", "AWS::EC2::Route")
 ASSOC = ("aws_route_table_association", "AWS::EC2::SubnetRouteTableAssociation")
 CIDR_KEYS = ("cidr_block", "ipv6_cidr_block", "destination_cidr_block", "destination_ipv6_cidr_block")
 _ROUTE_INDEX = re.compile(r"^route\[(\d+)\]")
+# ルートの宛先の属性（中立キー）。推定の辺（`_inferred_targets`）はこの位置の unevaluated の参照だけを見る
+ROUTE_TARGET_KEYS = tuple((k,) for k in ("vpcendpointid", "gatewayid", "natgatewayid", "transitgatewayid", "egressonlygatewayid",
+                                         "networkinterfaceid", "instanceid", "vpcpeeringconnectionid", "carriergatewayid",
+                                         "localgatewayid", "corenetworkarn"))
 PUBLIC_CIDRS = ("0.0.0.0/0",)
 TGW_ATTACH_RULE = "R-TGW-ATTACH"
 TGW_ROUTE_RULE = "R-TGW-ROUTE"
@@ -68,11 +74,16 @@ def route_candidates(ctx: Context) -> tuple[list[Candidate], dict[str, str]]:
         for t in sorted({x["to"] for x in to_table}):
             if t not in routes:
                 continue
+            found = False
             for ref in ctx.refs(r.address):
                 if path_keys(ref["path"])[:1] == ("routetableid",):
                     continue
                 for nid in ctx.nodes_of(ref["to"]):
+                    found = True
                     routes[t].append((nid, cidr, [ref] + [x for x in to_table if x["to"] == t], r.address))
+            if not found:
+                for nid, ref in _inferred_targets(ctx, r.address):
+                    routes[t].append((nid, cidr, [ref] + [x for x in to_table if x["to"] == t], r.address, "inferred"))
     # ルートテーブル → [(サブネットのノード, 参照, 関連付けの address)]
     subnets: dict[str, list[tuple[str, list[dict], str]]] = {t: [] for t in tables}
     for a in ctx.resources(RULE, ASSOC):
@@ -95,8 +106,9 @@ def route_candidates(ctx: Context) -> tuple[list[Candidate], dict[str, str]]:
     out: list[Candidate] = []
     for t in tables:
         for sub, sub_refs, assoc in subnets[t]:
-            for dest, cidr, refs, route in routes[t]:
-                out.append(make(sub, dest, RULE, "route", cidr, refs + sub_refs, (t, assoc) + ((route,) if route else ())))
+            for dest, cidr, refs, route, *conf in routes[t]:
+                out.append(make(sub, dest, RULE, "route", cidr, refs + sub_refs, (t, assoc) + ((route,) if route else ()),
+                                confidence=conf[0] if conf else "derived"))
             for dest, label, ref in vpce[t]:
                 out.append(make(sub, dest, RULE, "route", "", sub_refs, (t, assoc)))
                 out.append(make(sub, dest, VPCE_RULE, "route", label, [ref]))
@@ -107,6 +119,18 @@ def route_candidates(ctx: Context) -> tuple[list[Candidate], dict[str, str]]:
                      for c in out)
         access[nid] = "public" if public else "private"
     return out, access
+
+
+def _inferred_targets(ctx: Context, route: str) -> list[tuple[str, dict]]:
+    """宛先の属性が評価できない（unevaluated）ルートの、宛先の候補（推定）。宛先の属性（`ROUTE_TARGET_KEYS`）の unevaluated の参照が
+    描くノード 1 つにだけ決まるときだけ返す（例: `vpc_endpoint_id = local.x[...]` が Network Firewall の `firewall_status` を
+    引く）。2 つ以上に当たるなら、推測で全部へ出さない。"""
+    hits: dict[str, dict] = {}
+    for ref in ctx.index.unevaluated_from.get(route, ()):
+        if path_keys(ref["path"])[:1] in ROUTE_TARGET_KEYS:
+            for nid in ctx.nodes_of(ref["to"]):
+                hits.setdefault(nid, ref)
+    return list(hits.items()) if len(hits) == 1 else []
 
 
 def _attachment_ends(ctx: Context, att: str) -> tuple[list[tuple[str, dict]], list[tuple[str, dict]]]:
