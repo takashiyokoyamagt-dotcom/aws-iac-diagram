@@ -42,11 +42,12 @@ def detect(path: Path) -> str:
             return "tf"
         if (path / "manifest.json").is_file():
             return "cfn"
-        raise ValueError(f"フォルダに *.tf も manifest.json（cdk.out）もない: {path}")
+        raise ValueError(f"フォルダに *.tf も manifest.json（cdk.out）もない（テンプレートはファイルを渡す）: {path}")
     if not path.is_file():
         raise ValueError(f"入力が無い: {path}")
     text = path.read_text(encoding="utf-8-sig", errors="replace")
-    if path.suffix == ".json":
+    suffix = path.suffix.lower()
+    if suffix == ".json" or (suffix == ".template" and text.lstrip().startswith("{")):
         try:
             doc = json.loads(text)
         except json.JSONDecodeError as ex:
@@ -56,7 +57,7 @@ def detect(path: Path) -> str:
         if isinstance(doc, dict) and "Resources" in doc:
             return "cfn"
         raise ValueError("JSON だが、plan JSON でも CloudFormation のテンプレートでもない")
-    if path.suffix in (".yaml", ".yml", ".template") and re.search(r"^Resources\s*:", text, re.M):
+    if suffix in (".yaml", ".yml", ".template") and re.search(r"^Resources\s*:", text, re.M):
         return "cfn"
     raise ValueError(f"形式が分からない: {path}")
 
@@ -114,6 +115,14 @@ def main(argv: list[str] | None = None) -> int:
     try:
         fmt = detect(a.input)
         out.mkdir(parents=True, exist_ok=True)
+        # 前回の出力を消す（今回の段階が失敗したのに、古い raw.json・ir.json・図を今回の結果として読まないように）。
+        # 消すのはこのスクリプトが書く名前だけ
+        for old in ("raw.json", "ir.json", "result.json"):
+            (out / old).unlink(missing_ok=True)
+        if (out / "diagram").is_dir():
+            for f in (out / "diagram").iterdir():
+                if f.is_file() and (f.suffix in (".drawio", ".mmd", ".png") or f.name in ("coverage.md", "result.json")):
+                    f.unlink()
     except (ValueError, OSError) as ex:
         result["error"] = str(ex)
         print(f"書けません: {ex}", file=sys.stderr)

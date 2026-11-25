@@ -6,6 +6,8 @@ draw.io の `orthogonalEdgeStyle` は、出入りの辺が決まると、この�
 """
 from __future__ import annotations
 
+import threading
+
 from aws_iac_diagram.layout.grid import LABEL_H, Layout
 
 LABEL_GAP = LABEL_H + 5 # アイコンの下から出入りする線は、名前（真下のラベル）の下から始める（exitDy・entryDy）
@@ -63,14 +65,15 @@ def path(src: Rect, dst: Rect, exit_: tuple[float, float], entry: tuple[float, f
     return [p, (p[0], my), (q[0], my), q]
 
 
-_CTX: dict = {}
+_LOCAL = threading.local()  # 下ごしらえはスレッドごと（並列で呼ばれても混ざらない）
 
 
 def _context(layout: Layout, rects: dict[str, Rect], soft: dict[str, Rect] | None) -> dict:
     """配置ごとの下ごしらえ（直前の配置の分だけ覚える。結果は覚えない計算と同じ）。"""
     key = (id(layout), id(rects), id(soft))
-    if _CTX.get("key") == key:
-        return _CTX
+    ctx = getattr(_LOCAL, "ctx", None)
+    if ctx is not None and ctx["key"] == key and ctx["refs"][0] is layout and ctx["refs"][1] is rects and ctx["refs"][2] is soft:
+        return ctx
     kids: dict[str, list[str]] = {}
     for i, p in layout.placed.items():
         if p.parent is not None:
@@ -91,13 +94,13 @@ def _context(layout: Layout, rects: dict[str, Rect], soft: dict[str, Rect] | Non
             stack.extend(kids.get(c, []))
         descendants[i] = out
     m = SOFT_MARGIN
-    _CTX.clear()
-    _CTX.update(key=key, kids=kids, ancestors=ancestors, descendants=descendants,
+    ctx = dict(key=key, kids=kids, ancestors=ancestors, descendants=descendants,
                 rects=[(i, rects[i]) for i in sorted(rects)],
                 soft=[(r[0] - m, r[1] - m, r[2] + m, r[3] + m) for _, r in sorted((soft or {}).items())],
                 icons=[r for i, r in rects.items() if not kids.get(i)],
                 refs=(layout, rects, soft))  # id が使い回されないよう、元の物を持っておく
-    return _CTX
+    _LOCAL.ctx = ctx
+    return ctx
 
 
 def layout_is_group(layout: Layout, kids: dict[str, list[str]], i: str) -> bool:

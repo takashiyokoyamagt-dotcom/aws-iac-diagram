@@ -94,10 +94,11 @@ def candidates(folder: Path, ir: dict) -> list[tuple[Path, str, str, int, int, s
 
 def diff(before: dict, after: dict) -> dict:
     nb, na = {n["id"]: n for n in before["nodes"]}, {n["id"]: n for n in after["nodes"]}
-    eb, ea = {e["id"] for e in before["edges"]}, {e["id"] for e in after["edges"]}
+    eb, ea = {e["id"]: (e["from"], e["to"]) for e in before["edges"]}, {e["id"]: (e["from"], e["to"]) for e in after["edges"]}
     changed = sorted(i for i in nb.keys() & na.keys() if nb[i] != na[i])
     return {"nodes_removed": sorted(nb.keys() - na.keys()), "nodes_added": sorted(na.keys() - nb.keys()),
-            "edges_removed": sorted(eb - ea), "edges_added": sorted(ea - eb), "nodes_changed": changed}
+            "edges_removed": sorted(eb.keys() - ea.keys()), "edges_added": sorted(ea.keys() - eb.keys()), "nodes_changed": changed,
+            "ends": {i: eb.get(i) or ea.get(i) for i in eb.keys() ^ ea.keys()}}
 
 
 def check_removed(d: dict, node: str, before: dict) -> list[str]:
@@ -108,7 +109,7 @@ def check_removed(d: dict, node: str, before: dict) -> list[str]:
         problems.append(f"ノード {node} が消えない")
     if set(d["nodes_removed"]) - allowed:
         problems.append(f"ほかのノードも消えた: {sorted(set(d['nodes_removed']) - allowed)}")
-    bad = [e for e in d["edges_removed"] if not any(x in e.split("->") for x in allowed)]
+    bad = [e for e in d["edges_removed"] if not set(d["ends"][e]) & allowed]  # 辺の端は id でなく from・to から
     if bad:
         problems.append(f"そのノードに付いていない辺が消えた: {bad}")
     if d["nodes_added"] or d["edges_added"] or d["nodes_changed"]:
@@ -171,7 +172,7 @@ def main() -> int:
     print(f"適用 {len(applied)}、満たす {len(applied) - len(bad)}、満たさない {len(bad)}（{len(rows) - len(applied)} は適用できない）")
     if a.json:
         a.json.write_text(json.dumps(rows, ensure_ascii=False, indent=1) + "\n", encoding="utf-8", newline="\n")
-    return 1 if bad else 0
+    return 1 if bad or len(applied) < 20 else 0  # 適用が少ないのは空振り（2026-11-25 は 20）
 
 
 if __name__ == "__main__":
