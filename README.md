@@ -8,9 +8,25 @@ Terraform（`.tf` と plan JSON）や CloudFormation（YAML／JSON、SAM、CDK �
 - Claude Code（手元、Claude Code on the web、GitHub Actions の `@claude`）
 - GitHub Agentic Workflows（gh-aw。GitHub Actions の Ubuntu ランナー）
 
-**現在は開発中（アルファ）です。** Terraform と CloudFormation を読んで中間表現（IR）にするところまでが動きます（CloudFormation と Terraform のアダプタは、どちらも動きます）。**IR から draw.io・Mermaid・PNG の図を出す処理は、まだありません。** 計画は [PLAN.md](PLAN.md)、開発の経緯と作業を再開するときの手順は [docs/dev-notes/HANDOFF.md](docs/dev-notes/HANDOFF.md) と [docs/dev-notes/WORKLOG.md](docs/dev-notes/WORKLOG.md) にあります。
+**現在は開発中（アルファ）です。** IaC を読み、正規化し、全体図・ネットワーク図・詳細図を `.drawio`・`.mmd`・`.png` で出すところまで動きます（入口は `scripts/make_diagram.py`）。精度と見やすさの評価の数字は下の「評価」にあり、満たしていない基準もそのまま書いています。
 
 非公式のプロジェクトです。AWS、HashiCorp、Anthropic、GitHub、draw.io とは提携しておらず、承認も受けていません。商標はそれぞれの所有者のものです。詳しくは末尾の「ライセンスと注意」を見てください。
+
+## 評価（2026-11-25 時点）
+
+評価基準は [aws-iac-diagram-workspace/evals/CRITERIA.md](aws-iac-diagram-workspace/evals/CRITERIA.md)、測り方と経緯は [docs/dev-notes/WORKLOG.md](docs/dev-notes/WORKLOG.md)。満たしていない基準も隠さずに書きます。読めなかった入力も分母から外していません。
+
+| 項目 | 対象 | 結果 | 基準 |
+|---|---|---|---|
+| 図の正しさ（CRITERIA 1.1） | 自作 5 構成 × Terraform／CloudFormation（10 入力） | ノード・辺・入れ子・名前・網羅の分類がすべて正解 IR と一致。同じ構成の TF 版と CFN 版の図の中身がバイト単位で一致 | 満たす |
+| 図の正しさ（1.2） | 公開サンプルの主セット 12 入力（正解 IR は出力を見ずに別に作成） | ノード・入れ子・名前・網羅 1.000、辺の適合率 1.000、辺の再現率 0.977（足りないのは既知の限界の 1 本） | 満たす |
+| TF／SAM の対（1.4） | 3 組 | 3 組とも一致 | 満たす |
+| 大きいサンプル（1.3） | T17・T19・C05 | 抜き取りの正しさは 3 入力とも全件正しい。点検表の再現率は T17 ノード 20/20・辺 19/20、C05 20/20・20/20、**T19 は 18/21・17/21 で不合格**（IPAM・RAM・ロググループを非表示にしているため） | T19 が未達 |
+| 変異テスト（1.7） | Terraform 12 入力に追加・削除・`count = 0` の 20 変更 | 20/20 が変更の箇所だけに追従 | 満たす（CloudFormation と一部の変更の種類は未対応） |
+| 見やすさ（2.2） | 101 入力・約 180 枚 | 重なり・はみ出し・線の貫通・線とラベルの重なりが 0 件、1 枚のアイコンは 40 以下 | 満たす（線の経路は検査のモデルによる。実際の描画は目視で確認） |
+| 目視の採点（5 章、C6） | 自作 5 構成・主セット・大きいサンプルの約 40 枚 | 平均 3.85〜4.10（採点者による揺れ）。2 点以下の観点が残る（線の交差、NAT への並走線など） | **未達**（平均 4.0 以上かつ 2 点以下なし） |
+| 決定論（3 章） | 101 入力 | 同じ入力から同じ IR・`.drawio`・`.mmd`、Windows と Ubuntu で一致（CI）。PNG は固定した環境で 2 回一致 | 満たす（エージェントを含む 3 回実行は未実施） |
+| 規則表の網羅 | 公開サンプル 64 入力 | 型の分からないリソースが 248 件残る（主に T20 の Lake Formation・MSK・DMS など） | 主セットと大きいサンプルは 0 件 |
 
 ## リポジトリの構成
 
@@ -47,6 +63,14 @@ SKILL は、このリポジトリにタグ（例: `v0.1.0`）を付けて配り�
 | gh-aw | APM（`shared/apm.md` の `packages:`）か `gh skill install` で、タグを指定して読み込む |
 
 gh-aw では、ワークフローの frontmatter で `uv` の実行と、uv が Python とパッケージを取りに行くネットワーク（`pypi.org`、`files.pythonhosted.org`、`github.com`）を許可してください。これは SKILL ではなくワークフロー側の設定です。書き方はまだ確かめていません（PLAN のスパイク 5a）。
+
+### 図を作る
+
+```bash
+uv run "<SKILL のフォルダ>/scripts/make_diagram.py" --input "<.tf のフォルダ・テンプレート・cdk.out・plan JSON>" --out-dir "out/<名前>"
+```
+
+`out/<名前>/result.json` に結果のまとめ、`out/<名前>/diagram/` に図と `coverage.md`（入力の全リソースの分類）が出ます。環境が複数ある Terraform（dev・prod など）は、`--var-file` を付けるまで図を作らず、`result.json` の `questions` に選択肢を書きます。使い方の詳細は SKILL.md にあります。
 
 ### 環境の確認
 
