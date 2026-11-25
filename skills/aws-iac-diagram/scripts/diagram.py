@@ -104,7 +104,7 @@ def write_all(ir: dict, out_dir: Path, r: rules.Rules, catalog: dict, external_o
             problems.append(check_drawio.Problem("over40", view.name, str(icons)))
         if view.name.split("-")[0] == "overview":
             drawn_nodes |= {n["id"] for n in view.nodes}
-            drawn_edges |= {e["id"] for e in view.edges}
+            drawn_edges |= {i for e in view.edges for i in (e["id"], *e.get("bundled", ()))}  # まとめた辺（views.bundle_az）も出たと数える
         stem = out_dir / f"{ir['name']}.{view.name}"
         Path(f"{stem}.drawio").write_text(xml, encoding="utf-8", newline="\n")
         mmd = emit_mermaid.flowchart(view.nodes, view.edges)

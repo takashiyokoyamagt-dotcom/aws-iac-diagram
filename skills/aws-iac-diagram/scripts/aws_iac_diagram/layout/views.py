@@ -8,6 +8,7 @@
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 MAX_ICONS = 40
@@ -121,8 +122,54 @@ def distinct_labels(nodes: list[dict]) -> list[dict]:
     return [n if count[n["label"]] < 2 else {**n, "label": f"{n['label']} ({n['type']})"} for n in nodes]
 
 
+# サブネットの名前の、AZ を表す末尾（`-eu-west-2a`・`-ap-northeast-1c`・`-az2a`・`_az1`）。これを除いた名前が同じなら同じ役割
+_AZ_SUFFIX = re.compile(r"[-_.]?(?:[a-z]{2}(?:-[a-z]+)+-\d[a-z]|az\d*[a-z]?)$")
+
+
+def _role(n: dict) -> str:
+    return _AZ_SUFFIX.sub("", n["label"])
+
+
+def bundle_az(nodes: list[dict], edges: list[dict]) -> list[dict]:
+    """AZ ごとに同じ役割のサブネット（名前から AZ の部分を除くと同じ）から、AZ の外の同じノードへ、同じ kind・ラベル・確信度で
+    出る辺を、図の上で 1 本にまとめる（network-hub の 3 AZ のルート。2026-11-25）。残す辺は名前の順で最初のサブネットのもので、
+    ラベルに `（3 AZ）` を添える。2 つ以上の AZ にそろって出るときだけまとめる。IR の辺は変えない（図に描く辺だけ）。"""
+    by_id = {n["id"]: n for n in nodes}
+
+    def az_of(nid: str) -> str | None:
+        p = by_id[nid]["parent"]
+        while p is not None:
+            if by_id[p]["type"] == "availability_zone":
+                return p
+            p = by_id[p]["parent"]
+        return None
+
+    groups: dict[tuple, list[dict]] = {}
+    for e in edges:
+        src = by_id.get(e["from"])
+        if src is None or src["type"] != "subnet" or e["to"] not in by_id:
+            continue
+        az = az_of(e["from"])
+        if az is None or az_of(e["to"]) is not None:
+            continue
+        key = (by_id[az]["parent"], _role(src), e["to"], e["kind"], e["label"], e["confidence"])
+        groups.setdefault(key, []).append(e)
+    drop: set[str] = set()
+    keep_as: dict[str, dict] = {}
+    for es in groups.values():
+        azs = {az_of(e["from"]) for e in es}
+        if len(azs) < 2 or len(azs) != len(es):
+            continue  # 1 つの AZ に同じ役割が 2 つある（名前から役割が決まらない）なら、まとめない
+        keep, *rest = sorted(es, key=lambda x: x["from"])
+        drop |= {e["id"] for e in rest}
+        label = f"{keep['label']}（{len(azs)} AZ）" if keep["label"] else f"（{len(azs)} AZ）"
+        keep_as[keep["id"]] = {"label": label, "bundled": sorted(e["id"] for e in rest)}
+    return [{**e, **keep_as[e["id"]]} if e["id"] in keep_as else e for e in edges if e["id"] not in drop]
+
+
 def build(ir: dict) -> list[View]:
     ir = {**ir, "nodes": distinct_labels(ir["nodes"])}
+    ir = {**ir, "edges": bundle_az(ir["nodes"], ir["edges"])}
     by_id = {n["id"]: n for n in ir["nodes"]}
     groups = {n["id"] for n in ir["nodes"] if n["category"] == "group"}
 

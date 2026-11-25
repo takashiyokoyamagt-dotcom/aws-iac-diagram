@@ -36,7 +36,8 @@ class ViewsTest(unittest.TestCase):
                 self.assertNotEqual({e["id"] for e in got["detail"].edges} | {n["id"] for n in got["detail"].nodes},
                                     {e["id"] for e in ir["edges"]} | {n["id"] for n in ir["nodes"]}, f.name)
             self.assertEqual({n["id"] for n in got["overview"].nodes}, {n["id"] for n in ir["nodes"]}, f.name)
-            self.assertEqual({e["id"] for e in got["overview"].edges}, {e["id"] for e in ir["edges"]}, f.name)
+            # AZ ごとの同じ辺は 1 本にまとめる（bundled に残りの id）。まとめた辺も出たと数える
+            self.assertEqual({i for e in got["overview"].edges for i in (e["id"], *e.get("bundled", ()))}, {e["id"] for e in ir["edges"]}, f.name)
             groups = {n["id"] for n in ir["nodes"] if n["category"] == "group"}
             if groups:
                 self.assertLessEqual(groups, {n["id"] for n in got["network"].nodes}, f.name)
@@ -58,6 +59,21 @@ class ViewsTest(unittest.TestCase):
         ir = {"nodes": [node("a"), node("b"), node("c")], "edges": [edge("a", "b", "route"), edge("a", "c")]}
         detail = next(v for v in views.build(ir) if v.name == "detail")
         self.assertEqual([e["id"] for e in detail.edges], ["a->c"])
+
+    def test_bundle_az(self):
+        g = lambda i, p, t: node(i, p, "group", t)  # noqa: E731
+        nodes = [g("v", None, "vpc"), g("az1", "v", "availability_zone"), g("az2", "v", "availability_zone"),
+                 {**g("s1", "az1", "subnet"), "label": "app-eu-west-2a"}, {**g("s2", "az2", "subnet"), "label": "app-eu-west-2b"},
+                 {**g("d1", "az1", "subnet"), "label": "db-az1"}, node("igw", "v", type_="internet_gateway"), node("n1", "s1", type_="nat_gateway")]
+        r = lambda a, b, label="0.0.0.0/0": {**edge(a, b, "route"), "label": label}  # noqa: E731
+        edges = [r("s1", "igw"), r("s2", "igw"), r("d1", "igw"), r("s2", "n1")]
+        got = {e["id"]: e for e in views.bundle_az(nodes, edges)}
+        # 同じ役割（app）の 2 AZ → igw は 1 本。役割の違う db、AZ の中の n1 への辺はそのまま
+        self.assertEqual(sorted(got), ["d1->igw", "s1->igw", "s2->n1"])
+        self.assertEqual((got["s1->igw"]["label"], got["s1->igw"]["bundled"]), ("0.0.0.0/0（2 AZ）", ["s2->igw"]))
+        self.assertNotIn("bundled", got["d1->igw"])
+        # ラベルが違えばまとめない
+        self.assertEqual(len(views.bundle_az(nodes, [r("s1", "igw"), r("s2", "igw", "::/0")])), 2)
 
     def test_split_keeps_every_edge_and_the_limit(self):
         nodes = [node("v", category="group", type_="vpc"), node("w", category="group", type_="vpc")]
